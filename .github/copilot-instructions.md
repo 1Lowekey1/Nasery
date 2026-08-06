@@ -1,14 +1,13 @@
 # GitHub Copilot Repository Instructions
 
 ## Tech Stack Declarations
-- Frontend: Vue 3 (Composition API, `<script setup>`, TypeScript/JavaScript)
-- Backend: Laravel (Strictly typed API controllers, returning JsonResponse or API Resources)
+- Frontend: Nuxt 3 (Composition API, `<script setup>`, TypeScript/JavaScript)
+- Backend: Laravel (Strictly typed API controllers, JsonResponse)
 - Database: PostgreSQL via Supabase
 
 ## Copilot Behavioral Directives
-- Always generate thin controllers. Business logic should live in Services, Actions, or Models.
-- When generating Laravel controllers, always generate a corresponding FormRequest class snippet for validation.
+- Follow Nuxt 3 conventions: rely on auto-imports for Vue reactivity and Nuxt composables.
+- Prefer `$fetch` over `axios` for Nuxt frontend code snippets.
+- Always generate thin Laravel controllers accompanied by a dedicated FormRequest validation class.
 - Always include explicit data types for function arguments and return types.
-- Never suggest storing raw API keys or secrets in frontend components; always pull from environment variables (`import.meta.env`).
-- Prioritize clean, readable, single-responsibility functions over dense, complex code blocks.
-- Avoid introducing external libraries unless natively supported by the project ecosystem.
+- Never hardcode API keys or secret tokens; always use `useRuntimeConfig()` in Nuxt or `env()` in Laravel.
