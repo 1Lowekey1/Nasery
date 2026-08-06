@@ -1,0 +1,14 @@
+# Local Environment Files
+backend/.env
+backend/.env.production
+frontend/.env
+frontend/.env.local
+
+# Dependency Folders
+backend/vendor/
+frontend/node_modules/
+
+# IDE & OS Files
+.DS_Store
+.idea/
+.vscode/
