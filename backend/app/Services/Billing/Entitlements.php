@@ -108,13 +108,15 @@ class Entitlements
     {
         $orgId = $organization instanceof Organization ? $organization->id : $organization;
 
-        return $this->db->system('billing.usage', fn () => [
-            'active_event_limit' => DB::table('events')->where('organization_id', $orgId)->whereNull('deleted_at')->whereIn('status', ['draft', 'published', 'ongoing'])->count(),
-            'total_event_limit' => DB::table('events')->where('organization_id', $orgId)->whereNull('deleted_at')->count(),
-            'staff_limit' => DB::table('organization_members')->where('organization_id', $orgId)->whereNull('deleted_at')
-                ->where('is_owner', false)->whereIn('status', ['active', 'invited'])->count(),
-            'custom_event_type_limit' => DB::table('event_types')->where('organization_id', $orgId)->whereNull('deleted_at')->count(),
-            'price_option_limit' => DB::table('organization_price_options')->where('organization_id', $orgId)->whereNull('deleted_at')->count(),
-        ]);
+        // One round trip: Supabase is far enough away that five separate counts are noticeable.
+        $row = $this->db->system('billing.usage', fn () => DB::query()->selectRaw(<<<'SQL'
+            (select count(*) from events where organization_id = ? and deleted_at is null and status in ('draft', 'published', 'ongoing')) as active_event_limit,
+            (select count(*) from events where organization_id = ? and deleted_at is null) as total_event_limit,
+            (select count(*) from organization_members where organization_id = ? and deleted_at is null and is_owner = false and status in ('active', 'invited')) as staff_limit,
+            (select count(*) from event_types where organization_id = ? and deleted_at is null) as custom_event_type_limit,
+            (select count(*) from organization_price_options where organization_id = ? and deleted_at is null) as price_option_limit
+            SQL, array_fill(0, 5, $orgId))->first());
+
+        return array_map('intval', (array) $row);
     }
 }

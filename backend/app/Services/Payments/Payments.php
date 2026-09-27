@@ -223,7 +223,7 @@ class Payments
 
         if ($payment->status === PaymentStatus::Pending && $this->gateway->mode() !== 'fake') {
             try {
-                if ($this->gateway->status($payment->paymongo_payment_intent_id) === 'paid') {
+                if ($this->gatewayFor($payment)->status($payment->paymongo_payment_intent_id) === 'paid') {
                     $payment = $this->settle($payment->paymongo_payment_intent_id, 'return') ?? $payment;
                 }
             } catch (Throwable $e) {
@@ -302,7 +302,7 @@ class Payments
 
         $feeCents = $this->feeToReturn($payment, $category, $amountCents, $remaining);
         $reason = $category->label().': '.$reason;
-        $reference = $this->gateway->refund($payment->paymongo_payment_intent_id, $amountCents, $reason);
+        $reference = $this->gatewayFor($payment)->refund($payment->paymongo_payment_intent_id, $amountCents, $reason);
 
         $this->db->system('payments.refund', function () use ($payment, $amountCents, $feeCents, $reason, $by, $reference, $cancelTickets) {
             $this->checkRefundTotalNow();
@@ -330,6 +330,17 @@ class Payments
         $this->alerts->refunded($payment, $amountCents / 100, $cancelTickets);
         $this->audit->record('payment.refunded', $payment, new: ['amount' => $amountCents / 100, 'category' => $category->value, 'fee_returned' => $feeCents / 100, 'reference' => $reference, 'cancel_tickets' => $cancelTickets],
             organizationId: $orgId, reason: $reason);
+    }
+
+    /**
+     * Payments made through the demo checkout (seeded demo data, or before
+     * PayMongo keys were added) are never known to PayMongo.
+     */
+    private function gatewayFor(Payment $payment): PaymentGateway
+    {
+        $intent = (string) $payment->paymongo_payment_intent_id;
+
+        return str_starts_with($intent, 'fake_pi_') || str_starts_with($intent, 'demo_') ? new FakeGateway : $this->gateway;
     }
 
     /**

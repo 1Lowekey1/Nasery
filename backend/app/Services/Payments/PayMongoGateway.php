@@ -36,7 +36,7 @@ class PayMongoGateway implements PaymentGateway
             'payment_method_types' => config('services.paymongo.payment_methods'),
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
-            'description' => 'NaSeRy tickets',
+            'description' => $payment->subscription_invoice_id ? 'NaSeRy plan' : 'NaSeRy tickets',
             'reference_number' => $payment->id,
             'billing' => array_filter(['name' => $buyer['name'], 'email' => $buyer['email'], 'phone' => $buyer['phone']]),
             'send_email_receipt' => false,

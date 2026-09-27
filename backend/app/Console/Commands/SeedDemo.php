@@ -26,6 +26,8 @@ use App\Services\Inquiries\OrganizerInquiries;
 use App\Services\Organizations\ApprovalWorkflow;
 use App\Services\Organizations\OfferedServices;
 use App\Services\Organizations\OrganizerOnboarding;
+use App\Services\Payments\FakeGateway;
+use App\Services\Payments\PaymentGateway;
 use App\Services\Payments\Payments;
 use App\Services\Payments\RefundReason;
 use App\Services\Preparation\PreparationManager;
@@ -76,6 +78,8 @@ class SeedDemo extends Command
     {
         $this->ctx = $ctx;
         $this->domain = (string) config('nasery.demo.domain');
+        // Demo sales never touch PayMongo, even when test keys are set.
+        app()->instance(PaymentGateway::class, new FakeGateway);
         $password = (string) config('nasery.demo.password');
 
         if (strlen($password) < 8) {

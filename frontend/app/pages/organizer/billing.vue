@@ -26,7 +26,7 @@
 			</section>
 
 			<!-- Confirm a plan choice with the exact numbers -->
-			<section v-if="pendingQuote" class="mt-5 rounded-2xl border-2 border-primary-300 bg-white p-5" aria-live="polite">
+			<section v-if="pendingQuote" ref="quotePanel" class="mt-5 rounded-2xl border-2 border-primary-300 bg-white p-5" aria-live="polite">
 				<p class="font-bold text-gray-900">{{ pendingQuote.plan }} ({{ pendingQuote.cycle }})</p>
 				<p class="mt-1 text-sm text-gray-700">{{ pendingQuote.message }}</p>
 				<dl v-if="pendingQuote.kind === 'upgrade'" class="mt-3 grid max-w-sm grid-cols-2 gap-1 text-sm">
@@ -113,7 +113,7 @@
 					</button>
 				</article>
 			</div>
-			<p class="mt-2 text-xs text-gray-500">Demo mode: payments use NaSeRy's test checkout, no real money moves. Upgrades start right away with the unused days of your current plan credited; downgrades start when your current period ends.</p>
+			<p class="mt-2 text-xs text-gray-500"><template v-if="data.payment_mode === 'fake'">Demo mode: payments use NaSeRy's test checkout, no real money moves. </template><template v-else-if="data.payment_mode === 'test'">Test mode: payments go through PayMongo's test checkout, no real money moves. </template>Upgrades start right away with the unused days of your current plan credited; downgrades start when your current period ends.</p>
 
 			<!-- Invoices -->
 			<section class="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
@@ -156,6 +156,7 @@ const busy = ref(false)
 const checking = ref(false)
 const cycle = ref<'monthly' | 'yearly'>('monthly')
 const pendingQuote = ref<PlanQuote | null>(null)
+const quotePanel = ref<HTMLElement | null>(null)
 
 async function orgId() {
 	return (organization.value ?? await fetchOrganization())!.id
@@ -193,6 +194,8 @@ async function choose(plan: string, c: 'monthly' | 'yearly') {
 		pendingQuote.value = await billing.quote(await orgId(), plan, c)
 		// Renewals are already explained by the banner: go straight to payment.
 		if (pendingQuote.value.kind === 'renewal') await confirmChoice()
+		// The plan cards sit below the fold: bring the quote into view.
+		else nextTick(() => quotePanel.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
 	} catch (e) {
 		error.value = authMessage(e)
 	} finally {

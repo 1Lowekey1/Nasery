@@ -55,6 +55,7 @@ export interface BillingOverview {
   features: { key: string, label: string, included: boolean }[]
   plans: PlanInfo[]
   open_invoice: (Invoice & { plan_slug: string, due_by: string }) | null
+  payment_mode: 'fake' | 'test' | 'live'
   scheduled_change: { plan: string, plan_slug: string, cycle: 'monthly' | 'yearly', starts_at: string, price: number } | null
   invoices: Invoice[]
   can: { manage: boolean }

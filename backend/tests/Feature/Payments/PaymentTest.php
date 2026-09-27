@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Payments;
 
-use App\Models\Organization;
 use App\Models\User;
 use App\Services\Payments\PaymentGateway;
 use Illuminate\Http\Client\Request as HttpRequest;
@@ -257,6 +256,21 @@ class PaymentTest extends TestCase
         $this->app->forgetInstance(PaymentGateway::class);
         $this->expectException(RuntimeException::class);
         $this->app->make(PaymentGateway::class);
+    }
+
+    public function test_demo_checkout_payments_stay_off_paymongo_after_keys_are_added(): void
+    {
+        [$org, $owner, $event, $tier] = $this->paidEvent();
+        $res = $this->buy(User::factory()->create(), $event, $tier)->json('data');
+        $this->demo($res['checkout']['checkout_url'], 'paid')->assertOk();
+
+        // Keys added later: refunding that sale must not call PayMongo (it never saw it).
+        $this->useTestMode();
+        Http::fake();
+        $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/events/{$event}/payments/{$res['checkout']['payment_id']}/refund",
+            ['amount' => 400, 'category' => 'organizer_fault', 'reason' => 'Demo sale refund', 'cancel_tickets' => false], $this->key())->assertOk();
+        Http::assertNothingSent();
+        $this->assertStringStartsWith('fake_ref_', DB::table('payment_refunds')->where('payment_id', $res['checkout']['payment_id'])->value('external_reference'));
     }
 
     public function test_test_mode_refuses_live_keys(): void

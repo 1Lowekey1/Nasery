@@ -20,7 +20,7 @@ class PlatformFee
      * (proportional to price, leftover centavos to the first ticket).
      *
      * @param  Collection<int, object>  $tickets  id + purchased_price
-     * @return array<string, string>  fee per ticket id
+     * @return array<string, string> fee per ticket id
      */
     public function apply(Payment $payment, Collection $tickets): array
     {

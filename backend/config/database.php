@@ -101,7 +101,15 @@ return [
             'application_name' => 'nasery-app',
             // One round trip per statement instead of prepare+execute (and safe
             // behind Supabase's pooler). PDO still escapes every binding.
-            'options' => [PDO::ATTR_EMULATE_PREPARES => (bool) env('DB_EMULATE_PREPARES', true)],
+            // DB_PERSISTENT (set only by server/apache-local.conf) reuses open
+            // connections across requests: connecting to Supabase costs ~1s.
+            // Safe with RLS because every role/claim is SET LOCAL (ends with
+            // its transaction), and PHP rolls back unfinished transactions.
+            'options' => [
+                PDO::ATTR_EMULATE_PREPARES => (bool) env('DB_EMULATE_PREPARES', true),
+                // A string key keeps this pool apart from 'system' (same login, other search_path).
+                PDO::ATTR_PERSISTENT => filter_var(env('DB_PERSISTENT', false), FILTER_VALIDATE_BOOL) ? 'nasery-app' : false,
+            ],
         ],
 
         /*
@@ -127,7 +135,10 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
             'timezone' => 'UTC',
             'application_name' => 'nasery-system',
-            'options' => [PDO::ATTR_EMULATE_PREPARES => (bool) env('DB_EMULATE_PREPARES', true)],
+            'options' => [
+                PDO::ATTR_EMULATE_PREPARES => (bool) env('DB_EMULATE_PREPARES', true),
+                PDO::ATTR_PERSISTENT => filter_var(env('DB_PERSISTENT', false), FILTER_VALIDATE_BOOL) ? 'nasery-system' : false,
+            ],
         ],
 
         'sqlsrv' => [

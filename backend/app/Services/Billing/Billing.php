@@ -63,6 +63,7 @@ class Billing
     public function overview(User $user, Organization $org): array
     {
         $current = $this->entitlements->for($org);
+        $used = $this->entitlements->usage($org);
 
         return $this->db->system('billing.overview', fn () => [
             'plan' => $this->presentPlan($current['plan']),
@@ -70,12 +71,13 @@ class Billing
             'usage' => collect(Entitlements::LIMITS)->map(fn ($meta, $key) => $meta + [
                 'key' => $key,
                 'limit' => $current['limits'][$key] ?? null,
-                'used' => $key === 'analytics_history_months' ? null : ($this->entitlements->usage($org)[$key] ?? 0),
+                'used' => $key === 'analytics_history_months' ? null : ($used[$key] ?? 0),
             ])->values(),
             'features' => collect(Entitlements::FEATURES)->map(fn ($label, $key) => ['key' => $key, 'label' => $label, 'included' => $current['features'][$key] ?? false])->values(),
             'plans' => $this->plans(),
             'open_invoice' => $this->openInvoice($org->id),
             'scheduled_change' => $this->scheduled($org->id),
+            'payment_mode' => $this->gateway->mode(),
             'invoices' => DB::table('subscription_invoices as i')->join('subscriptions as s', 's.id', '=', 'i.subscription_id')
                 ->join('plans as p', 'p.id', '=', 's.plan_id')->where('s.organization_id', $org->id)->whereIn('i.status', ['issued', 'paid'])
                 ->orderByDesc('i.created_at')->limit(24)

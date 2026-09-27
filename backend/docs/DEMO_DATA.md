@@ -59,3 +59,28 @@ Tests: `tests/Feature/Admin/AdminTeamTest.php`:
 - invite; can't sign in until a password is set; the e-mail says who added them; sets password, signs in and is verified
 - duplicate e-mail refused; resend cooldown; disable / enable
 - the first admin can be invited from the server
+
+## Payments: PayMongo test mode
+With `PAYMONGO_DRIVER=test` and PayMongo **test** keys in `backend/.env`, ticket purchases and plan upgrades go through PayMongo's real checkout page (test mode, no real money). Pay with **GCash → "Authorize Test Payment"**, or a PayMongo test card from their docs.
+- No webhook is needed for the demo: when the buyer returns to NaSeRy, the return page asks PayMongo and confirms the payment. (Closing the PayMongo tab before returning leaves the payment pending; the ticket hold then expires.)
+- The seeded demo sales always use the built-in demo checkout, and refunding them never calls PayMongo.
+- Bad venue internet? Set `PAYMONGO_DRIVER=fake` and restart the API: the built-in demo checkout takes over.
+- Tests never call PayMongo (`phpunit.xml` pins `PAYMONGO_DRIVER=fake`).
+- PHP 8.5.10 needs a CA bundle to reach PayMongo: `curl.cainfo` / `openssl.cafile` in `C:\xampp\php8.5.10\php.ini` point to `extras\ssl\cacert-….pem` (from https://curl.se/ca/cacert.pem).
+
+## Running the API for the presentation (Apache, free)
+`php artisan serve` answers one request at a time; every page sends several. For the demo, run the API on XAMPP's Apache instead: a **separate** Apache process with PHP 8.5.10 on the same address (`localhost:8000`), so XAMPP's own Apache and PHP 8.2 are untouched.
+
+From `backend/`:
+```
+C:\xampp\apache\bin\httpd.exe -f "%CD%\server\apache-local.conf"
+```
+(Stop with Ctrl+C. Don't run `artisan serve` at the same time: both want port 8000.) Also keep `php artisan queue:work` running for e-mails.
+
+What it does (all in `server/apache-local.conf`, nothing in `.env`):
+- 16 worker threads answer requests in parallel.
+- Reuses Supabase connections between requests (`DB_PERSISTENT`): connecting to Supabase (Tokyo) costs ~1 s. Safe with RLS: every role/claim is `SET LOCAL`.
+- Rate-limit counters in local files (`CACHE_STORE=file`). Sessions stay in the database (signed-in devices, "sign out everywhere").
+- Logs: `storage/logs/apache-error.log`, `apache-access.log` (last number = microseconds).
+
+The first request on each thread is slower (it opens the connection): click through the demo once before presenting.
