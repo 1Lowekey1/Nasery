@@ -1,59 +1,46 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# NaSeRy API (Laravel 13)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Backend for NaSeRy: Nuxt PWA → this Laravel API (`/api/v1`) → Supabase PostgreSQL.
 
-## About Laravel
+## Requirements
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **PHP 8.5.10** (pinned in `composer.json`; any other version fails at boot with a clear
+  message) with `pdo_pgsql`, `openssl`, `mbstring`, `intl`, `sodium`, `curl`, `zip`, `fileinfo`
+- Composer 2
+- PostgreSQL client tools (`pg_dump`) for backups
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Using PHP 8.5.10 without changing your machine's default PHP
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+The machine default can stay on another version (e.g. XAMPP's 8.2). NaSeRy picks 8.5.10 via:
 
-## Learning Laravel
+- **VS Code**: open `Nasery.code-workspace`; its terminals get `C:\xampp\php8.5.10` first on PATH,
+  so plain `php` / `composer` work there.
+- **Any other terminal** (inside `backend/`): use the wrappers `.\php` and `.\composer`
+  (they call `C:\xampp\php8.5.10\php.exe`; override with the `NASERY_PHP` / `NASERY_COMPOSER`
+  environment variables if yours is elsewhere).
+- Hosting (Railway or other) must also run PHP 8.5.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Setup
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+.\composer install
+cp .env.example .env         # fill DB_* with your Supabase credentials
+.\php artisan key:generate
+.\php artisan migrate        # only creates the private `laravel` schema tables
+.\php artisan nasery:doctor  # must pass
+.\php artisan serve
+```
 
-## Laravel Sponsors
+The domain schema is managed as raw SQL in `database/supabase/` (see its README).
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Everyday commands
 
-### Premium Partners
+| Command | Purpose |
+|---|---|
+| `.\composer test` | pg_dump backup, then the test suite (rolled-back transactions) |
+| `.\php artisan nasery:doctor` | Verify PHP, schema version and RLS security setup |
+| `.\php artisan nasery:db:backup --reason=x` | Backup to `storage/backups/` |
+| `.\php artisan queue:work` | Process queued jobs (mail, notifications, exports) |
+| `.\php vendor/bin/pint` | Code style |
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Architecture and conventions: `docs/B0_FOUNDATION.md`.

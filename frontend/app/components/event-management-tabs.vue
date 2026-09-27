@@ -1,310 +1,55 @@
 <template>
 	<div>
-		<div class="mb-6 flex items-start justify-between">
+		<div class="mb-6 flex flex-wrap items-start justify-between gap-3">
 			<div>
 				<h1 class="text-2xl font-extrabold text-gray-900">Event Creation &amp; Management</h1>
 				<p class="mt-1 text-gray-500">Configure events and manage ticket tiers</p>
 			</div>
-			<button type="button"
+			<button v-if="canCreate" type="button"
 				class="flex shrink-0 items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1f4a54]"
-				@click="openCreateEvent">
+				@click="showCreateEvent = true">
 				<IconBase name="plus" class="h-4 w-4" /> Create New Event
 			</button>
 		</div>
 
-		<div class="mb-6 inline-flex rounded-xl bg-gray-100 p-1">
-			<NuxtLink v-for="tab in tabs" :key="tab.label" :to="tab.to"
-				class="rounded-lg px-4 py-2 text-sm font-semibold"
+		<div class="mb-6 inline-flex max-w-full overflow-x-auto rounded-xl bg-gray-100 p-1">
+			<NuxtLink v-for="tab in tabs" :key="tab.label" :to="{ path: tab.to, query: tab.keepEvent && route.query.event ? { event: route.query.event } : {} }"
+				class="shrink-0 rounded-lg px-4 py-2 text-sm font-semibold"
 				:class="route.path === tab.to ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'">
 				{{ tab.label }}
 			</NuxtLink>
 		</div>
 
-		<Transition name="fade">
-			<div v-if="showCreateEvent" class="fixed inset-0 z-40 bg-gray-900/40" @click="closeCreateEvent" />
-		</Transition>
-
-		<Transition name="slide">
-			<div v-if="showCreateEvent"
-				class="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col bg-white shadow-2xl">
-				<div class="flex shrink-0 items-start justify-between border-b border-gray-200 px-6 py-5">
-					<div class="flex items-start gap-3">
-						<div
-							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#285F6b] text-white">
-							<IconBase name="calendar" class="h-5 w-5" />
-						</div>
-						<div>
-							<h2 class="text-base font-bold text-gray-900">Create New Event</h2>
-							<p class="text-sm text-gray-500">Fill in your event details below</p>
-						</div>
-					</div>
-					<button type="button" class="text-gray-400 hover:text-gray-600" @click="closeCreateEvent">
-						<IconBase name="x" class="h-5 w-5" />
-					</button>
-				</div>
-
-				<div class="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-gray-200 px-6 scroll-smooth">
-					<button v-for="tab in createTabs" :key="tab.label" :ref="(el) => setTabRef(tab.label, el)" type="button"
-						class="flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-semibold"
-						:class="activeCreateTab === tab.label ? 'border-primary-700 text-primary-700' : 'border-transparent text-gray-400 hover:text-gray-600'"
-						@click="activeCreateTab = tab.label">
-						<IconBase :name="tab.icon" class="h-4 w-4" /> {{ tab.label }}
-					</button>
-				</div>
-
-				<div class="flex-1 overflow-y-auto px-6 py-5">
-					<template v-if="activeCreateTab === 'Basic Info'">
-						<FormsLabel text="Event Name" required />
-						<FormsTextField v-model="eventForm.name" placeholder="e.g. Santos-Reyes Wedding Reception" />
-
-						<label class="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">Event Type <span
-								class="text-rose-500">*</span></label>
-						<select v-model="eventForm.eventType"
-							class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15">
-							<option value="" disabled>Select event type</option>
-							<option v-for="type in eventTypes" :key="type" :value="type">{{ type }}</option>
-						</select>
-
-						<label class="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">Description</label>
-						<textarea v-model="eventForm.description" rows="4"
-							placeholder="Describe the event — theme, programme, highlights, and any special notes..."
-							class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15" />
-
-						<div class="mt-4 grid grid-cols-2 gap-3">
-							<div>
-								<FormsLabel text="Event Date" required />
-								<FormsTextField v-model="eventForm.eventDate" type="date" />
-							</div>
-							<div>
-								<label class="mb-1.5 block text-sm font-semibold text-gray-700">Status</label>
-								<select v-model="eventForm.status"
-									class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15">
-									<option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
-								</select>
-							</div>
-						</div>
-
-						<div class="mt-4 grid grid-cols-2 gap-3">
-							<div>
-								<FormsLabel text="Start Time" />
-								<FormsTextField v-model="eventForm.startTime" type="time" />
-							</div>
-							<div>
-								<FormsLabel text="End Time" />
-								<FormsTextField v-model="eventForm.endTime" type="time" />
-							</div>
-						</div>
-
-						<div class="mt-4">
-							<FormsLabel text="Tags" hint="(comma-separated)" />
-							<FormsTextField v-model="eventForm.tags" icon="tag" placeholder="e.g. Wedding, Garden, Outdoor" />
-						</div>
-					</template>
-
-					<template v-else-if="activeCreateTab === 'Venue'">
-						<FormsLabel text="Venue Name" />
-						<FormsTextField v-model="eventForm.venueName" placeholder="e.g. Manila Convention Center" />
-
-						<div class="mt-4">
-							<FormsLabel text="Address" />
-							<FormsTextField v-model="eventForm.address" placeholder="Street address" />
-						</div>
-
-						<div class="mt-4 grid grid-cols-2 gap-3">
-							<div>
-								<FormsLabel text="City / Area" />
-								<FormsTextField v-model="eventForm.city" placeholder="e.g. Makati" />
-							</div>
-							<div>
-								<FormsLabel text="Capacity" />
-								<FormsTextField v-model="eventForm.capacity" type="number" placeholder="e.g. 500" />
-							</div>
-						</div>
-					</template>
-
-					<template v-else-if="activeCreateTab === 'Ticket Zones'">
-						<div class="space-y-3">
-							<div v-for="(zone, i) in eventForm.zones" :key="i"
-								class="rounded-xl border border-gray-200 p-3">
-								<div class="mb-2 flex items-center justify-between">
-									<span class="text-xs font-semibold text-gray-400">Zone {{ i + 1 }}</span>
-									<button v-if="eventForm.zones.length > 1" type="button"
-										class="text-gray-400 hover:text-red-500" @click="removeZone(i)">
-										<IconBase name="trash" class="h-4 w-4" />
-									</button>
-								</div>
-								<FormsTextField v-model="zone.name" placeholder="Zone name (e.g. VIP Front Row)"
-									class="mb-2" />
-								<div class="grid grid-cols-2 gap-2">
-									<FormsTextField v-model="zone.price" placeholder="Price (₱)" />
-									<FormsTextField v-model="zone.capacity" type="number" placeholder="Capacity" />
-								</div>
-							</div>
-						</div>
-						<button type="button" class="mt-3 flex items-center gap-1 text-sm font-semibold text-primary-700"
-							@click="addZone">
-							<IconBase name="plus" class="h-3.5 w-3.5" /> Add Zone
-						</button>
-					</template>
-
-					<template v-else-if="activeCreateTab === 'Settings'">
-						<label class="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3.5">
-							<span class="text-sm font-medium text-gray-700">Allow public registration</span>
-							<input v-model="eventForm.publicRegistration" type="checkbox"
-								class="h-4 w-4 accent-primary-700" />
-						</label>
-						<label
-							class="mt-3 flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3.5">
-							<span class="text-sm font-medium text-gray-700">Require approval before confirming</span>
-							<input v-model="eventForm.requireApproval" type="checkbox"
-								class="h-4 w-4 accent-primary-700" />
-						</label>
-						<label
-							class="mt-3 flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3.5">
-							<span class="text-sm font-medium text-gray-700">Enable waitlist when sold out</span>
-							<input v-model="eventForm.waitlistEnabled" type="checkbox"
-								class="h-4 w-4 accent-primary-700" />
-						</label>
-					</template>
-
-					<template v-else-if="activeCreateTab === 'Contact'">
-						<FormsLabel text="Contact Person" />
-						<FormsTextField v-model="eventForm.contactName" placeholder="e.g. Maria Santos" />
-
-						<div class="mt-4">
-							<FormsLabel text="Email" />
-							<FormsTextField v-model="eventForm.contactEmail" type="email" placeholder="you@example.com" />
-						</div>
-
-						<div class="mt-4">
-							<FormsLabel text="Phone" />
-							<FormsTextField v-model="eventForm.contactPhone" type="tel" placeholder="+63 9XX XXX XXXX" />
-						</div>
-					</template>
-				</div>
-
-				<div class="shrink-0 border-t border-gray-200 px-6 py-4">
-					<button type="button"
-						class="flex w-full items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1f4a54]"
-						@click="goNext">
-						{{ isLastTab ? 'Create Event' : 'Next' }}
-						<IconBase name="arrow-right" class="h-4 w-4" />
-					</button>
-				</div>
-			</div>
-		</Transition>
+		<OrganizerEventForm v-if="showCreateEvent && organization" :organization-id="organization.id"
+			@close="showCreateEvent = false" @saved="onCreated" />
 	</div>
 </template>
 
-<style scoped>
-.slide-enter-active,
-.slide-leave-active {
-	transition: transform 0.25s ease;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-	transform: translateX(100%);
-}
-
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
-}
-</style>
-
 <script setup lang="ts">
+import type { OrganizerEvent } from '~/composables/useEvents'
+
 const route = useRoute()
+const { organization, fetchOrganization } = useOrganization()
 
 const tabs = [
-	{ label: 'All Events', to: '/organizer/eventmanagement/all-events' },
-	{ label: 'Event Details', to: '/organizer/eventmanagement/event-details' },
-	{ label: 'Ticket Tiers', to: '/organizer/eventmanagement/ticket-tiers' },
-	{ label: 'Preparation Tracking', to: '/organizer/eventmanagement/preparation-tracking' }
+	{ label: 'All Events', to: '/organizer/eventmanagement/all-events', keepEvent: false },
+	{ label: 'Event Details', to: '/organizer/eventmanagement/event-details', keepEvent: true },
+	{ label: 'Ticket Tiers', to: '/organizer/eventmanagement/ticket-tiers', keepEvent: true },
+	{ label: 'Preparation Tracking', to: '/organizer/eventmanagement/preparation-tracking', keepEvent: true },
 ]
-
-const createTabs = [
-	{ label: 'Basic Info', icon: 'file-text' },
-	{ label: 'Venue', icon: 'map-pin' },
-	{ label: 'Ticket Zones', icon: 'tag' },
-	{ label: 'Settings', icon: 'settings' },
-	{ label: 'Contact', icon: 'phone' }
-]
-
-const eventTypes = ['Wedding', 'Corporate', 'Conference', 'Birthday', 'Social', 'Charity', 'Other']
-const statusOptions = ['Draft', 'Published']
 
 const showCreateEvent = ref(false)
-const activeCreateTab = ref(createTabs[0].label)
-
-const tabButtonRefs = {}
-function setTabRef(label, el) {
-	if (el) tabButtonRefs[label] = el
-}
-
-watch(activeCreateTab, (label) => {
-	nextTick(() => {
-		tabButtonRefs[label]?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' })
-	})
+const canCreate = computed(() => {
+	const m = organization.value?.my_membership
+	return Boolean(m && (m.is_owner || m.permissions.includes('event.create')))
 })
 
-function emptyEventForm() {
-	return {
-		name: '',
-		eventType: '',
-		description: '',
-		eventDate: '',
-		status: 'Draft',
-		startTime: '',
-		endTime: '',
-		tags: '',
-		venueName: '',
-		address: '',
-		city: '',
-		capacity: '',
-		zones: [{ name: '', price: '', capacity: '' }],
-		publicRegistration: true,
-		requireApproval: false,
-		waitlistEnabled: false,
-		contactName: '',
-		contactEmail: '',
-		contactPhone: ''
-	}
-}
-
-const eventForm = reactive(emptyEventForm())
-
-function openCreateEvent() {
-	Object.assign(eventForm, emptyEventForm())
-	activeCreateTab.value = createTabs[0].label
-	showCreateEvent.value = true
-}
-
-function closeCreateEvent() {
+async function onCreated(event: OrganizerEvent) {
 	showCreateEvent.value = false
+	await navigateTo(`/organizer/eventmanagement/event-details?event=${event.id}`)
 }
 
-function addZone() {
-	eventForm.zones.push({ name: '', price: '', capacity: '' })
-}
-
-function removeZone(index: number) {
-	eventForm.zones.splice(index, 1)
-}
-
-const currentTabIndex = computed(() => createTabs.findIndex((t) => t.label === activeCreateTab.value))
-const isLastTab = computed(() => currentTabIndex.value === createTabs.length - 1)
-
-function goNext() {
-	if (isLastTab.value) {
-		closeCreateEvent()
-	} else {
-		activeCreateTab.value = createTabs[currentTabIndex.value + 1].label
-	}
-}
+onMounted(() => {
+	if (!organization.value) fetchOrganization()
+})
 </script>

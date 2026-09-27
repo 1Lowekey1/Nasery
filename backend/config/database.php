@@ -60,7 +60,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -80,7 +80,7 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -97,6 +97,37 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'timezone' => 'UTC',
+            'application_name' => 'nasery-app',
+            // One round trip per statement instead of prepare+execute (and safe
+            // behind Supabase's pooler). PDO still escapes every binding.
+            'options' => [PDO::ATTR_EMULATE_PREPARES => (bool) env('DB_EMULATE_PREPARES', true)],
+        ],
+
+        /*
+        | Separate physical connection (same credentials) for Laravel's own
+        | infrastructure tables in the private `laravel` schema: migrations,
+        | cache, sessions, jobs, idempotency keys. It never switches into the
+        | nasery_app role, so queueing a job or touching the cache from inside
+        | an RLS-scoped request transaction keeps working, and a rolled-back
+        | business transaction cannot take infrastructure writes with it.
+        */
+        'system' => [
+            'driver' => 'pgsql',
+            'url' => env('DB_URL'),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '5432'),
+            'database' => env('DB_DATABASE', 'laravel'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'laravel',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'timezone' => 'UTC',
+            'application_name' => 'nasery-system',
+            'options' => [PDO::ATTR_EMULATE_PREPARES => (bool) env('DB_EMULATE_PREPARES', true)],
         ],
 
         'sqlsrv' => [
@@ -127,8 +158,10 @@ return [
     |
     */
 
+    // Laravel migrations only manage the private `laravel` schema. The domain
+    // schema is raw SQL in database/supabase/ (see README there).
     'migrations' => [
-        'table' => 'migrations',
+        'table' => 'laravel.migrations',
         'update_date_on_publish' => true,
     ],
 

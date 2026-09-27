@@ -1,121 +1,82 @@
 <template>
 	<div>
-		<div class="rounded-2xl border border-gray-200 bg-white p-6">
-			<h2 class="text-base font-bold text-gray-900">
-				Event Attendance Trends
-			</h2>
-			<p class="mb-8 text-sm text-gray-500">
-				Monthly attendance vs no-show rates
-			</p>
+		<Alert v-if="error" type="danger" :text="error" />
+		<div v-if="loading && !data" class="py-12 text-center text-sm text-gray-500">Loading event performance…</div>
+		<div v-else-if="data && !data.events" class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">Event results are for team members with access to every event.</div>
 
-			<div class="flex">
-				<div class="mr-3 flex flex-col justify-between text-xs text-gray-400"
-					:style="{ height: chartHeight + 'px' }">
-					<span v-for="tick in yTicks" :key="tick">{{ tick }}</span>
-				</div>
-
-				<div class="relative flex-1">
-					<div class="absolute inset-0 flex flex-col justify-between">
-						<div v-for="tick in yTicks" :key="tick" class="border-t border-dashed border-gray-200" />
-					</div>
-
-					<svg class="relative block w-full" :style="{ height: chartHeight + 'px' }" viewBox="0 0 1000 300"
-						preserveAspectRatio="none">
-						<polyline :points="attendancePoints" fill="none" stroke="#0ca30c" stroke-width="2"
-							vector-effect="non-scaling-stroke" />
-						<polyline :points="noShowPoints" fill="none" stroke="#d03b3b" stroke-width="2"
-							vector-effect="non-scaling-stroke" />
-						<circle v-for="(v, i) in attendance" :key="'a' + i" :cx="xFor(i)" :cy="yFor(v)" r="5"
-							fill="#0ca30c" />
-						<circle v-for="(v, i) in noShow" :key="'n' + i" :cx="xFor(i)" :cy="yFor(v)" r="5"
-							fill="#d03b3b" />
-					</svg>
+		<template v-if="data?.events">
+			<div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+				<div v-for="tile in tiles" :key="tile.label" class="rounded-2xl border border-gray-200 bg-white p-5">
+					<p class="text-sm text-gray-500">{{ tile.label }}</p>
+					<p class="mt-1 text-2xl font-extrabold text-gray-900">{{ tile.value }}</p>
+					<p class="mt-1 text-xs text-gray-500">{{ tile.hint }}</p>
 				</div>
 			</div>
 
-			<div class="mt-2 flex pl-8">
-				<div v-for="month in months" :key="month" class="flex-1 text-center text-sm text-gray-600">{{ month }}
-				</div>
-			</div>
+			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
+				<h2 class="text-base font-bold text-gray-900">Attendance vs no-shows</h2>
+				<p class="mb-4 text-sm text-gray-500">Share of ticket holders who came or didn't, for completed events · {{ data.period.group === 'quarter' ? 'quarterly' : 'monthly' }}</p>
+				<AnalyticsLineChart :labels="labels" :series="[
+					{ name: 'Attendance rate', color: SERIES[0], values: data.events.trend.map(t => t.attendance_rate) },
+					{ name: 'No-show rate', color: SERIES[1], values: data.events.trend.map(t => t.no_show_rate) },
+				]" caption="Periods without a completed event are left blank." />
+			</section>
 
-			<div class="mt-4 flex items-center justify-center gap-6 text-sm text-gray-700">
-				<span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-[#0ca30c]" />
-					Attendance %
-				</span>
-				<span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-[#d03b3b]" />
-					No-Show %
-				</span>
-			</div>
-		</div>
+			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
+				<h2 class="text-base font-bold text-gray-900">Events and guests</h2>
+				<p class="mb-4 text-sm text-gray-500">Completed events and everyone who came (checked in + walk-ins)</p>
+				<AnalyticsBarChart :labels="labels" :series="[
+					{ name: 'Events held', color: SERIES[0], values: data.events.trend.map(t => t.events) },
+				]" :caption="`${data.events.totals.attendees} guests in total across ${data.events.totals.completed} events.`" />
+			</section>
 
-		<div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
-			<div class="rounded-2xl border border-gray-200 bg-white p-5">
-				<div class="text-sm font-semibold text-gray-900">
-					Avg Capacity Fill
+			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
+				<h2 class="text-base font-bold text-gray-900">Event results</h2>
+				<p v-if="!data.events.events.length" class="mt-3 text-sm text-gray-400">No events in this period.</p>
+				<div v-else class="mt-3 overflow-x-auto">
+					<table class="w-full min-w-[720px] text-left text-sm">
+						<thead class="text-xs uppercase text-gray-400">
+							<tr><th class="py-2">Event</th><th class="text-right">Attended</th><th class="text-right">Rate</th><th class="text-right">No-shows</th><th class="text-right">Walk-ins</th><th class="text-right">Capacity fill</th><th v-if="data.can.revenue" class="text-right">Revenue</th><th /></tr>
+						</thead>
+						<tbody class="divide-y divide-gray-100">
+							<tr v-for="e in data.events.events" :key="e.id">
+								<td class="py-2.5"><p class="font-medium text-gray-900">{{ e.name }}</p><p class="text-xs text-gray-500">{{ new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }} · {{ e.status === 'completed' ? 'completed' : 'upcoming' }}</p></td>
+								<td class="text-right">{{ e.attended }} / {{ e.expected }}</td>
+								<td class="text-right font-semibold">{{ pctLabel(e.attendance_rate) }}</td>
+								<td class="text-right">{{ e.no_shows ?? '—' }}</td>
+								<td class="text-right">{{ e.walk_ins }}</td>
+								<td class="text-right">{{ pctLabel(e.capacity_fill) }}</td>
+								<td v-if="data.can.revenue" class="text-right">{{ formatPeso(e.revenue ?? '0') || '₱0' }}</td>
+								<td class="text-right"><NuxtLink :to="`/organizer/ticketattendance/attendance-report?event=${e.id}`" class="text-xs font-semibold text-primary-700">Report</NuxtLink></td>
+							</tr>
+						</tbody>
+					</table>
 				</div>
-				<div class="text-sm text-gray-400">
-					Per event
-				</div>
-				<div class="mt-3 text-3xl font-extrabold text-gray-900">
-					{{ avgAttendance }}%
-				</div>
-			</div>
-			<div class="rounded-2xl border border-gray-200 bg-white p-5">
-				<div class="text-sm font-semibold text-gray-900">
-					Avg No-Show Rate
-				</div>
-				<div class="text-sm text-gray-400">
-					Per event
-				</div>
-				<div class="mt-3 text-3xl font-extrabold text-gray-900">
-					{{ avgNoShow }}%
-				</div>
-			</div>
-			<div class="rounded-2xl border border-gray-200 bg-white p-5">
-				<div class="text-sm font-semibold text-gray-900">
-					Total Events
-				</div>
-				<div class="text-sm text-gray-400">
-					Organized
-				</div>
-				<div class="mt-3 text-3xl font-extrabold text-gray-900">
-					{{ totalEvents }}
-				</div>
-			</div>
-		</div>
+			</section>
+		</template>
 	</div>
 </template>
 
 <script setup lang="ts">
+import { pctLabel } from '~/composables/useAnalytics'
+
 definePageMeta({ layout: 'dashboard' })
 
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May']
-const attendance = [88, 90, 93, 90, 95]
-const noShow = [12, 10, 8, 11, 10]
-const totalEvents = 24
+// Categorical slots 1–2 of the validated reference palette (colorblind-safe pair).
+const SERIES = ['#2a78d6', '#eb6834']
+const { data, error, loading } = useAnalyticsOverview()
+const labels = computed(() => data.value?.events?.trend.map(t => t.label) ?? [])
 
-const chartHeight = 300
-const yTicks = [100, 75, 50, 25, 0]
-
-function xFor(i: number) {
-	return (i / (months.length - 1)) * 1000
-}
-
-function yFor(value: number) {
-	return 300 - (value / 100) * 300
-}
-
-function toPoints(values: number[]) {
-	return values.map((v, i) => `${xFor(i)},${yFor(v)}`).join(' ')
-}
-
-const attendancePoints = toPoints(attendance)
-const noShowPoints = toPoints(noShow)
-
-function average(values: number[]) {
-	return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10
-}
-
-const avgAttendance = average(attendance)
-const avgNoShow = average(noShow)
+const tiles = computed(() => {
+	const t = data.value!.events!.totals
+	return [
+		{ label: 'Events held', value: t.completed, hint: `${t.upcoming} more in this period` },
+		{ label: 'Avg attendance', value: pctLabel(t.average_attendance_rate), hint: 'of ticket holders came' },
+		{ label: 'No-show rate', value: pctLabel(t.no_show_rate), hint: 'never checked in' },
+		{ label: 'Walk-in share', value: pctLabel(t.walk_in_share), hint: `of ${t.attendees} guests welcomed` },
+		t.revenue !== undefined
+			? { label: 'Revenue', value: formatPeso(t.revenue) || '₱0', hint: 'online net + door cash' }
+			: { label: 'Capacity fill', value: pctLabel(t.average_capacity_fill), hint: 'average, events with a limit' },
+	]
+})
 </script>

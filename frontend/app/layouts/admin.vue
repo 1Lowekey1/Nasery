@@ -41,10 +41,10 @@
 					<div class="mb-3 flex items-center gap-3">
 						<div
 							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-900 text-sm font-bold text-white">
-							SA
+							{{ initials }}
 						</div>
 						<div class="min-w-0">
-							<div class="truncate text-sm font-semibold text-gray-900">NaSeRy HQ</div>
+							<div class="truncate text-sm font-semibold text-gray-900">{{ fullName }}</div>
 							<div class="text-xs text-gray-400">
 								Super Admin
 							</div>
@@ -52,7 +52,7 @@
 					</div>
 					<button type="button"
 						class="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-700"
-						@click="navigateTo('/login')">
+						@click="signOut">
 						<IconBase name="log-out" class="h-4 w-4" />
 						Sign out
 					</button>
@@ -71,11 +71,7 @@
 						<div class="text-sm font-bold text-gray-900">{{ activeItem.label }}</div>
 					</div>
 				</div>
-				<span
-					class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-					<span class="h-1.5 w-1.5 rounded-full bg-green-500" />
-					System Online
-				</span>
+				<NotificationBell />
 			</header>
 
 			<main class="flex-1 overflow-y-auto p-6">
@@ -86,19 +82,33 @@
 </template>
 
 <script setup lang="ts">
+const { logout, user } = useAuth()
+const fullName = computed(() => user.value ? `${user.value.first_name} ${user.value.last_name}` : 'NaSeRy admin')
+const initials = computed(() => user.value ? `${user.value.first_name[0] ?? ''}${user.value.last_name[0] ?? ''}`.toUpperCase() : 'SA')
+
+async function signOut() {
+	await logout()
+	await navigateTo('/login')
+}
+
 const route = useRoute()
 
 const sidebarOpen = ref(true)
 
 const navItems = [
 	{ label: 'Overview', to: '/admin/overview', icon: 'home' },
-	{ label: 'Organizers', to: '/admin/organizers', icon: 'users' },
+	{ label: 'Organizers', to: '/admin/organizers', icon: 'briefcase' },
+	{ label: 'Workspace Access', to: '/admin/access', icon: 'user-plus' },
+	{ label: 'Moderation', to: '/admin/moderation', icon: 'star' },
 	{ label: 'Events', to: '/admin/events', icon: 'calendar' },
+	{ label: 'Users', to: '/admin/users', icon: 'users' },
 	{ label: 'Analytics', to: '/admin/analytics', icon: 'chart-bar' },
-	{ label: 'Activity Log', to: '/admin/activity-log', icon: 'clipboard-list' }
+	{ label: 'Activity Log', to: '/admin/activity-log', icon: 'clipboard-list' },
+	{ label: 'Settings', to: '/admin/settings', icon: 'settings' },
+	{ label: 'Admin Team', to: '/admin/team', icon: 'award' }
 ]
 
-const activeItem = computed(
-	() => [...navItems].reverse().find((item) => route.path.startsWith(item.to)) ?? navItems[0]
-)
+const activeItem = computed(() => route.path === '/notifications'
+	? { label: 'Notifications' }
+	: [...navItems].reverse().find((item) => route.path.startsWith(item.to)) ?? navItems[0]!)
 </script>

@@ -4,6 +4,11 @@ backend/.env.production
 frontend/.env
 frontend/.env.local
 
+# Extra Files
+.claude
+backend/CLAUDE.md
+backend/AGENTS.md
+
 # Dependency Folders
 backend/vendor/
 frontend/node_modules/

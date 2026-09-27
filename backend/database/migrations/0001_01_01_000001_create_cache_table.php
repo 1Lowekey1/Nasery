@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    protected $connection = 'system';
+
     /**
      * Run the migrations.
      */
@@ -14,13 +16,13 @@ return new class extends Migration
         Schema::create('cache', function (Blueprint $table) {
             $table->string('key')->primary();
             $table->mediumText('value');
-            $table->integer('expiration')->index();
+            $table->bigInteger('expiration')->index();
         });
 
         Schema::create('cache_locks', function (Blueprint $table) {
             $table->string('key')->primary();
             $table->string('owner');
-            $table->integer('expiration')->index();
+            $table->bigInteger('expiration')->index();
         });
     }
 

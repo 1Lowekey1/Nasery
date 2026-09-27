@@ -1,98 +1,94 @@
 <template>
 	<div>
-		<div class="rounded-2xl border border-gray-200 bg-white p-6">
-			<h2 class="text-base font-bold text-gray-900">
-				Bid Performance Trends
-			</h2>
-			<p class="mb-8 text-sm text-gray-500">
-				Monthly bid submission and win/loss rates
-			</p>
+		<Alert v-if="error" type="danger" :text="error" />
+		<div v-if="loading && !data" class="py-12 text-center text-sm text-gray-500">Loading bid performance…</div>
+		<div v-else-if="data && !data.bids" class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">Bid performance is for team members who handle inquiries or quotations.</div>
 
-			<div class="flex">
-				<div class="mr-3 flex flex-col justify-between text-xs text-gray-400"
-					:style="{ height: chartHeight + 'px' }">
-					<span v-for="tick in yTicks" :key="tick">{{ tick }}</span>
-				</div>
-
-				<div class="relative flex-1">
-					<div class="absolute inset-0 flex flex-col justify-between">
-						<div v-for="tick in yTicks" :key="tick" class="border-t border-dashed border-gray-200" />
-					</div>
-
-					<div class="relative flex items-end justify-between px-2" :style="{ height: chartHeight + 'px' }">
-						<div v-for="(month, i) in months" :key="month"
-							class="flex flex-1 items-end justify-center gap-1.5">
-							<div class="w-6 rounded-t bg-[#0ca30c]" :style="{ height: barHeight(won[i]) + 'px' }" />
-							<div class="w-6 rounded-t bg-[#d03b3b]" :style="{ height: barHeight(lost[i]) + 'px' }" />
-						</div>
-					</div>
+		<template v-if="data?.bids">
+			<div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+				<div v-for="tile in tiles" :key="tile.label" class="rounded-2xl border border-gray-200 bg-white p-5">
+					<p class="text-sm text-gray-500">{{ tile.label }}</p>
+					<p class="mt-1 text-2xl font-extrabold text-gray-900">{{ tile.value }}</p>
+					<p class="mt-1 text-xs text-gray-500">{{ tile.hint }}</p>
 				</div>
 			</div>
 
-			<div class="mt-2 flex pl-8">
-				<div v-for="month in months" :key="month" class="flex-1 text-center text-sm text-gray-600">{{ month }}
-				</div>
-			</div>
+			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
+				<h2 class="text-base font-bold text-gray-900">Bids won and lost</h2>
+				<p class="mb-4 text-sm text-gray-500">{{ data.period.group === 'quarter' ? 'Quarterly' : 'Monthly' }}, by the date the client decided</p>
+				<AnalyticsBarChart :labels="labels" :series="[
+					{ name: 'Won', color: SERIES[0], values: data.bids.trend.map(t => t.won) },
+					{ name: 'Lost', color: SERIES[1], values: data.bids.trend.map(t => t.lost) },
+				]" />
+			</section>
 
-			<div class="mt-4 flex items-center justify-center gap-6 text-sm text-gray-700">
-				<span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-[#0ca30c]" /> Won
-					Bids
-				</span>
-				<span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-sm bg-[#d03b3b]" /> Lost
-					Bids
-				</span>
-			</div>
-		</div>
+			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
+				<h2 class="text-base font-bold text-gray-900">Inquiries received and quotations sent</h2>
+				<p class="mb-4 text-sm text-gray-500">How much demand reached you, and how much of it you bid on</p>
+				<AnalyticsBarChart :labels="labels" :series="[
+					{ name: 'Inquiries received', color: SERIES[0], values: data.bids.trend.map(t => t.inquiries) },
+					{ name: 'Quotations sent', color: SERIES[1], values: data.bids.trend.map(t => t.bids) },
+				]" />
+			</section>
 
-		<div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
-			<div class="rounded-2xl border border-gray-200 bg-white p-5">
-				<div class="text-sm font-semibold text-gray-900">
-					Total Bids
+			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
+				<h2 class="text-base font-bold text-gray-900">Bid history</h2>
+				<p v-if="!data.bids.history.length" class="mt-3 text-sm text-gray-400">No inquiries in this period.</p>
+				<div v-else class="mt-3 overflow-x-auto">
+					<table class="w-full min-w-[620px] text-left text-sm">
+						<thead class="text-xs uppercase text-gray-400"><tr><th class="py-2">Inquiry</th><th>Received</th><th>Your quote</th><th>Answered in</th><th>Outcome</th></tr></thead>
+						<tbody class="divide-y divide-gray-100">
+							<tr v-for="h in data.bids.history" :key="h.inquiry_id">
+								<td class="py-2.5"><p class="font-medium text-gray-900">{{ h.event_type }}</p><p class="text-xs text-gray-500">{{ h.guest_count ?? '?' }} guests<template v-if="h.requested_date"> · {{ new Date(h.requested_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}</template></p></td>
+								<td class="text-gray-600">{{ new Date(h.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }}</td>
+								<td class="text-gray-900">{{ h.amount ? formatPeso(h.amount) : '—' }}</td>
+								<td class="text-gray-600">{{ h.first_sent_at ? duration(h.invited_at, h.first_sent_at) : '—' }}</td>
+								<td><span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold" :class="outcomeTone[h.outcome]"><span aria-hidden="true">{{ outcomeIcon[h.outcome] }}</span>{{ outcomeLabels[h.outcome] }}</span></td>
+							</tr>
+						</tbody>
+					</table>
 				</div>
-				<div class="text-sm text-gray-400">
-					All time
-				</div>
-				<div class="mt-3 text-3xl font-extrabold text-gray-900">
-					{{ totalBids }}</div>
-			</div>
-			<div class="rounded-2xl border border-gray-200 bg-white p-5">
-				<div class="text-sm font-semibold text-gray-900">
-					Bids Won
-				</div>
-				<div class="text-sm text-gray-400">All time</div>
-				<div class="mt-3 text-3xl font-extrabold text-green-600">
-					{{ bidsWon }}
-				</div>
-			</div>
-			<div class="rounded-2xl border border-gray-200 bg-white p-5">
-				<div class="text-sm font-semibold text-gray-900">
-					Bids Lost
-				</div>
-				<div class="text-sm text-gray-400">All time</div>
-				<div class="mt-3 text-3xl font-extrabold text-red-600">
-					{{ bidsLost }}
-				</div>
-			</div>
-		</div>
+			</section>
+		</template>
 	</div>
 </template>
 
 <script setup lang="ts">
+import { outcomeLabels, pctLabel, type BidOutcome } from '~/composables/useAnalytics'
+
 definePageMeta({ layout: 'dashboard' })
 
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May']
-const won = [8, 10, 12, 15, 16]
-const lost = [2, 3, 5, 7, 9]
+// Categorical slots 1–2 of the validated reference palette (colorblind-safe pair).
+const SERIES = ['#2a78d6', '#eb6834']
+const { data, error, loading } = useAnalyticsOverview()
+const labels = computed(() => data.value?.bids?.trend.map(t => t.label) ?? [])
 
-const maxValue = 16
-const chartHeight = 256
-const yTicks = [16, 12, 8, 4, 0]
+const tiles = computed(() => {
+	const t = data.value!.bids!.totals
+	return [
+		{ label: 'Bids submitted', value: t.bids, hint: `of ${t.inquiries} inquiries` },
+		{ label: 'Win rate', value: pctLabel(t.win_rate), hint: `${t.won} won · ${t.lost} lost · ${t.pending} pending` },
+		{ label: 'Typical response', value: responseTime(t.median_response_hours), hint: 'median time to send a quote' },
+		{ label: 'Average quote', value: t.average_bid ? formatPeso(t.average_bid) : '—', hint: 'final quote per inquiry' },
+		{ label: 'Value won', value: formatPeso(t.won_value) || '₱0', hint: 'accepted quotations' },
+	]
+})
 
-function barHeight(value: number) {
-	return Math.round((value / maxValue) * chartHeight)
+// Status meaning ships with an icon + label, never color alone.
+const outcomeTone: Record<BidOutcome, string> = {
+	won: 'bg-green-50 text-green-800', lost: 'bg-rose-50 text-rose-800', pending: 'bg-amber-50 text-amber-800', open: 'bg-blue-50 text-blue-800',
+	declined: 'bg-gray-100 text-gray-600', missed: 'bg-gray-100 text-gray-600', withdrawn: 'bg-gray-100 text-gray-600', cancelled: 'bg-gray-100 text-gray-600',
+}
+const outcomeIcon: Record<BidOutcome, string> = { won: '✓', lost: '✕', pending: '…', open: '!', declined: '–', missed: '–', withdrawn: '–', cancelled: '–' }
+
+function responseTime(h: number | null) {
+	if (h === null) return '—'
+	if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`
+	return h < 48 ? `${Math.round(h)} h` : `${Math.round(h / 24)} days`
 }
 
-const totalBids = won.reduce((a, b) => a + b, 0) + lost.reduce((a, b) => a + b, 0)
-const bidsWon = won.reduce((a, b) => a + b, 0)
-const bidsLost = lost.reduce((a, b) => a + b, 0)
+function duration(from: string, to: string) {
+	const h = (new Date(to).getTime() - new Date(from).getTime()) / 3600000
+	return h < 1 ? `${Math.max(1, Math.round(h * 60))} min` : h < 48 ? `${Math.round(h)} h` : `${Math.round(h / 24)} days`
+}
 </script>

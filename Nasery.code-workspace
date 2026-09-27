@@ -4,5 +4,13 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		// NaSeRy's backend runs on PHP 8.5.10. Only terminals opened in this
+		// workspace get it first on PATH; the machine's default PHP is untouched.
+		"terminal.integrated.env.windows": {
+			"PATH": "C:\\xampp\\php8.5.10;${env:PATH}"
+		},
+		"php.validate.executablePath": "C:\\xampp\\php8.5.10\\php.exe",
+		"intelephense.environment.phpVersion": "8.5.10"
+	}
 }

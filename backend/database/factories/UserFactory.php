@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\AccountType;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -25,21 +26,28 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
+            // Reserved test domain so factory rows are recognisable on shared DBs.
+            'email' => 'test+'.Str::lower(Str::random(16)).'@nasery.test',
+            'password_hash' => static::$password ??= Hash::make('password'),
+            'first_name' => fake()->firstName(),
+            'last_name' => fake()->lastName(),
+            'account_type' => AccountType::Client,
             'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
-            'remember_token' => Str::random(10),
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
     public function unverified(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
-        ]);
+        return $this->state(fn () => ['email_verified_at' => null]);
+    }
+
+    public function business(): static
+    {
+        return $this->state(fn () => ['account_type' => AccountType::Business]);
+    }
+
+    public function admin(): static
+    {
+        return $this->state(fn () => ['account_type' => AccountType::Admin]);
     }
 }

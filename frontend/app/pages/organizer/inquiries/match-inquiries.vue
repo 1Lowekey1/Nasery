@@ -2,383 +2,247 @@
 	<div>
 		<div class="mb-6 flex items-start gap-3 rounded-xl bg-primary-50 p-4 text-sm text-gray-700">
 			<IconBase name="bell" class="mt-0.5 h-5 w-5 shrink-0 text-primary-700" />
-			<p>You only see inquiries that match your <strong>service tags</strong> and <strong>operation area</strong>.
-				Submit detailed offers to win events.</p>
+			<p>Inquiries arrive when a client picks you from the directory, or posts an event near your
+				<strong>business location</strong> that needs a <strong>service you offer</strong>.</p>
 		</div>
 
-		<div class="space-y-5">
-			<div v-for="inquiry in inquiries" :key="inquiry.title"
-				class="rounded-2xl border border-gray-200 bg-white p-6">
-				<div class="flex items-start justify-between">
+		<div class="mb-4 flex flex-wrap gap-2">
+			<button v-for="f in filters" :key="f.label" type="button"
+				class="rounded-full border px-3 py-1.5 text-xs font-semibold"
+				:class="activeFilter === f.label ? 'border-primary-600 bg-primary-50 text-primary-800' : 'border-gray-200 text-gray-600'"
+				@click="activeFilter = f.label; load(1)">{{ f.label }}</button>
+		</div>
+
+		<Alert v-if="error" type="danger" :text="error" />
+		<Alert v-if="notice" type="success" :text="notice" />
+		<div v-if="loading" class="py-16 text-center text-sm text-gray-500">Loading inquiries…</div>
+
+		<div v-else-if="inquiries.length" class="space-y-5">
+			<div v-for="inquiry in inquiries" :key="inquiry.inquiry_id" class="rounded-2xl border border-gray-200 bg-white p-6">
+				<div class="flex flex-wrap items-start justify-between gap-2">
 					<div>
-						<div class="flex items-center gap-2">
-							<h3 class="text-lg font-bold text-gray-900">
-								{{ inquiry.title }}</h3>
-							<span
-								class="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700">
-								<IconBase name="check-circle" class="h-3.5 w-3.5" />
-								Matched
+						<div class="flex flex-wrap items-center gap-2">
+							<h3 class="text-lg font-bold text-gray-900">{{ (inquiry.event_type ?? 'Event') + ' inquiry' }}</h3>
+							<span class="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+								:class="inquiry.via === 'direct' ? 'bg-primary-50 text-primary-700' : 'bg-green-50 text-green-700'">
+								{{ inquiry.via === 'direct' ? 'Picked you' : 'Matched nearby' }}
 							</span>
 						</div>
 						<div class="mt-1 text-sm text-gray-400">
-							Posted by <span class="font-semibold text-gray-600">{{ inquiry.postedBy }}</span> &bull; {{
-								inquiry.date }}
+							From <span class="font-semibold text-gray-600">{{ inquiry.client }}</span> &bull; received {{ formatDate(inquiry.invited_at) }}
 						</div>
 					</div>
-					<span
-						class="shrink-0 rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-500">
-						{{ inquiry.offers }} offers
+					<span class="shrink-0 rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-500">
+						{{ inquiry.is_open ? invitationLabels[inquiry.invitation_status] : inquiryStatusLabels[inquiry.inquiry_status] }}
 					</span>
 				</div>
 
-				<p class="mt-3 text-sm text-gray-600">
-					{{ inquiry.description }}
-				</p>
-				<p class="mt-1 text-sm font-medium text-primary-700">
-					Matches: {{ inquiry.matches }}
-				</p>
-
 				<div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
 					<div class="rounded-lg bg-gray-50 p-3">
-						<div class="flex items-center gap-1.5 text-xs text-gray-500">
-							<IconBase name="calendar" class="h-3.5 w-3.5" />
-							Event Date
-						</div>
-						<div class="mt-1 text-sm font-bold text-gray-900">
-							{{ inquiry.eventDate }}
-						</div>
+						<div class="flex items-center gap-1.5 text-xs text-gray-500"><IconBase name="calendar" class="h-3.5 w-3.5" /> Event Date</div>
+						<div class="mt-1 text-sm font-bold text-gray-900">{{ formatDate(inquiry.requested_date) || '—' }}</div>
 					</div>
 					<div class="rounded-lg bg-gray-50 p-3">
-						<div class="flex items-center gap-1.5 text-xs text-gray-500">
-							<IconBase name="map-pin" class="h-3.5 w-3.5" />
-							Location
-						</div>
-						<div class="mt-1 text-sm font-bold text-gray-900">
-							{{ inquiry.location }}
-							'</div>
+						<div class="flex items-center gap-1.5 text-xs text-gray-500"><IconBase name="map-pin" class="h-3.5 w-3.5" /> Location</div>
+						<div class="mt-1 text-sm font-bold text-gray-900">{{ inquiry.location_text || '—' }}</div>
 					</div>
 					<div class="rounded-lg bg-gray-50 p-3">
-						<div class="flex items-center gap-1.5 text-xs text-gray-500">
-							<IconBase name="users" class="h-3.5 w-3.5" />
-							Guests
-						</div>
-						<div class="mt-1 text-sm font-bold text-gray-900">
-							{{ inquiry.guests }}</div>
+						<div class="flex items-center gap-1.5 text-xs text-gray-500"><IconBase name="users" class="h-3.5 w-3.5" /> Guests</div>
+						<div class="mt-1 text-sm font-bold text-gray-900">{{ inquiry.guest_count ?? '—' }}</div>
 					</div>
 					<div class="rounded-lg bg-gray-50 p-3">
-						<div class="flex items-center gap-1.5 text-xs text-gray-500">
-							<IconBase name="cash" class="h-3.5 w-3.5" />
-							Budget
-						</div>
-						<div class="mt-1 text-sm font-bold text-gray-900">
-							{{ inquiry.budget }}
-						</div>
+						<div class="flex items-center gap-1.5 text-xs text-gray-500"><IconBase name="cash" class="h-3.5 w-3.5" /> Budget</div>
+						<div class="mt-1 text-sm font-bold text-gray-900">{{ budgetLabel(inquiry.budget_min, inquiry.budget_max) }}</div>
 					</div>
 				</div>
 
-				<div class="mt-4">
-					<div class="mb-2 text-xs font-semibold tracking-wide text-gray-400">
-						REQUIREMENTS
-					</div>
+				<div v-if="inquiry.services.length" class="mt-4">
+					<div class="mb-2 text-xs font-semibold tracking-wide text-gray-400">SERVICES NEEDED</div>
 					<div class="flex flex-wrap gap-2">
-						<span v-for="req in inquiry.requirements" :key="req"
-							class="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600">
-							{{ req }}
-						</span>
+						<span v-for="(s, i) in inquiry.services" :key="i" class="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600"
+							:title="s.notes ?? undefined">{{ s.name }}</span>
 					</div>
 				</div>
 
-				<div class="mt-5 flex gap-3">
-					<button type="button"
-						class="flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-900"
-						@click="openOfferForm(inquiry)">
-						<IconBase name="send" class="h-4 w-4" />
-						Submit Offer
+				<p v-if="expanded.has(inquiry.inquiry_id) && inquiry.additional_requirements" class="mt-4 whitespace-pre-line text-sm text-gray-600">
+					{{ inquiry.additional_requirements }}
+				</p>
+				<p v-if="inquiry.decline_reason" class="mt-4 text-sm text-gray-500">You declined: “{{ inquiry.decline_reason }}”</p>
+
+				<div class="mt-5 flex flex-wrap gap-3">
+					<button v-if="!expanded.has(inquiry.inquiry_id)" type="button"
+						class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+						@click="view(inquiry)">
+						<IconBase name="file-text" class="h-4 w-4" /> View details
 					</button>
-					<button type="button"
-						class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-						<IconBase name="message" class="h-4 w-4" />
-						Ask Question
+					<template v-if="inquiry.quotation && inquiry.quotation.status !== 'withdrawn' && inquiry.quotation.status !== 'cancelled'">
+						<span class="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold" :class="quotationStatusClasses[inquiry.quotation.status]">
+							{{ quotationStatusLabels[inquiry.quotation.status] }} · {{ formatPeso(inquiry.quotation.total_amount) }}
+						</span>
+						<button v-if="inquiry.is_open && (inquiry.quotation.status === 'draft' || inquiry.quotation.status === 'submitted')" type="button"
+							class="flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-900"
+							@click="openQuotation(inquiry)">
+							<IconBase name="send" class="h-4 w-4" /> {{ inquiry.quotation.status === 'draft' ? 'Continue draft' : 'Revise quotation' }}
+						</button>
+					</template>
+					<button v-else-if="canQuote(inquiry)" type="button"
+						class="flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-900"
+						@click="openQuotation(inquiry)">
+						<IconBase name="send" class="h-4 w-4" /> Send Quotation
+					</button>
+					<button v-if="canDecline(inquiry)" type="button"
+						class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
+						@click="declining = inquiry; declineReason = ''">
+						Decline
+					</button>
+					<button type="button" class="relative flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+						:aria-label="messages.unread.value[inquiry.inquiry_id] ? `Messages, ${messages.unread.value[inquiry.inquiry_id]} unread` : 'Messages'"
+						@click="messages.openFor(organization!.id, inquiry.inquiry_id, `${inquiry.event_type ?? 'Inquiry'} · ${formatDate(inquiry.requested_date)}`)">
+						<IconBase name="message" class="h-4 w-4" /> Messages
+						<span v-if="messages.unread.value[inquiry.inquiry_id]" class="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-bold text-white">{{ messages.unread.value[inquiry.inquiry_id] }}</span>
 					</button>
 				</div>
+			</div>
+
+			<div v-if="pagination && pagination.last_page > 1" class="flex justify-center gap-2 pt-2">
+				<button type="button" :disabled="page <= 1" class="rounded-lg border px-3 py-1.5 text-sm disabled:opacity-40" @click="load(page - 1)">Previous</button>
+				<span class="px-2 py-1.5 text-sm text-gray-500">Page {{ page }} of {{ pagination.last_page }}</span>
+				<button type="button" :disabled="page >= pagination.last_page" class="rounded-lg border px-3 py-1.5 text-sm disabled:opacity-40" @click="load(page + 1)">Next</button>
 			</div>
 		</div>
 
-		<Transition name="fade">
-			<div v-if="showOfferForm" class="fixed inset-0 z-40 bg-gray-900/40" @click="closeOfferForm" />
-		</Transition>
+		<div v-else class="rounded-3xl border-2 border-dashed border-gray-200 bg-gray-50/60 px-6 py-16 text-center">
+			<h2 class="text-lg font-bold text-gray-900">No inquiries here yet</h2>
+			<p class="mt-1 text-sm text-gray-500">Keep your services and business location up to date so matching clients can find you.</p>
+		</div>
 
-		<Transition name="slide">
-			<div v-if="showOfferForm"
-				class="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl">
-				<div class="flex shrink-0 items-start justify-between border-b border-gray-200 px-6 py-5">
-					<div class="flex items-start gap-3">
-						<div
-							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-700 text-white">
-							<IconBase name="file-text" class="h-5 w-5" />
-						</div>
-						<div>
-							<h2 class="text-base font-bold text-gray-900">
-								New Inquiry Form
-							</h2>
-							<p class="text-sm text-gray-500">
-								Fill in your event offer details</p>
-						</div>
-					</div>
-					<button type="button" class="text-gray-400 hover:text-gray-600" @click="closeOfferForm">
-						<IconBase name="x" class="h-5 w-5" />
-					</button>
+		<OrganizerQuotationForm v-if="quoting" :organization-id="organization!.id" :inquiry-id="quoting.inquiry.inquiry_id"
+			:event-label="`${quoting.inquiry.event_type ?? 'Event'} for ${quoting.inquiry.client}`" :guest-count="quoting.inquiry.guest_count"
+			:quotation="quoting.quotation" @close="quoting = null" @saved="onQuotationSaved" />
+
+		<div v-if="declining" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4" @click.self="declining = null">
+			<form class="w-full max-w-md rounded-2xl bg-white p-6" @submit.prevent="confirmDecline">
+				<h2 class="text-lg font-bold text-gray-900">Decline this inquiry?</h2>
+				<p class="mt-1 text-sm text-gray-500">The client will see your reason.</p>
+				<textarea v-model="declineReason" rows="3" maxlength="500" required placeholder="e.g. We're fully booked on that date."
+					class="mt-4 w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm focus:border-primary-500 focus:outline-none" />
+				<div class="mt-4 flex justify-end gap-2">
+					<button type="button" class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold" @click="declining = null">Keep it</button>
+					<button type="submit" :disabled="busy || declineReason.trim().length < 3"
+						class="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Decline</button>
 				</div>
+			</form>
+		</div>
 
-				<div class="flex-1 overflow-y-auto px-6 py-5">
-					<div class="mb-2 flex items-center gap-2 text-xs font-semibold tracking-wide text-gray-400">
-						<IconBase name="calendar" class="h-3.5 w-3.5" />
-						EVENT INFORMATION
-					</div>
-
-					<div class="mt-4">
-						<FormsLabel text="Event / Inquiry Title" required />
-						<FormsTextField v-model="offerForm.title" />
-					</div>
-
-					<div class="mt-4 grid grid-cols-2 gap-3">
-						<div>
-							<label class="mb-1.5 block text-sm font-semibold text-gray-700">
-								Event Type *</label>
-							<select v-model="offerForm.eventType"
-								class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15">
-								<option v-for="type in eventTypes" :key="type" :value="type">{{ type }}</option>
-							</select>
-						</div>
-						<div>
-							<FormsLabel text="Event Date *" />
-							<FormsTextField v-model="offerForm.eventDate" type="date" />
-						</div>
-					</div>
-
-					<div class="mt-4 grid grid-cols-2 gap-3">
-						<div>
-							<FormsLabel text="Location / Area" required />
-							<FormsTextField v-model="offerForm.location" icon="map-pin" placeholder="e.g. Davao City" />
-						</div>
-						<div>
-							<FormsLabel text="Expected Guests" />
-							<FormsTextField v-model="offerForm.guests" type="number" icon="users" placeholder="e.g. 250" />
-						</div>
-					</div>
-
-					<div class="mt-4">
-						<FormsLabel text="Your Quoted Budget / Price Range" required />
-						<FormsTextField v-model="offerForm.budget" icon="cash" placeholder="e.g. ₱150,000 – ₱250,000" />
-					</div>
-
-					<div class="mb-2 mt-6 flex items-center gap-2 text-xs font-semibold tracking-wide text-gray-400">
-						<IconBase name="tag" class="h-3.5 w-3.5" /> PACKAGE DETAILS
-					</div>
-
-					<p class="mb-2 text-xs text-gray-400">
-						Quick-fill from template
-					</p>
-					<div class="space-y-2">
-						<button v-for="template in packageTemplates" :key="template" type="button"
-							class="flex w-full items-center justify-between rounded-xl border border-gray-200 px-3.5 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
-							@click="applyTemplate(template)">
-							{{ template }}
-							<span class="text-xs font-semibold text-primary-700">
-								Apply &rarr;
-							</span>
-						</button>
-					</div>
-
-					<div class="mt-4">
-						<FormsLabel text="Package / Offer Name" />
-						<FormsTextField v-model="offerForm.packageName"
-							placeholder="e.g. Full Coordination Premium Package" />
-					</div>
-
-					<div class="mt-4">
-						<FormsLabel text="Timeline / Lead Time" />
-						<FormsTextField v-model="offerForm.timeline" icon="clock"
-							placeholder="e.g. Full coordination · 3 months lead time" />
-					</div>
-
-					<label class="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">
-						Inclusions / Services
-					</label>
-					<div class="space-y-2">
-						<FormsTextField v-for="(inclusion, i) in offerForm.inclusions" :key="i"
-							v-model="offerForm.inclusions[i]" :placeholder="`Inclusion ${i + 1}`" />
-					</div>
-					<button type="button" class="mt-2 flex items-center gap-1 text-sm font-semibold text-primary-700"
-						@click="addInclusion">
-						<IconBase name="plus" class="h-3.5 w-3.5" />
-						Add Inclusion
-					</button>
-
-					<div class="mb-2 mt-6 flex items-center gap-2 text-xs font-semibold tracking-wide text-gray-400">
-						<IconBase name="cash" class="h-3.5 w-3.5" />
-						COST BREAKDOWN
-					</div>
-					<div class="space-y-2">
-						<div v-for="(line, i) in offerForm.costBreakdown" :key="i" class="flex gap-2">
-							<FormsTextField v-model="line.label" placeholder="e.g. Venue rental" class="flex-1" />
-							<FormsTextField v-model="line.amount" placeholder="₱0" class="w-32 shrink-0" />
-						</div>
-					</div>
-					<button type="button" class="mt-2 flex items-center gap-1 text-sm font-semibold text-primary-700"
-						@click="addLineItem">
-						<IconBase name="plus" class="h-3.5 w-3.5" />
-						Add Line Item
-					</button>
-
-					<div class="mb-2 mt-6 flex items-center gap-2 text-xs font-semibold tracking-wide text-gray-400">
-						<IconBase name="message" class="h-3.5 w-3.5" />
-						COVER MESSAGE
-					</div>
-					<label class="mb-1.5 block text-sm font-semibold text-gray-700">
-						Your pitch to the client
-					</label>
-					<textarea v-model="offerForm.pitch" rows="4"
-						placeholder="Introduce yourself and explain why you're the best fit for this event..."
-						class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15" />
-				</div>
-
-				<div class="flex shrink-0 gap-3 border-t border-gray-200 px-6 py-4">
-					<FormsButton variant="secondary" class="flex-1" @click="closeOfferForm">
-						Cancel
-					</FormsButton>
-					<FormsButton class="flex-1" @click="submitOffer">
-						<IconBase name="send" class="h-4 w-4" />
-						Submit Inquiry
-					</FormsButton>
-				</div>
-			</div>
-		</Transition>
+		<OrganizerThreadDrawer :thread-id="messages.open.value?.id ?? null" :title="messages.open.value?.title ?? ''"
+			@close="messages.open.value = null" @read="messages.markRead()" />
 	</div>
 </template>
 
 <script setup lang="ts">
+import type { InvitationStatus, OrganizerInquiry } from '~/composables/useInquiries'
+import type { OrganizerQuotation } from '~/composables/useQuotations'
+
 definePageMeta({ layout: 'dashboard' })
 
-const eventTypes = ['Corporate Event', 'Wedding', 'Birthday Party', 'Social Event', 'Product Launch', 'Conference', 'Other']
+const { organization, fetchOrganization } = useOrganization()
+const api = useOrganizerInquiries()
 
-const packageTemplates = ['Full Coordination Package', 'Premium AV & Entertainment', 'Catering & Food Services']
-
-const showOfferForm = ref(false)
-
-function emptyOfferForm() {
-	return {
-		title: '',
-		eventType: eventTypes[0],
-		eventDate: '',
-		location: '',
-		guests: '',
-		budget: '',
-		packageName: '',
-		timeline: '',
-		inclusions: [''],
-		costBreakdown: [{ label: '', amount: '' }],
-		pitch: ''
-	}
-}
-
-const offerForm = reactive(emptyOfferForm())
-
-function inferEventType(inquiry) {
-	if (inquiry.matches.includes('Corporate')) return 'Corporate Event'
-	if (inquiry.matches.includes('Wedding')) return 'Wedding'
-	if (inquiry.matches.includes('Social')) return 'Birthday Party'
-	return 'Other'
-}
-
-function openOfferForm(inquiry) {
-	Object.assign(offerForm, emptyOfferForm())
-	offerForm.title = inquiry.title
-	offerForm.eventType = inferEventType(inquiry)
-	showOfferForm.value = true
-}
-
-function closeOfferForm() {
-	showOfferForm.value = false
-}
-
-function applyTemplate(template) {
-	offerForm.packageName = template
-}
-
-function addInclusion() {
-	offerForm.inclusions.push('')
-}
-
-function addLineItem() {
-	offerForm.costBreakdown.push({ label: '', amount: '' })
-}
-
-function submitOffer() {
-	closeOfferForm()
-}
-
-const inquiries = [
-	{
-		title: 'Corporate Annual Gala',
-		postedBy: 'Promi Boys Corporation',
-		date: 'May 20, 2026',
-		description: 'Annual company gala with dinner, entertainment, and awards ceremony. Looking for full event management services.',
-		matches: 'Corporate Events, Davao City area',
-		eventDate: 'June 15, 2026',
-		location: 'Davao City',
-		guests: 500,
-		budget: '₱500,000 – ₱800,000',
-		requirements: ['Venue booking and setup', 'Catering for 500 guests', 'Audio-visual equipment', 'Stage and lighting design', 'Entertainment coordination'],
-		offers: 5
-	},
-	{
-		title: 'Wedding Reception',
-		postedBy: 'Rena & Marlo',
-		date: 'May 21, 2026',
-		description: 'Garden wedding reception with catering and entertainment. Romantic outdoor setup needed.',
-		matches: 'Wedding Events, Davao City area',
-		eventDate: 'July 20, 2026',
-		location: 'Davao City',
-		guests: 200,
-		budget: '₱300,000 – ₱500,000',
-		requirements: ['Garden venue setup', 'Floral arrangements', 'Catering for 200 guests', 'Live music or DJ', 'Photography coordination'],
-		offers: 3
-	},
-	{
-		title: 'Birthday Party – 50th Celebration',
-		postedBy: 'Axalan Family',
-		date: 'May 22, 2026',
-		description: '50th birthday celebration, elegant dinner party with close friends and family.',
-		matches: 'Social Events,  Davao City area',
-		eventDate: 'June 5, 2026',
-		location: 'Davao City',
-		guests: 150,
-		budget: '₱150,000 – ₱250,000',
-		requirements: ['Venue decoration', 'Catering and drinks', 'Sound system', 'Photography'],
-		offers: 2
-	}
+const filters: { label: string, status: InvitationStatus[] }[] = [
+	{ label: 'Needs a response', status: ['pending', 'viewed'] },
+	{ label: 'Quoted', status: ['quoted', 'accepted', 'rejected', 'withdrawn'] },
+	{ label: 'Declined', status: ['declined'] },
+	{ label: 'All', status: [] },
 ]
+const activeFilter = ref('Needs a response')
+const inquiries = ref<OrganizerInquiry[]>([])
+const pagination = ref<{ current_page: number, last_page: number, total: number } | null>(null)
+const page = ref(1)
+const loading = ref(true)
+const error = ref('')
+const notice = ref('')
+const expanded = reactive(new Set<string>())
+const declining = ref<OrganizerInquiry | null>(null)
+const quoting = ref<{ inquiry: OrganizerInquiry, quotation: OrganizerQuotation | null } | null>(null)
+const quotationsApi = useOrganizerQuotations()
+const declineReason = ref('')
+const busy = ref(false)
+const messages = useOrganizerThreads()
+
+function formatDate(value: string | null) {
+	if (!value) return ''
+	return new Date(value.length === 10 ? `${value}T00:00:00` : value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function canQuote(i: OrganizerInquiry) {
+	return i.is_open && ['pending', 'viewed', 'quoted', 'withdrawn'].includes(i.invitation_status)
+}
+
+async function openQuotation(inquiry: OrganizerInquiry) {
+	try {
+		const current = inquiry.quotation && ['draft', 'submitted'].includes(inquiry.quotation.status)
+			? await quotationsApi.show(organization.value!.id, inquiry.quotation.id)
+			: null
+		quoting.value = { inquiry, quotation: current }
+	} catch (e) {
+		error.value = authMessage(e)
+	}
+}
+
+async function onQuotationSaved(q: OrganizerQuotation) {
+	quoting.value = null
+	notice.value = q.status === 'draft' ? 'Draft saved.' : 'Quotation sent to the client.'
+	await load(page.value)
+}
+
+function canDecline(i: OrganizerInquiry) {
+	return i.is_open && (i.invitation_status === 'pending' || i.invitation_status === 'viewed')
+}
+
+async function load(p = 1) {
+	loading.value = true
+	error.value = ''
+	try {
+		const org = organization.value ?? await fetchOrganization()
+		if (!org) return
+		messages.loadUnread(org.id) // badges for client messages; not awaited
+		const status = filters.find(f => f.label === activeFilter.value)!.status
+		const r = await api.list(org.id, status, p)
+		inquiries.value = r.items
+		pagination.value = r.pagination
+		page.value = p
+	} catch (e) {
+		error.value = authMessage(e)
+	} finally {
+		loading.value = false
+	}
+}
+
+// Opening an inquiry marks it viewed for the client.
+async function view(inquiry: OrganizerInquiry) {
+	try {
+		const fresh = await api.show(organization.value!.id, inquiry.inquiry_id)
+		Object.assign(inquiry, fresh)
+		expanded.add(inquiry.inquiry_id)
+	} catch (e) {
+		error.value = authMessage(e)
+	}
+}
+
+async function confirmDecline() {
+	if (!declining.value) return
+	busy.value = true
+	try {
+		await api.decline(organization.value!.id, declining.value.inquiry_id, declineReason.value.trim())
+		declining.value = null
+		await load(page.value)
+	} catch (e) {
+		error.value = authMessage(e)
+		declining.value = null
+	} finally {
+		busy.value = false
+	}
+}
+
+onMounted(() => load())
 </script>
-
-<style scoped>
-.slide-enter-active,
-.slide-leave-active {
-	transition: transform 0.25s ease;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-	transform: translateX(100%);
-}
-
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
-}
-</style>

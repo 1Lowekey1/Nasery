@@ -1,0 +1,93 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1\Analytics;
+
+use App\Exceptions\ApiException;
+use App\Http\Controllers\Controller;
+use App\Models\Event;
+use App\Models\Organization;
+use App\Services\Analytics\LiveEvents;
+use App\Services\Analytics\OrganizerAnalytics;
+use App\Services\Billing\Entitlements;
+use App\Support\Authorization\OrganizationAccess;
+use App\Support\Http\ApiResponse;
+use App\Support\Http\ErrorCode;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+/**
+ * B15 organizer analytics. Each member sees only the sections their role
+ * allows:
+ *  - bid performance: inquiry.manage or quotation.manage
+ *  - event performance: members who see every event (event-wide roles, B8)
+ *  - revenue inside it: finance.view
+ *  - live events: any member, for the events they can work on
+ */
+class AnalyticsController extends Controller
+{
+    public function __construct(
+        private readonly OrganizerAnalytics $analytics,
+        private readonly LiveEvents $live,
+        private readonly OrganizationAccess $access,
+        private readonly Entitlements $entitlements,
+    ) {}
+
+    public function overview(Request $request, Organization $organization): JsonResponse
+    {
+        $this->member($request, $organization);
+        $data = $request->validate([
+            'range' => ['sometimes', Rule::in(['3m', '6m', '12m', 'ytd', '24m'])],
+            'group' => ['sometimes', Rule::in(['month', 'quarter'])],
+        ]);
+
+        $can = [
+            'bids' => $this->access->can($request->user(), $organization, 'inquiry.manage') || $this->access->can($request->user(), $organization, 'quotation.manage'),
+            'events' => $this->access->seesAllEvents($request->user(), $organization),
+            'revenue' => $this->access->can($request->user(), $organization, 'finance.view'),
+        ];
+
+        if (! $can['bids'] && ! $can['events']) {
+            throw new ApiException(ErrorCode::Forbidden, 'Analytics are for members who handle bids or manage events. Live events are still available.', 403);
+        }
+
+        // B18: Free keeps analytics, with a shorter history; quarterly view is a paid extra.
+        $months = $this->entitlements->limit($organization, 'analytics_history_months');
+        $span = ['3m' => 3, '6m' => 6, '12m' => 12, 'ytd' => (int) now('Asia/Manila')->month, '24m' => 24];
+        $allowed = array_keys(array_filter($span, fn ($m) => $months === null || $m <= $months));
+        $range = $data['range'] ?? (in_array('12m', $allowed, true) ? '12m' : end($allowed));
+        if (! in_array($range, $allowed, true)) {
+            $plan = $this->entitlements->for($organization)['plan']->name;
+            throw new ApiException(ErrorCode::PlanLimitReached, "Your {$plan} plan shows the last {$months} months. Upgrade in Plan & Billing for a longer history.", 402,
+                ['feature' => 'analytics_history_months', 'limit' => $months, 'plan' => $plan, 'upgrade_url' => '/organizer/billing']);
+        }
+        if (($data['group'] ?? 'month') === 'quarter') {
+            $this->entitlements->assertFeature($organization, 'advanced_reports');
+        }
+        $period = $this->analytics->period($range, $data['group'] ?? 'month');
+
+        return ApiResponse::success(array_filter([
+            'period' => ['from' => $period['from']->toDateString(), 'to' => $period['to']->toDateString(), 'group' => $period['group'], 'labels' => $period['labels']],
+            'bids' => $can['bids'] ? $this->analytics->bids($organization, $period) : null,
+            'events' => $can['events'] ? $this->analytics->events($organization, $period, $can['revenue'] && $can['events']) : null,
+            'can' => $can,
+            'plan' => ['ranges' => array_values($allowed), 'quarterly' => $this->entitlements->has($organization, 'advanced_reports'), 'history_months' => $months],
+        ], fn ($v) => $v !== null));
+    }
+
+    public function live(Request $request, Organization $organization): JsonResponse
+    {
+        $this->member($request, $organization);
+        $user = $request->user();
+
+        return ApiResponse::success($this->live->forOrganization($organization, fn (Event $e) => $this->access->canSeeEvent($user, $e)
+            && collect(['checkin.perform', 'event.update', 'attendee.manage'])->contains(fn ($p) => $this->access->canOnEvent($user, $e, $p))));
+    }
+
+    private function member(Request $request, Organization $organization): void
+    {
+        if ($this->access->membership($request->user(), $organization) === null) {
+            throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
+        }
+    }
+}

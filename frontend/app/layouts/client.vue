@@ -38,24 +38,19 @@
 				</nav>
 
 				<div class="border-t border-gray-100 px-4 py-4">
-					<button type="button"
-						class="mb-1 flex w-full items-center gap-3 rounded-lg p-1.5 text-left hover:bg-gray-50"
-						@click="openProfilePanel">
+					<div class="mb-3 flex w-full items-center gap-3 rounded-lg p-1.5 text-left">
 						<div
 							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-700 text-sm font-bold text-white">
 							{{ sidebarInitials }}
 						</div>
 						<div class="min-w-0">
-							<div class="truncate text-sm font-semibold text-gray-900">{{ profile.fullName }}</div>
-							<div class="text-xs text-gray-400">
-								Client
-							</div>
+							<div class="truncate text-sm font-semibold text-gray-900">{{ fullName }}</div>
+							<div class="truncate text-xs text-gray-400">Client · {{ user?.email }}</div>
 						</div>
-					</button>
-					<p class="mb-3 px-1.5 text-[11px] text-gray-400">Click profile to customise</p>
+					</div>
 					<button type="button"
 						class="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-700"
-						@click="navigateTo('/login')">
+						@click="signOut">
 						<IconBase name="log-out" class="h-4 w-4" />
 						Sign out
 					</button>
@@ -74,14 +69,11 @@
 						<div class="text-sm font-bold text-gray-900">{{ activeItem.label }}</div>
 					</div>
 				</div>
-				<span
-					class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-					<span class="h-1.5 w-1.5 rounded-full bg-green-500" />
-					System Online
-				</span>
+				<NotificationBell />
 			</header>
 
 			<main class="flex-1 overflow-y-auto p-6">
+				<AnnouncementBanner class="mb-4" />
 				<slot />
 			</main>
 		</div>
@@ -272,18 +264,28 @@
 </template>
 
 <script setup lang="ts">
+const { logout, user } = useAuth()
+const fullName = computed(() => user.value ? `${user.value.first_name} ${user.value.last_name}` : '')
+
+async function signOut() {
+	await logout()
+	await navigateTo('/login')
+}
+
 const route = useRoute()
 
 const sidebarOpen = ref(true)
 
 const navItems = [
 	{ label: 'My Events', to: '/client/my-events', icon: 'home' },
-	{ label: 'Event Details', to: '/client/event-details', icon: 'calendar' },
+	{ label: 'Post an Event', to: '/client/post-event', icon: 'plus' },
+	{ label: 'My Event', to: '/client/event-details', icon: 'calendar' },
 	{ label: 'Preparation Tracking', to: '/client/preparation-tracking', icon: 'clipboard-list' },
-	{ label: 'Activity Timeline', to: '/client/activity-timeline', icon: 'activity' }
+	{ label: 'Activity Timeline', to: '/client/activity-timeline', icon: 'activity' },
+	{ label: 'My Tickets', to: '/my-tickets', icon: 'tag' }
 ]
 
-const activeItem = computed(() => navItems.find((item) => item.to === route.path) ?? navItems[0])
+const activeItem = computed(() => route.path === '/notifications' ? { label: 'Notifications' } : navItems.find((item) => item.to === route.path) ?? navItems[0])
 
 const profileTabs = [
 	{ label: 'Identity', icon: 'user' },
@@ -335,7 +337,7 @@ function initialsOf(name) {
 	return (name || '').trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join('').toUpperCase()
 }
 
-const sidebarInitials = computed(() => initialsOf(profile.fullName))
+const sidebarInitials = computed(() => initialsOf(fullName.value))
 const panelInitials = computed(() => initialsOf(draftProfile.fullName))
 
 function openProfilePanel() {

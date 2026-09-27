@@ -25,40 +25,56 @@
 			</div>
 		</div>
 
-		<div v-if="clientEvents.length" class="space-y-4">
-			<div v-for="event in clientEvents" :key="event.id"
-				class="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
+		<Alert v-if="error" type="danger" :text="error" />
+
+		<div v-if="loading" class="py-16 text-center text-sm text-gray-500">Loading your inquiries…</div>
+
+		<div v-else-if="inquiries.length" class="space-y-4">
+			<NuxtLink v-for="inquiry in inquiries" :key="inquiry.id" :to="`/client/inquiries/${inquiry.id}`"
+				class="block rounded-2xl border border-gray-200 bg-white p-4 hover:border-primary-300 sm:p-6">
 				<div class="flex flex-wrap items-start justify-between gap-3">
 					<div class="flex min-w-0 items-start gap-3">
 						<div
 							class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
-							<IconBase :name="eventTypeIcon(event.eventType)" class="h-5 w-5" />
+							<IconBase :name="eventTypeIcon(inquiry.event_type)" class="h-5 w-5" />
 						</div>
 						<div class="min-w-0">
 							<h3 class="truncate text-base font-bold text-gray-900">
-								{{ event.title || event.eventType + ' Inquiry' }}
+								{{ (inquiry.event_type ?? 'Event') + ' inquiry' }}
 							</h3>
 							<p class="mt-0.5 text-sm text-gray-500">
-								{{ event.eventType }} &bull; {{ formatDate(event.date) }} &bull; {{ event.location }}
+								{{ formatDate(inquiry.requested_date) || 'Date not set' }} &bull; {{ inquiry.location_text || 'Location not set' }}
 							</p>
 						</div>
 					</div>
 					<span
 						class="shrink-0 rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-600">
-						Awaiting bids
+						{{ inquiryStatusLabels[inquiry.status] }}
 					</span>
 				</div>
 
-				<div class="mt-4 grid grid-cols-2 gap-3">
+				<div class="mt-4 grid grid-cols-3 gap-3">
 					<div class="rounded-lg bg-gray-50 p-3">
 						<div class="text-xs text-gray-500">Guests</div>
-						<div class="mt-1 text-sm font-bold text-gray-900">{{ event.guests }}</div>
+						<div class="mt-1 text-sm font-bold text-gray-900">{{ inquiry.guest_count ?? '—' }}</div>
 					</div>
 					<div class="rounded-lg bg-gray-50 p-3">
 						<div class="text-xs text-gray-500">Budget</div>
-						<div class="mt-1 truncate text-sm font-bold text-gray-900">{{ event.budget }}</div>
+						<div class="mt-1 truncate text-sm font-bold text-gray-900">{{ budgetLabel(inquiry.budget_min, inquiry.budget_max) }}</div>
+					</div>
+					<div class="rounded-lg bg-gray-50 p-3">
+						<div class="text-xs text-gray-500">Organizers</div>
+						<div class="mt-1 truncate text-sm font-bold text-gray-900">
+							{{ inquiry.status === 'draft' ? '—' : `${inquiry.invited_count ?? 0} invited · ${inquiry.viewed_count ?? 0} viewed` }}
+						</div>
 					</div>
 				</div>
+			</NuxtLink>
+
+			<div v-if="pagination && pagination.last_page > 1" class="flex justify-center gap-2 pt-2">
+				<button type="button" :disabled="page <= 1" class="rounded-lg border px-3 py-1.5 text-sm disabled:opacity-40" @click="load(page - 1)">Previous</button>
+				<span class="px-2 py-1.5 text-sm text-gray-500">Page {{ page }} of {{ pagination.last_page }}</span>
+				<button type="button" :disabled="page >= pagination.last_page" class="rounded-lg border px-3 py-1.5 text-sm disabled:opacity-40" @click="load(page + 1)">Next</button>
 			</div>
 		</div>
 
@@ -80,13 +96,21 @@
 </template>
 
 <script setup lang="ts">
+import type { ClientInquiry } from '~/composables/useInquiries'
+
 definePageMeta({ layout: 'client' })
 
-const clientName = 'EventPro'
+const { user } = useAuth()
+const { list } = useInquiries()
 
-const clientEvents = useState('clientEvents', () => [])
+const clientName = computed(() => user.value?.first_name ?? 'there')
+const inquiries = ref<ClientInquiry[]>([])
+const pagination = ref<{ current_page: number, last_page: number, total: number } | null>(null)
+const page = ref(1)
+const loading = ref(true)
+const error = ref('')
 
-const eventTypeIcons = {
+const eventTypeIcons: Record<string, string> = {
 	Wedding: 'heart',
 	Corporate: 'briefcase',
 	Birthday: 'gift',
@@ -97,19 +121,37 @@ const eventTypeIcons = {
 	Seminar: 'award'
 }
 
-function eventTypeIcon(type) {
-	return eventTypeIcons[type] ?? 'sparkles'
+function eventTypeIcon(type: string | null) {
+	return (type && eventTypeIcons[type]) || 'sparkles'
 }
 
-function formatDate(dateStr) {
+function formatDate(dateStr: string | null) {
 	if (!dateStr) return ''
-	return new Date(`${dateStr}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+	return new Date(`${dateStr.slice(0, 10)}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
+async function load(p = 1) {
+	loading.value = true
+	error.value = ''
+	try {
+		const r = await list(p)
+		inquiries.value = r.items
+		pagination.value = r.pagination
+		page.value = p
+	} catch (e) {
+		error.value = authMessage(e)
+	} finally {
+		loading.value = false
+	}
+}
+
+// Counts for the current page; the total comes from the server.
 const stats = computed(() => [
-	{ label: 'Total Inquiries', value: clientEvents.value.length, icon: 'file-text', iconBg: 'bg-gray-100', iconColor: 'text-gray-500' },
-	{ label: 'Receiving Bids', value: 0, icon: 'sparkles', iconBg: 'bg-gray-100', iconColor: 'text-gray-500' },
-	{ label: 'Awarded Events', value: 0, icon: 'award', iconBg: 'bg-green-50', iconColor: 'text-green-600' },
-	{ label: 'Open Events', value: clientEvents.value.length, icon: 'clock', iconBg: 'bg-amber-50', iconColor: 'text-amber-600' }
+	{ label: 'Total Inquiries', value: pagination.value?.total ?? inquiries.value.length, icon: 'file-text', iconBg: 'bg-gray-100', iconColor: 'text-gray-500' },
+	{ label: 'Awaiting Organizers', value: inquiries.value.filter(i => i.status === 'submitted' || i.status === 'receiving_bids').length, icon: 'sparkles', iconBg: 'bg-gray-100', iconColor: 'text-gray-500' },
+	{ label: 'Accepted', value: inquiries.value.filter(i => i.status === 'accepted' || i.status === 'converted_to_event').length, icon: 'award', iconBg: 'bg-green-50', iconColor: 'text-green-600' },
+	{ label: 'Drafts', value: inquiries.value.filter(i => i.status === 'draft').length, icon: 'clock', iconBg: 'bg-amber-50', iconColor: 'text-amber-600' }
 ])
+
+onMounted(() => load())
 </script>

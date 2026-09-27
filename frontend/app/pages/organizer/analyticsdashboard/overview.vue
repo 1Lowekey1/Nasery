@@ -1,111 +1,95 @@
 <template>
 	<div>
-		<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-			<div v-for="stat in stats" :key="stat.label" class="rounded-2xl border border-gray-200 bg-white p-5">
-				<span class="text-sm text-gray-500">
-					{{ stat.label }}
-				</span>
-				<div class="mt-2 text-3xl font-extrabold text-gray-900">
-					{{ stat.value }}
-				</div>
-				<div class="mt-2 flex items-center gap-1 text-sm">
-					<IconBase :name="stat.hasTrendIcon ? 'trending-up' : 'clock'" class="h-3.5 w-3.5"
-						:class="stat.hasTrendIcon ? 'text-green-600' : 'text-gray-400'" />
-					<span :class="stat.hasTrendIcon ? 'text-green-600' : 'text-gray-500'">
-						{{ stat.trend }}</span>
-				</div>
-			</div>
-		</div>
+		<Alert v-if="error" type="danger" :text="error" />
+		<div v-if="loading && !data" class="py-12 text-center text-sm text-gray-500">Crunching your numbers…</div>
 
-		<div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
-			<div class="rounded-2xl border border-gray-200 bg-white p-6">
-				<h2 class="text-base font-bold text-gray-900">
-					Inquiry Activity Distribution
-				</h2>
-				<p class="mb-10 text-sm text-gray-500">
-					How you respond to inquiries
-				</p>
-
-				<div class="relative mx-auto mb-10 h-52 w-52">
-					<div class="h-full w-full rounded-full" :style="pieStyle" />
-					<span class="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-sm font-semibold"
-						:style="{ color: distribution[0].color }">
-						{{ distribution[0].label }}: {{ distribution[0].value }}
-					</span>
-					<span class="absolute -bottom-8 left-0 whitespace-nowrap text-sm font-semibold"
-						:style="{ color: distribution[1].color }">
-						{{ distribution[1].label }}: {{ distribution[1].value }}
-					</span>
-					<span class="absolute -right-28 top-1/2 -translate-y-1/2 whitespace-nowrap text-sm font-semibold"
-						:style="{ color: distribution[2].color }">
-						{{ distribution[2].label }}: {{ distribution[2].value }}
-					</span>
+		<template v-if="data">
+			<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+				<div v-for="tile in tiles" :key="tile.label" class="rounded-2xl border border-gray-200 bg-white p-5">
+					<p class="text-sm text-gray-500">{{ tile.label }}</p>
+					<p class="mt-1 text-3xl font-extrabold text-gray-900">{{ tile.value }}</p>
+					<p class="mt-1 text-xs text-gray-500">{{ tile.hint }}</p>
 				</div>
 			</div>
 
-			<div class="rounded-2xl border border-gray-200 bg-white p-6">
-				<h2 class="text-base font-bold text-gray-900">
-					Recent Activity
-				</h2>
-				<p class="mb-5 text-sm text-gray-500">
-					Latest bid and event updates
-				</p>
-				<div class="divide-y divide-gray-100">
-					<div v-for="item in recentActivity" :key="item.title"
-						class="flex items-center gap-3 py-4 first:pt-0 last:pb-0">
-						<IconBase :name="item.icon" :class="item.iconColor" class="h-5 w-5 shrink-0" />
-						<div class="min-w-0 flex-1">
-							<div class="text-sm font-semibold text-gray-900">
-								{{ item.title }}
-							</div>
-							<div class="text-xs text-gray-400">
-								{{ item.time }}
-							</div>
+			<div class="mt-5 grid gap-5 xl:grid-cols-2">
+				<section v-if="data.bids" class="rounded-2xl border border-gray-200 bg-white p-6">
+					<h2 class="text-base font-bold text-gray-900">From inquiry to booking</h2>
+					<p class="text-sm text-gray-500">{{ periodText }}</p>
+					<div class="mt-4 space-y-3">
+						<div v-for="step in funnel" :key="step.label">
+							<div class="flex justify-between text-sm"><span class="text-gray-700">{{ step.label }}</span><span class="font-semibold text-gray-900">{{ step.value }}<span v-if="step.of !== null" class="font-normal text-gray-400"> · {{ pctLabel(step.of) }}</span></span></div>
+							<div class="mt-1 h-2.5 overflow-hidden rounded-full bg-gray-100"><div class="h-full rounded-full" :style="{ width: `${step.width}%`, background: '#2a78d6' }" /></div>
 						</div>
-						<span class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold"
-							:class="item.status === 'won' ? 'bg-gray-900 text-white' : 'border border-gray-200 text-gray-700'">
-							{{ item.status }}
-						</span>
 					</div>
-				</div>
+					<p class="mt-4 text-xs text-gray-500">{{ data.bids.totals.missed }} missed (the inquiry closed before you answered) · {{ data.bids.totals.declined }} declined by you · {{ data.bids.totals.open }} waiting for your answer</p>
+				</section>
+
+				<section v-if="data.bids" class="rounded-2xl border border-gray-200 bg-white p-6">
+					<h2 class="text-base font-bold text-gray-900">Wins by event type</h2>
+					<p v-if="!data.bids.by_event_type.length" class="mt-4 text-sm text-gray-400">No inquiries in this period yet.</p>
+					<table v-else class="mt-3 w-full text-left text-sm">
+						<thead class="text-xs uppercase text-gray-400"><tr><th class="py-1.5">Type</th><th class="text-right">Inquiries</th><th class="text-right">Bids</th><th class="text-right">Won</th><th class="text-right">Win rate</th></tr></thead>
+						<tbody class="divide-y divide-gray-100">
+							<tr v-for="t in data.bids.by_event_type.slice(0, 6)" :key="t.event_type">
+								<td class="py-2 text-gray-800">{{ t.event_type }}</td><td class="text-right">{{ t.inquiries }}</td><td class="text-right">{{ t.bids }}</td><td class="text-right">{{ t.won }}</td><td class="text-right font-semibold">{{ pctLabel(t.win_rate) }}</td>
+							</tr>
+						</tbody>
+					</table>
+				</section>
+
+				<section v-if="data.events" class="rounded-2xl border border-gray-200 bg-white p-6 xl:col-span-2">
+					<div class="flex flex-wrap items-baseline justify-between gap-2">
+						<h2 class="text-base font-bold text-gray-900">Recent events</h2>
+						<NuxtLink :to="{ path: '/organizer/analyticsdashboard/event-performance', query: route.query }" class="text-sm font-semibold text-primary-700">All event results →</NuxtLink>
+					</div>
+					<p v-if="!data.events.events.length" class="mt-4 text-sm text-gray-400">No events in this period yet.</p>
+					<ul v-else class="mt-3 divide-y divide-gray-100">
+						<li v-for="e in data.events.events.slice(0, 5)" :key="e.id" class="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+							<span class="min-w-0"><span class="font-semibold text-gray-900">{{ e.name }}</span> <span class="text-gray-500">· {{ new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}</span></span>
+							<span class="text-gray-600">{{ e.status === 'completed' ? `${e.attended}/${e.expected} attended (${pctLabel(e.attendance_rate)}) · ${e.walk_ins} walk-in${e.walk_ins === 1 ? '' : 's'}` : 'Upcoming' }}</span>
+						</li>
+					</ul>
+				</section>
 			</div>
-		</div>
+
+			<p v-if="!data.bids || !data.events" class="mt-5 text-xs text-gray-500">Some sections are hidden: they depend on your role (bids need inquiry or quotation access; event results need access to every event).</p>
+			<p class="mt-2 text-xs text-gray-400">Figures cover what happened in NaSeRy only; events managed outside it aren't counted. New organizers will see more as activity builds up.</p>
+		</template>
 	</div>
 </template>
 
 <script setup lang="ts">
+import { pctLabel } from '~/composables/useAnalytics'
+
 definePageMeta({ layout: 'dashboard' })
 
-const stats = [
-	{ label: 'Total Bids Submitted', value: '87', trend: '+12% from last month', hasTrendIcon: true },
-	{ label: 'Win Rate', value: '72.7%', trend: '+5.2% from last month', hasTrendIcon: true },
-	{ label: 'Avg Attendance Rate', value: '89.8%', trend: '+2.8% from last month', hasTrendIcon: true },
-	{ label: 'Active Inquiries', value: '12', trend: 'Awaiting response', hasTrendIcon: false }
-]
+const route = useRoute()
+const { data, error, loading } = useAnalyticsOverview()
 
-const distribution = [
-	{ label: 'Received', value: 45, color: '#2a78d6' },
-	{ label: 'Bid Submitted', value: 38, color: '#0ca30c' },
-	{ label: 'Ignored', value: 7, color: '#d03b3b' }
-]
+const periodText = computed(() => data.value
+	? `${new Date(data.value.period.from).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} – ${new Date(data.value.period.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+	: '')
 
-const distributionTotal = distribution.reduce((sum, d) => sum + d.value, 0)
-
-const pieStyle = computed(() => {
-	let cumulative = 0
-	const stops = distribution.map((d) => {
-		const start = (cumulative / distributionTotal) * 100
-		cumulative += d.value
-		const end = (cumulative / distributionTotal) * 100
-		return `${d.color} ${start}% ${end}%`
-	})
-	return { background: `conic-gradient(${stops.join(', ')})` }
+const tiles = computed(() => {
+	const b = data.value?.bids?.totals
+	const e = data.value?.events?.totals
+	return [
+		b && { label: 'Win rate', value: pctLabel(b.win_rate), hint: `${b.won} won · ${b.lost} lost` },
+		b && { label: 'Bids submitted', value: b.bids, hint: `${pctLabel(b.response_rate)} of ${b.inquiries} inquiries answered` },
+		e && { label: 'Avg attendance rate', value: pctLabel(e.average_attendance_rate), hint: `${e.completed} completed event${e.completed === 1 ? '' : 's'}` },
+		b ? { label: 'Active inquiries', value: b.open + b.pending, hint: `${b.open} to answer · ${b.pending} awaiting clients` }
+			: e && { label: 'Guests welcomed', value: e.attendees, hint: 'checked in + walk-ins' },
+	].filter(Boolean) as { label: string, value: string | number, hint: string }[]
 })
 
-const recentActivity = [
-	{ title: 'STI College of Davao Intrammurals', time: '2 hours ago', status: 'won', icon: 'check-circle', iconColor: 'text-green-600' },
-	{ title: 'Wedding Reception', time: '5 hours ago', status: 'submitted', icon: 'clock', iconColor: 'text-blue-600' },
-	{ title: 'Product Launch', time: '1 day ago', status: 'lost', icon: 'x-circle', iconColor: 'text-red-600' },
-	{ title: '18th Debut Birthday Party', time: '2 days ago', status: 'new', icon: 'calendar', iconColor: 'text-violet-600' }
-]
+const funnel = computed(() => {
+	const t = data.value!.bids!.totals
+	const top = Math.max(1, t.inquiries)
+	return [
+		{ label: 'Inquiries received', value: t.inquiries, of: null, width: 100 },
+		{ label: 'Quotations sent', value: t.bids, of: t.response_rate, width: (t.bids / top) * 100 },
+		{ label: 'Won', value: t.won, of: t.inquiries ? (t.won * 100) / t.inquiries : null, width: (t.won / top) * 100 },
+	]
+})
 </script>

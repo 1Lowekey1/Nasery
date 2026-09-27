@@ -45,24 +45,20 @@
 				</nav>
 
 				<div class="border-t border-gray-100 px-4 py-4">
-					<button type="button"
-						class="mb-1 flex w-full items-center gap-3 rounded-lg p-1.5 text-left hover:bg-gray-50"
-						@click="openProfilePanel">
+					<component :is="organization?.my_membership?.is_owner ? NuxtLinkComponent : 'div'" :to="organization?.my_membership?.is_owner ? '/organizer/profile' : undefined"
+						class="mb-3 flex w-full items-center gap-3 rounded-lg p-1.5 text-left" :class="organization?.my_membership?.is_owner ? 'hover:bg-gray-50' : ''">
 						<div
 							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-700 text-sm font-bold text-white">
 							{{ sidebarInitials }}
 						</div>
 						<div class="min-w-0">
-							<div class="truncate text-sm font-semibold text-gray-900">{{ profile.company }}</div>
-							<div class="text-xs text-gray-400">
-								Organizer
-							</div>
+							<div class="truncate text-sm font-semibold text-gray-900">{{ organization?.display_name || fullName }}</div>
+							<div class="truncate text-xs text-gray-400">{{ sidebarSubtitle }}</div>
 						</div>
-					</button>
-					<p class="mb-3 px-1.5 text-[11px] text-gray-400">Click profile to customize</p>
+					</component>
 					<button type="button"
 						class="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-700"
-						@click="navigateTo('/login')">
+						@click="signOut">
 						<IconBase name="log-out" class="h-4 w-4" />
 						Sign out
 					</button>
@@ -81,11 +77,7 @@
 						<div class="text-sm font-bold text-gray-900">{{ activeItem.label }}</div>
 					</div>
 				</div>
-				<span
-					class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-					<span class="h-1.5 w-1.5 rounded-full bg-green-500" />
-					System Online
-				</span>
+				<NotificationBell />
 			</header>
 
 			<main class="flex-1 overflow-y-auto p-6">
@@ -93,6 +85,8 @@
 				<InquiryTabs v-else-if="isInquiryRoute" />
 				<EventManagementTabs v-else-if="isEventManagementRoute" />
 				<TicketingTabs v-else-if="isTicketAttendanceRoute" />
+				<OrganizerApprovalBanner v-if="route.path !== '/organizer/onboarding'" />
+				<AnnouncementBanner class="mb-4" />
 				<slot />
 			</main>
 		</div>
@@ -295,18 +289,40 @@
 </template>
 
 <script setup lang="ts">
+const { logout, user } = useAuth()
+const NuxtLinkComponent = resolveComponent('NuxtLink')
+const fullName = computed(() => user.value ? `${user.value.first_name} ${user.value.last_name}` : '')
+
+async function signOut() {
+	await logout()
+	await navigateTo('/login')
+}
+
 const route = useRoute()
 
 const sidebarOpen = ref(true)
 
-const navItems = [
+// `needs`: shown when the member holds any of these permissions (owners hold all). B8.
+const allNavItems = [
 	{ label: 'Home', to: '/organizer/home', icon: 'home' },
-	{ label: 'Analytics Dashboard', to: '/organizer/analyticsdashboard/overview', icon: 'chart-bar' },
-	{ label: 'Inquiry & Bidding', to: '/organizer/inquiries/match-inquiries', icon: 'file-text' },
+	{ label: 'My Tasks', to: '/organizer/my-tasks', icon: 'check-circle' },
+	{ label: 'Business Profile', to: '/organizer/profile', icon: 'user', ownerOnly: true },
+	{ label: 'Reviews', to: '/organizer/reviews', icon: 'star' },
+	{ label: 'Analytics Dashboard', to: '/organizer/analyticsdashboard/overview', icon: 'chart-bar', needs: ['finance.view', 'inquiry.manage', 'quotation.manage', 'event.update', 'checkin.perform'] },
+	{ label: 'Inquiry & Bidding', to: '/organizer/inquiries/match-inquiries', icon: 'file-text', needs: ['inquiry.manage', 'quotation.manage'] },
 	{ label: 'Event Management', to: '/organizer/eventmanagement/all-events', icon: 'calendar' },
 	{ label: 'Activity Timeline', to: '/organizer/activity-timeline', icon: 'clipboard-list' },
-	{ label: 'Ticketing & Attendance', to: '/organizer/ticketattendance/attendees', icon: 'users' }
-]
+	{ label: 'Ticketing & Attendance', to: '/organizer/ticketattendance/attendees', icon: 'users' },
+	{ label: 'Team', to: '/organizer/team', icon: 'users' },
+	{ label: 'NaSeRy Access', to: '/organizer/nasery-access', icon: 'user-plus' },
+	{ label: 'Plan & Billing', to: '/organizer/billing', icon: 'credit-card' }
+] as { label: string, to: string, icon: string, needs?: string[], ownerOnly?: boolean }[]
+
+const navItems = computed(() => {
+	const m = organization.value?.my_membership
+	if (!m || m.is_owner) return allNavItems
+	return allNavItems.filter(i => !i.ownerOnly && (!i.needs || i.needs.some(p => m.permissions.includes(p))))
+})
 
 const analyticsRoutes = [
 	'/organizer/analyticsdashboard/overview',
@@ -328,7 +344,8 @@ const ticketAttendanceRoutes = [
 	'/organizer/ticketattendance/attendees',
 	'/organizer/ticketattendance/qr-checkin',
 	'/organizer/ticketattendance/walkin-counter',
-	'/organizer/ticketattendance/attendance-report'
+	'/organizer/ticketattendance/attendance-report',
+	'/organizer/ticketattendance/payments'
 ]
 
 const isAnalyticsRoute = computed(() => analyticsRoutes.includes(route.path))
@@ -337,19 +354,20 @@ const isEventManagementRoute = computed(() => eventManagementRoutes.includes(rou
 const isTicketAttendanceRoute = computed(() => ticketAttendanceRoutes.includes(route.path))
 
 const activeItem = computed(() => {
+	if (route.path === '/notifications') return { label: 'Notifications' }
 	if (isAnalyticsRoute.value) {
-		return navItems.find((item) => item.label === 'Analytics Dashboard') ?? navItems[0]
+		return allNavItems.find((item) => item.label === 'Analytics Dashboard') ?? allNavItems[0]
 	}
 	if (isInquiryRoute.value) {
-		return navItems.find((item) => item.label === 'Inquiry & Bidding') ?? navItems[0]
+		return allNavItems.find((item) => item.label === 'Inquiry & Bidding') ?? allNavItems[0]
 	}
 	if (isEventManagementRoute.value) {
-		return navItems.find((item) => item.label === 'Event Management') ?? navItems[0]
+		return allNavItems.find((item) => item.label === 'Event Management') ?? allNavItems[0]
 	}
 	if (isTicketAttendanceRoute.value) {
-		return navItems.find((item) => item.label === 'Ticketing & Attendance') ?? navItems[0]
+		return allNavItems.find((item) => item.label === 'Ticketing & Attendance') ?? allNavItems[0]
 	}
-	return navItems.find((item) => item.to === route.path) ?? navItems[0]
+	return allNavItems.find((item) => item.to === route.path) ?? allNavItems[0]
 })
 
 const profileTabs = [
@@ -404,7 +422,15 @@ function initialsOf(name) {
 	return (name || '').trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join('').toUpperCase()
 }
 
-const sidebarInitials = computed(() => initialsOf(profile.company || profile.fullName))
+const { organization } = useOrganization()
+const sidebarInitials = computed(() => initialsOf(organization.value?.display_name || fullName.value))
+// Who is signed in, and as what: "Owen Cruz · Owner", or setup still to do.
+const sidebarSubtitle = computed(() => {
+	const m = organization.value?.my_membership
+	if (!organization.value) return `${fullName.value} · setting up`
+	const role = m?.is_primary_owner ? 'Owner' : m?.is_owner ? 'Co-owner' : (m?.role ?? 'Team member')
+	return `${fullName.value} · ${role}`
+})
 const panelInitials = computed(() => initialsOf(draftProfile.company || draftProfile.fullName))
 
 function openProfilePanel() {
