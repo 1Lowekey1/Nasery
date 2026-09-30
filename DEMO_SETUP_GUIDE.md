@@ -119,6 +119,12 @@ Use them **as they are** — they already contain the database, `APP_KEY`, `DEMO
 - `PG_DUMP_PATH` — where `pg_dump.exe` is (only for backups). Default install location:
   `PG_DUMP_PATH="C:/Program Files/PostgreSQL/18/bin/pg_dump.exe"`
 
+`frontend/.env` should include the **LocationIQ** token (place suggestions + map preview in Post an Event and the organizer profile):
+```
+NUXT_PUBLIC_LOCATION_IQ_API_KEY=<token>
+```
+Without it the site still works: people type the venue as text and can pin it with "Use my current location". After changing `frontend/.env`, restart `npm run dev`.
+
 ### 2.5 Backend packages (Composer)
 
 Composer as a single file, run with PHP 8.5 (so it never picks XAMPP's PHP 8.2 by mistake):

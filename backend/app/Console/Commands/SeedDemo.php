@@ -197,6 +197,13 @@ class SeedDemo extends Command
                 'Balloon styling and party backdrops.', ['Venue Styling' => 9000], ApprovalStatus::UnderReview, 'free'],
         ];
 
+        // years, service radius (km), event tags, specialties, banner color, website (example.com: reserved, goes nowhere)
+        $details = [
+            'dream' => ['5–10 years', 40, ['Wedding', 'Debut', 'Corporate Event'], ['Full Event Coordination', 'Decor & Styling'], '#be123c', 'https://davaodreamevents.example.com'],
+            'grand' => ['10+ years', 60, ['Corporate Event', 'Conference', 'Birthday Party', 'Christening'], ['Catering Services', 'Full Event Coordination', 'Venue Sourcing'], '#1d4ed8', null],
+            'samal' => ['3–5 years', 30, ['Wedding'], ['Decor & Styling', 'Photography & Videography'], '#15803d', null],
+        ];
+
         foreach ($specs as $key => [$ownerKey, $name, $legal, $location, $lat, $lng, $about, $services, $status, $plan]) {
             $owner = $this->u($ownerKey);
             $org = $this->as($owner, fn () => app(OrganizerOnboarding::class)->create($owner, [
@@ -210,6 +217,15 @@ class SeedDemo extends Command
             }
             if ($status === ApprovalStatus::Approved) {
                 DB::table('organization_profiles')->where('organization_id', $org->id)->update(['is_published' => true]); // seed shortcut: profile published
+            }
+            // 0046: the business profile panel's details (shown on the public organizer page).
+            if (isset($details[$key])) {
+                [$years, $radius, $tags, $specialties, $color, $website] = $details[$key];
+                DB::table('organization_profiles')->where('organization_id', $org->id)->update([
+                    'years_experience' => $years, 'service_radius_km' => $radius,
+                    'event_tags' => json_encode($tags), 'specialties' => json_encode($specialties),
+                    'banner_color' => $color, 'website' => $website,
+                ]);
             }
 
             foreach ($services as $service => $price) {
