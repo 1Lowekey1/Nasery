@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Payments\EarningsController;
 use App\Http\Controllers\Api\V1\Payments\OrganizerPaymentController;
 use App\Http\Controllers\Api\V1\Payments\PaymentController;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,13 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
             ->middleware(['throttle:checkout', 'idempotent'])->name('me.registrations.checkout');
         Route::post('me/registrations/{registration}/cancel', [PaymentController::class, 'cancel'])->middleware('throttle:sensitive')->name('me.registrations.cancel');
         Route::get('me/payments/{payment}', [PaymentController::class, 'show'])->name('me.payments.show');
+
+        // Earnings and payouts (0043): the breakdown is free; details and CSV need advanced_reports.
+        Route::prefix('organizations/{organization}/earnings')->name('organizations.earnings.')->middleware('account:business')->group(function () {
+            Route::get('/', [EarningsController::class, 'summary'])->name('summary');
+            Route::get('details', [EarningsController::class, 'details'])->name('details');
+            Route::get('export', [EarningsController::class, 'export'])->name('export');
+        });
 
         Route::prefix('organizations/{organization}/events/{event}')->name('organizations.events.')->middleware('account:business')->group(function () {
             Route::get('payments', [OrganizerPaymentController::class, 'index'])->name('payments.index');

@@ -55,7 +55,7 @@ class ActivityTimeline
                 'action' => $r->action,
                 'message' => match ($r->action) {
                     'inquiry.submitted' => 'You sent your inquiry to organizers',
-                    'quotation_accept' => "You accepted {$organizerName}'s quotation",
+                    'quotation_accept' => 'You accepted '.$organizerName.(str_ends_with(strtolower($organizerName), 's') ? "'" : "'s").' quotation',
                     'event.converted_from_inquiry' => "{$organizerName} set up your event",
                     'event.stage_reached' => 'Stage reached: '.($this->values($r)['stage'] ?? ''),
                     'event.cancelled' => 'The event was cancelled',

@@ -1,6 +1,7 @@
 <template>
 	<div>
 		<NuxtRouteAnnouncer />
+		<DialogHost />
 		<NuxtLayout :transition="{ name: 'card', mode: 'out-in' }">
 			<NuxtPage :transition="{ name: 'card', mode: 'out-in' }" />
 		</NuxtLayout>

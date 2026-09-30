@@ -90,7 +90,7 @@ async function pay(registrationId: string) {
 }
 
 async function release(registrationId: string) {
-	if (!confirm('Cancel this reservation? The places are released for others.')) return
+	if (!(await confirmDialog('Cancel this reservation? The places are released for others.', { confirmLabel: 'Cancel reservation', cancelLabel: 'Keep it' }))) return
 	busy.value = true
 	try {
 		await payments.cancelReservation(registrationId)
@@ -116,7 +116,7 @@ async function downloadPdf(t: MyTicket) {
 }
 
 async function cancel(t: MyTicket) {
-	if (!confirm(`Cancel ${t.attendee}'s ticket to ${t.event}? This can't be undone.`)) return
+	if (!(await confirmDialog(`Cancel ${t.attendee}'s ticket to ${t.event}? This can't be undone.`, { confirmLabel: 'Cancel ticket', cancelLabel: 'Keep it' }))) return
 	try {
 		await api.cancelMine(t.id)
 		await load()

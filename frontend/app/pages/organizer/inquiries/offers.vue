@@ -1,234 +1,412 @@
 <template>
 	<div>
-		<div class="mb-4 flex flex-wrap gap-2">
-			<button v-for="f in filters" :key="f.label" type="button"
-				class="rounded-full border px-3 py-1.5 text-xs font-semibold"
-				:class="activeFilter === f.label ? 'border-primary-600 bg-primary-50 text-primary-800' : 'border-gray-200 text-gray-600'"
-				@click="activeFilter = f.label; load(1)">{{ f.label }}</button>
+		<OrganizerThreadDrawer :thread-id="threads.open.value?.id ?? null" :title="threads.open.value?.title ?? ''"
+			@close="threads.open.value = null; if (orgId) threads.loadUnread(orgId)" @read="threads.markRead()" />
+
+		<div v-if="threadError" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{{ threadError }}</div>
+
+		<div v-if="isLoading"
+			class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
+			Loading your offers...
 		</div>
 
-		<Alert v-if="error" type="danger" :text="error" />
-		<Alert v-if="notice" type="success" :text="notice" />
-		<div v-if="loading" class="py-16 text-center text-sm text-gray-500">Loading quotations…</div>
+		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+			{{ errorMessage }}
+		</div>
 
 		<div v-else-if="offers.length" class="space-y-5">
-			<div v-for="offer in offers" :key="offer.id" class="rounded-2xl border border-gray-200 bg-white p-6">
-				<div class="flex flex-wrap items-start justify-between gap-3">
-					<div class="min-w-0">
-						<h3 class="text-lg font-bold text-gray-900">{{ offer.package_name || `${offer.inquiry?.event_type ?? 'Event'} quotation` }}</h3>
-						<p class="mt-1 text-sm text-gray-500">
-							{{ offer.inquiry?.event_type ?? 'Event' }} for {{ offer.client?.name ?? 'client' }}
-							<template v-if="offer.inquiry?.requested_date"> · {{ formatDate(offer.inquiry.requested_date) }}</template>
-							<template v-if="offer.inquiry?.guest_count"> · {{ offer.inquiry.guest_count }} guests</template>
-						</p>
-					</div>
-					<span class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold" :class="quotationStatusClasses[offer.status]">
-						{{ quotationStatusLabels[offer.status] }}
-					</span>
-				</div>
+			<article v-for="offer in offers" :key="offer.id"
+				class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:border-primary-200 hover:shadow-md">
+				<div class="h-1"
+					:class="offer.quotation_status === 'accepted' ? 'bg-emerald-500' : offer.quotation_status === 'rejected' ? 'bg-rose-400' : 'bg-amber-400'" />
+				<div class="p-6">
+					<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+						<div>
+							<h3 class="text-lg font-bold text-gray-900">
+								{{ offer.inquiry?.event_title || `${offer.inquiry?.event_type || 'Event'} Inquiry` }}
+							</h3>
 
-				<div v-if="offer.status === 'accepted' && offer.client" class="mt-4 rounded-xl bg-green-50 p-4 text-sm text-green-900">
-					<p class="font-bold">The client accepted your quotation.</p>
-					<p class="mt-1">Reach {{ offer.client.name }} to agree the final terms:
-						<a v-if="offer.client.email" :href="`mailto:${offer.client.email}`" class="font-semibold underline">{{ offer.client.email }}</a>
-						<template v-if="offer.client.phone"> · {{ offer.client.phone }}</template>
-					</p>
-					<div class="mt-3">
-						<NuxtLink v-if="offer.event_id" :to="`/organizer/eventmanagement/event-details?event=${offer.event_id}`"
-							class="inline-block rounded-xl bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800">Open the event</NuxtLink>
-						<button v-else type="button" class="rounded-xl bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
-							@click="converting = offer">Create the event</button>
-					</div>
-				</div>
+							<p class="mt-1 text-sm text-gray-500">
+								{{ offer.package_name || 'Custom quotation' }}
+							</p>
+						</div>
 
-				<div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-					<div class="rounded-lg bg-gray-50 p-3">
-						<div class="text-xs text-gray-500">Offer Amount</div>
-						<div class="mt-1 text-lg font-bold text-primary-700">{{ formatPeso(offer.total_amount) }}</div>
+						<span class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold"
+							:class="statusBadgeClass(offer.quotation_status)">
+							{{ statusLabel(offer.quotation_status) }}
+						</span>
 					</div>
-					<div class="rounded-lg bg-gray-50 p-3">
-						<div class="text-xs text-gray-500">{{ offer.submitted_at ? 'Sent' : 'Last saved' }}</div>
-						<div class="mt-1 text-sm font-bold text-gray-900">{{ formatDate(offer.submitted_at ?? offer.updated_at) }}</div>
-					</div>
-					<div class="rounded-lg bg-gray-50 p-3">
-						<div class="text-xs text-gray-500">Client budget</div>
-						<div class="mt-1 text-sm font-bold text-gray-900">{{ offer.inquiry ? budgetLabel(offer.inquiry.budget_min, offer.inquiry.budget_max) : '—' }}</div>
-					</div>
-				</div>
 
-				<div class="mt-4">
-					<div class="mb-2 text-xs font-semibold tracking-wide text-gray-400">COST BREAKDOWN</div>
-					<div class="divide-y divide-gray-100">
-						<div v-for="line in offer.items" :key="line.id" class="flex items-center justify-between gap-3 py-2 text-sm">
-							<span class="text-gray-600">{{ line.description }}<span v-if="Number(line.quantity) !== 1" class="text-gray-400"> × {{ Number(line.quantity) }}</span></span>
-							<span class="font-semibold text-gray-900">{{ formatPeso(line.subtotal) }}</span>
+					<div
+						class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-primary-100 bg-primary-50/60 px-4 py-3 text-sm">
+						<span class="flex items-center gap-2 font-semibold text-gray-800">
+							<IconBase name="calendar" class="h-4 w-4 text-primary-700" />{{
+								formatEventDate(offer.inquiry?.event_date) }}
+						</span>
+						<span class="flex items-center gap-2 font-semibold text-primary-800">
+							<IconBase name="clock" class="h-4 w-4" />{{ formatSchedule(offer.inquiry?.start_time,
+								offer.inquiry?.end_time) }}
+						</span>
+						<span v-if="offer.inquiry?.location" class="flex min-w-0 items-center gap-2 text-gray-500">
+							<IconBase name="map-pin" class="h-4 w-4 shrink-0" /><span class="truncate">{{
+								offer.inquiry.location }}</span>
+						</span>
+					</div>
+
+					<div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+						<div class="rounded-lg bg-gray-50 p-3">
+							<div class="text-xs text-gray-500">
+								Offer Amount
+							</div>
+
+							<div class="mt-1 text-lg font-bold text-primary-700">
+								{{ formatCurrency(offer.quotation_amount) }}
+							</div>
+						</div>
+
+						<div class="rounded-lg bg-gray-50 p-3">
+							<div class="text-xs text-gray-500">
+								Submitted
+							</div>
+
+							<div class="mt-1 text-sm font-bold text-gray-900">
+								{{ formatDate(offer.created_at) }}
+							</div>
+						</div>
+
+						<div class="rounded-lg bg-gray-50 p-3">
+							<div class="text-xs text-gray-500">
+								Status
+							</div>
+
+							<div class="mt-1 text-sm font-bold" :class="statusTextClass(offer.quotation_status)">
+								{{ statusLabel(offer.quotation_status) }}
+							</div>
 						</div>
 					</div>
-					<div class="mt-1 flex items-center justify-between border-t border-gray-200 pt-2 text-sm font-bold text-gray-900">
-						<span>Total</span><span>{{ formatPeso(offer.total_amount) }}</span>
+
+					<div v-if="offer.timeline || offer.quotation_details" class="mt-4 grid gap-3 sm:grid-cols-2">
+						<div v-if="offer.timeline" class="rounded-lg border border-gray-100 p-3">
+							<div class="text-xs font-semibold uppercase tracking-wide text-gray-400">
+								Timeline
+							</div>
+
+							<p class="mt-1 text-sm text-gray-700">
+								{{ offer.timeline }}
+							</p>
+						</div>
+
+						<div v-if="offer.quotation_details" class="rounded-lg border border-gray-100 p-3">
+							<div class="text-xs font-semibold uppercase tracking-wide text-gray-400">
+								Pitch
+							</div>
+
+							<p class="mt-1 text-sm leading-6 text-gray-700">
+								{{ offer.quotation_details }}
+							</p>
+						</div>
+					</div>
+
+					<div v-if="offer.inclusions?.length" class="mt-4">
+						<div class="mb-2 text-xs font-semibold tracking-wide text-gray-400">
+							INCLUSIONS
+						</div>
+
+						<ul class="space-y-2">
+							<li v-for="inclusion in offer.inclusions" :key="inclusion.id"
+								class="flex items-start gap-2 text-sm text-gray-600">
+								<span class="mt-0.5 text-primary-700">✓</span>
+								<span>{{ inclusion.description }}</span>
+							</li>
+						</ul>
+					</div>
+
+					<div v-if="expandedId === offer.id" class="mt-5 rounded-xl border border-gray-100 bg-gray-50 p-4">
+						<div class="mb-2 text-xs font-semibold tracking-wide text-gray-400">PRICE BREAKDOWN</div>
+						<table class="w-full text-sm">
+							<thead>
+								<tr class="text-left text-xs text-gray-400">
+									<th class="py-1 font-semibold">Item</th>
+									<th class="py-1 text-right font-semibold">Qty</th>
+									<th class="py-1 text-right font-semibold">Unit price</th>
+									<th class="py-1 text-right font-semibold">Subtotal</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-100">
+								<tr v-for="(line, i) in offer.lines" :key="i" class="text-gray-700">
+									<td class="py-1.5 pr-3">{{ line.description }}</td>
+									<td class="py-1.5 text-right">{{ line.quantity }}</td>
+									<td class="py-1.5 text-right">{{ formatPeso(line.unit_price) }}</td>
+									<td class="py-1.5 text-right font-semibold">{{ formatPeso(line.subtotal) }}</td>
+								</tr>
+							</tbody>
+							<tfoot>
+								<tr class="border-t border-gray-200 text-gray-900">
+									<td colspan="3" class="pt-2 font-bold">Total</td>
+									<td class="pt-2 text-right font-extrabold">{{ formatPeso(offer.quotation_amount) }}</td>
+								</tr>
+							</tfoot>
+						</table>
+						<p v-if="offer.timeline" class="mt-3 text-xs text-gray-500"><span class="font-semibold">Terms:</span> {{ offer.timeline }}</p>
+					</div>
+
+					<div class="mt-5 flex flex-wrap gap-3">
+						<button v-if="offer.quotation_status === 'accepted'" type="button"
+							class="flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-60"
+							:disabled="startingPlanningId === offer.id" @click="startEventPlanning(offer)">
+							<IconBase name="arrow-right" class="h-4 w-4" />
+
+							{{
+								startingPlanningId === offer.id
+									? 'Starting...'
+									: offer.event
+										? 'Open Event'
+										: 'Start Event Planning'
+							}}
+						</button>
+
+						<button v-if="offer.quotation_status !== 'rejected'" type="button"
+							class="relative flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+							:disabled="openingThreadId === offer.id" @click="openThread(offer)">
+							<IconBase name="message" class="h-4 w-4" />
+							{{ openingThreadId === offer.id ? 'Opening…' : 'Message Client' }}
+							<span v-if="threads.unread.value[String(offer.inquiry_id)]"
+								class="ml-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{{ threads.unread.value[String(offer.inquiry_id)] }}</span>
+						</button>
+
+						<button type="button"
+							class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+							:aria-expanded="expandedId === offer.id" @click="expandedId = expandedId === offer.id ? null : offer.id">
+							{{ expandedId === offer.id ? 'Hide Full Proposal' : 'View Full Proposal' }}
+						</button>
 					</div>
 				</div>
+			</article>
+		</div>
 
-				<p v-if="offer.proposal && expanded.has(offer.id)" class="mt-4 whitespace-pre-line text-sm text-gray-600">{{ offer.proposal }}</p>
-				<p v-if="offer.terms && expanded.has(offer.id)" class="mt-2 whitespace-pre-line text-xs text-gray-500">Terms: {{ offer.terms }}</p>
-
-				<div class="mt-5 flex flex-wrap gap-3">
-					<button v-if="(offer.proposal || offer.terms) && !expanded.has(offer.id)" type="button"
-						class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-						@click="expanded.add(offer.id)">View proposal</button>
-					<template v-if="isOpen(offer)">
-						<button v-if="offer.status === 'draft' || offer.status === 'submitted'" type="button"
-							class="rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-900"
-							@click="editing = offer">{{ offer.status === 'draft' ? 'Edit & send' : 'Edit offer' }}</button>
-						<button v-if="offer.status === 'submitted'" type="button"
-							class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
-							@click="withdrawing = offer; withdrawReason = ''">Withdraw</button>
-					</template>
-					<button v-if="offer.status === 'draft'" type="button"
-						class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
-						@click="removeDraft(offer)">Delete draft</button>
-					<button type="button" class="relative flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-						:aria-label="messages.unread.value[offer.inquiry_id] ? `Messages, ${messages.unread.value[offer.inquiry_id]} unread` : 'Messages'"
-						@click="messages.openFor(organization!.id, offer.inquiry_id, offer.client?.name ?? 'Client')">
-						<IconBase name="message" class="h-4 w-4" /> Messages
-						<span v-if="messages.unread.value[offer.inquiry_id]" class="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 text-[11px] font-bold text-white">{{ messages.unread.value[offer.inquiry_id] }}</span>
-					</button>
-				</div>
+		<div v-else class="rounded-2xl border-2 border-dashed border-gray-200 bg-white px-6 py-16 text-center">
+			<div class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-400">
+				<IconBase name="file-text" class="h-5 w-5" />
 			</div>
 
-			<div v-if="pagination && pagination.last_page > 1" class="flex justify-center gap-2 pt-2">
-				<button type="button" :disabled="page <= 1" class="rounded-lg border px-3 py-1.5 text-sm disabled:opacity-40" @click="load(page - 1)">Previous</button>
-				<span class="px-2 py-1.5 text-sm text-gray-500">Page {{ page }} of {{ pagination.last_page }}</span>
-				<button type="button" :disabled="page >= pagination.last_page" class="rounded-lg border px-3 py-1.5 text-sm disabled:opacity-40" @click="load(page + 1)">Next</button>
-			</div>
+			<h2 class="mt-4 text-lg font-bold text-gray-900">
+				No offers submitted yet
+			</h2>
+
+			<p class="mt-1 text-sm text-gray-500">
+				Your submitted quotations will appear here.
+			</p>
 		</div>
-
-		<div v-else class="rounded-3xl border-2 border-dashed border-gray-200 bg-gray-50/60 px-6 py-16 text-center">
-			<h2 class="text-lg font-bold text-gray-900">No quotations here yet</h2>
-			<p class="mt-1 text-sm text-gray-500">Send one from <NuxtLink to="/organizer/inquiries/match-inquiries" class="font-semibold text-primary-700">Matching Inquiries</NuxtLink>.</p>
-		</div>
-
-		<OrganizerQuotationForm v-if="editing" :organization-id="organization!.id" :inquiry-id="editing.inquiry_id"
-			:event-label="`${editing.inquiry?.event_type ?? 'Event'} for ${editing.client?.name ?? 'client'}`"
-			:guest-count="editing.inquiry?.guest_count ?? null" :quotation="editing"
-			@close="editing = null" @saved="onSaved" />
-
-		<OrganizerEventForm v-if="converting" :organization-id="organization!.id" :quotation="converting"
-			@close="converting = null" @saved="onEventCreated" />
-
-		<div v-if="withdrawing" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4" @click.self="withdrawing = null">
-			<form class="w-full max-w-md rounded-2xl bg-white p-6" @submit.prevent="confirmWithdraw">
-				<h2 class="text-lg font-bold text-gray-900">Withdraw this quotation?</h2>
-				<p class="mt-1 text-sm text-gray-500">The client will no longer be able to accept it. You can send a new one while the inquiry is open.</p>
-				<textarea v-model="withdrawReason" rows="3" maxlength="500" placeholder="Reason (the client sees this)"
-					class="mt-4 w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm focus:border-primary-500 focus:outline-none" />
-				<div class="mt-4 flex justify-end gap-2">
-					<button type="button" class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold" @click="withdrawing = null">Keep it</button>
-					<button type="submit" :disabled="busy || withdrawReason.trim().length < 3"
-						class="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Withdraw</button>
-				</div>
-			</form>
-		</div>
-
-		<OrganizerThreadDrawer :thread-id="messages.open.value?.id ?? null" :title="messages.open.value?.title ?? ''"
-			@close="messages.open.value = null" @read="messages.markRead()" />
 	</div>
 </template>
 
 <script setup lang="ts">
-import type { OrganizerQuotation, QuotationStatus } from '~/composables/useQuotations'
-import type { OrganizerEvent } from '~/composables/useEvents'
+const startingPlanningId =
+	ref<number | null>(null)
 
-definePageMeta({ layout: 'dashboard' })
-
-const { organization, fetchOrganization } = useOrganization()
-const api = useOrganizerQuotations()
-
-const filters: { label: string, status: QuotationStatus[] }[] = [
-	{ label: 'Active', status: ['draft', 'submitted'] },
-	{ label: 'Won', status: ['accepted'] },
-	{ label: 'Closed', status: ['rejected', 'withdrawn', 'cancelled'] },
-	{ label: 'All', status: [] },
-]
-const activeFilter = ref('Active')
-const offers = ref<OrganizerQuotation[]>([])
-const pagination = ref<{ current_page: number, last_page: number, total: number } | null>(null)
-const page = ref(1)
-const loading = ref(true)
-const error = ref('')
-const notice = ref('')
-const expanded = reactive(new Set<string>())
-const editing = ref<OrganizerQuotation | null>(null)
-const converting = ref<OrganizerQuotation | null>(null)
-
-async function onEventCreated(event: OrganizerEvent) {
-	converting.value = null
-	await navigateTo(`/organizer/eventmanagement/event-details?event=${event.id}`)
-}
-const withdrawing = ref<OrganizerQuotation | null>(null)
-const withdrawReason = ref('')
-const busy = ref(false)
-const messages = useOrganizerThreads()
-
-function formatDate(value: string | null | undefined) {
-	if (!value) return ''
-	return new Date(value.length === 10 ? `${value}T00:00:00` : value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+interface OfferInclusion {
+	id: number
+	quotation_id: number
+	description: string
 }
 
-function isOpen(offer: OrganizerQuotation) {
-	return offer.inquiry !== null && ['submitted', 'receiving_bids'].includes(offer.inquiry.status)
+interface OfferInquiry {
+	id: number
+	event_title: string | null
+	event_type: string
+	event_date: string
+	start_time: string | null
+	end_time: string | null
+	location: string
 }
 
-async function load(p = 1) {
-	loading.value = true
-	error.value = ''
+interface OrganizerEvent {
+	id: number
+	status: string
+}
+
+interface OrganizerOffer {
+	id: number
+	inquiry_id: number
+	organizer_id: number
+	quotation_amount: string | number
+	package_name: string | null
+	timeline: string | null
+	quotation_details: string | null
+	quotation_status: 'pending' | 'accepted' | 'rejected'
+	created_at: string
+	updated_at: string
+	inclusions?: OfferInclusion[]
+	/** The priced lines behind the total ("View Full Proposal"). */
+	lines?: { description: string, quantity: number, unit_price: number, subtotal: number }[]
+	inquiry?: OfferInquiry
+	event?: OrganizerEvent | null
+}
+
+interface OrganizerOffersResponse {
+	data: OrganizerOffer[]
+}
+
+definePageMeta({
+	layout: 'dashboard',
+})
+
+const { token } = useAuth()
+const config = useRuntimeConfig()
+
+const offers = ref<OrganizerOffer[]>([])
+const expandedId = ref<number | null>(null)
+// Shared with the tab bar (inquiry-tabs.vue), which Match Inquiries also fills.
+const matchingInquiryCount = useState<number>('matchingInquiryCount', () => 0)
+const myOffersCount = useState<number>('myOffersCount', () => 0)
+const isLoading = ref(false)
+const errorMessage = ref('')
+
+function statusLabel(status: OrganizerOffer['quotation_status']): string {
+	if (status === 'accepted') return 'Won'
+	if (status === 'rejected') return 'Lost'
+	return 'Pending'
+}
+
+function statusBadgeClass(status: OrganizerOffer['quotation_status']) {
+	if (status === 'accepted') return 'bg-green-50 text-green-700'
+	if (status === 'rejected') return 'bg-red-50 text-red-600'
+	return 'bg-gray-100 text-gray-600'
+}
+
+function statusTextClass(status: OrganizerOffer['quotation_status']) {
+	if (status === 'accepted') return 'text-green-600'
+	if (status === 'rejected') return 'text-red-600'
+	return 'text-gray-700'
+}
+
+function formatCurrency(value: string | number): string {
+	const amount = Number(value)
+
+	if (Number.isNaN(amount)) {
+		return String(value)
+	}
+
+	return new Intl.NumberFormat('en-PH', {
+		style: 'currency',
+		currency: 'PHP',
+		maximumFractionDigits: 0,
+	}).format(amount)
+}
+
+function formatDate(dateString: string): string {
+	if (!dateString) return ''
+
+	return new Date(dateString).toLocaleDateString('en-US', {
+		month: 'long',
+		day: 'numeric',
+		year: 'numeric',
+	})
+}
+
+function formatEventDate(value?: string): string {
+	return value ? formatDate(value) : 'Date not set'
+}
+
+function formatTime(value?: string | null): string {
+	if (!value) return 'Not set'
+	const [hours, minutes] = value.substring(0, 5).split(':').map(Number)
+	return new Intl.DateTimeFormat('en-PH', { hour: 'numeric', minute: '2-digit' })
+		.format(new Date(2000, 0, 1, hours, minutes))
+}
+
+function formatSchedule(start?: string | null, end?: string | null): string {
+	if (!start && !end) return 'Time not set'
+	return `${formatTime(start)} – ${formatTime(end)}`
+}
+
+// Private messages with each client (one thread per inquiry).
+const threads = useOrganizerThreads()
+const orgId = ref<string | null>(null)
+const openingThreadId = ref<number | null>(null)
+const threadError = ref('')
+
+async function openThread(offer: OrganizerOffer) {
+	if (!orgId.value) return
+	openingThreadId.value = offer.id
+	threadError.value = ''
 	try {
-		const org = organization.value ?? await fetchOrganization()
-		if (!org) return
-		messages.loadUnread(org.id) // badges for client messages; not awaited
-		const r = await api.list(org.id, filters.find(f => f.label === activeFilter.value)!.status, p)
-		offers.value = r.items
-		pagination.value = r.pagination
-		page.value = p
-	} catch (e) {
-		error.value = authMessage(e)
+		await threads.openFor(orgId.value, String(offer.inquiry_id), `${offer.inquiry?.event_title ?? 'Inquiry'} · ${offer.package_name ?? 'Offer'}`)
+		if (!threads.open.value) threadError.value = 'No conversation is open for this inquiry yet.'
+	} catch (error: unknown) {
+		threadError.value = authMessage(error) || 'Unable to open messages.'
 	} finally {
-		loading.value = false
+		openingThreadId.value = null
 	}
 }
 
-async function onSaved(q: OrganizerQuotation) {
-	editing.value = null
-	notice.value = q.status === 'draft' ? 'Draft saved.' : 'Quotation sent to the client.'
-	await load(page.value)
-}
-
-async function confirmWithdraw() {
-	if (!withdrawing.value) return
-	busy.value = true
+async function loadOffers() {
+	isLoading.value = true
+	errorMessage.value = ''
 	try {
-		await api.withdraw(organization.value!.id, withdrawing.value.id, withdrawReason.value.trim())
-		withdrawing.value = null
-		notice.value = 'Quotation withdrawn.'
-		await load(page.value)
-	} catch (e) {
-		error.value = authMessage(e)
-		withdrawing.value = null
+		const org = await useOrganization().fetchOrganization()
+		if (!org) throw new Error('Set up your organizer workspace first.')
+		orgId.value = org.id
+		void threads.loadUnread(org.id)
+		void useOrganizerInquiries().list(org.id, ['pending', 'viewed']).then(r => {
+			matchingInquiryCount.value = r.items.filter(i => i.is_open && (!i.quotation || i.quotation.status === 'draft')).length
+		}).catch(() => {})
+		const quotations = await allItems(page => useOrganizerQuotations().list(org.id, ['submitted', 'accepted', 'rejected', 'withdrawn'], page))
+		myOffersCount.value = quotations.length
+		offers.value = quotations.map((q) => {
+			const legacy = toLegacyQuotation(q)
+			return {
+				id: q.id as unknown as number,
+				inquiry_id: q.inquiry_id as unknown as number,
+				organizer_id: 0,
+				quotation_amount: q.total_amount,
+				package_name: q.package_name,
+				timeline: q.terms,
+				quotation_details: q.proposal,
+				quotation_status: (legacy.quotation_status === 'withdrawn' ? 'rejected' : legacy.quotation_status) as OrganizerOffer['quotation_status'],
+				created_at: q.submitted_at ?? q.updated_at ?? '',
+				updated_at: q.updated_at ?? '',
+				inclusions: q.items.map((item, i) => ({ id: i, quotation_id: 0, description: `${item.description}${Number(item.quantity) !== 1 ? ` × ${item.quantity}` : ''}` })),
+				lines: q.items.map(item => ({
+					description: item.description,
+					quantity: Number(item.quantity),
+					unit_price: Number(item.unit_price),
+					subtotal: Number(item.subtotal ?? Number(item.quantity) * Number(item.unit_price)),
+				})),
+				inquiry: legacy.inquiry ? {
+					id: legacy.inquiry.id as unknown as number,
+					event_title: legacy.inquiry.event_title,
+					event_type: legacy.inquiry.event_type,
+					event_date: legacy.inquiry.event_date ?? '',
+					start_time: null,
+					end_time: null,
+					location: legacy.inquiry.location,
+				} : undefined,
+				event: q.event_id ? { id: q.event_id as unknown as number, status: 'planned' } : null,
+			}
+		})
+	} catch (error: unknown) {
+		errorMessage.value = authMessage(error) || 'Unable to load your offers.'
 	} finally {
-		busy.value = false
+		isLoading.value = false
 	}
 }
+async function startEventPlanning(
+	offer: OrganizerOffer,
+) {
+	if (offer.event) {
+		await navigateTo(
+			'/organizer/eventmanagement/all-events',
+		)
 
-async function removeDraft(offer: OrganizerQuotation) {
-	if (!confirm('Delete this draft quotation?')) return
-	try {
-		await api.remove(organization.value!.id, offer.id)
-		notice.value = 'Draft deleted.'
-		await load(page.value)
-	} catch (e) {
-		error.value = authMessage(e)
+		return
 	}
+
+	// Event Details creates the event from the won quotation ("start planning").
+	await navigateTo({ path: '/organizer/eventmanagement/event-details', query: { quotation: String(offer.id) } })
 }
 
-onMounted(() => load())
+onMounted(() => {
+	loadOffers()
+})
 </script>

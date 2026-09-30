@@ -124,6 +124,17 @@ class Alerts
             "You were assigned a task for {$event->name}.", ['event_id' => $event->id, 'task_id' => $task->id], '/organizer/my-tasks');
     }
 
+    /** 0044: the organizer reviewed a finished task; tell its assignees. */
+    public function taskReviewed(Event $event, Task $task, bool $verified, ?string $note, ?string $actorUserId): void
+    {
+        $users = $this->db->system('alerts.task_reviewers', fn () => DB::table('task_assignees as ta')->join('event_members as em', 'em.id', '=', 'ta.event_member_id')
+            ->join('organization_members as m', 'm.id', '=', 'em.organization_member_id')->where('ta.task_id', $task->id)->pluck('m.user_id')->all());
+        $this->notifier->send(array_values(array_diff($users, [$actorUserId])), 'task.reviewed',
+            $verified ? "Verified: {$task->name}" : "Changes requested: {$task->name}",
+            $verified ? "Your task for {$event->name} was checked and verified." : 'Please take another look'.($note ? ': '.rtrim($note, '.').'.' : '.'),
+            ['event_id' => $event->id, 'task_id' => $task->id], '/organizer/my-tasks');
+    }
+
     /**
      * New valid tickets: e-mail them (QR + PDF) and tell the account holder in-app.
      *

@@ -87,7 +87,7 @@ async function save() {
 }
 
 async function remove() {
-	if (!confirm('Remove your review? It disappears from their profile.')) return
+	if (!(await confirmDialog('Remove your review? It disappears from their profile.', { confirmLabel: 'Remove review' }))) return
 	await api.remove(props.eventId)
 	Object.assign(form, { rating: 0, text: '' })
 	await load()

@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * public.tasks (0010): one preparation task. Readiness counts done tasks
  * over all tasks that aren't cancelled.
  */
-#[Fillable(['name', 'description', 'due_at', 'priority', 'status'])]
+#[Fillable(['name', 'description', 'due_at', 'priority', 'status', 'completion_note'])]
 class Task extends Model
 {
     use SoftDeletes;
@@ -31,6 +31,7 @@ class Task extends Model
             'status' => TaskStatus::class,
             'priority' => TaskPriority::class,
             'due_at' => 'datetime',
+            'reviewed_at' => 'datetime',
         ];
     }
 

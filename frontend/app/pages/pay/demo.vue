@@ -16,7 +16,7 @@
 
 			<Alert v-if="error" type="danger" :text="error" class="mt-4" />
 
-			<div v-if="state && state.status === 'pending'" class="mt-6 grid gap-2">
+			<div v-if="!state || state.status === 'pending'" class="mt-6 grid gap-2">
 				<button type="button" :disabled="busy" class="rounded-lg bg-primary-700 py-3 text-sm font-bold text-white hover:bg-primary-900 disabled:opacity-50" @click="complete('paid')">
 					{{ busy ? 'Processing…' : 'Pay (simulate success)' }}
 				</button>
@@ -65,7 +65,8 @@ onMounted(async () => {
 	try {
 		state.value = await api.status(String(route.query.payment))
 	} catch (e) {
-		error.value = authMessage(e)
+		// Guest checkout: no account to ask with; the signed pay link is enough.
+		if (!(e instanceof ApiError && e.status === 401)) error.value = authMessage(e)
 	}
 })
 </script>

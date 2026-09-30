@@ -13,6 +13,36 @@ class StaffTest extends TestCase
 {
     use InteractsWithOrganizations;
 
+    public function test_finished_tasks_carry_a_note_and_are_reviewed(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $helper = $this->join($owner, $org, ['preset' => 'checkin']);
+        $event = $this->event($owner, $org);
+        $eventMember = $this->assignToEvent($owner, $org, $event, $helper);
+        $base = "/api/v1/organizations/{$org->id}/events/{$event}";
+        $task = $this->actingAs($owner)->spaJson('POST', "{$base}/checklists", ['starter' => true])->json('data.checklists.0.tasks.0.id');
+        $this->actingAs($owner)->spaJson('PUT', "{$base}/tasks/{$task}/assignees", ['event_member_ids' => [$eventMember]])->assertOk();
+        $find = fn ($res) => collect($res->json('data.checklists.0.tasks'))->firstWhere('id', $task);
+
+        // The assignee finishes it with a note: it waits for review. Only finished tasks can be reviewed.
+        $this->actingAs($owner)->spaJson('POST', "{$base}/tasks/{$task}/review", ['decision' => 'verified'])->assertConflict();
+        $done = $find($this->actingAs($helper)->spaJson('PATCH', "{$base}/tasks/{$task}", ['status' => 'done', 'completion_note' => 'Venue confirmed by phone'])->assertOk());
+        $this->assertSame(['done', 'pending', 'Venue confirmed by phone'], [$done['status'], $done['review_status'], $done['completion_note']]);
+
+        // Assignees can't review; the organizer asks for changes (note required): back in progress, assignee told.
+        $this->actingAs($helper)->spaJson('POST', "{$base}/tasks/{$task}/review", ['decision' => 'verified'])->assertForbidden();
+        $this->actingAs($owner)->spaJson('POST', "{$base}/tasks/{$task}/review", ['decision' => 'changes_requested'])->assertUnprocessable();
+        $back = $find($this->actingAs($owner)->spaJson('POST', "{$base}/tasks/{$task}/review", ['decision' => 'changes_requested', 'note' => 'Get it in writing'])->assertOk());
+        $this->assertSame(['in_progress', 'changes_requested', 'Get it in writing'], [$back['status'], $back['review_status'], $back['review_note']]);
+        $this->assertSame(1, DB::table('notifications')->where('recipient_user_id', $helper->id)->where('type', 'task.reviewed')->count());
+
+        // Done again, then verified.
+        $this->actingAs($helper)->spaJson('PATCH', "{$base}/tasks/{$task}", ['status' => 'done', 'completion_note' => 'E-mail confirmation attached'])->assertOk();
+        $ok = $find($this->actingAs($owner)->spaJson('POST', "{$base}/tasks/{$task}/review", ['decision' => 'verified'])->assertOk());
+        $this->assertSame(['done', 'verified'], [$ok['status'], $ok['review_status']]);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'task.verified', 'entity_id' => $task]);
+    }
+
     private function invite(User $by, Organization $org, string $email, array $role = ['preset' => 'coordinator'])
     {
         return $this->actingAs($by)->spaJson('POST', "/api/v1/organizations/{$org->id}/team/invitations", ['email' => $email, ...$role]);
@@ -178,7 +208,10 @@ class StaffTest extends TestCase
         // The assignee sees it in My Tasks and can move its status, nothing else.
         $this->actingAs($helper)->spaJson('GET', "/api/v1/organizations/{$org->id}/my-tasks")->assertOk()
             ->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $tasks[0]['id'])->assertJsonPath('data.0.event_id', $event);
+        // Their finished task counts toward readiness once the organizer verifies it (0044).
         $this->actingAs($helper)->spaJson('PATCH', "{$base}/tasks/{$tasks[0]['id']}", ['status' => 'done'])->assertOk()
+            ->assertJsonPath('data.readiness_percent', 0);
+        $this->actingAs($owner)->spaJson('POST', "{$base}/tasks/{$tasks[0]['id']}/review", ['decision' => 'verified'])->assertOk()
             ->assertJsonPath('data.readiness_percent', 16.67);
         $this->actingAs($helper)->spaJson('PATCH', "{$base}/tasks/{$tasks[0]['id']}", ['name' => 'Renamed'])->assertForbidden();
         $this->actingAs($helper)->spaJson('PATCH', "{$base}/tasks/{$tasks[1]['id']}", ['status' => 'done'])->assertForbidden(); // not theirs

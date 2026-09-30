@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\Admin\AdminController;
 use App\Http\Controllers\Api\V1\Organizations\NaseryAccessController;
+use App\Http\Controllers\Api\V1\Payments\EarningsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Route;
 
 $uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 $ids = ['organization' => $uuid, 'accessRequest' => $uuid, 'grant' => $uuid, 'review' => $uuid, 'refund' => $uuid,
-    'user' => $uuid, 'service' => $uuid, 'announcement' => $uuid];
+    'user' => $uuid, 'service' => $uuid, 'announcement' => $uuid, 'eventType' => $uuid, 'payout' => $uuid];
 
 Route::get('announcements', [NaseryAccessController::class, 'announcements'])->middleware('throttle:public')->name('announcements');
 
@@ -52,6 +53,16 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])->where($ids)->group(fu
         Route::get('users', [AdminController::class, 'users'])->name('users');
         Route::post('users/{user}/status', [AdminController::class, 'userStatus'])->middleware('throttle:sensitive')->name('users.status');
 
+        Route::get('users/{user}', [AdminController::class, 'user'])->name('users.show');
+        // Organizer payouts (0043)
+        Route::get('payouts', [EarningsController::class, 'balances'])->name('payouts');
+        Route::get('organizations/{organization}/payouts', [EarningsController::class, 'payouts'])->name('payouts.organization');
+        Route::post('organizations/{organization}/payouts', [EarningsController::class, 'record'])->middleware(['throttle:sensitive', 'idempotent'])->name('payouts.store');
+        Route::post('payouts/{payout}/void', [EarningsController::class, 'void'])->middleware('throttle:sensitive')->name('payouts.void');
+        Route::get('event-types', [AdminController::class, 'eventTypes'])->name('event-types');
+        Route::post('event-types', [AdminController::class, 'saveEventType'])->middleware('throttle:sensitive')->name('event-types.store');
+        Route::patch('event-types/{eventType}', [AdminController::class, 'saveEventType'])->middleware('throttle:sensitive')->name('event-types.update');
+        Route::delete('event-types/{eventType}', [AdminController::class, 'removeEventType'])->middleware('throttle:sensitive')->name('event-types.destroy');
         Route::get('services', [AdminController::class, 'services'])->name('services');
         Route::post('services', [AdminController::class, 'saveService'])->middleware('throttle:sensitive')->name('services.store');
         Route::patch('services/{service}', [AdminController::class, 'saveService'])->middleware('throttle:sensitive')->name('services.update');

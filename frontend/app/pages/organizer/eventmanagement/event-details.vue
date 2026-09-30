@@ -1,227 +1,1346 @@
 <template>
-	<div>
-		<Alert v-if="error" type="danger" :text="error" />
-		<Alert v-if="notice" type="success" :text="notice" />
-
-		<div v-if="!eventId" class="rounded-3xl border-2 border-dashed border-gray-200 bg-gray-50/60 px-6 py-16 text-center">
-			<h2 class="text-lg font-bold text-gray-900">Choose an event</h2>
-			<p class="mt-1 text-sm text-gray-500">Open one from <NuxtLink to="/organizer/eventmanagement/all-events" class="font-semibold text-primary-700">All Events</NuxtLink>.</p>
+	<div class="space-y-6">
+		<div v-if="isLoading"
+			class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
+			Loading event details...
 		</div>
 
-		<div v-else-if="!event && !error" class="py-16 text-center text-sm text-gray-500">Loading event…</div>
+		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+			{{ errorMessage }}
+		</div>
 
-		<template v-if="event">
-			<div class="rounded-2xl border border-gray-200 bg-white p-6">
-				<div class="flex flex-wrap items-start justify-between gap-3">
-					<div>
-						<h2 class="text-lg font-bold text-gray-900">{{ event.name }}</h2>
-						<p class="text-sm text-gray-500">{{ event.event_type ?? 'Event' }} · {{ event.visibility === 'public' ? 'Public' : 'Private (invited guests)' }}</p>
-					</div>
-					<span class="rounded-full px-3 py-1 text-xs font-semibold" :class="eventStatusClasses[event.status]">{{ eventStatusLabels[event.status] }}</span>
+		<template v-else>
+			<section v-if="event" class="relative overflow-hidden rounded-3xl bg-primary-700 px-6 py-7 text-white shadow-sm sm:px-8">
+				<div class="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
+				<div class="relative">
+					<p class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/60">
+						<span class="h-1.5 w-1.5 rounded-full bg-white/60" />
+						Event details
+					</p>
+					<h2 class="mt-2 text-2xl font-black tracking-tight sm:text-3xl">{{ event.name }}</h2>
+					<p class="mt-1 text-sm text-white/70">Manage the core details, venue, and settings for this event.</p>
+				</div>
+			</section>
+
+			<div v-if="event && isEditMode" class="rounded-2xl border border-gray-200 bg-white">
+			<div class="flex flex-wrap items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
+				<div>
+					<h2 class="text-xl font-bold text-gray-900">
+						Edit Event
+					</h2>
+
+					<p class="mt-1 text-sm text-gray-500">
+						Configure your event information and planning details.
+					</p>
 				</div>
 
-				<p v-if="event.status === 'cancelled'" class="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">Cancelled: {{ event.cancelled_reason }}</p>
-				<div v-if="event.client" class="mt-4 rounded-lg bg-primary-50 p-3 text-sm text-primary-900">
-					Client: <strong>{{ event.client.name }}</strong>
-					<template v-if="event.client.email"> · <a :href="`mailto:${event.client.email}`" class="underline">{{ event.client.email }}</a></template>
-					<template v-if="event.client.phone"> · {{ event.client.phone }}</template>
-					<span class="block text-xs text-primary-700">The client can see this event, its schedule and status in their portal.</span>
+				<button type="button"
+					class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+					@click="cancelEdit">
+					Cancel
+				</button>
+			</div>
+
+			<div class="flex items-center gap-1 overflow-x-auto border-b border-gray-200 px-6">
+				<button v-for="tab in editTabs" :key="tab.label" type="button"
+					class="flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-semibold"
+					:class="activeEditTab === tab.label
+						? 'border-primary-700 text-primary-700'
+						: 'border-transparent text-gray-400 hover:text-gray-600'
+						" @click="activeEditTab = tab.label">
+					<IconBase :name="tab.icon" class="h-4 w-4" />
+
+					{{ tab.label }}
+				</button>
+			</div>
+
+			<div class="p-6">
+				<div v-if="saveError"
+					class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+					{{ saveError }}
 				</div>
 
-				<div class="mt-6 grid grid-cols-1 gap-x-12 gap-y-5 sm:grid-cols-2">
-					<div>
-						<div class="text-sm text-gray-500">Venue</div>
-						<div class="mt-1 flex items-center gap-1.5 text-base font-bold text-gray-900">
-							<IconBase name="map-pin" class="h-4 w-4 text-gray-400" /> {{ event.venue_name || 'Not set' }}
+				<div v-if="saveSuccess"
+					class="mb-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+					{{ saveSuccess }}
+				</div>
+
+				<template v-if="activeEditTab === 'Basic Info'">
+					<FormsLabel text="Event Name" required />
+
+					<FormsTextField v-model="editForm.name" placeholder="Event name" />
+
+					<label class="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">
+						Event Type
+						<span class="text-rose-500">*</span>
+					</label>
+
+					<FormsSelect v-model="editForm.eventType" :options="eventTypes" placeholder="Select event type"
+						:can-clear="false" />
+
+					<label class="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">
+						Description
+					</label>
+
+					<textarea v-model="editForm.description" rows="4" placeholder="Describe the event..."
+						class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15" />
+
+					<div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+						<div>
+							<FormsLabel text="Event Date" required />
+
+							<FormsDateField v-model="editForm.eventDate" name="event_date"
+								placeholder="Choose event date" />
 						</div>
-						<div v-if="event.venue_address" class="text-sm text-gray-500">{{ event.venue_address }}</div>
-					</div>
-					<div>
-						<div class="text-sm text-gray-500">Capacity</div>
-						<div class="mt-1 flex items-center gap-1.5 text-base font-bold text-gray-900">
-							<IconBase name="users" class="h-4 w-4 text-gray-400" /> {{ event.overall_capacity ?? 'Not set' }}
+
+						<div>
+							<label class="mb-1.5 block text-sm font-semibold text-gray-700">
+								Status
+							</label>
+
+							<FormsSelect v-model="editForm.status"
+								:options="[{ value: 'draft', label: 'Draft' }, { value: 'published', label: 'Published' }]"
+								:can-clear="false" :searchable="false" />
 						</div>
 					</div>
-					<div>
-						<div class="text-sm text-gray-500">Event contact</div>
-						<div class="mt-1 text-sm text-gray-900">{{ [event.contact_name, event.contact_email, event.contact_phone].filter(Boolean).join(' · ') || '—' }}</div>
-					</div>
-					<div v-if="event.description" class="sm:col-span-2">
-						<div class="text-sm text-gray-500">Description</div>
-						<p class="mt-1 whitespace-pre-line text-sm text-gray-700">{{ event.description }}</p>
-					</div>
-				</div>
 
-				<div class="mt-6 flex flex-wrap gap-3">
-					<button v-if="editable" type="button"
-						class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1f4a54]"
-						@click="editing = true">
-						<IconBase name="edit" class="h-4 w-4" /> Edit details
+					<div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+						<div>
+							<FormsLabel text="Start Time" />
+
+							<FormsTimeField v-model="editForm.startTime" name="start_time"
+								placeholder="Select start time" />
+						</div>
+
+						<div>
+							<FormsLabel text="End Time" />
+
+							<FormsTimeField v-model="editForm.endTime" name="end_time" placeholder="Select end time"
+								:min-time="editForm.startTime || undefined" />
+						</div>
+					</div>
+				</template>
+
+				<template v-else-if="activeEditTab === 'Venue'">
+					<FormsLabel text="Venue / Location" />
+
+					<FormsTextField v-model="editForm.location" icon="map-pin" placeholder="Venue or location" />
+
+					<div class="mt-4">
+						<FormsLabel text="Expected Guests / Capacity" />
+
+						<FormsTextField v-model="editForm.expectedGuests" type="number" placeholder="e.g. 150" />
+					</div>
+				</template>
+
+				<template v-else-if="activeEditTab === 'Ticket Types'">
+					<div class="space-y-3">
+						<div v-for="(type, index) in editForm.ticketTypes" :key="index"
+							class="rounded-xl border border-gray-200 p-4">
+							<div class="mb-3 flex items-center justify-between">
+								<p class="text-sm font-bold text-gray-900">
+									Ticket Type {{ index + 1 }}
+								</p>
+
+								<button v-if="
+									editForm.ticketTypes.length >
+									1
+								" type="button" class="text-red-500 hover:text-red-700" @click="removeTicketType(index)">
+									<IconBase name="trash" class="h-4 w-4" />
+								</button>
+							</div>
+
+							<FormsLabel text="Ticket Type Name" />
+
+							<FormsTextField v-model="type.name" placeholder="e.g. VIP" />
+
+							<div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+								<div>
+									<FormsLabel text="Price" />
+
+									<FormsTextField v-model="type.price" placeholder="e.g. 2500" />
+								</div>
+
+								<div>
+									<FormsLabel text="Capacity" />
+
+									<FormsTextField v-model="type.capacity" type="number" placeholder="e.g. 50" />
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<button type="button" class="mt-4 flex items-center gap-2 text-sm font-semibold text-primary-700"
+						@click="addTicketType">
+						<IconBase name="plus" class="h-4 w-4" />
+
+						Add Ticket Type
 					</button>
-					<button v-for="a in availableActions" :key="a.action" type="button" :disabled="busy"
-						class="rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
-						:class="a.action === 'cancel' ? 'border-gray-200 text-rose-700 hover:bg-rose-50' : 'border-gray-200 text-gray-700 hover:bg-gray-50'"
-						@click="a.action === 'cancel' ? (cancelling = true, cancelReason = '') : run(a.action)">{{ a.label }}</button>
-					<button v-if="event.status === 'draft' && !event.inquiry_id && event.can?.update !== false" type="button" :disabled="busy"
-						class="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-50"
-						@click="removeDraft">Delete draft</button>
+				</template>
+
+				<template v-else-if="activeEditTab === 'Settings'">
+					<label class="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-4">
+						<div>
+							<p class="text-sm font-semibold text-gray-900">
+								Public Registration
+							</p>
+
+							<p class="mt-1 text-xs text-gray-500">
+								Allow guests to register publicly.
+							</p>
+						</div>
+
+						<input v-model="editForm.publicRegistration" type="checkbox"
+							class="h-4 w-4 accent-primary-700" />
+					</label>
+
+					<label class="mt-3 flex items-center justify-between rounded-xl border border-gray-200 px-4 py-4">
+						<div>
+							<p class="text-sm font-semibold text-gray-900">
+								Enable Waitlist
+							</p>
+
+							<p class="mt-1 text-xs text-gray-500">
+								Enable waitlist when tickets are sold
+								out.
+							</p>
+						</div>
+
+						<input v-model="editForm.waitlistEnabled" type="checkbox" class="h-4 w-4 accent-primary-700" />
+					</label>
+
+				</template>
+
+				<template v-else-if="activeEditTab === 'Contact'">
+					<FormsLabel text="Contact Person" />
+
+					<FormsTextField v-model="editForm.contactName" placeholder="Contact person" />
+
+					<div class="mt-4">
+						<FormsLabel text="Email" />
+
+						<FormsTextField v-model="editForm.contactEmail" type="email" placeholder="example@email.com" />
+					</div>
+
+					<div class="mt-4">
+						<FormsLabel text="Phone" />
+
+						<FormsTextField v-model="editForm.contactPhone" type="tel" placeholder="+63..." />
+					</div>
+
+				</template>
+			</div>
+
+			<div class="flex flex-wrap justify-end gap-3 border-t border-gray-200 px-6 py-4">
+				<button type="button"
+					class="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+					:disabled="isSaving" @click="cancelEdit">
+					Cancel
+				</button>
+
+				<button type="button"
+					class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-60"
+					:disabled="isSaving" @click="saveEvent">
+					<IconBase :name="isSaving
+						? 'refresh-cw'
+						: 'check-circle'
+						" class="h-4 w-4" :class="{
+							'animate-spin':
+								isSaving,
+						}" />
+
+					{{
+						isSaving
+							? 'Saving...'
+							: 'Save Changes'
+					}}
+				</button>
+			</div>
+		</div>
+
+		<div v-else-if="event" class="rounded-2xl border border-gray-200 bg-white p-6">
+			<div class="flex flex-wrap items-start justify-between gap-4">
+				<div>
+					<h2 class="text-xl font-bold text-gray-900">
+						{{ event.name }}
+					</h2>
+
+					<p class="mt-1 text-sm text-gray-500">
+						Event configuration and details
+					</p>
+				</div>
+
+				<span class="rounded-full px-3 py-1 text-xs font-semibold" :class="event.status === 'published'
+					? 'bg-gray-900 text-white'
+					: 'border border-gray-200 bg-white text-gray-600'
+					">
+					{{ formatStatus(event.status) }}
+				</span>
+			</div>
+
+			<div class="mt-6 grid grid-cols-1 gap-x-12 gap-y-6 sm:grid-cols-2">
+				<div>
+					<div class="text-sm text-gray-500">
+						Event Name
+					</div>
+
+					<div class="mt-1 text-base font-bold text-gray-900">
+						{{ event.name }}
+					</div>
+				</div>
+
+				<div>
+					<div class="text-sm text-gray-500">
+						Event Type
+					</div>
+
+					<div class="mt-1 text-base font-bold text-gray-900">
+						{{ event.event_type }}
+					</div>
+				</div>
+
+				<div>
+					<div class="text-sm text-gray-500">
+						Event Date
+					</div>
+
+					<div class="mt-1 flex items-center gap-1.5 text-base font-bold text-gray-900">
+						<IconBase name="calendar" class="h-4 w-4 text-gray-400" />
+
+						{{ formatDate(event.event_date) }}
+					</div>
+				</div>
+
+				<div>
+					<div class="text-sm text-gray-500">
+						Location
+					</div>
+
+					<div class="mt-1 flex items-center gap-1.5 text-base font-bold text-gray-900">
+						<IconBase name="map-pin" class="h-4 w-4 text-gray-400" />
+
+						{{ event.location || 'Not set' }}
+					</div>
+				</div>
+
+				<div>
+					<div class="text-sm text-gray-500">
+						Expected Guests
+					</div>
+
+					<div class="mt-1 flex items-center gap-1.5 text-base font-bold text-gray-900">
+						<IconBase name="users" class="h-4 w-4 text-gray-400" />
+
+						{{ event.expected_guests ?? 0 }}
+					</div>
+				</div>
+
+				<div>
+					<div class="text-sm text-gray-500">
+						Start Time
+					</div>
+
+					<div class="mt-1 text-base font-bold text-gray-900">
+						{{ event.start_time || 'Not set' }}
+					</div>
+				</div>
+
+				<div>
+					<div class="text-sm text-gray-500">
+						End Time
+					</div>
+
+					<div class="mt-1 text-base font-bold text-gray-900">
+						{{ event.end_time || 'Not set' }}
+					</div>
 				</div>
 			</div>
 
-			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
-				<h3 class="text-base font-bold text-gray-900">Schedule</h3>
-				<p class="text-xs text-gray-500">Times in {{ event.timezone }}.</p>
-				<ul class="mt-3 divide-y divide-gray-100">
-					<li v-for="s in event.sessions" :key="s.id" class="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
-						<div :class="s.status === 'cancelled' ? 'text-gray-400 line-through' : ''">
-							<span class="font-semibold">{{ s.name || 'Session' }}</span>
-							<span class="block text-gray-500">{{ sessionLabel(s, event.timezone) }}</span>
-						</div>
-						<span v-if="editable && s.status !== 'cancelled'" class="flex gap-3">
-							<button type="button" class="text-xs font-semibold text-gray-600" @click="editSession(s)">Edit</button>
-							<button type="button" class="text-xs font-semibold text-rose-700" @click="removeSession(s.id)">Remove</button>
-						</span>
-					</li>
-					<li v-if="!event.sessions.length" class="py-3 text-sm text-gray-400">No date yet. Add a session before publishing.</li>
-				</ul>
+			<div v-if="event.description" class="mt-6 rounded-xl bg-gray-50 p-4">
+				<p class="text-sm font-semibold text-gray-900">
+					Description
+				</p>
 
-				<form v-if="editable" class="mt-4 grid grid-cols-1 gap-2 rounded-xl bg-gray-50 p-3 sm:grid-cols-[1fr_1fr_1fr_auto]" @submit.prevent="saveSession">
-					<FormsTextField v-model="sessionForm.name" placeholder="Session name (optional)" aria-label="Session name" />
-					<input v-model="sessionForm.starts_at" type="datetime-local" aria-label="Session start" class="rounded-lg border border-gray-200 px-2 py-2 text-sm">
-					<input v-model="sessionForm.ends_at" type="datetime-local" aria-label="Session end" class="rounded-lg border border-gray-200 px-2 py-2 text-sm">
-					<div class="flex gap-2">
-						<button type="submit" :disabled="busy" class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white">{{ sessionForm.id ? 'Save' : 'Add' }}</button>
-						<button v-if="sessionForm.id" type="button" class="text-sm text-gray-500" @click="resetSessionForm">Cancel</button>
-					</div>
-				</form>
-			</section>
+				<p class="mt-2 text-sm leading-6 text-gray-600">
+					{{ event.description }}
+				</p>
+			</div>
 
-			<OrganizerEventTeam :organization-id="event.organization_id" :event-id="event.id" :editable="!['completed', 'cancelled'].includes(event.status)" />
-		</template>
+			<div class="mt-6">
+				<div class="mb-2 flex items-center justify-between">
+					<span class="text-sm font-semibold text-gray-900">
+						Event Readiness
+					</span>
 
-		<OrganizerEventForm v-if="editing && event" :organization-id="event.organization_id" :event="event"
-			@close="editing = false" @saved="(e) => { event = e; editing = false; notice = 'Event saved.' }" />
-
-		<div v-if="cancelling" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4" @click.self="cancelling = false">
-			<form class="w-full max-w-md rounded-2xl bg-white p-6" @submit.prevent="confirmCancel">
-				<h2 class="text-lg font-bold text-gray-900">Cancel this event?</h2>
-				<p class="mt-1 text-sm text-gray-500">This can't be undone. {{ event?.client ? 'The client will see the reason.' : '' }}</p>
-				<textarea v-model="cancelReason" rows="3" maxlength="500" placeholder="Reason"
-					class="mt-4 w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm focus:border-primary-500 focus:outline-none" />
-				<div class="mt-4 flex justify-end gap-2">
-					<button type="button" class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold" @click="cancelling = false">Keep event</button>
-					<button type="submit" :disabled="busy || cancelReason.trim().length < 3"
-						class="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Cancel event</button>
+					<span class="text-sm text-gray-500">
+						{{ readiness }}%
+					</span>
 				</div>
-			</form>
+
+				<div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+					<div class="h-full rounded-full bg-[#285F6b]" :style="{
+						width: `${readiness}%`,
+					}" />
+				</div>
+			</div>
+
+			<div class="mt-6">
+				<button type="button"
+					class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1f4a54]"
+					@click="enterEditMode">
+					<IconBase name="edit" class="h-4 w-4" />
+
+					Edit Event
+				</button>
+			</div>
 		</div>
+
+		<!-- ===================================================== -->
+		<!-- AWARDED QUOTATION DETAILS -->
+		<!-- ===================================================== -->
+		<div v-else-if="quotationData" class="rounded-2xl border border-green-200 bg-white p-6">
+			<div class="flex flex-wrap items-start justify-between gap-4">
+				<div>
+					<p class="text-xs font-bold uppercase tracking-wide text-green-600">
+						Client Awarded Your Bid
+					</p>
+
+					<h2 class="mt-2 text-xl font-bold text-gray-900">
+						{{
+							quotationData.inquiry.event_title ||
+							`${quotationData.inquiry.event_type} Event`
+						}}
+					</h2>
+
+					<p class="mt-1 text-sm text-gray-500">
+						{{ formatDate(quotationData.inquiry.event_date) }}
+
+						<template v-if="quotationData.inquiry.location">
+							&bull;
+							{{ quotationData.inquiry.location }}
+						</template>
+					</p>
+				</div>
+
+				<span
+					class="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+					Awarded
+				</span>
+			</div>
+
+			<div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<div class="rounded-xl bg-gray-50 p-4">
+					<div class="text-xs text-gray-500">
+						Accepted Package
+					</div>
+
+					<div class="mt-1 font-bold text-gray-900">
+						{{
+							quotationData.quotation.package_name ||
+							'Custom Package'
+						}}
+					</div>
+				</div>
+
+				<div class="rounded-xl bg-gray-50 p-4">
+					<div class="text-xs text-gray-500">
+						Agreed Amount
+					</div>
+
+					<div class="mt-1 font-bold text-primary-700">
+						{{
+							formatCurrency(
+								quotationData.quotation.quotation_amount,
+							)
+						}}
+					</div>
+				</div>
+
+				<div class="rounded-xl bg-gray-50 p-4">
+					<div class="text-xs text-gray-500">
+						Timeline
+					</div>
+
+					<div class="mt-1 font-bold text-gray-900">
+						{{
+							quotationData.quotation.timeline ||
+							'Not specified'
+						}}
+					</div>
+				</div>
+			</div>
+
+			<div class="mt-6 grid grid-cols-1 gap-x-12 gap-y-6 sm:grid-cols-2">
+				<div>
+					<div class="text-sm text-gray-500">Event Type</div>
+					<div class="mt-1 text-base font-bold text-gray-900">
+						{{ quotationData.inquiry.event_type }}
+					</div>
+				</div>
+
+				<div>
+					<div class="text-sm text-gray-500">Expected Guests</div>
+					<div class="mt-1 text-base font-bold text-gray-900">
+						{{ quotationData.inquiry.expected_guests }}
+					</div>
+				</div>
+
+				<div>
+					<div class="text-sm text-gray-500">Location</div>
+					<div class="mt-1 text-base font-bold text-gray-900">
+						{{ quotationData.inquiry.location || 'Not set' }}
+					</div>
+				</div>
+
+				<div>
+					<div class="text-sm text-gray-500">Inquiry Status</div>
+					<div class="mt-1 text-base font-bold text-gray-900">
+						{{ formatStatus(quotationData.inquiry.status) }}
+					</div>
+				</div>
+			</div>
+
+			<div v-if="quotationData.quotation.quotation_details" class="mt-6 rounded-xl bg-gray-50 p-4">
+				<p class="text-sm font-semibold text-gray-900">
+					Proposal
+				</p>
+
+				<p class="mt-2 text-sm leading-6 text-gray-600">
+					{{ quotationData.quotation.quotation_details }}
+				</p>
+			</div>
+
+			<div v-if="quotationData.quotation.inclusions?.length" class="mt-6">
+				<p class="text-sm font-semibold text-gray-900">
+					Inclusions
+				</p>
+
+				<div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+					<div v-for="item in quotationData.quotation.inclusions" :key="item.id"
+						class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+						<IconBase name="check-circle" class="h-4 w-4 text-green-600" />
+
+						{{ item.description }}
+					</div>
+				</div>
+			</div>
+
+			<div class="mt-6">
+				<div class="mb-2 flex items-center justify-between">
+					<span class="text-sm font-semibold text-gray-900">
+						Event Readiness
+					</span>
+
+					<span class="text-sm text-gray-500">
+						20%
+					</span>
+				</div>
+
+				<div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+					<div class="h-full w-[20%] rounded-full bg-[#285F6b]" />
+				</div>
+			</div>
+
+			<div class="mt-6">
+				<button type="button"
+					class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-60"
+					:disabled="isCreatingEvent" @click="editAwardedEvent">
+					<IconBase :name="isCreatingEvent ? 'refresh-cw' : 'edit'" class="h-4 w-4"
+						:class="{ 'animate-spin': isCreatingEvent }" />
+
+					{{
+						isCreatingEvent
+							? 'Preparing Event...'
+							: 'Edit Event'
+					}}
+				</button>
+			</div>
+		</div>
+		</template>
 	</div>
 </template>
 
 <script setup lang="ts">
-import type { EventAction, EventSession, OrganizerEvent } from '~/composables/useEvents'
+interface EventTicketType {
+	id: number
+	event_id?: number
+	name: string
+	price: string | number
+	capacity: number
+}
 
-definePageMeta({ layout: 'dashboard' })
+interface OrganizerEvent {
+	id: number
+	inquiry_id: number | null
+	quotation_id: number | null
+
+	name: string
+	event_type: string
+	description: string | null
+
+	event_date: string | null
+	location: string | null
+	expected_guests: number | null
+
+	start_time: string | null
+	end_time: string | null
+
+	status: string
+
+	public_registration: boolean
+	waitlist_enabled: boolean
+
+	contact_name: string | null
+	contact_email: string | null
+	contact_phone: string | null
+
+	ticket_types?: EventTicketType[]
+}
+
+type EventResponse =
+	| OrganizerEvent
+	| {
+		data: OrganizerEvent
+	}
+function extractEvent(
+	response: EventResponse,
+): OrganizerEvent {
+	if (
+		'data' in response &&
+		response.data
+	) {
+		return response.data
+	}
+
+	return response as OrganizerEvent
+}
+
+interface EventInclusion {
+	id: number
+	description: string
+}
+
+interface QuotationEventData {
+	planning_started?: boolean
+
+	quotation: {
+		id: number
+		quotation_amount: string | number
+		package_name: string | null
+		timeline: string | null
+		quotation_details: string | null
+		quotation_status: string
+		inclusions: EventInclusion[]
+	}
+
+	inquiry: {
+		id: number
+		event_title: string | null
+		event_type: string
+		event_date: string | null
+		location: string | null
+		expected_guests: number
+		budget_range: string | null
+		additional_details: string | null
+		status: string
+	}
+
+	event: OrganizerEvent | null
+}
+
+interface QuotationEventResponse {
+	message: string
+	data: QuotationEventData
+}
+
+interface StartPlanningResponse {
+	message: string
+	data: {
+		planning_started: boolean
+		event: OrganizerEvent
+	}
+}
+
+interface TicketTypeForm {
+	id?: number
+	name: string
+	price: string
+	capacity: string
+}
+
+definePageMeta({
+	layout: 'dashboard',
+	middleware: ['organizer'],
+})
 
 const route = useRoute()
-const { organization, fetchOrganization } = useOrganization()
-const api = useOrganizerEvents()
+const config = useRuntimeConfig()
 
-const eventId = computed(() => typeof route.query.event === 'string' ? route.query.event : null)
-const event = ref<OrganizerEvent | null>(null)
-const error = ref('')
-const notice = ref('')
-const busy = ref(false)
-const editing = ref(false)
-const cancelling = ref(false)
-const cancelReason = ref('')
-const sessionForm = reactive({ id: null as string | null, name: '', starts_at: '', ends_at: '' })
+const {
+	token,
+} = useAuth()
 
-const editable = computed(() => event.value !== null && !['completed', 'cancelled'].includes(event.value.status) && event.value.can?.update !== false)
+const event =
+	ref<OrganizerEvent | null>(null)
 
-const actionLabels: Record<EventAction, string> = {
-	publish: 'Publish event', unpublish: 'Back to draft', start: 'Start event', complete: 'Mark completed', cancel: 'Cancel event',
-}
-const allowed: Record<string, EventAction[]> = {
-	draft: ['publish', 'cancel'],
-	published: ['start', 'complete', 'unpublish', 'cancel'],
-	ongoing: ['complete', 'cancel'],
-}
-// Start / complete only make sense once the first session has begun (the server enforces this too).
-const hasStarted = computed(() => {
-	const first = event.value?.sessions.find(s => s.status !== 'cancelled')
-	return first !== undefined && new Date(first.starts_at).getTime() <= Date.now()
-})
-const actionPermission: Record<EventAction, 'update' | 'publish' | 'complete' | 'cancel'> = {
-	publish: 'publish', unpublish: 'publish', start: 'update', complete: 'complete', cancel: 'cancel',
-}
-const availableActions = computed(() => (allowed[event.value?.status ?? ''] ?? [])
-	.filter(action => (action !== 'start' && action !== 'complete') || hasStarted.value)
-	.filter(action => event.value?.can?.[actionPermission[action]] !== false)
-	.map(action => ({ action, label: actionLabels[action] })))
+const quotationData =
+	ref<QuotationEventData | null>(null)
 
-async function load() {
-	if (!eventId.value) return
-	error.value = ''
-	try {
-		const org = organization.value ?? await fetchOrganization()
-		if (org) event.value = await api.show(org.id, eventId.value)
-	} catch (e) {
-		error.value = authMessage(e)
+const isCreatingEvent =
+	ref(false)
+
+const isLoading =
+	ref(false)
+
+const isSaving =
+	ref(false)
+
+const errorMessage =
+	ref('')
+
+const saveError =
+	ref('')
+
+const saveSuccess =
+	ref('')
+
+const editTabs = [
+	{
+		label: 'Basic Info',
+		icon: 'file-text',
+	},
+	{
+		label: 'Venue',
+		icon: 'map-pin',
+	},
+	{
+		label: 'Ticket Types',
+		icon: 'tag',
+	},
+	{
+		label: 'Settings',
+		icon: 'settings',
+	},
+	{
+		label: 'Contact',
+		icon: 'phone',
+	},
+]
+
+// NaSeRy's standard event types plus the organizer's own (value = id).
+const eventTypes = ref<{ value: string, label: string }[]>([])
+let orgId = ''
+// The API's quotation behind a won-but-not-planned event ("start planning").
+let apiQuotation: import('~/composables/useQuotations').OrganizerQuotation | null = null
+
+const activeEditTab =
+	ref('Basic Info')
+
+const eventId =
+	computed(() => routeId(route.query.event))
+
+const quotationId =
+	computed(() => routeId(route.query.quotation))
+
+
+const isEditMode =
+	computed(
+		() =>
+			route.query.mode ===
+			'edit',
+	)
+
+const editForm =
+	reactive({
+		name: '',
+		eventType: '',
+		description: '',
+		eventDate: '',
+		status: 'draft',
+
+		startTime: '',
+		endTime: '',
+
+		location: '',
+		expectedGuests: '',
+
+		ticketTypes: [
+			{
+				name: '',
+				price: '',
+				capacity: '',
+			},
+		] as TicketTypeForm[],
+
+		publicRegistration: true,
+		waitlistEnabled: false,
+
+		contactName: '',
+		contactEmail: '',
+		contactPhone: '',
+	})
+
+const readiness =
+	computed(() => {
+		if (!event.value) {
+			return 0
+		}
+
+		let score = 20
+
+		if (event.value.name) {
+			score += 10
+		}
+
+		if (event.value.event_date) {
+			score += 10
+		}
+
+		if (event.value.location) {
+			score += 15
+		}
+
+		if (
+			event.value.expected_guests
+		) {
+			score += 10
+		}
+
+		if (
+			event.value.start_time
+		) {
+			score += 10
+		}
+
+		if (
+			event.value.end_time
+		) {
+			score += 10
+		}
+
+		if (
+			event.value.description
+		) {
+			score += 5
+		}
+
+		return Math.min(
+			score,
+			100,
+		)
+	})
+
+function fillEditForm() {
+	if (!event.value) {
+		return
 	}
+
+	editForm.name =
+		event.value.name ?? ''
+
+	editForm.eventType =
+		event.value.event_type_id ?? ''
+
+	editForm.description =
+		event.value.description ?? ''
+
+	editForm.eventDate =
+		event.value.event_date
+			? event.value.event_date.substring(
+				0,
+				10,
+			)
+			: ''
+
+	editForm.status =
+		event.value.status ||
+		'draft'
+
+	editForm.startTime =
+		event.value.start_time
+			? event.value.start_time.substring(0, 5)
+			: ''
+
+	editForm.endTime =
+		event.value.end_time
+			? event.value.end_time.substring(0, 5)
+			: ''
+
+	editForm.location =
+		event.value.location ?? ''
+
+	editForm.expectedGuests =
+		event.value.expected_guests !== null &&
+			event.value.expected_guests !== undefined
+			? String(event.value.expected_guests)
+			: ''
+
+	editForm.ticketTypes =
+		event.value.ticket_types?.length
+			? Array.from(
+				new Map(
+					event.value.ticket_types.map(type => [
+						`${type.name.trim().toLowerCase()}|${Number(type.price).toFixed(2)}|${type.capacity}`,
+						type,
+					]),
+				).values(),
+			).map(
+				type => ({
+					id: type.id,
+
+					name:
+						type.name ?? '',
+
+					price:
+						String(type.price ?? ''),
+
+					capacity:
+						String(type.capacity ?? ''),
+				}),
+			)
+			: [
+				{
+					name: '',
+					price: '',
+					capacity: '',
+				},
+			]
+
+	editForm.publicRegistration =
+		Boolean(event.value.public_registration)
+
+	editForm.waitlistEnabled =
+		Boolean(event.value.waitlist_enabled)
+
+	editForm.contactName =
+		event.value.contact_name ?? ''
+
+	editForm.contactEmail =
+		event.value.contact_email ?? ''
+
+	editForm.contactPhone =
+		event.value.contact_phone ?? ''
 }
 
-async function act(fn: () => Promise<OrganizerEvent | void>, success: string) {
-	error.value = ''
-	notice.value = ''
-	busy.value = true
+function formatDate(
+	dateString: string | null,
+): string {
+	if (!dateString) {
+		return 'Date not set'
+	}
+
+	const date =
+		new Date(
+			dateString.includes('T')
+				? dateString
+				: `${dateString}T00:00:00`,
+		)
+
+	return date.toLocaleDateString(
+		'en-US',
+		{
+			month: 'long',
+			day: 'numeric',
+			year: 'numeric',
+		},
+	)
+}
+
+function formatCurrency(
+	value: string | number,
+): string {
+	const amount =
+		Number(value)
+
+	if (Number.isNaN(amount)) {
+		return String(value)
+	}
+
+	return new Intl.NumberFormat(
+		'en-PH',
+		{
+			style: 'currency',
+			currency: 'PHP',
+			maximumFractionDigits: 0,
+		},
+	).format(amount)
+}
+
+
+function formatStatus(
+	status: string,
+): string {
+	if (!status) {
+		return 'Draft'
+	}
+
+	return (
+		status.charAt(0).toUpperCase() +
+		status.slice(1)
+	)
+}
+
+async function loadDetails() {
+	errorMessage.value = ''
+	if (!eventId.value && !quotationId.value) {
+		await navigateTo('/organizer/eventmanagement/all-events', { replace: true })
+		return
+	}
+	isLoading.value = true
+	event.value = null
+	quotationData.value = null
 	try {
-		const result = await fn()
-		if (result) event.value = result
-		notice.value = success
-	} catch (e) {
-		const fields = fieldErrors(e)
-		error.value = Object.values(fields)[0] ?? authMessage(e)
+		const org = await useOrganization().fetchOrganization()
+		if (!org) throw new Error('Set up your organizer workspace first.')
+		orgId = org.id
+		if (!eventTypes.value.length) {
+			const { data } = await useApi().get<{ id: string, name: string }[]>(`/organizations/${orgId}/event-types`).catch(() => ({ data: [] }))
+			eventTypes.value = data.map(t => ({ value: t.id, label: t.name }))
+		}
+
+		if (eventId.value) {
+			event.value = await loadEvent(eventId.value) as unknown as OrganizerEvent
+			fillEditForm()
+			return
+		}
+
+		if (quotationId.value) {
+			apiQuotation = await useOrganizerQuotations().show(orgId, quotationId.value)
+			const q = toLegacyQuotation(apiQuotation)
+			const ev = apiQuotation.event_id ? await loadEvent(apiQuotation.event_id) : null
+			quotationData.value = {
+				planning_started: Boolean(ev),
+				quotation: {
+					id: q.id as unknown as number,
+					quotation_amount: q.quotation_amount,
+					package_name: q.package_name,
+					timeline: q.timeline,
+					quotation_details: q.quotation_details,
+					quotation_status: q.quotation_status,
+					inclusions: apiQuotation.items.map((item, i) => ({ id: (item.id ?? i) as unknown as number, description: `${item.description} × ${item.quantity}` })) as unknown as EventInclusion[],
+				},
+				inquiry: {
+					id: q.inquiry_id as unknown as number,
+					event_title: q.inquiry?.event_title ?? null,
+					event_type: q.inquiry?.event_type ?? 'Event',
+					event_date: q.inquiry?.event_date ?? null,
+					location: q.inquiry?.location || null,
+					expected_guests: q.inquiry?.expected_guests ?? 0,
+					budget_range: q.inquiry?.budget_min || q.inquiry?.budget_max ? `₱${Number(q.inquiry?.budget_min ?? 0).toLocaleString()} – ₱${Number(q.inquiry?.budget_max ?? 0).toLocaleString()}` : null,
+					additional_details: null,
+					status: apiQuotation.inquiry?.status ?? '',
+				},
+				event: ev as unknown as OrganizerEvent | null,
+			}
+			if (ev) {
+				event.value = ev as unknown as OrganizerEvent
+				fillEditForm()
+			}
+		}
+	} catch (error: unknown) {
+		errorMessage.value = authMessage(error) || 'Unable to load event details.'
 	} finally {
-		busy.value = false
+		isLoading.value = false
 	}
 }
 
-const actionDone: Record<EventAction, string> = {
-	publish: 'Event published.', unpublish: 'Event moved back to draft.', start: 'Event started.', complete: 'Event marked completed.', cancel: 'Event cancelled.',
-}
-const run = (action: EventAction) => act(() => api.transition(event.value!.organization_id, event.value!.id, action), actionDone[action])
-
-async function confirmCancel() {
-	await act(() => api.transition(event.value!.organization_id, event.value!.id, 'cancel', cancelReason.value.trim()), 'Event cancelled.')
-	cancelling.value = false
-}
-
-function editSession(s: EventSession) {
-	Object.assign(sessionForm, { id: s.id, name: s.name ?? '', starts_at: s.starts_local, ends_at: s.ends_local })
+/** The API event + its ticket types, in this page's shape. */
+async function loadEvent(id: string) {
+	const [apiEvent, tiers] = await Promise.all([
+		useOrganizerEvents().show(orgId, id),
+		useApi().get<{ tiers: { id: string, name: string, price: string, capacity: number }[] }>(`/organizations/${orgId}/events/${id}/ticket-types`)
+			.then(r => r.data.tiers).catch(() => []),
+	])
+	return { ...toLegacyEvent(apiEvent), ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity })) }
 }
 
-function resetSessionForm() {
-	Object.assign(sessionForm, { id: null, name: '', starts_at: '', ends_at: '' })
+function addTicketType() {
+	editForm.ticketTypes.push({
+		name: '',
+		price: '',
+		capacity: '',
+	})
 }
 
-async function saveSession() {
-	const e = event.value!
-	const input = { name: sessionForm.name.trim() || null, starts_at: sessionForm.starts_at, ends_at: sessionForm.ends_at }
-	await act(() => sessionForm.id
-		? api.updateSession(e.organization_id, e.id, sessionForm.id, input)
-		: api.addSession(e.organization_id, e.id, input), sessionForm.id ? 'Session saved.' : 'Session added.')
-	if (!error.value) resetSessionForm()
+function removeTicketType(
+	index: number,
+) {
+	editForm.ticketTypes.splice(
+		index,
+		1,
+	)
 }
 
-const removeSession = (id: string) => act(() => api.removeSession(event.value!.organization_id, event.value!.id, id), 'Session removed.')
+async function enterEditMode() {
+	if (!event.value) {
+		return
+	}
 
-async function removeDraft() {
-	if (!confirm('Delete this draft event?')) return
-	await act(() => api.remove(event.value!.organization_id, event.value!.id).then(() => {}), 'Draft deleted.')
-	if (!error.value) await navigateTo('/organizer/eventmanagement/all-events')
+	fillEditForm()
+
+	await navigateTo({
+		path:
+			'/organizer/eventmanagement/event-details',
+
+		query: {
+			event:
+				event.value.id,
+
+			mode:
+				'edit',
+		},
+	})
 }
 
-watch(eventId, () => { event.value = null; load() })
-onMounted(load)
+async function cancelEdit() {
+	if (!event.value) {
+		return
+	}
+
+	await navigateTo({
+		path:
+			'/organizer/eventmanagement/event-details',
+
+		query: {
+			event:
+				event.value.id,
+		},
+	})
+}
+
+
+async function editAwardedEvent() {
+	if (
+		!token.value ||
+		!quotationData.value
+	) {
+		return
+	}
+
+	/*
+	 * If an event already exists, simply open edit mode.
+	 */
+	if (quotationData.value.event) {
+		await navigateTo({
+			path:
+				'/organizer/eventmanagement/event-details',
+
+			query: {
+				event:
+					quotationData.value.event.id,
+
+				mode:
+					'edit',
+			},
+		})
+
+		return
+	}
+	isCreatingEvent.value = true
+	errorMessage.value = ''
+	try {
+		const q = apiQuotation!
+		const day = q.inquiry?.requested_date ?? new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+		const created = await useOrganizerEvents().convert(orgId, q.id, {
+			name: `${q.inquiry?.event_type ?? 'Event'}${q.client?.name ? ` for ${q.client.name}` : ''}`,
+			event_type_id: q.inquiry?.event_type_id ?? null,
+			description: q.package_name,
+			overall_capacity: q.inquiry?.guest_count ?? null,
+			venue_name: q.inquiry?.location_text ?? null,
+			venue_address: null,
+			latitude: null,
+			longitude: null,
+			visibility: 'private',
+			contact_name: q.client?.name ?? null,
+			contact_email: q.client?.email ?? null,
+			contact_phone: q.client?.phone ?? null,
+			sessions: [{ name: null, starts_at: `${day}T09:00`, ends_at: `${day}T17:00` }],
+		})
+		const response = { data: { event: { id: created.id } } }
+		await navigateTo({
+			path:
+				'/organizer/eventmanagement/event-details',
+
+			query: {
+				event:
+					response.data.event.id,
+
+				mode:
+					'edit',
+			},
+		})
+
+	} catch (error: unknown) {
+		console.error(
+			'Failed to prepare event for editing:',
+			error,
+		)
+
+		const apiError =
+			error as {
+				data?: {
+					message?: string
+				}
+			}
+
+		errorMessage.value =
+			authMessage(error) ||
+			apiError.data?.message ||
+			'Unable to prepare this event for editing.'
+
+	} finally {
+		isCreatingEvent.value = false
+	}
+}
+
+async function saveEvent() {
+	if (
+		!token.value ||
+		!event.value
+	) {
+		return
+	}
+
+	if (
+		!editForm.name.trim() ||
+		!editForm.eventType ||
+		!editForm.eventDate
+	) {
+		saveError.value =
+			'Event name, event type, and event date are required.'
+
+		activeEditTab.value =
+			'Basic Info'
+
+		return
+	}
+
+	isSaving.value = true
+
+	saveError.value = ''
+	saveSuccess.value = ''
+
+	try {
+		const current = event.value as unknown as LegacyEvent & { ticket_types?: { id: string }[] }
+		const events = useOrganizerEvents()
+		const locationChanged = editForm.location.trim() !== (current.location ?? '')
+
+		await events.update(orgId, current.id, {
+			name: editForm.name.trim(),
+			event_type_id: editForm.eventType || null,
+			description: editForm.description.trim() || null,
+			overall_capacity: editForm.expectedGuests ? Number(editForm.expectedGuests) : null,
+			...(locationChanged ? { venue_name: editForm.location.trim() || null, venue_address: null } : {}),
+			...(editForm.publicRegistration !== current.public_registration ? { visibility: editForm.publicRegistration ? 'public' : 'private' } : {}),
+			contact_name: editForm.contactName.trim() || null,
+			contact_email: editForm.contactEmail.trim() || null,
+			contact_phone: editForm.contactPhone.trim() || null,
+		})
+
+		// Date and time live on the event's (first) session.
+		const startsAt = `${editForm.eventDate}T${editForm.startTime || '09:00'}`
+		const endsAt = `${editForm.eventDate}T${editForm.endTime || '17:00'}`
+		if (current.first_session_id && (editForm.eventDate !== current.event_date || editForm.startTime !== current.start_time || editForm.endTime !== current.end_time)) {
+			await events.updateSession(orgId, current.id, current.first_session_id, { name: null, starts_at: startsAt, ends_at: endsAt })
+		} else if (!current.first_session_id) {
+			await events.addSession(orgId, current.id, { name: null, starts_at: startsAt, ends_at: endsAt })
+		}
+
+		// Ticket types: update, add, and remove the ones taken out (the API keeps any with tickets sold).
+		const base = `/organizations/${orgId}/events/${current.id}/ticket-types`
+		const kept = new Set<string>()
+		for (const type of editForm.ticketTypes.filter(t => t.name.trim())) {
+			const body = { name: type.name.trim(), price: Number(type.price || 0), capacity: Number(type.capacity || 0) || 1 }
+			if (type.id) {
+				kept.add(String(type.id))
+				await useApi().patch(`${base}/${type.id}`, body)
+			} else {
+				await useApi().post(base, { ...body, status: current.status === 'draft' ? 'draft' : 'on_sale' })
+			}
+		}
+		for (const old of current.ticket_types ?? []) {
+			if (!kept.has(old.id)) await useApi().delete(`${base}/${old.id}`).catch(() => null)
+		}
+
+		// Status: publish / unpublish / complete through the event lifecycle.
+		const transitions: Record<string, Record<string, 'publish' | 'unpublish' | 'complete' | 'start'>> = {
+			draft: { published: 'publish' },
+			published: { draft: 'unpublish', ongoing: 'start', completed: 'complete' },
+			ongoing: { completed: 'complete' },
+		}
+		const action = transitions[current.status]?.[editForm.status]
+		if (action) await events.transition(orgId, current.id, action)
+
+		const response = { data: await loadEvent(current.id) }
+		event.value =
+			response.data as unknown as OrganizerEvent
+
+		fillEditForm()
+
+		saveSuccess.value =
+			'Event updated successfully.'
+
+		window.setTimeout(
+			async () => {
+				await navigateTo({
+					path:
+						'/organizer/eventmanagement/event-details',
+
+					query: {
+						event:
+							event.value?.id,
+					},
+				})
+			},
+			700,
+		)
+
+	} catch (error: unknown) {
+		console.error(
+			'Failed to update event:',
+			error,
+		)
+
+		const apiError =
+			error as {
+				data?: {
+					message?: string
+
+					errors?: Record<
+						string,
+						string[]
+					>
+				}
+			}
+
+		const validationError =
+			apiError.data?.errors
+				? Object.values(
+					apiError.data.errors,
+				)[0]?.[0]
+				: null
+
+		saveError.value =
+			validationError ??
+			apiError.data?.message ??
+			'Unable to save event.'
+
+	} finally {
+		isSaving.value = false
+	}
+}
+
+watch(
+	[
+		eventId,
+		quotationId,
+	],
+	() => {
+		loadDetails()
+	},
+)
+
+onMounted(() => {
+	loadDetails()
+})
 </script>

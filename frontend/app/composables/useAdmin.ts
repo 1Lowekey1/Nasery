@@ -8,7 +8,13 @@ export interface OrganizerTotals {
   events: number
   completed_events: number
   tickets_sold: number
+  /** Gross ticket sales (the buyers' money) and where it went. */
   sales: number
+  refunded?: number
+  platform_fee?: number
+  organizer_net?: number
+  /** What the organizer paid NaSeRy for its plan. */
+  plan_payments?: number
   rating: number | null
   reviews: number
   members: number
@@ -167,6 +173,7 @@ export interface AdminEvent {
   starts_at: string | null
   ends_at: string | null
   tickets_sold: number
+  ticket_sales?: number
   capacity: number | null
   via_grant: boolean
 }

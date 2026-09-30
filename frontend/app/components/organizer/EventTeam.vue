@@ -78,8 +78,8 @@ async function add() {
 	if (!error.value) Object.assign(form, { organization_member_id: '', label: '', permissions: [] })
 }
 
-function remove(id: string, name: string) {
-	if (confirm(`Remove ${name} from this event? Their tasks here are unassigned.`)) run(() => api.removeFromEvent(props.organizationId, props.eventId, id))
+async function remove(id: string, name: string) {
+	if (await confirmDialog(`Remove ${name} from this event? Their tasks here are unassigned.`, { confirmLabel: 'Remove' })) run(() => api.removeFromEvent(props.organizationId, props.eventId, id))
 }
 
 onMounted(async () => {

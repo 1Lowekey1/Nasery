@@ -26,13 +26,13 @@ class AdminAlerts
         $this->notifier->send($this->admins(), 'admin.application',
             ($resubmitted ? 'Application resubmitted: ' : 'New organizer application: ').$name,
             'Review the business profile and decide from Organizers.',
-            ['organization_id' => $organizationId], "/admin/organizers/{$organizationId}");
+            ['organization_id' => $organizationId], "/superadmin/approvals/{$organizationId}");
     }
 
     public function reviewReported(string $reviewId, string $organizer): void
     {
         $this->notifier->send($this->admins(), 'admin.report', "A review of {$organizer} was reported",
-            'Open Moderation to look into it.', ['review_id' => $reviewId], '/admin/moderation', "report:{$reviewId}:".now()->format('YmdH'));
+            'Open Moderation to look into it.', ['review_id' => $reviewId], '/superadmin/moderation', "report:{$reviewId}:".now()->format('YmdH'));
     }
 
     // ---- Workspace access (consent) -----------------------------------------
@@ -48,13 +48,13 @@ class AdminAlerts
     {
         $this->notifier->send($adminUserId, 'admin.access', $approved ? "{$organizer} approved your access request" : "{$organizer} refused your access request",
             $approved ? "You can view their workspace until {$until}." : 'Note: '.self::sentence($note ?: 'none given'),
-            [], '/admin/access');
+            [], '/superadmin/access');
     }
 
     public function supportInvited(string $organizationId, string $organizer, string $reason): void
     {
         $this->notifier->send($this->admins(), 'admin.access', "{$organizer} invited NaSeRy support",
-            'Reason: '.self::sentence($reason).' Accept it to get read-only access to their workspace.', ['organization_id' => $organizationId], '/admin/access');
+            'Reason: '.self::sentence($reason).' Accept it to get read-only access to their workspace.', ['organization_id' => $organizationId], '/superadmin/access');
     }
 
     public function accessStarted(string $organizationId, string $adminName, string $until): void
@@ -68,7 +68,7 @@ class AdminAlerts
         $this->notifier->send($this->owners($organizationId), 'access.update', 'NaSeRy access ended', "Ended by {$by}.",
             ['organization_id' => $organizationId], '/organizer/nasery-access');
         if ($adminUserId) {
-            $this->notifier->send($adminUserId, 'admin.access', 'Workspace access ended', "Ended by {$by}.", [], '/admin/access');
+            $this->notifier->send($adminUserId, 'admin.access', 'Workspace access ended', "Ended by {$by}.", [], '/superadmin/access');
         }
     }
 
@@ -118,6 +118,13 @@ class AdminAlerts
     public function billingUpdate(string $organizationId, string $title, string $body): void
     {
         $this->notifier->send($this->owners($organizationId), 'billing.update', $title, $body, ['organization_id' => $organizationId], '/organizer/billing');
+    }
+
+    /** Payouts of ticket earnings: owners and members who see finances. */
+    public function payoutUpdate(string $organizationId, string $title, string $body): void
+    {
+        $recipients = array_values(array_unique([...$this->owners($organizationId), ...app(Recipients::class)->forOrganization($organizationId, ['finance.view'])]));
+        $this->notifier->send($recipients, 'payout.update', $title, $body, ['organization_id' => $organizationId], '/organizer/earnings');
     }
 
     public function accountStatus(string $userId, bool $suspended, string $reason): void

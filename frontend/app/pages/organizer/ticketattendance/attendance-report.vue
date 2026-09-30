@@ -1,130 +1,1059 @@
 <template>
-	<div>
-		<Alert v-if="error" type="danger" :text="error" />
-		<Alert v-if="notice" type="success" :text="notice" />
-		<div v-if="!eventId" class="rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/60 p-10 text-center text-sm text-gray-500">Choose an event above.</div>
-		<div v-else-if="!report && !error" class="py-12 text-center text-sm text-gray-500">Building the report…</div>
+    <div class="rounded-2xl border border-gray-200 bg-white p-6">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">
+                    Attendance Report
+                </h2>
 
-		<template v-if="report">
-			<div class="mb-5 flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-6">
-				<div>
-					<h2 class="text-lg font-bold text-gray-900">Post-event attendance report</h2>
-					<p class="mt-1 text-sm text-gray-500">{{ report.event.sessions.map(s => s.when).join(' · ') }}</p>
-					<span class="mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="report.final ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'">
-						{{ report.final ? 'Final: the event is completed' : 'Preliminary: numbers update until the event is completed' }}
-					</span>
-				</div>
-				<div class="flex gap-2">
-					<button type="button" :disabled="busy" class="flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" @click="download('pdf')">
-						<IconBase name="download" class="h-4 w-4" /> PDF
-					</button>
-					<button type="button" :disabled="busy" class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50" @click="download('csv')">
-						<IconBase name="download" class="h-4 w-4" /> CSV
-					</button>
-				</div>
-			</div>
+                <p class="mt-1 text-sm text-gray-500">
+                    <span v-if="selectedEvent">
+                        Attendance analytics for
+                        <span class="font-semibold text-gray-700">
+                            {{ selectedEvent.name }}
+                        </span>
+                    </span>
 
-			<ReportsReportView :report="report" />
+                    <span v-else>
+                        Comprehensive event attendance analytics
+                    </span>
+                </p>
+            </div>
 
-			<!-- Review and share with the client (paper) -->
-			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
-				<h3 class="text-base font-bold text-gray-900">Share with the client</h3>
-				<p v-if="!report.can.has_client" class="mt-1 text-sm text-gray-500">This event wasn't created from a client's inquiry, so there's no client to send the report to. Download the PDF instead.</p>
-				<template v-else>
-					<p class="mt-1 text-sm text-gray-500">Review the report above, then send the client a copy. They get exactly these numbers, even if check-ins are corrected later; share again to send an update.</p>
-					<p v-if="!report.final" class="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">You can share once the event is marked completed (Event Management → event details).</p>
-					<form v-else-if="report.can.share" class="mt-4 space-y-3" @submit.prevent="share">
-						<div>
-							<FormsLabel text="Note to the client (optional)" />
-							<textarea v-model="note" rows="3" maxlength="2000" class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm" placeholder="e.g. Thank you for trusting us! Most guests arrived before 5 PM." />
-						</div>
-						<label v-if="report.can.revenue" class="flex items-center gap-2 text-sm text-gray-700"><input v-model="includeRevenue" type="checkbox"> Include ticket sales and revenue in the client's copy</label>
-						<p class="text-xs text-gray-500">{{ report.event.visibility === 'private' ? "The guest list is included: they're the client's own guests." : 'Public event: the client gets the numbers, not the ticket buyers\' names.' }}</p>
-						<button type="submit" :disabled="busy" class="rounded-xl bg-primary-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
-							{{ report.shares.length ? `Share version ${report.shares[0]!.version + 1}` : 'Approve and share' }}
-						</button>
-					</form>
-					<p v-else class="mt-3 text-sm text-gray-500">Only someone who can edit the event can share the report.</p>
+            <span v-if="selectedEvent"
+                class="rounded-full bg-[#285F6b]/10 px-3 py-1 text-xs font-semibold text-[#285F6b]">
+                {{ selectedEvent.name }}
+            </span>
+        </div>
 
-					<ul v-if="report.shares.length" class="mt-5 divide-y divide-gray-100 border-t border-gray-100 text-sm">
-						<li v-for="s in report.shares" :key="s.version" class="py-2.5">
-							<span class="font-semibold text-gray-900">Version {{ s.version }}</span>
-							<span class="text-gray-500"> · shared {{ new Date(s.shared_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) }}<template v-if="s.shared_by"> by {{ s.shared_by }}</template>{{ s.includes_revenue ? ' · with revenue' : '' }}</span>
-							<p v-if="s.note" class="mt-0.5 text-gray-600">“{{ s.note }}”</p>
-						</li>
-					</ul>
-				</template>
-			</section>
-		</template>
-	</div>
+        <div v-if="!selectedEventId" class="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <div class="flex items-start gap-3">
+                <IconBase name="calendar" class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+
+                <div>
+                    <p class="text-sm font-bold text-gray-900">
+                        Select an Event
+                    </p>
+
+                    <p class="mt-0.5 text-sm text-gray-600">
+                        Choose an event from the event selector above to view its attendance report.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <template v-else>
+            <div v-if="errorMessage"
+                class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {{ errorMessage }}
+            </div>
+
+            <div v-if="isLoading" class="py-16 text-center">
+                <IconBase name="refresh-cw" class="mx-auto h-6 w-6 animate-spin text-gray-400" />
+
+                <p class="mt-3 text-sm text-gray-500">
+                    Loading attendance report...
+                </p>
+            </div>
+
+            <template v-else>
+                <div class="mb-6 mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                    <div class="rounded-xl border border-gray-200 p-5">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <span class="text-sm text-gray-500">
+                                    Total Registered
+                                </span>
+
+                                <div class="mt-2 text-3xl font-extrabold text-gray-900">
+                                    {{ totalRegistered }}
+                                </div>
+
+                                <div class="mt-2 text-sm text-gray-500">
+                                    Issued attendee tickets
+                                </div>
+                            </div>
+
+                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                                <IconBase name="users" class="h-5 w-5" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-gray-200 p-5">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <span class="text-sm text-gray-500">
+                                    Total Attended
+                                </span>
+
+                                <div class="mt-2 text-3xl font-extrabold text-gray-900">
+                                    {{ totalAttended }}
+                                </div>
+
+                                <div class="mt-2 text-sm text-gray-500">
+                                    Check-ins completed
+                                </div>
+                            </div>
+
+                            <div
+                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 text-green-600">
+                                <IconBase name="check-circle" class="h-5 w-5" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-gray-200 p-5">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <span class="text-sm text-gray-500">
+                                    Attendance Rate
+                                </span>
+
+                                <div class="mt-2 text-3xl font-extrabold text-gray-900">
+                                    {{ attendanceRate }}%
+                                </div>
+
+                                <div class="mt-2 text-sm text-gray-500">
+                                    Registered vs attended
+                                </div>
+                            </div>
+
+                            <div
+                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                                <IconBase name="bar-chart" class="h-5 w-5" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-gray-200 p-5">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <span class="text-sm text-gray-500">
+                                    Not Yet Attended
+                                </span>
+
+                                <div class="mt-2 text-3xl font-extrabold text-gray-900">
+                                    {{ notAttended }}
+                                </div>
+
+                                <div class="mt-2 text-sm text-gray-500">
+                                    Registered attendees remaining
+                                </div>
+                            </div>
+
+                            <div
+                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                                <IconBase name="clock" class="h-5 w-5" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-7 rounded-2xl border border-gray-200 p-5">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-bold text-gray-900">
+                                Overall Attendance
+                            </h3>
+
+                            <p class="mt-1 text-sm text-gray-500">
+                                {{ totalAttended }} of
+                                {{ totalRegistered }}
+                                registered attendees have checked in
+                            </p>
+                        </div>
+
+                        <div class="text-right">
+                            <div class="text-2xl font-extrabold text-[#285F6b]">
+                                {{ attendanceRate }}%
+                            </div>
+
+                            <div class="text-xs text-gray-400">
+                                attendance rate
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="h-3 w-full overflow-hidden rounded-full bg-gray-100">
+                        <div class="h-full rounded-full bg-[#285F6b] transition-all duration-300" :style="{
+                            width: `${attendanceRate}%`,
+                        }" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+                    <div class="xl:col-span-2">
+                        <div class="mb-4 flex items-center justify-between">
+                            <div>
+                                <h3 class="text-base font-bold text-gray-900">
+                                    Attendance by Ticket Type
+                                </h3>
+
+                                <p class="mt-1 text-sm text-gray-500">
+                                    Check-in percentage for each ticket type
+                                </p>
+                            </div>
+                        </div>
+
+                        <div v-if="byTicketType.length" class="space-y-5">
+                            <div v-for="row in byTicketType" :key="row.id">
+                                <div class="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+                                    <div>
+                                        <span class="font-semibold text-gray-800">
+                                            {{ row.type }}
+                                        </span>
+
+                                        <span class="ml-2 text-xs text-gray-400">
+                                            {{ row.total }} tickets
+                                        </span>
+                                    </div>
+
+                                    <span class="font-medium text-gray-500">
+                                        {{ row.attended }}
+                                        /
+                                        {{ row.total }}
+                                        ({{ row.percent }}%)
+                                    </span>
+                                </div>
+
+                                <div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+                                    <div class="h-full rounded-full bg-[#285F6b] transition-all duration-300" :style="{
+                                        width: `${row.percent}%`,
+                                    }" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-else class="rounded-xl border border-dashed border-gray-300 px-5 py-10 text-center">
+                            <IconBase name="ticket" class="mx-auto h-7 w-7 text-gray-400" />
+
+                            <p class="mt-2 text-sm font-semibold text-gray-700">
+                                No ticket attendance data
+                            </p>
+
+                            <p class="mt-1 text-xs text-gray-500">
+                                Attendance by ticket type will appear when tickets are issued.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl border border-gray-200 p-5">
+                        <h3 class="text-base font-bold text-gray-900">
+                            Registration Source
+                        </h3>
+
+                        <p class="mt-1 text-sm text-gray-500">
+                            How attendees registered
+                        </p>
+
+                        <div class="mt-5 space-y-4">
+                            <div class="flex items-center justify-between rounded-xl bg-blue-50/70 p-4">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                                        <IconBase name="ticket" class="h-4 w-4" />
+                                    </div>
+
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-900">
+                                            Online
+                                        </p>
+
+                                        <p class="text-xs text-gray-500">
+                                            Online registrations
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="text-right">
+                                    <p class="text-xl font-extrabold text-gray-900">
+                                        {{ onlineCount }}
+                                    </p>
+
+                                    <p class="text-xs text-gray-400">
+                                        {{ onlinePercent }}%
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between rounded-xl bg-amber-50/70 p-4">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                                        <IconBase name="user-plus" class="h-4 w-4" />
+                                    </div>
+
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-900">
+                                            Walk-ins
+                                        </p>
+
+                                        <p class="text-xs text-gray-500">
+                                            On-site registrations
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="text-right">
+                                    <p class="text-xl font-extrabold text-gray-900">
+                                        {{ walkInCount }}
+                                    </p>
+
+                                    <p class="text-xs text-gray-400">
+                                        {{ walkInPercent }}%
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-7 overflow-x-auto rounded-2xl border border-gray-200">
+                    <div class="border-b border-gray-200 px-5 py-4">
+                        <h3 class="text-base font-bold text-gray-900">
+                            Attendee Attendance Details
+                        </h3>
+
+                        <p class="mt-1 text-sm text-gray-500">
+                            Complete attendee status for the selected event
+                        </p>
+                    </div>
+
+                    <table v-if="attendees.length" class="w-full text-left text-sm">
+                        <thead>
+                            <tr
+                                class="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                <th class="px-5 py-3">
+                                    Attendee
+                                </th>
+
+                                <th class="px-5 py-3">
+                                    Ticket Type
+                                </th>
+
+                                <th class="px-5 py-3">
+                                    Category
+                                </th>
+
+                                <th class="px-5 py-3">
+                                    Source
+                                </th>
+
+                                <th class="px-5 py-3">
+                                    Attendance
+                                </th>
+
+                                <th class="px-5 py-3">
+                                    Check-in Time
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="divide-y divide-gray-100">
+                            <tr v-for="attendee in attendees" :key="attendee.id" class="hover:bg-gray-50/70">
+                                <td class="px-5 py-3.5">
+                                    <p class="font-semibold text-gray-900">
+                                        {{ attendee.name }}
+                                    </p>
+
+                                    <p class="mt-0.5 text-xs text-gray-400">
+                                        {{ attendee.ticket_id }}
+                                    </p>
+                                </td>
+
+                                <td class="px-5 py-3.5 text-gray-600">
+                                    {{
+                                        attendee.ticket_type?.name ||
+                                        'General Admission'
+                                    }}
+                                </td>
+
+                                <td class="px-5 py-3.5">
+                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
+                                        :class="categoryClass(attendee.attendee_category)">
+                                        {{ formatCategory(attendee.attendee_category) }}
+                                    </span>
+                                </td>
+
+                                <td class="px-5 py-3.5">
+                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="attendee.source ===
+                                        'walk_in'
+                                        ? 'bg-amber-50 text-amber-700'
+                                        : 'bg-blue-50 text-blue-700'
+                                        ">
+                                        {{
+                                            formatSource(
+                                                attendee.source,
+                                            )
+                                        }}
+                                    </span>
+                                </td>
+
+                                <td class="px-5 py-3.5">
+                                    <span
+                                        class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+                                        :class="attendee.status ===
+                                            'checked_in'
+                                            ? 'bg-green-50 text-green-700'
+                                            : 'bg-gray-100 text-gray-600'
+                                            ">
+                                        <IconBase v-if="
+                                            attendee.status ===
+                                            'checked_in'
+                                        " name="check-circle" class="h-3 w-3" />
+
+                                        {{
+                                            attendee.status ===
+                                                'checked_in'
+                                                ? 'Checked-in'
+                                                : 'Registered'
+                                        }}
+                                    </span>
+                                </td>
+
+                                <td class="px-5 py-3.5 text-gray-500">
+                                    {{
+                                        attendee.checked_in_at
+                                            ? formatCheckInDateTime(
+                                                attendee.checked_in_at,
+                                            )
+                                            : '—'
+                                    }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div v-else class="px-5 py-12 text-center">
+                        <IconBase name="users" class="mx-auto h-7 w-7 text-gray-400" />
+
+                        <p class="mt-2 text-sm font-semibold text-gray-700">
+                            No attendees yet
+                        </p>
+
+                        <p class="mt-1 text-xs text-gray-500">
+                            Registered attendees will appear here.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex flex-wrap gap-3">
+                    <button type="button"
+                        class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        :disabled="!attendees.length" @click="exportCsv">
+                        <IconBase name="download" class="h-4 w-4" />
+
+                        Export CSV
+                    </button>
+                </div>
+            </template>
+        </template>
+    </div>
 </template>
 
 <script setup lang="ts">
-import { saveBlob, type OrganizerReport } from '~/composables/useReports'
-
-definePageMeta({ layout: 'dashboard' })
-
-const route = useRoute()
-const { organization, fetchOrganization } = useOrganization()
-const api = useReports()
-
-const eventId = computed(() => typeof route.query.event === 'string' ? route.query.event : null)
-const report = ref<OrganizerReport | null>(null)
-const error = ref('')
-const notice = ref('')
-const busy = ref(false)
-const note = ref('')
-const includeRevenue = ref(false)
-
-async function orgId() {
-	return (organization.value ?? await fetchOrganization())!.id
+interface OrganizerEvent {
+    id: number
+    name: string
+    event_type: string
+    event_date: string | null
+    location: string | null
+    status: string
 }
 
-async function load() {
-	if (!eventId.value) return
-	error.value = ''
-	try {
-		report.value = await api.report(await orgId(), eventId.value)
-	} catch (e) {
-		error.value = authMessage(e)
-	}
+interface TicketType {
+    id: number
+    name: string
 }
 
-async function download(kind: 'pdf' | 'csv') {
-	busy.value = true
-	try {
-		const blob = kind === 'pdf' ? await api.pdf(await orgId(), eventId.value!) : await api.csv(await orgId(), eventId.value!)
-		const slug = report.value!.event.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-		saveBlob(blob, kind === 'pdf' ? `${slug}-attendance-report.pdf` : `${slug}-attendance.csv`)
-	} catch (e: any) {
-		// File downloads come back as blobs, so the plan message isn't readable here (B18).
-		error.value = (e?.status ?? e?.statusCode) === 402
-			? 'CSV exports are part of the Starter and Pro plans. The PDF stays free. See Plan & Billing to upgrade.'
-			: authMessage(e)
-	} finally {
-		busy.value = false
-	}
+interface Attendee {
+    id: number
+    name: string
+    email: string | null
+
+    ticket_type:
+    | TicketType
+    | null
+
+    ticket_id: string
+
+    attendee_category:
+    | 'invited'
+    | 'free'
+    | 'paid'
+
+    source:
+    | 'online'
+    | 'walk_in'
+    | string
+
+    payment_status:
+    | null
+    | 'pending'
+    | 'paid'
+    | 'refunded'
+    | string
+
+    status:
+    | 'registered'
+    | 'checked_in'
+
+    checked_in_at:
+    | string
+    | null
+
+    created_at: string
 }
 
-async function share() {
-	if (!confirm('Send this report to the client? They will be notified.')) return
-	busy.value = true
-	error.value = ''
-	try {
-		const v = await api.share(await orgId(), eventId.value!, { note: note.value.trim() || null, include_revenue: includeRevenue.value })
-		notice.value = `Version ${v.version} shared with the client.`
-		note.value = ''
-		await load()
-	} catch (e) {
-		error.value = authMessage(e)
-	} finally {
-		busy.value = false
-	}
+interface AttendeesResponse {
+    data: Attendee[]
 }
 
-watch(eventId, () => {
-	report.value = null
-	load()
+interface ApiErrorResponse {
+    data?: {
+        message?: string
+
+        errors?: Record<
+            string,
+            string[]
+        >
+    }
+}
+
+interface TicketTypeAttendance {
+    id: string
+    type: string
+    attended: number
+    total: number
+    percent: number
+}
+
+definePageMeta({
+    layout: 'dashboard',
+    middleware: ['organizer'],
 })
-onMounted(load)
+
+const config =
+    useRuntimeConfig()
+
+const {
+    token,
+} = useAuth()
+
+const organizerEvents =
+    useState<OrganizerEvent[]>(
+        'ticketingOrganizerEvents',
+        () => [],
+    )
+
+const selectedEventId =
+    useState<number | null>(
+        'ticketingSelectedEventId',
+        () => null,
+    )
+
+const selectedEvent =
+    computed<OrganizerEvent | null>(
+        () => {
+            if (
+                !selectedEventId.value
+            ) {
+                return null
+            }
+
+            return (
+                organizerEvents.value.find(
+                    event =>
+                        event.id ===
+                        selectedEventId.value,
+                ) ?? null
+            )
+        },
+    )
+
+const attendees =
+    ref<Attendee[]>([])
+
+const isLoading =
+    ref(false)
+
+const errorMessage =
+    ref('')
+
+const totalRegistered =
+    computed(() =>
+        attendees.value.length,
+    )
+
+const totalAttended =
+    computed(() =>
+        attendees.value.filter(
+            attendee =>
+                attendee.status ===
+                'checked_in',
+        ).length,
+    )
+
+const notAttended =
+    computed(() =>
+        Math.max(
+            totalRegistered.value -
+            totalAttended.value,
+            0,
+        ),
+    )
+
+const attendanceRate =
+    computed(() => {
+        if (
+            totalRegistered.value ===
+            0
+        ) {
+            return 0
+        }
+
+        return Math.min(
+            Math.round(
+                (
+                    totalAttended.value /
+                    totalRegistered.value
+                ) *
+                100,
+            ),
+            100,
+        )
+    })
+
+const onlineCount =
+    computed(() =>
+        attendees.value.filter(
+            attendee =>
+                attendee.source ===
+                'online',
+        ).length,
+    )
+
+const walkInCount =
+    computed(() =>
+        attendees.value.filter(
+            attendee =>
+                attendee.source ===
+                'walk_in',
+        ).length,
+    )
+
+const onlinePercent =
+    computed(() => {
+        if (
+            totalRegistered.value ===
+            0
+        ) {
+            return 0
+        }
+
+        return Math.round(
+            (
+                onlineCount.value /
+                totalRegistered.value
+            ) *
+            100,
+        )
+    })
+
+const walkInPercent =
+    computed(() => {
+        if (
+            totalRegistered.value ===
+            0
+        ) {
+            return 0
+        }
+
+        return Math.round(
+            (
+                walkInCount.value /
+                totalRegistered.value
+            ) *
+            100,
+        )
+    })
+
+const byTicketType =
+    computed<TicketTypeAttendance[]>(
+        () => {
+            const grouped =
+                new Map<
+                    string,
+                    {
+                        id: string
+                        type: string
+                        total: number
+                        attended: number
+                    }
+                >()
+
+            attendees.value.forEach(
+                attendee => {
+                    const ticketTypeId =
+                        attendee.ticket_type
+                            ?.id
+
+                    const ticketTypeName =
+                        attendee.ticket_type
+                            ?.name ||
+                        'General Admission'
+
+                    const key =
+                        ticketTypeId
+                            ? String(
+                                ticketTypeId,
+                            )
+                            : `general-${ticketTypeName}`
+
+                    const existing =
+                        grouped.get(key)
+
+                    if (existing) {
+                        existing.total +=
+                            1
+
+                        if (
+                            attendee.status ===
+                            'checked_in'
+                        ) {
+                            existing.attended +=
+                                1
+                        }
+
+                        return
+                    }
+
+                    grouped.set(
+                        key,
+                        {
+                            id:
+                                key,
+
+                            type:
+                                ticketTypeName,
+
+                            total:
+                                1,
+
+                            attended:
+                                attendee.status ===
+                                    'checked_in'
+                                    ? 1
+                                    : 0,
+                        },
+                    )
+                },
+            )
+
+            return Array.from(
+                grouped.values(),
+            )
+                .map(row => ({
+                    ...row,
+
+                    percent:
+                        row.total > 0
+                            ? Math.round(
+                                (
+                                    row.attended /
+                                    row.total
+                                ) *
+                                100,
+                            )
+                            : 0,
+                }))
+                .sort(
+                    (
+                        first,
+                        second,
+                    ) =>
+                        second.total -
+                        first.total,
+                )
+        },
+    )
+
+function getApiErrorMessage(
+    error: unknown,
+    fallback: string,
+): string {
+    const apiError =
+        error as ApiErrorResponse
+
+    const validationMessage =
+        Object.values(
+            apiError.data?.errors ??
+            {},
+        )[0]?.[0]
+
+    return (
+        validationMessage ??
+        apiError.data?.message ??
+        fallback
+    )
+}
+
+/** The event's guest list (every ticket) as this report's attendee rows. */
+async function loadAttendanceReport() {
+    if (!selectedEventId.value) {
+        attendees.value = []
+        return
+    }
+    isLoading.value = true
+    errorMessage.value = ''
+    try {
+        const org = await useOrganization().fetchOrganization()
+        if (!org) throw new Error('Set up your organizer workspace first.')
+        const ticketing = useOrganizerTicketing()
+        const rows = await allItems(page => ticketing.guests(org.id, String(selectedEventId.value), { page }))
+        attendees.value = rows.map(g => ({
+            id: g.id,
+            name: g.name,
+            email: g.email,
+            ticket_type: { id: 0, name: g.tier },
+            ticket_id: g.id.replace(/-/g, '').slice(-10).toUpperCase(),
+            attendee_category: g.admission_type === 'paid' ? 'paid' : g.admission_type === 'invited' ? 'invited' : 'free',
+            source: g.source,
+            payment_status: g.admission_type === 'paid' ? 'paid' : null,
+            status: g.status === 'used' ? 'checked_in' : g.status === 'valid' ? 'registered' : 'rejected',
+            checked_in_at: null,
+            created_at: g.issued_at ?? '',
+        })) as unknown as typeof attendees.value
+    } catch (error: unknown) {
+        attendees.value = []
+        errorMessage.value = authMessage(error) || 'Unable to load attendance report.'
+    } finally {
+        isLoading.value = false
+    }
+}
+
+function formatSource(
+    source: string,
+): string {
+    if (
+        source ===
+        'walk_in'
+    ) {
+        return 'Walk-in'
+    }
+
+    if (
+        source ===
+        'online'
+    ) {
+        return 'Online'
+    }
+
+    return source ||
+        'Unknown'
+}
+
+function formatCategory(
+    category: Attendee['attendee_category'],
+): string {
+    return category.charAt(0).toUpperCase() + category.slice(1)
+}
+
+function categoryClass(
+    category: Attendee['attendee_category'],
+): string {
+    switch (category) {
+        case 'invited':
+            return 'bg-violet-50 text-violet-700'
+        case 'free':
+            return 'bg-blue-50 text-blue-700'
+        case 'paid':
+            return 'bg-green-50 text-green-700'
+    }
+}
+
+function formatCheckInDateTime(
+    value: string,
+): string {
+    const date =
+        new Date(value)
+
+    return date.toLocaleString(
+        'en-US',
+        {
+            month:
+                'short',
+
+            day:
+                'numeric',
+
+            year:
+                'numeric',
+
+            hour:
+                'numeric',
+
+            minute:
+                '2-digit',
+        },
+    )
+}
+
+function escapeCsvValue(
+    value:
+        | string
+        | number
+        | null
+        | undefined,
+): string {
+    const stringValue =
+        String(
+            value ?? '',
+        )
+
+    return `"${stringValue.replace(
+        /"/g,
+        '""',
+    )}"`
+}
+
+function exportCsv() {
+    if (
+        !attendees.value.length
+    ) {
+        return
+    }
+
+    const headers = [
+        'Name',
+        'Email',
+        'Ticket Type',
+        'Category',
+        'Ticket ID',
+        'Source',
+        'Status',
+        'Payment Status',
+        'Checked In At',
+    ]
+
+    const rows =
+        attendees.value.map(
+            attendee => [
+                attendee.name,
+
+                attendee.email ??
+                '',
+
+                attendee.ticket_type
+                    ?.name ??
+                'General Admission',
+
+                formatCategory(attendee.attendee_category),
+
+                attendee.ticket_id,
+
+                formatSource(
+                    attendee.source,
+                ),
+
+                attendee.status ===
+                    'checked_in'
+                    ? 'Checked-in'
+                    : 'Registered',
+
+                attendee.payment_status ?? 'Not required',
+
+                attendee.checked_in_at
+                    ? formatCheckInDateTime(
+                        attendee.checked_in_at,
+                    )
+                    : '',
+            ],
+        )
+
+    const csv =
+        [
+            headers,
+            ...rows,
+        ]
+            .map(row =>
+                row
+                    .map(
+                        escapeCsvValue,
+                    )
+                    .join(','),
+            )
+            .join('\n')
+
+    const blob =
+        new Blob(
+            [csv],
+            {
+                type:
+                    'text/csv;charset=utf-8;',
+            },
+        )
+
+    const url =
+        URL.createObjectURL(
+            blob,
+        )
+
+    const link =
+        document.createElement(
+            'a',
+        )
+
+    const eventName =
+        (
+            selectedEvent.value
+                ?.name ??
+            'attendance-report'
+        )
+            .trim()
+            .replace(
+                /[^a-zA-Z0-9]+/g,
+                '-',
+            )
+            .replace(
+                /^-|-$/g,
+                '',
+            )
+            .toLowerCase()
+
+    link.href =
+        url
+
+    link.download =
+        `${eventName}-attendance-report.csv`
+
+    document.body.appendChild(
+        link,
+    )
+
+    link.click()
+
+    document.body.removeChild(
+        link,
+    )
+
+    URL.revokeObjectURL(
+        url,
+    )
+}
+
+watch(
+    selectedEventId,
+    async () => {
+        attendees.value =
+            []
+
+        await loadAttendanceReport()
+    },
+    {
+        immediate:
+            true,
+    },
+)
 </script>

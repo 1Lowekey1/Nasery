@@ -48,7 +48,8 @@ class OrganizerInquiries
         $inquiries = $paginator->getCollection()->pluck('inquiry');
         $extras = $this->extras($inquiries, $organization);
 
-        $paginator->getCollection()->transform(fn (InquiryInvitation $i) => $this->present($i, $extras, detailed: false));
+        // The redesigned inquiry cards show everything at once (no "open" step), so the list carries the details too.
+        $paginator->getCollection()->transform(fn (InquiryInvitation $i) => $this->present($i, $extras, detailed: true));
 
         return $paginator;
     }

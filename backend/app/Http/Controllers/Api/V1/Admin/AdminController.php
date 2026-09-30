@@ -235,6 +235,31 @@ class AdminController extends Controller
         return ApiResponse::success(null, $archive ? 'Service archived.' : 'Service restored.');
     }
 
+    public function user(string $user): JsonResponse
+    {
+        return ApiResponse::success($this->directory->user($user));
+    }
+
+    public function eventTypes(): JsonResponse
+    {
+        return ApiResponse::success($this->directory->eventTypes());
+    }
+
+    public function saveEventType(Request $request, ?string $eventType = null): JsonResponse
+    {
+        $data = $request->validate(['name' => ['required', 'string', 'min:2', 'max:80'], 'description' => ['nullable', 'string', 'max:500']]);
+        $saved = $this->directory->saveEventType($eventType, $data['name'], $data['description'] ?? null);
+
+        return $eventType ? ApiResponse::success($saved, 'Event type updated.') : ApiResponse::created($saved, 'Event type added.');
+    }
+
+    public function removeEventType(string $eventType): JsonResponse
+    {
+        $this->directory->removeEventType($eventType);
+
+        return ApiResponse::success(null, 'Event type removed.');
+    }
+
     public function announcements(): JsonResponse
     {
         return ApiResponse::success($this->directory->announcements());

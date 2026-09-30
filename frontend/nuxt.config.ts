@@ -19,6 +19,12 @@ export default defineNuxtConfig({
       backendUrl: 'http://localhost:8000',
       supabaseUrl: '',
       supabaseKey: '',
+      // Used by the redesigned pages (frontend update, 2026-09-28).
+      appName: 'NaSeRy',
+      apiBaseURL: 'http://localhost:8000/api/v1',
+      appBaseURL: 'http://localhost:3000',
+      // Address search (free LocationIQ key); the field says "not configured" without one.
+      locationIqApiKey: '',
     },
   },
 })

@@ -93,18 +93,25 @@ class EventTeamController extends Controller
             ->join('tasks as t', 't.id', '=', 'ta.task_id')
             ->join('checklists as c', 'c.id', '=', 't.checklist_id')
             ->join('events as e', 'e.id', '=', 'c.event_id')
+            ->leftJoin('event_types as et', 'et.id', '=', 'e.event_type_id')
             ->where('em.organization_member_id', $member->id)->where('em.status', MembershipStatus::Active->value)->whereNull('em.deleted_at')
             ->whereNull('t.deleted_at')->whereNull('c.deleted_at')->whereNull('e.deleted_at')
             ->whereIn('e.status', ['draft', 'published', 'ongoing'])
             ->orderByRaw("case t.status when 'done' then 1 when 'cancelled' then 2 else 0 end")
             ->orderByRaw('t.due_at asc nulls last')
             ->limit(200)
-            ->get(['t.id', 't.name', 't.description', 't.status', 't.priority', 't.due_at', 'c.name as checklist', 'e.id as event_id', 'e.name as event', 'e.timezone']);
+            ->get(['t.id', 't.name', 't.description', 't.status', 't.priority', 't.due_at', 'c.name as checklist', 'e.id as event_id', 'e.name as event', 'e.timezone',
+                // 0044 review state, and the event's type and first session (team dashboard).
+                't.completion_note', 't.review_status', 't.review_note', 'et.name as event_type',
+                DB::raw('(select min(s.starts_at) from event_sessions s where s.event_id = e.id and s.deleted_at is null) as event_starts_at')]);
 
         return ApiResponse::success($tasks->map(fn ($t) => [
             'id' => $t->id, 'name' => $t->name, 'description' => $t->description, 'status' => $t->status, 'priority' => $t->priority,
             'due_at' => $t->due_at ? CarbonImmutable::parse($t->due_at)->setTimezone($t->timezone)->toIso8601String() : null,
             'checklist' => $t->checklist, 'event_id' => $t->event_id, 'event' => $t->event,
+            'completion_note' => $t->completion_note, 'review_status' => $t->review_status, 'review_note' => $t->review_note,
+            'event_type' => $t->event_type,
+            'event_starts_at' => $t->event_starts_at ? CarbonImmutable::parse($t->event_starts_at)->setTimezone($t->timezone)->toIso8601String() : null,
         ])->values());
     }
 

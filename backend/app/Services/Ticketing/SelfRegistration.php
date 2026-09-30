@@ -70,13 +70,16 @@ class SelfRegistration
                 ->orderByRaw('starts_at asc nulls last')
                 ->paginate(perPage: 12, page: (int) ($filters['page'] ?? 1));
 
-            $prices = DB::table('public_ticket_types')->whereIn('event_id', $page->getCollection()->pluck('id'))
-                ->selectRaw('event_id, min(price) as from_price, count(*) as tiers')->groupBy('event_id')->get()->keyBy('event_id');
+            $tiers = DB::table('public_ticket_types')->whereIn('event_id', $page->getCollection()->pluck('id'))
+                ->orderBy('sort_order')->orderBy('price')->get(['id', 'event_id', 'name', 'price'])->groupBy('event_id');
 
             return $page->through(fn ($e) => [
                 ...$this->eventCard($e),
-                'from_price' => $prices[$e->id]->from_price ?? null,
-                'tiers' => (int) ($prices[$e->id]->tiers ?? 0),
+                'excerpt' => $e->description ? mb_strimwidth($e->description, 0, 200, '…') : null,
+                'from_price' => ($tiers[$e->id] ?? collect())->min('price'),
+                'tiers' => ($tiers[$e->id] ?? collect())->count(),
+                // Names and prices for the listing cards (details and availability: the event page).
+                'ticket_types' => ($tiers[$e->id] ?? collect())->map(fn ($t) => ['id' => $t->id, 'name' => $t->name, 'price' => $t->price])->values(),
             ]);
         });
     }

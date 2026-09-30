@@ -23,6 +23,17 @@ final class ProfileRules
             "{$prefix}contact_email" => [$req, 'string', 'email:rfc', 'max:254'],
             "{$prefix}contact_phone" => ['nullable', 'string', 'regex:/^\+639\d{9}$/'],
             "{$prefix}cover_image_url" => ['nullable', 'url:https', 'max:2048'],
+            // 0046: business profile panel details.
+            "{$prefix}years_experience" => ['nullable', 'string', 'max:30'],
+            "{$prefix}service_radius_km" => ['nullable', 'integer', 'between:1,200'],
+            "{$prefix}event_tags" => ['sometimes', 'array', 'max:30'],
+            "{$prefix}event_tags.*" => ['string', 'distinct', 'max:60'],
+            "{$prefix}specialties" => ['sometimes', 'array', 'max:30'],
+            "{$prefix}specialties.*" => ['string', 'distinct', 'max:60'],
+            "{$prefix}website" => ['nullable', 'url:http,https', 'max:255'],
+            "{$prefix}facebook" => ['nullable', 'string', 'max:255'],
+            "{$prefix}instagram" => ['nullable', 'string', 'max:255'],
+            "{$prefix}banner_color" => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ];
     }
 }

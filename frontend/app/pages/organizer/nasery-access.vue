@@ -126,7 +126,7 @@ async function run(fn: () => Promise<unknown>, message: string) {
 
 const decide = async (r: AccessRequest, approve: boolean) => run(async () => api.decide(await orgId(), r.id, approve, notes[r.id]),
 	approve ? `Access allowed for ${r.duration_hours} hours. You can end it anytime.` : 'Request refused.')
-const end = (id: string) => confirm('End NaSeRy access now?') && run(async () => api.endGrant(await orgId(), id), 'Access ended.')
+const end = async (id: string) => (await confirmDialog('End NaSeRy access now?', { confirmLabel: 'End access' })) && run(async () => api.endGrant(await orgId(), id), 'Access ended.')
 const sendInvite = () => run(async () => {
 	await api.invite(await orgId(), inviteReason.value.trim(), inviteHours.value)
 	inviteReason.value = ''

@@ -164,7 +164,7 @@ const request = () => act(async () => {
 	reason.value = ''
 })
 const withdraw = () => act(() => admin.cancelRequest(props.access!.pending_request_id!))
-const end = () => confirm('End your access to this workspace now?') && act(() => admin.endGrant(props.access!.grant!.id))
+const end = async () => (await confirmDialog('End your access to this workspace now?', { confirmLabel: 'End access' })) && act(() => admin.endGrant(props.access!.grant!.id))
 
 watch(() => props.access?.grant?.id, async (id) => {
 	ws.value = null

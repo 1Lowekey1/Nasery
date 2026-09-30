@@ -126,14 +126,14 @@ async function saveReply(r: Review) {
 }
 
 async function removeReply(r: Review) {
-	if (!confirm('Remove your reply from your public profile?')) return
+	if (!(await confirmDialog('Remove your reply from your public profile?', { confirmLabel: 'Remove reply' }))) return
 	await api.removeReply(await orgId(), r.id)
 	await load()
 }
 
 async function report(r: Review) {
-	const reason = prompt('Why should NaSeRy look at this review? (e.g. it isn\'t about your service, or contains personal attacks)')
-	if (!reason || reason.trim().length < 5) return
+	const reason = await promptDialog('Why should NaSeRy look at this review? (e.g. it isn\'t about your service, or contains personal attacks)', { title: 'Report this review', placeholder: 'At least 5 characters', minLength: 5, confirmLabel: 'Send report' })
+	if (!reason) return
 	try {
 		await api.report(r.id, reason.trim())
 		notice.value = 'Reported. A NaSeRy administrator will review it; it stays visible until they take the case.'

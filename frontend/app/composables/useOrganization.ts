@@ -15,6 +15,15 @@ export interface OrganizationProfile {
   contact_phone: string | null
   cover_image_url: string | null
   is_published: boolean
+  /** 0046: details from the business profile panel. */
+  years_experience?: string | null
+  service_radius_km?: number | null
+  event_tags?: string[]
+  specialties?: string[]
+  website?: string | null
+  facebook?: string | null
+  instagram?: string | null
+  banner_color?: string | null
 }
 
 export interface Organization {

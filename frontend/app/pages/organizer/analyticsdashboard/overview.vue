@@ -1,95 +1,259 @@
 <template>
 	<div>
-		<Alert v-if="error" type="danger" :text="error" />
-		<div v-if="loading && !data" class="py-12 text-center text-sm text-gray-500">Crunching your numbers…</div>
+		<div v-if="isLoading" class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
+			Loading your analytics...
+		</div>
 
-		<template v-if="data">
-			<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-				<div v-for="tile in tiles" :key="tile.label" class="rounded-2xl border border-gray-200 bg-white p-5">
-					<p class="text-sm text-gray-500">{{ tile.label }}</p>
-					<p class="mt-1 text-3xl font-extrabold text-gray-900">{{ tile.value }}</p>
-					<p class="mt-1 text-xs text-gray-500">{{ tile.hint }}</p>
+		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+			{{ errorMessage }}
+		</div>
+
+		<template v-else>
+			<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+				<div v-for="stat in stats" :key="stat.label"
+					class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+					<div class="flex items-start justify-between gap-3">
+						<span class="text-sm font-medium text-gray-500">{{ stat.label }}</span>
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" :class="stat.iconBg">
+							<IconBase :name="stat.icon" class="h-5 w-5" :class="stat.iconColor" />
+						</span>
+					</div>
+					<div class="mt-3 text-3xl font-extrabold tracking-tight text-gray-950">
+						{{ stat.value }}
+					</div>
+					<div class="mt-2 flex items-center gap-1 text-xs font-semibold" :class="stat.hasTrendIcon ? 'text-green-600' : 'text-gray-400'">
+						<IconBase :name="stat.hasTrendIcon ? 'trending-up' : 'clock'" class="h-3.5 w-3.5" />
+						<span>{{ stat.trend }}</span>
+					</div>
 				</div>
 			</div>
 
-			<div class="mt-5 grid gap-5 xl:grid-cols-2">
-				<section v-if="data.bids" class="rounded-2xl border border-gray-200 bg-white p-6">
-					<h2 class="text-base font-bold text-gray-900">From inquiry to booking</h2>
-					<p class="text-sm text-gray-500">{{ periodText }}</p>
-					<div class="mt-4 space-y-3">
-						<div v-for="step in funnel" :key="step.label">
-							<div class="flex justify-between text-sm"><span class="text-gray-700">{{ step.label }}</span><span class="font-semibold text-gray-900">{{ step.value }}<span v-if="step.of !== null" class="font-normal text-gray-400"> · {{ pctLabel(step.of) }}</span></span></div>
-							<div class="mt-1 h-2.5 overflow-hidden rounded-full bg-gray-100"><div class="h-full rounded-full" :style="{ width: `${step.width}%`, background: '#2a78d6' }" /></div>
+			<div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+				<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+					<h2 class="text-base font-bold text-gray-900">
+						Inquiry Activity Distribution
+					</h2>
+					<p class="mb-2 text-sm text-gray-500">
+						How you respond to matching inquiries
+					</p>
+
+					<ClientOnly>
+						<apexchart v-if="distributionTotal > 0" type="donut" height="300"
+							:options="distributionChartOptions" :series="distributionSeries" />
+					</ClientOnly>
+					<p v-if="distributionTotal === 0" class="py-16 text-center text-sm text-gray-400">
+						No inquiry activity yet.
+					</p>
+				</div>
+
+				<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+					<h2 class="text-base font-bold text-gray-900">
+						Recent Activity
+					</h2>
+					<p class="mb-5 text-sm text-gray-500">
+						Latest bid and inquiry updates
+					</p>
+
+					<div v-if="recentActivity.length" class="divide-y divide-gray-100">
+						<div v-for="item in recentActivity" :key="`${item.title}-${item.time}`"
+							class="flex items-center gap-3 py-4 first:pt-0 last:pb-0">
+							<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" :class="statusStyle(item.status).bg">
+								<IconBase :name="statusStyle(item.status).icon" class="h-4 w-4" :class="statusStyle(item.status).text" />
+							</span>
+							<div class="min-w-0 flex-1">
+								<div class="truncate text-sm font-semibold text-gray-900">
+									{{ item.title }}
+								</div>
+								<div class="text-xs text-gray-400">
+									{{ formatRelativeTime(item.time) }}
+								</div>
+							</div>
+							<span class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold capitalize"
+								:class="[statusStyle(item.status).bg, statusStyle(item.status).text]">
+								{{ item.status }}
+							</span>
 						</div>
 					</div>
-					<p class="mt-4 text-xs text-gray-500">{{ data.bids.totals.missed }} missed (the inquiry closed before you answered) · {{ data.bids.totals.declined }} declined by you · {{ data.bids.totals.open }} waiting for your answer</p>
-				</section>
-
-				<section v-if="data.bids" class="rounded-2xl border border-gray-200 bg-white p-6">
-					<h2 class="text-base font-bold text-gray-900">Wins by event type</h2>
-					<p v-if="!data.bids.by_event_type.length" class="mt-4 text-sm text-gray-400">No inquiries in this period yet.</p>
-					<table v-else class="mt-3 w-full text-left text-sm">
-						<thead class="text-xs uppercase text-gray-400"><tr><th class="py-1.5">Type</th><th class="text-right">Inquiries</th><th class="text-right">Bids</th><th class="text-right">Won</th><th class="text-right">Win rate</th></tr></thead>
-						<tbody class="divide-y divide-gray-100">
-							<tr v-for="t in data.bids.by_event_type.slice(0, 6)" :key="t.event_type">
-								<td class="py-2 text-gray-800">{{ t.event_type }}</td><td class="text-right">{{ t.inquiries }}</td><td class="text-right">{{ t.bids }}</td><td class="text-right">{{ t.won }}</td><td class="text-right font-semibold">{{ pctLabel(t.win_rate) }}</td>
-							</tr>
-						</tbody>
-					</table>
-				</section>
-
-				<section v-if="data.events" class="rounded-2xl border border-gray-200 bg-white p-6 xl:col-span-2">
-					<div class="flex flex-wrap items-baseline justify-between gap-2">
-						<h2 class="text-base font-bold text-gray-900">Recent events</h2>
-						<NuxtLink :to="{ path: '/organizer/analyticsdashboard/event-performance', query: route.query }" class="text-sm font-semibold text-primary-700">All event results →</NuxtLink>
-					</div>
-					<p v-if="!data.events.events.length" class="mt-4 text-sm text-gray-400">No events in this period yet.</p>
-					<ul v-else class="mt-3 divide-y divide-gray-100">
-						<li v-for="e in data.events.events.slice(0, 5)" :key="e.id" class="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
-							<span class="min-w-0"><span class="font-semibold text-gray-900">{{ e.name }}</span> <span class="text-gray-500">· {{ new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}</span></span>
-							<span class="text-gray-600">{{ e.status === 'completed' ? `${e.attended}/${e.expected} attended (${pctLabel(e.attendance_rate)}) · ${e.walk_ins} walk-in${e.walk_ins === 1 ? '' : 's'}` : 'Upcoming' }}</span>
-						</li>
-					</ul>
-				</section>
+					<p v-else class="py-16 text-center text-sm text-gray-400">
+						No recent activity yet.
+					</p>
+				</div>
 			</div>
-
-			<p v-if="!data.bids || !data.events" class="mt-5 text-xs text-gray-500">Some sections are hidden: they depend on your role (bids need inquiry or quotation access; event results need access to every event).</p>
-			<p class="mt-2 text-xs text-gray-400">Figures cover what happened in NaSeRy only; events managed outside it aren't counted. New organizers will see more as activity builds up.</p>
 		</template>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { pctLabel } from '~/composables/useAnalytics'
+import type { ApexOptions } from 'apexcharts'
 
 definePageMeta({ layout: 'dashboard' })
 
-const route = useRoute()
-const { data, error, loading } = useAnalyticsOverview()
+const { token } = useAuth('organizer')
+const config = useRuntimeConfig()
 
-const periodText = computed(() => data.value
-	? `${new Date(data.value.period.from).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} – ${new Date(data.value.period.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-	: '')
+interface AnalyticsStats {
+	total_bids: number
+	win_rate: number | null
+	avg_attendance_rate: number | null
+	active_inquiries: number
+}
 
-const tiles = computed(() => {
-	const b = data.value?.bids?.totals
-	const e = data.value?.events?.totals
+interface DistributionRow {
+	label: string
+	value: number
+}
+
+interface AnalyticsActivity {
+	title: string
+	time: string
+	status: 'won' | 'lost' | 'submitted' | 'withdrawn' | 'new'
+}
+
+interface AnalyticsOverviewResponse {
+	data: {
+		stats: AnalyticsStats
+		distribution: DistributionRow[]
+		recent_activity: AnalyticsActivity[]
+	}
+}
+
+const isLoading = ref(false)
+const errorMessage = ref('')
+const analyticsStats = ref<AnalyticsStats | null>(null)
+const distribution = ref<DistributionRow[]>([])
+const recentActivity = ref<AnalyticsActivity[]>([])
+
+const distributionColors: Record<string, string> = {
+	Received: '#d97706',
+	'Bid Submitted': '#285F6b',
+	Ignored: '#6b7280',
+}
+
+const statusStyles: Record<AnalyticsActivity['status'], { bg: string, text: string, icon: string }> = {
+	won: { bg: 'bg-green-50', text: 'text-green-700', icon: 'check-circle' },
+	lost: { bg: 'bg-red-50', text: 'text-red-700', icon: 'x-circle' },
+	submitted: { bg: 'bg-primary-50', text: 'text-primary-700', icon: 'clock' },
+	withdrawn: { bg: 'bg-gray-100', text: 'text-gray-500', icon: 'x-circle' },
+	new: { bg: 'bg-violet-50', text: 'text-violet-700', icon: 'calendar' },
+}
+
+function statusStyle(status: AnalyticsActivity['status']) {
+	return statusStyles[status] ?? statusStyles.submitted
+}
+
+const stats = computed(() => {
+	const data = analyticsStats.value
+
 	return [
-		b && { label: 'Win rate', value: pctLabel(b.win_rate), hint: `${b.won} won · ${b.lost} lost` },
-		b && { label: 'Bids submitted', value: b.bids, hint: `${pctLabel(b.response_rate)} of ${b.inquiries} inquiries answered` },
-		e && { label: 'Avg attendance rate', value: pctLabel(e.average_attendance_rate), hint: `${e.completed} completed event${e.completed === 1 ? '' : 's'}` },
-		b ? { label: 'Active inquiries', value: b.open + b.pending, hint: `${b.open} to answer · ${b.pending} awaiting clients` }
-			: e && { label: 'Guests welcomed', value: e.attendees, hint: 'checked in + walk-ins' },
-	].filter(Boolean) as { label: string, value: string | number, hint: string }[]
+		{
+			label: 'Total Bids Submitted',
+			value: data ? String(data.total_bids) : '0',
+			icon: 'file-text',
+			iconBg: 'bg-primary-50',
+			iconColor: 'text-primary-700',
+			trend: data?.total_bids ? `${data.total_bids} all-time` : 'No bids yet',
+			hasTrendIcon: Boolean(data?.total_bids),
+		},
+		{
+			label: 'Win Rate',
+			value: data?.win_rate !== null && data?.win_rate !== undefined ? `${data.win_rate}%` : '—',
+			icon: 'trending-up',
+			iconBg: 'bg-green-50',
+			iconColor: 'text-green-600',
+			trend: data?.win_rate !== null && data?.win_rate !== undefined ? 'Accepted vs. decided bids' : 'No decisions yet',
+			hasTrendIcon: Boolean(data?.win_rate),
+		},
+		{
+			label: 'Avg Attendance Rate',
+			value: data?.avg_attendance_rate !== null && data?.avg_attendance_rate !== undefined ? `${data.avg_attendance_rate}%` : '—',
+			icon: 'users',
+			iconBg: 'bg-blue-50',
+			iconColor: 'text-blue-600',
+			trend: data?.avg_attendance_rate !== null && data?.avg_attendance_rate !== undefined ? 'Checked-in vs. issued tickets' : 'No ticketed events yet',
+			hasTrendIcon: Boolean(data?.avg_attendance_rate),
+		},
+		{
+			label: 'Active Inquiries',
+			value: data ? String(data.active_inquiries) : '0',
+			icon: 'clock',
+			iconBg: 'bg-amber-50',
+			iconColor: 'text-amber-600',
+			trend: 'Awaiting your response',
+			hasTrendIcon: false,
+		},
+	]
 })
 
-const funnel = computed(() => {
-	const t = data.value!.bids!.totals
-	const top = Math.max(1, t.inquiries)
-	return [
-		{ label: 'Inquiries received', value: t.inquiries, of: null, width: 100 },
-		{ label: 'Quotations sent', value: t.bids, of: t.response_rate, width: (t.bids / top) * 100 },
-		{ label: 'Won', value: t.won, of: t.inquiries ? (t.won * 100) / t.inquiries : null, width: (t.won / top) * 100 },
-	]
+const distributionTotal = computed(() => distribution.value.reduce((sum, row) => sum + row.value, 0))
+const distributionSeries = computed(() => distribution.value.map(row => row.value))
+
+const distributionChartOptions = computed<ApexOptions>(() => ({
+	chart: { type: 'donut', fontFamily: 'inherit' },
+	labels: distribution.value.map(row => row.label),
+	colors: distribution.value.map(row => distributionColors[row.label] ?? '#6b7280'),
+	dataLabels: { enabled: false },
+	stroke: { width: 2, colors: ['#fff'] },
+	legend: { position: 'bottom', fontSize: '13px', fontWeight: 600, markers: { size: 8 }, itemMargin: { horizontal: 10 } },
+	plotOptions: {
+		pie: {
+			donut: {
+				size: '68%',
+				labels: {
+					show: true,
+					total: {
+						show: true,
+						label: 'Total',
+						color: '#111827',
+						fontSize: '22px',
+						fontWeight: 800,
+						formatter: () => String(distributionTotal.value),
+					},
+					value: { fontSize: '22px', fontWeight: 800, color: '#111827' },
+				},
+			},
+		},
+	},
+	tooltip: {
+		y: {
+			formatter: (value: number) => `${value} (${Math.round((value / distributionTotal.value) * 100)}%)`,
+		},
+	},
+}))
+
+function formatRelativeTime(dateString: string) {
+	const diffMs = Date.now() - new Date(dateString).getTime()
+	const minutes = Math.floor(diffMs / 60000)
+	if (minutes < 1) return 'Just now'
+	if (minutes < 60) return `${minutes}m ago`
+	const hours = Math.floor(minutes / 60)
+	if (hours < 24) return `${hours}h ago`
+	const days = Math.floor(hours / 24)
+	return `${days}d ago`
+}
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+	const apiError = error as { data?: { message?: string } }
+	return apiError?.data?.message || fallback
+}
+
+async function loadAnalytics() {
+
+	isLoading.value = true
+	errorMessage.value = ''
+
+	try {
+		const response = { data: await legacyAnalyticsOverview() }
+		analyticsStats.value = response.data.stats
+		distribution.value = response.data.distribution
+		recentActivity.value = response.data.recent_activity
+	} catch (error: unknown) {
+		errorMessage.value = authMessage(error) || getApiErrorMessage(error, 'Unable to load your analytics.')
+	} finally {
+		isLoading.value = false
+	}
+}
+
+onMounted(() => {
+	loadAnalytics()
 })
 </script>

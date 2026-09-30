@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\Events\ClientEventController;
+use App\Http\Controllers\Api\V1\Events\EventActivityController;
 use App\Http\Controllers\Api\V1\Events\OrganizerEventController;
 use App\Http\Controllers\Api\V1\Events\PreparationController;
 use Illuminate\Support\Facades\Route;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 $uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 
 Route::middleware(['auth:sanctum', 'active', 'verified'])
-    ->where(['event' => $uuid, 'organization' => $uuid, 'quotation' => $uuid, 'session' => $uuid, 'checklist' => $uuid, 'task' => $uuid])
+    ->where(['event' => $uuid, 'organization' => $uuid, 'quotation' => $uuid, 'session' => $uuid, 'checklist' => $uuid, 'task' => $uuid, 'activity' => $uuid])
     ->group(function () {
 
         // Clients
@@ -55,6 +56,15 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
                 Route::post('{event}/checklists/{checklist}/tasks', [PreparationController::class, 'storeTask'])->middleware('throttle:sensitive')->name('tasks.store');
                 Route::patch('{event}/tasks/{task}', [PreparationController::class, 'updateTask'])->middleware('throttle:sensitive')->name('tasks.update');
                 Route::delete('{event}/tasks/{task}', [PreparationController::class, 'destroyTask'])->middleware('throttle:sensitive')->name('tasks.destroy');
+                Route::post('{event}/tasks/{task}/review', [PreparationController::class, 'reviewTask'])->middleware('throttle:sensitive')->name('tasks.review');
+
+                // 0045 Activity Timeline: the written event program
+                Route::post('{event}/activities', [EventActivityController::class, 'store'])->middleware('throttle:sensitive')->name('activities.store');
+                Route::patch('{event}/activities/{activity}', [EventActivityController::class, 'update'])->middleware('throttle:sensitive')->name('activities.update');
+                Route::delete('{event}/activities/{activity}', [EventActivityController::class, 'destroy'])->middleware('throttle:sensitive')->name('activities.destroy');
             });
+
+            // Every visible event's activities + automatic history
+            Route::get('activities', [EventActivityController::class, 'index'])->name('activities.index');
         });
     });

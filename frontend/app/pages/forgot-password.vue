@@ -1,106 +1,54 @@
 <template>
 	<div>
-		<Alert v-if="error" type="danger" :text="error" />
-		<p v-if="notice" class="mb-4 rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-sm text-green-800">{{ notice }}</p>
+		<NuxtLink to="/login" class="mb-5 inline-flex text-sm font-semibold text-primary-700">← Back to sign in</NuxtLink>
+		<h2 class="text-2xl font-extrabold text-gray-900">Reset your password</h2>
+		<p class="mb-6 mt-2 text-sm leading-relaxed text-gray-500">Enter the email registered to your account. We’ll send a secure code there. New NaSeRy admins: use this page to set your first password.</p>
 
-		<h2 class="mb-1.5 text-2xl font-extrabold text-gray-900 sm:text-[28px]">
-			{{ step === 'email' ? 'Forgot your password?' : 'Set a new password' }}
-		</h2>
-		<p class="mb-6 text-sm text-gray-500">
-			<template v-if="step === 'email'">Enter your account email and we'll send you a 6-digit reset code.</template>
-			<template v-else>Enter the code sent to <span class="font-semibold text-gray-800">{{ form.email }}</span> and choose a new password.</template>
-		</p>
+		<div v-if="message" class="mb-4 rounded-xl border px-4 py-3 text-sm" :class="error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'">{{ message }}</div>
 
-		<form v-if="step === 'email'" novalidate @submit.prevent="requestCode">
-			<div class="mb-6">
-				<FormsLabel text="Email Address" required />
-				<FormsTextField v-model="form.email" type="email" autocomplete="email" placeholder="you@example.com" size="lg" required />
-				<p v-if="fields.email" class="mt-1.5 text-xs text-red-600">{{ fields.email }}</p>
-			</div>
-			<button type="submit" :disabled="submitting"
-				class="flex w-full items-center justify-center rounded-xl bg-primary-700 py-4 text-[15px] font-bold text-white hover:bg-primary-900 disabled:cursor-wait disabled:opacity-70">
-				{{ submitting ? 'Sending…' : 'Send Reset Code' }}
-			</button>
+		<form v-if="step === 'identity'" class="space-y-5" @submit.prevent="sendCode">
+			<div><FormsLabel text="Registered Email" required /><FormsTextField v-model="form.email" type="email" placeholder="you@example.com" size="lg" required /></div>
+			<button :disabled="loading" class="w-full rounded-xl bg-primary-700 py-4 text-sm font-bold text-white disabled:opacity-60">{{ loading ? 'Sending code…' : 'Send reset code' }}</button>
 		</form>
 
-		<form v-else novalidate @submit.prevent="resetPasswordNow">
-			<div class="mb-5">
-				<FormsLabel text="Reset Code" required />
-				<FormsTextField v-model="form.code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"
-					size="lg" required class="tracking-[0.4em]" />
-			</div>
-			<div class="mb-5">
-				<FormsLabel text="New Password" required />
-				<FormsPasswordField v-model="form.password" autocomplete="new-password" placeholder="At least 8 characters, letters and numbers" size="lg" required />
-				<p v-if="fields.password" class="mt-1.5 text-xs text-red-600">{{ fields.password }}</p>
-			</div>
-			<div class="mb-6">
-				<FormsLabel text="Confirm New Password" required />
-				<FormsPasswordField v-model="form.password_confirmation" autocomplete="new-password" placeholder="Type it again" size="lg" required />
-			</div>
-			<button type="submit" :disabled="submitting || form.code.length !== 6"
-				class="flex w-full items-center justify-center rounded-xl bg-primary-700 py-4 text-[15px] font-bold text-white hover:bg-primary-900 disabled:cursor-not-allowed disabled:opacity-60">
-				{{ submitting ? 'Saving…' : 'Update Password' }}
-			</button>
-			<button type="button" class="mt-4 w-full text-sm font-semibold text-primary-600" @click="step = 'email'">
-				Use a different email or resend the code
-			</button>
+		<form v-else class="space-y-5" @submit.prevent="resetPassword">
+			<div><FormsLabel text="6-digit verification code" required /><FormsTextField v-model="form.code" inputmode="numeric" maxlength="6" placeholder="000000" size="lg" required /></div>
+			<div><FormsLabel text="New Password" required /><FormsPasswordField v-model="form.password" placeholder="At least 8 characters" size="lg" required /></div>
+			<div><FormsLabel text="Confirm New Password" required /><FormsPasswordField v-model="form.passwordConfirmation" placeholder="Enter it again" size="lg" required /></div>
+			<button :disabled="loading" class="w-full rounded-xl bg-primary-700 py-4 text-sm font-bold text-white disabled:opacity-60">{{ loading ? 'Resetting…' : 'Reset password' }}</button>
+			<button type="button" class="w-full text-sm font-semibold text-primary-700" @click="step = 'identity'">Use different account details</button>
 		</form>
-
-		<p class="mt-5 text-center text-sm text-gray-500">
-			Remembered it? <NuxtLink to="/login" class="font-bold text-primary-600">Back to sign in</NuxtLink>
-		</p>
 	</div>
 </template>
 
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
+useSeoMeta({ title: 'Reset password | NaSeRy' })
+const { forgotPassword, resetPassword: reset } = useAuth()
+const step = ref<'identity' | 'reset'>('identity')
+const loading = ref(false)
+const message = ref('')
+const error = ref(false)
+const form = reactive({ email: '', code: '', password: '', passwordConfirmation: '' })
+const getMessage = (value: unknown, fallback: string) => authMessage(value) || fallback
 
-const { forgotPassword, resetPassword } = useAuth()
-
-const step = ref<'email' | 'reset'>('email')
-const form = reactive({ email: '', code: '', password: '', password_confirmation: '' })
-const submitting = ref(false)
-const error = ref('')
-const notice = ref('')
-const fields = ref<Record<string, string>>({})
-
-watch(() => form.code, value => { form.code = value.replace(/\D/g, '').slice(0, 6) })
-
-async function requestCode() {
-	error.value = ''
-	notice.value = ''
-	fields.value = {}
-	submitting.value = true
+async function sendCode() {
+	loading.value = true; message.value = ''; error.value = false
 	try {
-		const { message } = await forgotPassword(form.email)
-		notice.value = message ?? ''
-		step.value = 'reset'
-	} catch (e) {
-		fields.value = fieldErrors(e)
-		error.value = Object.keys(fields.value).length ? '' : authMessage(e)
-	} finally {
-		submitting.value = false
-	}
+		const response = await forgotPassword(form.email.trim().toLowerCase())
+		message.value = response.message || 'If that e-mail has an account, a code is on its way.'; step.value = 'reset'
+	} catch (value) { error.value = true; message.value = getMessage(value, 'Unable to send the reset code.') }
+	finally { loading.value = false }
 }
 
-async function resetPasswordNow() {
-	error.value = ''
-	notice.value = ''
-	fields.value = {}
-	if (form.password !== form.password_confirmation) {
-		fields.value = { password: 'The passwords do not match.' }
-		return
-	}
-	submitting.value = true
+async function resetPassword() {
+	if (form.password !== form.passwordConfirmation) { error.value = true; message.value = 'The password confirmation does not match.'; return }
+	loading.value = true; message.value = ''; error.value = false
 	try {
-		await resetPassword({ ...form })
-		await navigateTo({ path: '/login', query: { reset: '1' } })
-	} catch (e) {
-		fields.value = fieldErrors(e)
-		error.value = Object.keys(fields.value).length ? '' : authMessage(e)
-	} finally {
-		submitting.value = false
-	}
+		const response = await reset({ email: form.email.trim().toLowerCase(), code: form.code, password: form.password, password_confirmation: form.passwordConfirmation })
+		message.value = response.message || 'Password updated. You can sign in now.'
+		setTimeout(() => navigateTo('/login'), 1200)
+	} catch (value) { error.value = true; message.value = getMessage(value, 'Unable to reset your password.') }
+	finally { loading.value = false }
 }
 </script>

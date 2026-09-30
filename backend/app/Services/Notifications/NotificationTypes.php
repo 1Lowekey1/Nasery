@@ -17,6 +17,7 @@ final class NotificationTypes
         'quotation.declined' => ['label' => 'A client declined your quotation', 'group' => 'organizer', 'critical' => false, 'email' => true],
         'staff.invited' => ['label' => 'Invitations to join an organizer team', 'group' => 'organizer', 'critical' => false, 'email' => true],
         'task.assigned' => ['label' => 'Tasks assigned to you', 'group' => 'organizer', 'critical' => false, 'email' => false],
+        'task.reviewed' => ['label' => 'Reviews of tasks you finished', 'group' => 'organizer', 'critical' => false, 'email' => false],
         'capacity.warning' => ['label' => 'An event is almost full', 'group' => 'organizer', 'critical' => false, 'email' => true],
         'capacity.full' => ['label' => 'An event is full', 'group' => 'organizer', 'critical' => true, 'email' => true],
         'team.event_tomorrow' => ['label' => 'Your event is tomorrow', 'group' => 'organizer', 'critical' => false, 'email' => true],
@@ -25,6 +26,7 @@ final class NotificationTypes
         'access.requested' => ['label' => 'NaSeRy asks to view your workspace', 'group' => 'organizer', 'critical' => true, 'email' => true],
         'access.update' => ['label' => 'NaSeRy support access started or ended', 'group' => 'organizer', 'critical' => false, 'email' => true],
         'billing.update' => ['label' => 'Your plan, payments and renewals', 'group' => 'organizer', 'critical' => true, 'email' => true],
+        'payout.update' => ['label' => 'Payouts of your ticket earnings', 'group' => 'organizer', 'critical' => true, 'email' => true],
         'refund.claim_reviewed' => ['label' => 'NaSeRy reviewed a refund fee claim', 'group' => 'organizer', 'critical' => true, 'email' => true],
         // Clients
         'quotation.received' => ['label' => 'Quotations from organizers', 'group' => 'client', 'critical' => false, 'email' => true],

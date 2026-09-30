@@ -16,6 +16,9 @@ class OrganizationProfileResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // 0046 columns (read only when loaded, so older rows/queries keep working).
+        $extra = fn (string $key, mixed $default = null) => array_key_exists($key, $this->resource->getAttributes()) ? ($this->{$key} ?? $default) : $default;
+
         return [
             'business_name' => $this->business_name,
             'description' => $this->description,
@@ -26,6 +29,14 @@ class OrganizationProfileResource extends JsonResource
             'contact_phone' => $this->contact_phone,
             'cover_image_url' => $this->cover_image_url,
             'is_published' => $this->is_published,
+            'years_experience' => $extra('years_experience'),
+            'service_radius_km' => $extra('service_radius_km'),
+            'event_tags' => $extra('event_tags', []),
+            'specialties' => $extra('specialties', []),
+            'website' => $extra('website'),
+            'facebook' => $extra('facebook'),
+            'instagram' => $extra('instagram'),
+            'banner_color' => $extra('banner_color'),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }

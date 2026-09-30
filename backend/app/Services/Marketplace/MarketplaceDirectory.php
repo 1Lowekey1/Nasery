@@ -72,9 +72,13 @@ class MarketplaceDirectory
             $query->orderBy('p.display_name')->orderBy('p.organization_id');
 
             $page = $query->paginate(perPage: $filters['per_page'] ?? 12, page: $filters['page'] ?? 1);
-            $services = $this->serviceNames($page->getCollection()->pluck('organization_id'));
+            $ids = $page->getCollection()->pluck('organization_id');
+            $services = $this->serviceNames($ids);
+            $completed = $this->completedCounts($ids);
 
-            $page->getCollection()->transform(fn (object $row) => $this->card($row, $services[$row->organization_id] ?? collect()));
+            $page->getCollection()->transform(fn (object $row) => $this->card($row, $services[$row->organization_id] ?? collect()) + [
+                'completed_events' => (int) ($completed[$row->organization_id] ?? 0),
+            ]);
 
             return $page;
         });
@@ -108,6 +112,15 @@ class MarketplaceDirectory
                 'contact_email' => $profile->contact_email,
                 'contact_phone' => $profile->contact_phone,
                 'cover_image_url' => $profile->cover_image_url,
+                // 0046: details from the business profile panel.
+                'years_experience' => $profile->years_experience ?? null,
+                'service_radius_km' => isset($profile->service_radius_km) ? (int) $profile->service_radius_km : null,
+                'event_tags' => isset($profile->event_tags) ? json_decode($profile->event_tags, true) : [],
+                'specialties' => isset($profile->specialties) ? json_decode($profile->specialties, true) : [],
+                'website' => $profile->website ?? null,
+                'facebook' => $profile->facebook ?? null,
+                'instagram' => $profile->instagram ?? null,
+                'banner_color' => $profile->banner_color ?? null,
                 'services' => DB::table('public_organization_services')->where('organization_id', $profile->organization_id)
                     ->orderBy('name')->get(['id', 'name', 'description', 'base_price'])
                     ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'description' => $s->description, 'base_price' => $s->base_price])->all(),
@@ -124,6 +137,8 @@ class MarketplaceDirectory
                     'distribution' => collect(range(5, 1))->mapWithKeys(fn ($r) => [$r => (int) ($ratings[$r] ?? 0)]),
                 ],
                 'recent_reviews' => $this->reviewQuery($profile->organization_id)->limit(5)->get()->map(fn ($r) => $this->review($r))->all(),
+                'completed_events' => (int) ($this->completedCounts(collect([$profile->organization_id]))[$profile->organization_id] ?? 0),
+                'portfolio' => $this->portfolio($profile->organization_id),
             ];
         });
     }
@@ -231,6 +246,43 @@ class MarketplaceDirectory
             'services' => $services->take(6)->values()->all(),
             'distance_km' => isset($row->distance_km) ? round((float) $row->distance_km, 1) : null,
         ];
+    }
+
+    /** @return Collection<string, int> completed (not deleted) events per organization */
+    private function completedCounts(Collection $organizationIds): Collection
+    {
+        return DB::table('events')->whereIn('organization_id', $organizationIds)->where('status', 'completed')->whereNull('deleted_at')
+            ->groupBy('organization_id')->selectRaw('organization_id, count(*) as total')->pluck('total', 'organization_id');
+    }
+
+    /**
+     * Past work for the public profile. Public (ticketed) events are already
+     * public, so they show in full. Private client events show only their type
+     * and month: never the name, venue or anything that identifies the client.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function portfolio(string $organizationId): array
+    {
+        return DB::table('events as e')
+            ->leftJoin('event_types as t', 't.id', '=', 'e.event_type_id')
+            ->where('e.organization_id', $organizationId)->where('e.status', 'completed')->whereNull('e.deleted_at')
+            ->selectRaw('e.id, e.name, e.description, e.venue_name, e.visibility, t.name as type,
+                (select min(s.starts_at) from event_sessions s where s.event_id = e.id and s.deleted_at is null) as held_at')
+            ->orderByDesc('held_at')->limit(12)->get()
+            ->map(function (object $e) {
+                $public = $e->visibility === 'public';
+
+                return [
+                    'id' => $public ? $e->id : null,
+                    'title' => $public ? $e->name : ($e->type ?? 'Private event'),
+                    'category' => $e->type ?? 'Event',
+                    'date' => $e->held_at ? substr((string) $e->held_at, 0, 10) : null,
+                    'venue' => $public ? $e->venue_name : null,
+                    'description' => $public ? $e->description : null,
+                    'is_public' => $public,
+                ];
+            })->all();
     }
 
     /** Great-circle distance in km (haversine) from (?, ?) to the profile. */

@@ -9,6 +9,7 @@ frontend/.env.local
 backend/CLAUDE.md
 backend/AGENTS.md
 node_modules/
+Context Folder/
 
 # Dependency Folders
 backend/vendor/

@@ -50,6 +50,12 @@ export interface MyTask {
   checklist: string
   event_id: string
   event: string
+  /** 0044: the note left when finishing it, and the organizer's review. */
+  completion_note?: string | null
+  review_status?: 'pending' | 'verified' | 'changes_requested' | null
+  review_note?: string | null
+  event_type?: string | null
+  event_starts_at?: string | null
 }
 
 /** Permissions that can be given per event (matches EventTeam::EVENT_PERMISSIONS). */

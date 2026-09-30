@@ -1,42 +1,73 @@
 <template>
 	<div>
-		<Alert v-if="error" type="danger" :text="error" />
-		<p v-if="route.query.reset" class="mb-4 rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-sm text-green-800">Password updated. Sign in with your new password.</p>
+		<Alert v-if="errorMessage" type="danger" :text="errorMessage" />
 
 		<h2 class="mb-1.5 text-2xl font-extrabold text-gray-900 sm:text-[28px]">
 			Welcome back
 		</h2>
+
 		<p class="mb-6 text-sm text-gray-500">
-			Sign in to manage your events and bids
+			{{
+				nextInquiry ?
+					'Sign in as a client to continue posting your event inquiry.' :
+					'Sign in to manage your events and bids'
+			}}
 		</p>
 
 		<AuthSocialButtons mode="login" />
 
-		<form novalidate @submit.prevent="handleSubmit">
-			<div class="mb-5">
-				<FormsLabel text="Email Address" required />
-				<FormsTextField v-model="form.email" type="email" autocomplete="email" placeholder="you@example.com" size="lg" required>
-					<template #icon>
-						<svg viewBox="0 0 20 20"
-							class="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400">
-							<path fill="currentColor"
-								d="M2.5 4.5A1.5 1.5 0 0 1 4 3h12a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 16 17H4a1.5 1.5 0 0 1-1.5-1.5v-11Zm1.7.3 5.34 4.27a.9.9 0 0 0 1.12 0L16 4.8a.3.3 0 0 0-.19-.3H4.19a.3.3 0 0 0-.19.3Z" />
-						</svg>
-					</template>
-				</FormsTextField>
-				<p v-if="fields.email" class="mt-1.5 text-xs text-red-600">{{ fields.email }}</p>
-			</div>
 
+		<form @submit.prevent="handleSubmit">
+			<!-- Email Login -->
+			<template v-if="loginMethod === 'email'">
+				<div class="mb-5">
+					<FormsLabel text="Email Address" field-for="login-email" required />
+
+					<FormsTextField id="login-email" v-model="state.email" type="email" autocomplete="email"
+						placeholder="you@example.com" size="lg" required>
+						<template #icon>
+							<svg viewBox="0 0 20 20"
+								class="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400">
+								<path fill="currentColor"
+									d="M2.5 4.5A1.5 1.5 0 0 1 4 3h12a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 16 17H4a1.5 1.5 0 0 1-1.5-1.5v-11Zm1.7.3 5.34 4.27a.9.9 0 0 0 1.12 0L16 4.8a.3.3 0 0 0-.19-.3H4.19a.3.3 0 0 0-.19.3Z" />
+							</svg>
+						</template>
+					</FormsTextField>
+				</div>
+			</template>
+
+			<!-- Phone Login -->
+			<template v-else>
+				<div class="mb-5">
+					<FormsLabel text="Phone Number" field-for="login-phone" required />
+
+					<FormsTextField id="login-phone" v-model="state.phone" type="tel" autocomplete="tel"
+						placeholder="+63 912 345 6789" size="lg" required>
+						<template #icon>
+							<svg viewBox="0 0 20 20"
+								class="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400">
+								<path fill="currentColor"
+									d="M4.4 2.6h2.9c.5 0 1 .3 1.1.8l.9 3a1.2 1.2 0 0 1-.3 1.2l-1.5 1.5a11.3 11.3 0 0 0 4.4 4.4l1.5-1.5a1.2 1.2 0 0 1 1.2-.3l3 .9c.5.1.8.6.8 1.1v2.9c0 .7-.6 1.3-1.3 1.2C9.9 17 3 10.1 2.6 2.7c0-.7.6-1.3 1.3-1.3Z" />
+							</svg>
+						</template>
+					</FormsTextField>
+				</div>
+			</template>
+
+			<!-- Password -->
 			<div class="mb-2 flex items-center justify-between">
-				<label class="text-sm font-semibold text-gray-700">
+				<label for="login-password" class="text-sm font-semibold text-gray-700">
 					Password
 				</label>
-				<NuxtLink to="/forgot-password" class="text-[13px] font-semibold text-primary-600">
+
+				<NuxtLink to="/forgot-password" class="text-[13px] font-semibold text-primary-600 hover:underline">
 					Forgot password?
 				</NuxtLink>
 			</div>
+
 			<div class="mb-6">
-				<FormsPasswordField v-model="form.password" autocomplete="current-password" placeholder="Enter password" size="lg" required>
+				<FormsPasswordField id="login-password" v-model="state.password" autocomplete="current-password"
+					placeholder="Enter password" size="lg" required>
 					<template #icon>
 						<svg viewBox="0 0 20 20"
 							class="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400">
@@ -45,50 +76,126 @@
 						</svg>
 					</template>
 				</FormsPasswordField>
-				<p v-if="fields.password" class="mt-1.5 text-xs text-red-600">{{ fields.password }}</p>
 			</div>
 
-			<button type="submit" :disabled="submitting"
-				class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 py-4 text-[15px] font-bold text-white hover:bg-primary-900 disabled:cursor-wait disabled:opacity-70">
-				{{ submitting ? 'Signing in…' : 'Sign In to NaSeRy' }}
-				<svg v-if="!submitting" viewBox="0 0 20 20" class="h-4 w-4">
-					<path fill="currentColor"
-						d="M11.3 4.3a1 1 0 0 1 1.4 0l5 5a1 1 0 0 1 0 1.4l-5 5a1 1 0 1 1-1.4-1.4L14.6 11H3a1 1 0 1 1 0-2h11.6l-3.3-3.3a1 1 0 0 1 0-1.4Z" />
-				</svg>
+			<!-- Submit -->
+			<button type="submit" :disabled="isLoading"
+				class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 py-4 text-[15px] font-bold text-white transition hover:bg-primary-900 disabled:cursor-not-allowed disabled:opacity-60">
+				<template v-if="isLoading">
+					Signing In...
+				</template>
+
+				<template v-else>
+					Sign In to NaSeRy
+
+					<svg viewBox="0 0 20 20" class="h-4 w-4">
+						<path fill="currentColor"
+							d="M11.3 4.3a1 1 0 0 1 1.4 0l5 5a1 1 0 0 1 0 1.4l-5 5a1 1 0 1 1-1.4-1.4L14.6 11H3a1 1 0 1 1 0-2h11.6l-3.3-3.3a1 1 0 0 1 0-1.4Z" />
+					</svg>
+				</template>
 			</button>
 		</form>
 
 		<p class="mt-5 text-center text-sm text-gray-500">
-			New to NaSeRy? <NuxtLink to="/register" class="font-bold text-primary-600">Create account</NuxtLink>
+			New to NaSeRy?
+
+			<NuxtLink :to="{ path: '/register', query: nextInquiry ? { redirect: nextInquiry } : {} }"
+				class="font-bold text-primary-600">
+				Create account
+			</NuxtLink>
 		</p>
 	</div>
 </template>
 
 <script setup lang="ts">
-definePageMeta({ layout: 'auth' })
+import type { User } from '~/types/auth'
+
+definePageMeta({
+	layout: 'auth',
+})
 
 const route = useRoute()
-const { login, homePath } = useAuth()
+useSeoMeta({ title: 'Sign in | NaSeRy' })
+const nextInquiry = computed(() => inquiryRedirect(route.query.redirect))
+onMounted(() => {
+	if (typeof route.query.social_error === 'string') errorMessage.value = route.query.social_error
+})
+async function finishLogin(user: User) {
+	if (user.role === 'client' && nextInquiry.value) {
+		return await navigateTo(nextInquiry.value)
+	}
+	return await redirectByRole(user)
+}
 
-const form = reactive({ email: '', password: '' })
-const submitting = ref(false)
-const error = ref(typeof route.query.social_error === 'string' ? authMessage(route.query.social_error) : '')
-const fields = ref<Record<string, string>>({})
+const loginMethod = ref<'email' | 'phone'>('email')
+
+const state = reactive({
+	email: '',
+	phone: '',
+	password: '',
+})
+
+const {
+	login,
+	redirectByRole,
+	isLoading,
+	errorMessage,
+} = useAuth()
+
+function normalizePhone(phone: string): string {
+	const normalized = phone
+		.trim()
+		.replace(/[\s\-()]+/g, '')
+
+	if (/^\+639\d{9}$/.test(normalized)) {
+		return normalized
+	}
+
+	if (/^639\d{9}$/.test(normalized)) {
+		return `+${normalized}`
+	}
+
+	if (/^09\d{9}$/.test(normalized)) {
+		return `+63${normalized.slice(1)}`
+	}
+
+	if (/^9\d{9}$/.test(normalized)) {
+		return `+63${normalized}`
+	}
+
+	return normalized
+}
 
 async function handleSubmit() {
-	error.value = ''
-	fields.value = {}
-	submitting.value = true
+	errorMessage.value = ''
+
 	try {
-		const user = await login(form.email, form.password)
-		// Same-site paths only: "//evil.com" or "/\evil.com" would leave the app.
-		const redirect = typeof route.query.redirect === 'string' && /^\/(?![/\\])/.test(route.query.redirect) ? route.query.redirect : null
-		await navigateTo(!user.email_verified ? '/verify-email' : (redirect ?? homePath(user)))
-	} catch (e) {
-		fields.value = fieldErrors(e)
-		error.value = Object.keys(fields.value).length ? '' : authMessage(e)
-	} finally {
-		submitting.value = false
+		if (loginMethod.value === 'email') {
+			const user = await login({
+				email: state.email.trim(),
+				password: state.password,
+			})
+
+			await finishLogin(user)
+			return
+		}
+
+		const user = await login({
+			phone: normalizePhone(state.phone),
+			password: state.password,
+		})
+
+		await finishLogin(user)
+
+	} catch (error) {
+		console.error(
+			'Login failed:',
+			error
+		)
 	}
 }
+
+watch(loginMethod, () => {
+	errorMessage.value = ''
+})
 </script>

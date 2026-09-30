@@ -223,7 +223,7 @@ async function load() {
 }
 
 async function cancelInquiry() {
-	if (!confirm('Cancel this inquiry? Organizers will no longer be able to respond.')) return
+	if (!(await confirmDialog('Cancel this inquiry? Organizers will no longer be able to respond.', { confirmLabel: 'Cancel inquiry', cancelLabel: 'Keep it' }))) return
 	busy.value = true
 	try {
 		await cancel(inquiry.value!.id)
@@ -256,7 +256,7 @@ async function inviteOrganizer(id: string) {
 }
 
 async function acceptQuotation(q: ClientQuotation) {
-	if (!confirm(`Accept ${q.organizer.display_name}'s quotation for ${formatPeso(q.total_amount)}? The other offers will be declined and ${q.organizer.display_name} will receive your contact details.`)) return
+	if (!(await confirmDialog(`Accept ${q.organizer.display_name}'s quotation for ${formatPeso(q.total_amount)}? The other offers will be declined and ${q.organizer.display_name} will receive your contact details.`, { title: 'Accept this quotation?', confirmLabel: 'Yes, accept', danger: false }))) return
 	busy.value = true
 	try {
 		await quotationsApi.accept(q.id)
@@ -285,7 +285,7 @@ async function confirmDecline() {
 }
 
 async function removeDraft() {
-	if (!confirm('Delete this draft?')) return
+	if (!(await confirmDialog('Delete this draft?', { confirmLabel: 'Delete draft' }))) return
 	busy.value = true
 	try {
 		await remove(inquiry.value!.id)

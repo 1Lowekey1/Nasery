@@ -225,7 +225,7 @@ async function confirmChoice() {
 }
 
 const cancel = async () => {
-	if (confirm('Cancel your plan? You keep it until the end of this period, then move to Free. Nothing you made is removed.')) {
+	if (await confirmDialog('Cancel your plan? You keep it until the end of this period, then move to Free. Nothing you made is removed.', { confirmLabel: 'Cancel plan', cancelLabel: 'Keep my plan' })) {
 		await run(async () => billing.cancel(await orgId()), 'Your plan ends at the close of this period.')
 	}
 }

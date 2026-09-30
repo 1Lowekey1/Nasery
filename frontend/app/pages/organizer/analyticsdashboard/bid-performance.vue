@@ -1,94 +1,168 @@
 <template>
 	<div>
-		<Alert v-if="error" type="danger" :text="error" />
-		<div v-if="loading && !data" class="py-12 text-center text-sm text-gray-500">Loading bid performance…</div>
-		<div v-else-if="data && !data.bids" class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">Bid performance is for team members who handle inquiries or quotations.</div>
+		<div v-if="isLoading" class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
+			Loading your bid performance...
+		</div>
 
-		<template v-if="data?.bids">
-			<div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
-				<div v-for="tile in tiles" :key="tile.label" class="rounded-2xl border border-gray-200 bg-white p-5">
-					<p class="text-sm text-gray-500">{{ tile.label }}</p>
-					<p class="mt-1 text-2xl font-extrabold text-gray-900">{{ tile.value }}</p>
-					<p class="mt-1 text-xs text-gray-500">{{ tile.hint }}</p>
-				</div>
+		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+			{{ errorMessage }}
+		</div>
+
+		<template v-else>
+			<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+				<h2 class="text-base font-bold text-gray-900">
+					Bid Performance Trends
+				</h2>
+				<p class="mb-4 text-sm text-gray-500">
+					Monthly bid win/loss decisions, last 6 months
+				</p>
+
+				<template v-if="hasMonthlyActivity">
+					<ClientOnly>
+						<apexchart type="bar" height="320" :options="chartOptions" :series="chartSeries" />
+					</ClientOnly>
+				</template>
+				<p v-else class="py-16 text-center text-sm text-gray-400">
+					No bid decisions in the last 6 months yet.
+				</p>
 			</div>
 
-			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
-				<h2 class="text-base font-bold text-gray-900">Bids won and lost</h2>
-				<p class="mb-4 text-sm text-gray-500">{{ data.period.group === 'quarter' ? 'Quarterly' : 'Monthly' }}, by the date the client decided</p>
-				<AnalyticsBarChart :labels="labels" :series="[
-					{ name: 'Won', color: SERIES[0], values: data.bids.trend.map(t => t.won) },
-					{ name: 'Lost', color: SERIES[1], values: data.bids.trend.map(t => t.lost) },
-				]" />
-			</section>
-
-			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
-				<h2 class="text-base font-bold text-gray-900">Inquiries received and quotations sent</h2>
-				<p class="mb-4 text-sm text-gray-500">How much demand reached you, and how much of it you bid on</p>
-				<AnalyticsBarChart :labels="labels" :series="[
-					{ name: 'Inquiries received', color: SERIES[0], values: data.bids.trend.map(t => t.inquiries) },
-					{ name: 'Quotations sent', color: SERIES[1], values: data.bids.trend.map(t => t.bids) },
-				]" />
-			</section>
-
-			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
-				<h2 class="text-base font-bold text-gray-900">Bid history</h2>
-				<p v-if="!data.bids.history.length" class="mt-3 text-sm text-gray-400">No inquiries in this period.</p>
-				<div v-else class="mt-3 overflow-x-auto">
-					<table class="w-full min-w-[620px] text-left text-sm">
-						<thead class="text-xs uppercase text-gray-400"><tr><th class="py-2">Inquiry</th><th>Received</th><th>Your quote</th><th>Answered in</th><th>Outcome</th></tr></thead>
-						<tbody class="divide-y divide-gray-100">
-							<tr v-for="h in data.bids.history" :key="h.inquiry_id">
-								<td class="py-2.5"><p class="font-medium text-gray-900">{{ h.event_type }}</p><p class="text-xs text-gray-500">{{ h.guest_count ?? '?' }} guests<template v-if="h.requested_date"> · {{ new Date(h.requested_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}</template></p></td>
-								<td class="text-gray-600">{{ new Date(h.invited_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }}</td>
-								<td class="text-gray-900">{{ h.amount ? formatPeso(h.amount) : '—' }}</td>
-								<td class="text-gray-600">{{ h.first_sent_at ? duration(h.invited_at, h.first_sent_at) : '—' }}</td>
-								<td><span class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold" :class="outcomeTone[h.outcome]"><span aria-hidden="true">{{ outcomeIcon[h.outcome] }}</span>{{ outcomeLabels[h.outcome] }}</span></td>
-							</tr>
-						</tbody>
-					</table>
+			<div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
+				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+					<div class="flex items-start justify-between gap-3">
+						<div>
+							<div class="text-sm font-semibold text-gray-900">Total Bids</div>
+							<div class="text-xs text-gray-400">All time</div>
+						</div>
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50">
+							<IconBase name="file-text" class="h-5 w-5 text-primary-700" />
+						</span>
+					</div>
+					<div class="mt-3 text-3xl font-extrabold tracking-tight text-gray-950">
+						{{ totalBids }}
+					</div>
 				</div>
-			</section>
+
+				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+					<div class="flex items-start justify-between gap-3">
+						<div>
+							<div class="text-sm font-semibold text-gray-900">Bids Won</div>
+							<div class="text-xs text-gray-400">All time</div>
+						</div>
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50">
+							<IconBase name="check-circle" class="h-5 w-5 text-primary-700" />
+						</span>
+					</div>
+					<div class="mt-3 text-3xl font-extrabold tracking-tight text-primary-700">
+						{{ bidsWon }}
+					</div>
+				</div>
+
+				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+					<div class="flex items-start justify-between gap-3">
+						<div>
+							<div class="text-sm font-semibold text-gray-900">Bids Lost</div>
+							<div class="text-xs text-gray-400">All time</div>
+						</div>
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50">
+							<IconBase name="x-circle" class="h-5 w-5 text-amber-600" />
+						</span>
+					</div>
+					<div class="mt-3 text-3xl font-extrabold tracking-tight text-amber-600">
+						{{ bidsLost }}
+					</div>
+				</div>
+			</div>
 		</template>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { outcomeLabels, pctLabel, type BidOutcome } from '~/composables/useAnalytics'
+import type { ApexOptions } from 'apexcharts'
 
 definePageMeta({ layout: 'dashboard' })
 
-// Categorical slots 1–2 of the validated reference palette (colorblind-safe pair).
-const SERIES = ['#2a78d6', '#eb6834']
-const { data, error, loading } = useAnalyticsOverview()
-const labels = computed(() => data.value?.bids?.trend.map(t => t.label) ?? [])
+const { token } = useAuth('organizer')
+const config = useRuntimeConfig()
 
-const tiles = computed(() => {
-	const t = data.value!.bids!.totals
-	return [
-		{ label: 'Bids submitted', value: t.bids, hint: `of ${t.inquiries} inquiries` },
-		{ label: 'Win rate', value: pctLabel(t.win_rate), hint: `${t.won} won · ${t.lost} lost · ${t.pending} pending` },
-		{ label: 'Typical response', value: responseTime(t.median_response_hours), hint: 'median time to send a quote' },
-		{ label: 'Average quote', value: t.average_bid ? formatPeso(t.average_bid) : '—', hint: 'final quote per inquiry' },
-		{ label: 'Value won', value: formatPeso(t.won_value) || '₱0', hint: 'accepted quotations' },
-	]
+interface MonthlyBidRow {
+	label: string
+	won: number
+	lost: number
+}
+
+interface BidPerformanceResponse {
+	data: {
+		monthly: MonthlyBidRow[]
+		total_bids: number
+		bids_won: number
+		bids_lost: number
+	}
+}
+
+const isLoading = ref(false)
+const errorMessage = ref('')
+const monthly = ref<MonthlyBidRow[]>([])
+const totalBids = ref(0)
+const bidsWon = ref(0)
+const bidsLost = ref(0)
+
+const hasMonthlyActivity = computed(() => monthly.value.some(row => row.won > 0 || row.lost > 0))
+
+const chartSeries = computed(() => [
+	{ name: 'Won Bids', data: monthly.value.map(row => row.won) },
+	{ name: 'Lost Bids', data: monthly.value.map(row => row.lost) },
+])
+
+const chartOptions = computed<ApexOptions>(() => ({
+	chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+	colors: ['#285F6b', '#d97706'],
+	plotOptions: {
+		bar: {
+			columnWidth: '55%',
+			borderRadius: 4,
+			borderRadiusApplication: 'end',
+		},
+	},
+	dataLabels: { enabled: false },
+	grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+	legend: { position: 'bottom', fontSize: '13px', fontWeight: 600, markers: { size: 8 } },
+	xaxis: {
+		categories: monthly.value.map(row => row.label),
+		axisBorder: { show: false },
+		axisTicks: { show: false },
+		labels: { style: { colors: '#6b7280', fontSize: '13px', fontWeight: 600 } },
+	},
+	yaxis: {
+		labels: { style: { colors: '#9ca3af', fontSize: '11px' }, formatter: (value: number) => Math.round(value).toString() },
+	},
+	tooltip: { shared: true, intersect: false },
+}))
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+	const apiError = error as { data?: { message?: string } }
+	return apiError?.data?.message || fallback
+}
+
+async function loadBidPerformance() {
+
+	isLoading.value = true
+	errorMessage.value = ''
+
+	try {
+		const response = { data: await legacyBidPerformance() }
+		monthly.value = response.data.monthly
+		totalBids.value = response.data.total_bids
+		bidsWon.value = response.data.bids_won
+		bidsLost.value = response.data.bids_lost
+	} catch (error: unknown) {
+		errorMessage.value = authMessage(error) || getApiErrorMessage(error, 'Unable to load your bid performance.')
+	} finally {
+		isLoading.value = false
+	}
+}
+
+onMounted(() => {
+	loadBidPerformance()
 })
-
-// Status meaning ships with an icon + label, never color alone.
-const outcomeTone: Record<BidOutcome, string> = {
-	won: 'bg-green-50 text-green-800', lost: 'bg-rose-50 text-rose-800', pending: 'bg-amber-50 text-amber-800', open: 'bg-blue-50 text-blue-800',
-	declined: 'bg-gray-100 text-gray-600', missed: 'bg-gray-100 text-gray-600', withdrawn: 'bg-gray-100 text-gray-600', cancelled: 'bg-gray-100 text-gray-600',
-}
-const outcomeIcon: Record<BidOutcome, string> = { won: '✓', lost: '✕', pending: '…', open: '!', declined: '–', missed: '–', withdrawn: '–', cancelled: '–' }
-
-function responseTime(h: number | null) {
-	if (h === null) return '—'
-	if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`
-	return h < 48 ? `${Math.round(h)} h` : `${Math.round(h / 24)} days`
-}
-
-function duration(from: string, to: string) {
-	const h = (new Date(to).getTime() - new Date(from).getTime()) / 3600000
-	return h < 1 ? `${Math.max(1, Math.round(h * 60))} min` : h < 48 ? `${Math.round(h)} h` : `${Math.round(h / 24)} days`
-}
 </script>

@@ -141,9 +141,9 @@ function changeRole(m: TeamMember, roleId: string) {
 	act(() => api.changeRole(orgId.value, m.id, { role_id: roleId }), `${m.name}'s role changed.`, true)
 }
 
-function remove(m: TeamMember) {
+async function remove(m: TeamMember) {
 	const what = m.status === 'invited' ? `Cancel the invitation for ${m.name}?` : `Deactivate ${m.name}? They lose access right away and are removed from event teams.`
-	if (confirm(what)) act(() => api.remove(orgId.value, m.id), m.status === 'invited' ? 'Invitation cancelled.' : `${m.name} was deactivated.`, true)
+	if (await confirmDialog(what, { confirmLabel: m.status === 'invited' ? 'Cancel invitation' : 'Deactivate' })) act(() => api.remove(orgId.value, m.id), m.status === 'invited' ? 'Invitation cancelled.' : `${m.name} was deactivated.`, true)
 }
 
 async function createRole() {

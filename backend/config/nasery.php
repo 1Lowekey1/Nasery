@@ -55,6 +55,8 @@ return [
         'api' => [120, 1, 'user_or_ip'],
         'sensitive' => [30, 1, 'user_or_ip'],
         'checkout' => [10, 1, 'user_or_ip'],
+        // Guest ticket checkout: e-mail codes per attendee (up to 10 per registration, plus resends).
+        'guest-codes' => [20, 60, 'ip'],
         'checkin' => [120, 1, 'user'],
         'webhook' => [300, 1, 'ip'],
     ],

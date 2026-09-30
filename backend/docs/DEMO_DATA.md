@@ -78,7 +78,7 @@ C:\xampp\apache\bin\httpd.exe -f "%CD%\server\apache-local.conf"
 (Stop with Ctrl+C. Don't run `artisan serve` at the same time: both want port 8000.) Also keep `php artisan queue:work` running for e-mails.
 
 What it does (all in `server/apache-local.conf`, nothing in `.env`):
-- 16 worker threads answer requests in parallel.
+- 4 worker threads answer requests in parallel (each keeps up to 2 Supabase connections; the free plan allows 15 in total, and the queue worker and tests need some).
 - Reuses Supabase connections between requests (`DB_PERSISTENT`): connecting to Supabase (Tokyo) costs ~1 s. Safe with RLS: every role/claim is `SET LOCAL`.
 - Rate-limit counters in local files (`CACHE_STORE=file`). Sessions stay in the database (signed-in devices, "sign out everywhere").
 - Logs: `storage/logs/apache-error.log`, `apache-access.log` (last number = microseconds).

@@ -10,7 +10,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Shown publicly (public_organization_profiles view) only when published
  * AND the organization is approved and not suspended.
  */
-#[Fillable(['organization_id', 'business_name', 'description', 'location_text', 'latitude', 'longitude', 'contact_email', 'contact_phone', 'cover_image_url', 'is_published'])]
+#[Fillable(['organization_id', 'business_name', 'description', 'location_text', 'latitude', 'longitude', 'contact_email', 'contact_phone', 'cover_image_url', 'is_published',
+    // 0046: details from the business profile panel.
+    'years_experience', 'service_radius_km', 'event_tags', 'specialties', 'website', 'facebook', 'instagram', 'banner_color'])]
 class OrganizationProfile extends Model
 {
     protected $attributes = [
@@ -30,6 +32,9 @@ class OrganizationProfile extends Model
             'latitude' => 'decimal:6',
             'longitude' => 'decimal:6',
             'is_published' => 'boolean',
+            'service_radius_km' => 'integer',
+            'event_tags' => 'array',
+            'specialties' => 'array',
         ];
     }
 

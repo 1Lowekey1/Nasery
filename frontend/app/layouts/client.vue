@@ -1,6 +1,6 @@
 <template>
 	<div class="flex h-screen overflow-hidden bg-gray-50">
-		<div class="fixed inset-x-0 top-0 z-50 h-1 bg-gray-900" />
+		<!-- <div class="fixed inset-x-0 top-0 z-50 h-1 bg-gray-900" /> -->
 
 		<aside class="shrink-0 overflow-hidden border-r border-gray-200 bg-white transition-all duration-200"
 			:class="sidebarOpen ? 'w-64' : 'w-0 border-r-0'">
@@ -38,20 +38,11 @@
 				</nav>
 
 				<div class="border-t border-gray-100 px-4 py-4">
-					<div class="mb-3 flex w-full items-center gap-3 rounded-lg p-1.5 text-left">
-						<div
-							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-700 text-sm font-bold text-white">
-							{{ sidebarInitials }}
-						</div>
-						<div class="min-w-0">
-							<div class="truncate text-sm font-semibold text-gray-900">{{ fullName }}</div>
-							<div class="truncate text-xs text-gray-400">Client · {{ user?.email }}</div>
-						</div>
-					</div>
 					<button type="button"
 						class="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-700"
-						@click="signOut">
+						@click="handleLogout">
 						<IconBase name="log-out" class="h-4 w-4" />
+
 						Sign out
 					</button>
 				</div>
@@ -69,50 +60,60 @@
 						<div class="text-sm font-bold text-gray-900">{{ activeItem.label }}</div>
 					</div>
 				</div>
-				<NotificationBell />
+				<div class="flex items-center gap-2">
+					<NotificationsDropdown portal="client" />
+					<button type="button" class="flex max-w-52 items-center gap-2 rounded-xl border border-gray-200 bg-white p-1.5 pr-3 text-left transition hover:border-primary-200 hover:bg-primary-50" @click="openProfilePanel">
+						<span class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary-700 text-xs font-bold text-white">
+							<img v-if="user?.avatar_url" :src="user.avatar_url" alt="" class="h-full w-full object-cover" /><span v-else>{{ sidebarInitials }}</span>
+						</span>
+						<span class="hidden min-w-0 sm:block"><span class="block truncate text-xs font-bold text-gray-900">{{ sidebarName }}</span><span class="block text-[10px] text-gray-400">Edit profile</span></span>
+					</button>
+				</div>
 			</header>
 
 			<main class="flex-1 overflow-y-auto p-6">
-				<AnnouncementBanner class="mb-4" />
 				<slot />
 			</main>
 		</div>
 
 		<Transition name="fade">
-			<div v-if="showProfilePanel" class="fixed inset-0 z-40 bg-gray-900/40" @click="closeProfilePanel" />
+			<div v-if="showProfilePanel" class="fixed inset-0 z-[90] bg-gray-900/40" @click="closeProfilePanel" />
 		</Transition>
 
 		<Transition name="slide">
 			<div v-if="showProfilePanel"
-				class="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl">
-				<div class="relative shrink-0 pb-9">
-					<div class="h-16" :style="{ backgroundColor: draftProfile.bannerColor }" />
-					<button type="button" class="absolute right-4 top-4 text-white/80 hover:text-white"
+				class="fixed inset-y-0 right-0 z-[100] flex w-full max-w-2xl flex-col overflow-hidden bg-white shadow-2xl"
+				role="dialog" aria-modal="true" aria-labelledby="client-profile-title">
+				<div class="relative shrink-0 pb-11">
+					<div class="h-28 bg-gradient-to-br from-primary-700 to-primary-900" :style="{ backgroundColor: draftProfile.bannerColor }"><img v-if="user?.cover_url" :src="user.cover_url" alt="" class="h-full w-full object-cover" /></div>
+					<div aria-hidden="true" class="absolute right-20 top-5 h-20 w-20 rounded-full border border-white/10" />
+					<button type="button" aria-label="Close profile" class="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-gray-900/20 text-white backdrop-blur-sm transition hover:bg-gray-900/35"
 						@click="closeProfilePanel">
 						<IconBase name="x" class="h-5 w-5" />
 					</button>
-					<div
-						class="absolute -bottom-1 left-6 flex h-16 w-16 items-center justify-center rounded-2xl border-4 border-white bg-white text-lg font-bold text-primary-700 shadow-sm">
-						{{ panelInitials }}
+					<div class="absolute -bottom-1 left-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-primary-50 text-xl font-extrabold text-primary-700 shadow-md">
+						<img v-if="user?.avatar_url" :src="user.avatar_url" alt="" class="h-full w-full object-cover" />
+						<span v-else>{{ panelInitials }}</span>
 					</div>
 				</div>
 
-				<div class="px-6 pb-4">
-					<h2 class="text-lg font-bold text-gray-900">{{ draftProfile.fullName }}</h2>
-					<p class="text-sm text-gray-500">{{ draftProfile.clientType }} Client</p>
+				<div class="shrink-0 px-6 pb-5">
+					<p class="mb-1 text-[10px] font-extrabold uppercase tracking-[.18em] text-primary-700">Client profile</p>
+					<h2 id="client-profile-title" class="truncate text-xl font-extrabold text-gray-900">{{ draftProfile.fullName }}</h2>
+					<p class="mt-0.5 text-sm text-gray-500">Manage what organizers see about you.</p>
 				</div>
 
-				<div class="flex scroll-px-6 scroll-smooth gap-5 overflow-x-auto border-b border-gray-200 px-6">
-					<button v-for="tab in profileTabs" :key="tab.label" :ref="(el) => setProfileTabRef(tab.label, el)"
-						type="button" class="flex shrink-0 items-center gap-1.5 border-b-2 pb-3 text-sm font-semibold"
-						:class="activeProfileTab === tab.label ? 'border-primary-700 text-primary-700' : 'border-transparent text-gray-400 hover:text-gray-600'"
+				<div class="flex shrink-0 scroll-px-6 scroll-smooth gap-2 overflow-x-auto overscroll-x-contain border-y border-gray-100 bg-gray-50/80 px-6 py-3">
+					<button v-for="tab in profileTabs" :key="tab.label"
+						type="button" class="flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition"
+						:class="activeProfileTab === tab.label ? 'border-primary-200 bg-white text-primary-700 shadow-sm' : 'border-transparent text-gray-400 hover:bg-white hover:text-gray-600'"
 						@click="activeProfileTab = tab.label">
 						<IconBase :name="tab.icon" class="h-4 w-4" />
 						{{ tab.label }}
 					</button>
 				</div>
 
-				<div class="flex-1 px-6 py-5">
+				<div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white px-6 py-6">
 					<div v-if="activeProfileTab === 'Identity'">
 						<div class="mb-5 flex items-center gap-3">
 							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
@@ -128,14 +129,12 @@
 						<FormsTextField v-model="draftProfile.fullName" />
 
 						<label class="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">Client Type</label>
-						<select v-model="draftProfile.clientType"
-							class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15">
-							<option v-for="type in clientTypes" :key="type" :value="type">{{ type }}</option>
-						</select>
+						<FormsSelect v-model="draftProfile.clientType" :options="clientTypes" :can-clear="false" />
 
 						<div class="mt-4">
 							<FormsLabel text="Location / City" />
-							<FormsTextField v-model="draftProfile.location" icon="map-pin" placeholder="e.g. Quezon City" />
+							<FormsTextField v-model="draftProfile.location" icon="map-pin"
+								placeholder="e.g. Quezon City" />
 						</div>
 					</div>
 
@@ -214,10 +213,12 @@
 							<FormsTextField v-model="draftProfile.phone" />
 						</div>
 
-						<div class="mb-2 mt-6 flex items-center gap-2 text-xs font-semibold tracking-wide text-gray-400">
+						<div
+							class="mb-2 mt-6 flex items-center gap-2 text-xs font-semibold tracking-wide text-gray-400">
 							<IconBase name="user" class="h-3.5 w-3.5" /> ALTERNATE CONTACT
 						</div>
-						<p class="mb-3 text-xs text-gray-400">Optional — for day-of coordination if you're unreachable</p>
+						<p class="mb-3 text-xs text-gray-400">Optional — for day-of coordination if you're unreachable
+						</p>
 
 						<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 							<div>
@@ -226,12 +227,14 @@
 							</div>
 							<div>
 								<FormsLabel text="Phone" />
-								<FormsTextField v-model="draftProfile.altContactPhone" placeholder="e.g. 0917 123 4567" />
+								<FormsTextField v-model="draftProfile.altContactPhone"
+									placeholder="e.g. 0917 123 4567" />
 							</div>
 						</div>
 					</div>
 
 					<div v-else-if="activeProfileTab === 'Appearance'">
+						<ProfileMediaEditor class="mb-6" />
 						<div class="mb-5 flex items-center gap-3">
 							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
 								<IconBase name="settings" class="h-4 w-4" />
@@ -250,7 +253,7 @@
 					</div>
 				</div>
 
-				<div class="flex shrink-0 gap-3 border-t border-gray-200 px-6 py-4">
+				<div class="flex shrink-0 gap-3 border-t border-gray-200 bg-white px-6 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.04)]">
 					<FormsButton variant="secondary" class="flex-1" @click="closeProfilePanel">
 						Cancel
 					</FormsButton>
@@ -264,87 +267,267 @@
 </template>
 
 <script setup lang="ts">
-const { logout, user } = useAuth()
-const fullName = computed(() => user.value ? `${user.value.first_name} ${user.value.last_name}` : '')
-
-async function signOut() {
-	await logout()
-	await navigateTo('/login')
-}
-
 const route = useRoute()
+
+const {
+	user,
+	firstName,
+	fullName,
+	initials,
+	logout,
+} = useAuth()
 
 const sidebarOpen = ref(true)
 
 const navItems = [
-	{ label: 'My Events', to: '/client/my-events', icon: 'home' },
-	{ label: 'Post an Event', to: '/client/post-event', icon: 'plus' },
-	{ label: 'My Event', to: '/client/event-details', icon: 'calendar' },
-	{ label: 'Preparation Tracking', to: '/client/preparation-tracking', icon: 'clipboard-list' },
-	{ label: 'Activity Timeline', to: '/client/activity-timeline', icon: 'activity' },
-	{ label: 'My Tickets', to: '/my-tickets', icon: 'tag' }
+	{
+		label: 'My Events',
+		to: '/client/my-events',
+		icon: 'home',
+	},
+	{
+		label: 'Post Event Inquiry',
+		to: '/client/post-event',
+		icon: 'send',
+	},
+	{
+		label: 'Preparation Tracking',
+		to: '/client/preparation-tracking',
+		icon: 'clipboard-list',
+	},
+	{
+		label: 'Activity Timeline',
+		to: '/client/activity-timeline',
+		icon: 'activity',
+	},
+	{
+		label: 'Event Marketplace',
+		to: '/marketplace',
+		icon: 'calendar',
+	},
+	{
+		label: 'Browse Organizers',
+		to: '/organizers',
+		icon: 'users',
+	},
 ]
 
-const activeItem = computed(() => route.path === '/notifications' ? { label: 'Notifications' } : navItems.find((item) => item.to === route.path) ?? navItems[0])
+const activeItem = computed(() => {
+	return (
+		navItems.find(
+			(item) => item.to === route.path
+		) ?? navItems[0]
+	)
+})
+
+/**
+ * Sidebar name.
+ *
+ * Example:
+ * firstname = "Nina"
+ *
+ * Sidebar:
+ * Nina
+ */
+const sidebarName = computed(() => {
+	return (
+		firstName.value ||
+		profile.fullName ||
+		'User'
+	)
+})
+
+const sidebarInitials = computed(() => {
+	return (
+		initials.value ||
+		initialsOf(profile.fullName) ||
+		'U'
+	)
+})
 
 const profileTabs = [
-	{ label: 'Identity', icon: 'user' },
-	{ label: 'About', icon: 'file-text' },
-	{ label: 'Event Preferences', icon: 'tag' },
-	{ label: 'Planning Style', icon: 'sparkles' },
-	{ label: 'Contact', icon: 'phone' },
-	{ label: 'Appearance', icon: 'settings' }
+	{
+		label: 'Identity',
+		icon: 'user',
+	},
+	{
+		label: 'About',
+		icon: 'file-text',
+	},
+	{
+		label: 'Event Preferences',
+		icon: 'tag',
+	},
+	{
+		label: 'Planning Style',
+		icon: 'sparkles',
+	},
+	{
+		label: 'Contact',
+		icon: 'phone',
+	},
+	{
+		label: 'Appearance',
+		icon: 'settings',
+	},
 ]
 
-const clientTypes = ['Individual', 'Couple', 'Family', 'Corporate']
-const eventPreferenceOptions = ['Wedding', 'Corporate', 'Birthday', 'Debut', 'Concert', 'Conference', 'Reunion', 'Seminar']
-const planningStyleOptions = ['Full Coordination', 'Partial Planning', 'Day-of Coordination', 'Vendor Referrals Only', 'Budget-Conscious', 'Premium / Luxury']
-const bannerColors = ['#285F6b', '#7c3aed', '#be123c', '#b45309', '#15803d', '#1d4ed8']
+const clientTypes = [
+	'Individual',
+	'Couple',
+	'Family',
+	'Corporate',
+]
+
+const eventPreferenceOptions = [
+	'Wedding',
+	'Corporate',
+	'Birthday',
+	'Debut',
+	'Concert',
+	'Conference',
+	'Reunion',
+	'Seminar',
+]
+
+const planningStyleOptions = [
+	'Full Coordination',
+	'Partial Planning',
+	'Day-of Coordination',
+	'Vendor Referrals Only',
+	'Budget-Conscious',
+	'Premium / Luxury',
+]
+
+const bannerColors = [
+	'#285F6b',
+	'#7c3aed',
+	'#be123c',
+	'#b45309',
+	'#15803d',
+	'#1d4ed8',
+]
 
 function defaultProfile() {
 	return {
-		fullName: 'EventPro Solutions',
+		fullName: '',
 		clientType: clientTypes[0],
 		location: '',
 		bio: '',
 		eventPreferences: ['Wedding'],
-		planningStyle: ['Full Coordination'],
+		planningStyle: [
+			'Full Coordination',
+		],
 		email: '',
 		phone: '',
 		altContactName: '',
 		altContactPhone: '',
-		bannerColor: '#285F6b'
+		bannerColor: '#285F6b',
 	}
 }
 
-const profile = reactive(defaultProfile())
-const draftProfile = reactive(defaultProfile())
+const profile = reactive(
+	defaultProfile()
+)
+
+const draftProfile = reactive(
+	defaultProfile()
+)
+
 const showProfilePanel = ref(false)
+
 const activeProfileTab = ref('Identity')
 
-const profileTabButtonRefs = {}
-function setProfileTabRef(label, el) {
-	if (el) profileTabButtonRefs[label] = el
+/**
+ * Populate profile information from
+ * the actual authenticated user.
+ */
+function syncProfileFromUser() {
+	if (!user.value) {
+		return
+	}
+
+	profile.fullName =
+		fullName.value
+
+	profile.email =
+		user.value.email ?? ''
+
+	profile.phone =
+		user.value.phone ?? ''
+
+	Object.assign(
+		draftProfile,
+		profile
+	)
+
+	draftProfile.eventPreferences = [
+		...profile.eventPreferences,
+	]
+
+	draftProfile.planningStyle = [
+		...profile.planningStyle,
+	]
 }
 
-watch(activeProfileTab, (label) => {
-	nextTick(() => {
-		profileTabButtonRefs[label]?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' })
-	})
+/**
+ * Run when the authenticated
+ * user becomes available.
+ */
+watch(
+	() => user.value?.id,
+	() => {
+		syncProfileFromUser()
+	},
+	{
+		immediate: true,
+	}
+)
+
+function initialsOf(
+	name: string
+): string {
+	return (name || '')
+		.trim()
+		.split(/\s+/)
+		.filter(Boolean)
+		.slice(0, 2)
+		.map((word) => word[0])
+		.join('')
+		.toUpperCase()
+}
+
+/**
+ * Profile-panel initials.
+ *
+ * These can change when the user edits
+ * their profile name.
+ */
+const panelInitials = computed(() => {
+	return initialsOf(
+		draftProfile.fullName
+	)
 })
 
-function initialsOf(name) {
-	return (name || '').trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join('').toUpperCase()
-}
-
-const sidebarInitials = computed(() => initialsOf(fullName.value))
-const panelInitials = computed(() => initialsOf(draftProfile.fullName))
-
 function openProfilePanel() {
-	Object.assign(draftProfile, profile)
-	draftProfile.eventPreferences = [...profile.eventPreferences]
-	draftProfile.planningStyle = [...profile.planningStyle]
-	activeProfileTab.value = 'Identity'
+	window.dispatchEvent(new CustomEvent('dashboard:close-notifications'))
+
+	Object.assign(
+		draftProfile,
+		profile
+	)
+
+	draftProfile.eventPreferences = [
+		...profile.eventPreferences,
+	]
+
+	draftProfile.planningStyle = [
+		...profile.planningStyle,
+	]
+
+	activeProfileTab.value =
+		'Identity'
+
 	showProfilePanel.value = true
 }
 
@@ -353,43 +536,62 @@ function closeProfilePanel() {
 }
 
 function saveProfile() {
-	Object.assign(profile, draftProfile)
-	profile.eventPreferences = [...draftProfile.eventPreferences]
-	profile.planningStyle = [...draftProfile.planningStyle]
+	Object.assign(
+		profile,
+		draftProfile
+	)
+
+	profile.eventPreferences = [
+		...draftProfile.eventPreferences,
+	]
+
+	profile.planningStyle = [
+		...draftProfile.planningStyle,
+	]
+
 	closeProfilePanel()
 }
 
-function toggleEventPreference(type) {
-	const index = draftProfile.eventPreferences.indexOf(type)
-	if (index === -1) draftProfile.eventPreferences.push(type)
-	else draftProfile.eventPreferences.splice(index, 1)
+function toggleEventPreference(
+	type: string
+) {
+	const index =
+		draftProfile.eventPreferences
+			.indexOf(type)
+
+	if (index === -1) {
+		draftProfile.eventPreferences
+			.push(type)
+
+		return
+	}
+
+	draftProfile.eventPreferences
+		.splice(index, 1)
 }
 
-function togglePlanningStyle(style) {
-	const index = draftProfile.planningStyle.indexOf(style)
-	if (index === -1) draftProfile.planningStyle.push(style)
-	else draftProfile.planningStyle.splice(index, 1)
+function togglePlanningStyle(
+	style: string
+) {
+	const index =
+		draftProfile.planningStyle
+			.indexOf(style)
+
+	if (index === -1) {
+		draftProfile.planningStyle
+			.push(style)
+
+		return
+	}
+
+	draftProfile.planningStyle
+		.splice(index, 1)
+}
+
+async function handleLogout() {
+	// Finish signing out first, or the login page sends a still-signed-in user back home.
+	await logout()
+
+	await navigateTo('/login')
 }
 </script>
-
-<style scoped>
-.slide-enter-active,
-.slide-leave-active {
-	transition: transform 0.25s ease;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-	transform: translateX(100%);
-}
-
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
-}
-</style>

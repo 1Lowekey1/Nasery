@@ -1,191 +1,450 @@
 <template>
-	<div>
-		<OrganizerEventPicker :model-value="eventId" />
+	<div class="space-y-6">
+		<div v-if="isLoading" class="rounded-3xl border border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
+			<IconBase name="refresh-cw" class="mx-auto h-6 w-6 animate-spin text-[#285F6b]" />
+			<p class="mt-3 text-sm font-semibold text-gray-500">Loading ticket tiers...</p>
+		</div>
 
-		<Alert v-if="error" type="danger" :text="error" />
-		<Alert v-if="notice" type="success" :text="notice" />
-		<div v-if="eventId && !data && !error" class="py-16 text-center text-sm text-gray-500">Loading tiers…</div>
+		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">
+			{{ errorMessage }}
+		</div>
 
-		<template v-if="data && eventId">
-			<div class="mb-5 flex flex-wrap items-start justify-between gap-3">
-				<p class="text-sm text-gray-500">
-					{{ data.summary.total }} tickets issued<template v-if="data.overall_capacity"> of {{ data.overall_capacity }} event capacity</template>
-					· {{ data.summary.used }} checked in
-				</p>
-				<button v-if="data.can_manage" type="button"
-					class="flex shrink-0 items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1f4a54]"
-					@click="edit(null)">
-					<IconBase name="plus" class="h-4 w-4" /> Add Tier
+		<template v-else-if="event">
+			<section class="relative overflow-hidden rounded-3xl bg-primary-700 px-6 py-7 text-white shadow-sm sm:px-8">
+				<div class="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
+				<div class="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+					<div>
+						<p class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/60">
+							<span class="h-1.5 w-1.5 rounded-full bg-white/60" />
+							Ticket inventory
+						</p>
+						<h2 class="mt-2 text-2xl font-black tracking-tight sm:text-3xl">{{ event.name }}</h2>
+						<p class="mt-1 text-sm text-white/70">Track sales, remaining capacity, and pricing for every admission type.</p>
+					</div>
+
+					<button type="button"
+						class="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-primary-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-gray-50 hover:shadow-md"
+						@click="addTicketType">
+						<IconBase name="plus" class="h-4 w-4" />
+						Add ticket type
+					</button>
+				</div>
+			</section>
+
+			<div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+					<div class="flex items-start justify-between gap-3">
+						<div>
+							<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Ticket Types</p>
+							<p class="mt-2 text-2xl font-black text-gray-900">{{ event.ticket_types?.length ?? 0 }}</p>
+						</div>
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+							<IconBase name="tag" class="h-5 w-5" />
+						</span>
+					</div>
+				</div>
+				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+					<div class="flex items-start justify-between gap-3">
+						<div>
+							<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Issued</p>
+							<p class="mt-2 text-2xl font-black text-gray-900">{{ totalSold }}</p>
+						</div>
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+							<IconBase name="ticket" class="h-5 w-5" />
+						</span>
+					</div>
+				</div>
+				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+					<div class="flex items-start justify-between gap-3">
+						<div>
+							<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Capacity</p>
+							<p class="mt-2 text-2xl font-black text-gray-900">{{ totalCapacity }}</p>
+						</div>
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
+							<IconBase name="users" class="h-5 w-5" />
+						</span>
+					</div>
+				</div>
+				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+					<div class="flex items-start justify-between gap-3">
+						<div>
+							<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Available</p>
+							<p class="mt-2 text-2xl font-black text-emerald-700">{{ totalAvailable }}</p>
+						</div>
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+							<IconBase name="check-circle" class="h-5 w-5" />
+						</span>
+					</div>
+				</div>
+			</div>
+
+			<div v-if="!event.ticket_types?.length"
+				class="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
+				<div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+					<IconBase name="tag" class="h-6 w-6" />
+				</div>
+				<h3 class="mt-5 text-lg font-extrabold text-gray-900">Create your first ticket type</h3>
+				<p class="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">Add options such as VIP, Regular, Early Bird, or Student so attendees can choose the right admission.</p>
+				<button type="button" class="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-800" @click="addTicketType">
+					<IconBase name="plus" class="h-4 w-4" /> Add ticket type
 				</button>
 			</div>
 
-			<div v-if="!data.tiers.length" class="rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/60 p-10 text-center">
-				<h3 class="text-base font-bold text-gray-900">No tiers yet</h3>
-				<p class="mt-1 text-sm text-gray-500">Add a tier for each kind of ticket or invitation: e.g. “Guest” (free, private events) or “VIP – Front Stage”.</p>
-			</div>
+			<div v-else class="grid gap-5 xl:grid-cols-2">
+				<article v-for="ticket in event.ticket_types" :key="ticket.id"
+					class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md">
+					<div class="h-1 bg-primary-700" />
+					<div class="p-5 sm:p-6">
+						<div class="flex items-start justify-between gap-4">
+							<div class="flex min-w-0 items-center gap-3">
+								<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+									<IconBase name="tag" class="h-5 w-5" />
+								</div>
+								<div class="min-w-0">
+									<h3 class="truncate text-lg font-extrabold text-gray-900">{{ ticket.name }}</h3>
+									<p class="mt-0.5 text-sm font-semibold text-primary-700">{{ formatCurrency(ticket.price) }}</p>
+								</div>
+							</div>
 
-			<div class="space-y-5">
-				<div v-for="tier in data.tiers" :key="tier.id" class="rounded-2xl border border-gray-200 bg-white p-6">
-					<div class="flex flex-wrap items-start justify-between gap-3">
-						<div>
-							<h3 class="text-lg font-bold text-gray-900">{{ tier.name }}<span v-if="tier.zone_name" class="text-sm font-semibold text-primary-700"> · {{ tier.zone_name }}</span></h3>
-							<p class="mt-1 text-sm text-gray-500">{{ priceLabel(tier.price) }} · {{ tier.sold }} / {{ tier.capacity }} issued<template v-if="tier.held"> · {{ tier.held }} being paid for</template></p>
+							<div class="flex shrink-0 gap-2">
+								<button type="button" :aria-label="`Edit ${ticket.name}`"
+									class="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+									@click="editTicketType(ticket)">
+									<IconBase name="edit" class="h-4 w-4" />
+								</button>
+								<button type="button" :aria-label="`Remove ${ticket.name}`"
+									class="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+									@click="deleteTicketType(ticket)">
+									<IconBase name="trash" class="h-4 w-4" />
+								</button>
+							</div>
 						</div>
-						<div class="flex shrink-0 items-center gap-2">
-							<span class="rounded-full px-3 py-1 text-xs font-semibold" :class="tier.status === 'on_sale' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'">{{ tierStatusLabels[tier.status] }}</span>
-							<button v-if="data.can_manage" type="button" class="rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50" :aria-label="`Edit ${tier.name}`" @click="edit(tier)">
-								<IconBase name="edit" class="h-4 w-4" />
-							</button>
-							<button v-if="data.can_manage && !tier.sold && !tier.held" type="button" class="rounded-lg border border-gray-200 p-2 text-rose-600 hover:bg-rose-50" :aria-label="`Delete ${tier.name}`" @click="remove(tier)">
-								<IconBase name="trash" class="h-4 w-4" />
-							</button>
+
+						<div class="mt-6 grid grid-cols-3 gap-3">
+							<div class="rounded-2xl bg-gray-50 p-4">
+								<p class="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400">Issued</p>
+								<p class="mt-1.5 text-xl font-black text-gray-900">{{ ticket.sold ?? 0 }}</p>
+							</div>
+							<div class="rounded-2xl bg-gray-50 p-4">
+								<p class="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400">Capacity</p>
+								<p class="mt-1.5 text-xl font-black text-gray-900">{{ ticket.capacity }}</p>
+							</div>
+							<div class="rounded-2xl bg-emerald-50 p-4">
+								<p class="text-[10px] font-bold uppercase tracking-[0.1em] text-emerald-600">Available</p>
+								<p class="mt-1.5 text-xl font-black text-emerald-800">{{ getAvailability(ticket) }}</p>
+							</div>
+						</div>
+
+						<div class="mt-6">
+							<div class="mb-2 flex items-center justify-between text-xs font-semibold">
+								<span class="text-gray-500">{{ getSoldPercentage(ticket) }}% of inventory issued</span>
+								<span class="text-gray-700">{{ ticket.sold ?? 0 }} / {{ ticket.capacity }}</span>
+							</div>
+							<div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+								<div class="h-full rounded-full bg-primary-700 transition-all duration-300" :style="{ width: `${getSoldPercentage(ticket)}%` }" />
+							</div>
 						</div>
 					</div>
-					<div class="mt-4 h-2 w-full overflow-hidden rounded-full bg-gray-100">
-						<div class="h-full rounded-full bg-[#285F6b]" :style="{ width: `${Math.min(100, (tier.sold + tier.held) / tier.capacity * 100)}%` }" />
-					</div>
-					<p v-if="tier.description" class="mt-3 text-sm text-gray-600">{{ tier.description }}</p>
-					<ul v-if="tier.benefits.length" class="mt-3 flex flex-wrap gap-2">
-						<li v-for="b in tier.benefits" :key="b" class="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600">{{ b }}</li>
-					</ul>
-					<p v-if="tier.sales_start_at || tier.sales_end_at" class="mt-3 text-xs text-gray-500">
-						Sales {{ tier.sales_start_at ? `from ${when(tier.sales_start_at)}` : '' }} {{ tier.sales_end_at ? `until ${when(tier.sales_end_at)}` : '' }}
-					</p>
-				</div>
+				</article>
 			</div>
-			<p class="mt-4 text-xs text-gray-400">“On sale” tiers of a public, published event appear on its public page. Guest lists can use any tier.</p>
 		</template>
-
-		<div v-if="editing" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4" @click.self="editing = null">
-			<form class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6" @submit.prevent="save">
-				<h2 class="text-lg font-bold text-gray-900">{{ editing.id ? 'Edit tier' : 'New tier' }}</h2>
-				<Alert v-if="formError" type="danger" :text="formError" class="mt-3" />
-				<div class="mt-4 grid grid-cols-2 gap-3">
-					<div class="col-span-2">
-						<FormsLabel text="Name" required />
-						<FormsTextField v-model="editing.name" placeholder="e.g. VIP" />
-					</div>
-					<div>
-						<FormsLabel text="Access Zone" />
-						<FormsTextField v-model="editing.zone_name" placeholder="e.g. Front Stage" />
-					</div>
-					<div>
-						<FormsLabel text="Status" />
-						<select v-model="editing.status" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm" aria-label="Status">
-							<option v-for="(label, key) in tierStatusLabels" :key="key" :value="key">{{ label }}</option>
-						</select>
-					</div>
-					<div>
-						<FormsLabel text="Price (₱)" required />
-						<FormsTextField v-model="editing.price" type="number" min="0" step="0.01" />
-					</div>
-					<div>
-						<FormsLabel text="Capacity" required />
-						<FormsTextField v-model="editing.capacity" type="number" min="1" />
-					</div>
-					<div>
-						<FormsLabel text="Sales open" />
-						<input v-model="editing.sales_start_at" type="datetime-local" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-2 py-2 text-sm" aria-label="Sales open">
-					</div>
-					<div>
-						<FormsLabel text="Sales close" />
-						<input v-model="editing.sales_end_at" type="datetime-local" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-2 py-2 text-sm" aria-label="Sales close">
-					</div>
-					<div class="col-span-2">
-						<FormsLabel text="Description" />
-						<textarea v-model="editing.description" rows="2" maxlength="1000" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm" />
-					</div>
-					<div class="col-span-2">
-						<FormsLabel text="Benefits (one per line)" />
-						<textarea v-model="editing.benefitsText" rows="3" placeholder="Meet & greet&#10;Free drink" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm" />
-					</div>
-				</div>
-				<p v-if="Number(editing.price) > 0" class="mt-3 text-xs text-amber-700">Paid tiers reserve places at checkout; online payment is enabled in the next release.</p>
-				<div class="mt-5 flex justify-end gap-2">
-					<button type="button" class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold" @click="editing = null">Cancel</button>
-					<button type="submit" :disabled="busy" class="rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Save tier</button>
-				</div>
-			</form>
-		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import type { TicketSummary, TicketTier, TierStatus } from '~/composables/useTicketing'
-
-definePageMeta({ layout: 'dashboard' })
-
-const route = useRoute()
-const { organization, fetchOrganization } = useOrganization()
-const api = useOrganizerTicketing()
-
-const eventId = computed(() => typeof route.query.event === 'string' ? route.query.event : null)
-const data = ref<{ tiers: TicketTier[], summary: TicketSummary, overall_capacity: number | null, can_manage: boolean } | null>(null)
-const error = ref('')
-const notice = ref('')
-const formError = ref('')
-const busy = ref(false)
-type Draft = { id: string | null, name: string, zone_name: string, status: TierStatus, price: string | number, capacity: string | number, sales_start_at: string, sales_end_at: string, description: string, benefitsText: string }
-const editing = ref<Draft | null>(null)
-
-const orgId = computed(() => organization.value?.id ?? '')
-
-function when(at: string) {
-	return new Date(at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' })
+interface TicketType {
+	id: number
+	event_id: number
+	name: string
+	price: string | number
+	capacity: number
+	sold?: number
 }
 
-function edit(tier: TicketTier | null) {
-	formError.value = ''
-	editing.value = tier
-		? { id: tier.id, name: tier.name, zone_name: tier.zone_name ?? '', status: tier.status, price: Number(tier.price), capacity: tier.capacity,
-			sales_start_at: tier.sales_start_local ?? '', sales_end_at: tier.sales_end_local ?? '', description: tier.description ?? '', benefitsText: tier.benefits.join('\n') }
-		: { id: null, name: '', zone_name: '', status: 'draft', price: 0, capacity: 100, sales_start_at: '', sales_end_at: '', description: '', benefitsText: '' }
+interface OrganizerEvent {
+	id: number
+
+	name: string
+
+	ticket_types?: TicketType[]
 }
 
-async function load() {
-	if (!eventId.value) return
-	data.value = null
-	error.value = ''
-	try {
-		const org = organization.value ?? await fetchOrganization()
-		if (org) data.value = await api.tiers(org.id, eventId.value)
-	} catch (e) {
-		error.value = authMessage(e)
+type EventResponse =
+	| OrganizerEvent
+	| {
+		data: OrganizerEvent
 	}
+
+definePageMeta({
+	layout: 'dashboard',
+	middleware: ['organizer'],
+})
+
+const route =
+	useRoute()
+
+const config =
+	useRuntimeConfig()
+
+const {
+	token,
+} = useAuth()
+
+const event =
+	ref<OrganizerEvent | null>(
+		null,
+	)
+
+const isLoading =
+	ref(false)
+
+const errorMessage =
+	ref('')
+
+const totalSold = computed(() =>
+	event.value?.ticket_types?.reduce(
+		(total, ticket) => total + (ticket.sold ?? 0),
+		0,
+	) ?? 0,
+)
+
+const totalCapacity = computed(() =>
+	event.value?.ticket_types?.reduce(
+		(total, ticket) => total + ticket.capacity,
+		0,
+	) ?? 0,
+)
+
+const totalAvailable = computed(() =>
+	Math.max(totalCapacity.value - totalSold.value, 0),
+)
+
+const eventId =
+	computed(() => routeId(route.query.event))
+
+function extractEvent(
+	response: EventResponse,
+): OrganizerEvent {
+	if (
+		'data' in response &&
+		response.data
+	) {
+		return response.data
+	}
+
+	return response as OrganizerEvent
 }
 
-async function save() {
-	const d = editing.value!
-	formError.value = ''
-	busy.value = true
-	const body = {
-		name: d.name.trim(), zone_name: d.zone_name.trim() || null, status: d.status, price: Number(d.price), capacity: Number(d.capacity),
-		sales_start_at: d.sales_start_at || null, sales_end_at: d.sales_end_at || null, description: d.description.trim() || null,
-		benefits: d.benefitsText.split('\n').map(b => b.trim()).filter(Boolean),
+async function loadTicketTypes() {
+	errorMessage.value =
+		''
+
+	if (!eventId.value) {
+		await navigateTo(
+			'/organizer/eventmanagement/all-events',
+			{
+				replace: true,
+			},
+		)
+
+		return
 	}
+
+	isLoading.value =
+		true
+
 	try {
-		d.id ? await api.updateTier(orgId.value, eventId.value!, d.id, body) : await api.createTier(orgId.value, eventId.value!, body)
-		editing.value = null
-		notice.value = 'Tier saved.'
-		await load()
-	} catch (e) {
-		formError.value = Object.values(fieldErrors(e))[0] ?? authMessage(e)
+		const org = await useOrganization().fetchOrganization()
+		if (!org) throw new Error('Set up your organizer workspace first.')
+		const [apiEvent, tiers] = await Promise.all([
+			useOrganizerEvents().show(org.id, eventId.value),
+			useOrganizerTicketing().tiers(org.id, eventId.value),
+		])
+		event.value = {
+			id: apiEvent.id as unknown as number,
+			name: apiEvent.name,
+			ticket_types: tiers.tiers.map(t => ({
+				id: t.id as unknown as number,
+				event_id: apiEvent.id as unknown as number,
+				name: t.name,
+				price: t.price,
+				capacity: t.capacity,
+				sold: t.sold,
+			})),
+		}
+	} catch (error: unknown) {
+		console.error(
+			'Failed to load ticket types:',
+			error,
+		)
+
+		const apiError =
+			error as {
+				data?: {
+					message?: string
+				}
+			}
+
+		errorMessage.value =
+			apiError.data?.message ??
+			'Unable to load ticket types.'
+
 	} finally {
-		busy.value = false
+		isLoading.value =
+			false
 	}
 }
+function formatCurrency(
+	value: string | number,
+): string {
+	const amount =
+		Number(value)
 
-async function remove(tier: TicketTier) {
-	if (!confirm(`Delete the ${tier.name} tier?`)) return
-	try {
-		await api.removeTier(orgId.value, eventId.value!, tier.id)
-		notice.value = 'Tier deleted.'
-		await load()
-	} catch (e) {
-		error.value = authMessage(e)
+	if (
+		Number.isNaN(amount)
+	) {
+		return String(value)
 	}
+
+	return new Intl.NumberFormat(
+		'en-PH',
+		{
+			style:
+				'currency',
+
+			currency:
+				'PHP',
+
+			maximumFractionDigits:
+				0,
+		},
+	).format(
+		amount,
+	)
 }
 
-watch(eventId, load)
-onMounted(load)
+function getAvailability(
+	ticket: TicketType,
+): number {
+	const sold =
+		ticket.sold ?? 0
+
+	return Math.max(
+		ticket.capacity -
+		sold,
+		0,
+	)
+}
+
+function getSoldPercentage(
+	ticket: TicketType,
+): number {
+	if (
+		ticket.capacity <= 0
+	) {
+		return 0
+	}
+
+	const sold =
+		ticket.sold ?? 0
+
+	return Math.min(
+		Math.round(
+			(
+				sold /
+				ticket.capacity
+			) *
+			100,
+		),
+		100,
+	)
+}
+
+async function addTicketType() {
+	if (!event.value) {
+		return
+	}
+
+	await navigateTo({
+		path:
+			'/organizer/eventmanagement/event-details',
+
+		query: {
+			event:
+				event.value.id,
+
+			mode:
+				'edit',
+		},
+	})
+}
+
+async function editTicketType(
+	ticket: TicketType,
+) {
+	if (!event.value) {
+		return
+	}
+
+	await navigateTo({
+		path:
+			'/organizer/eventmanagement/event-details',
+
+		query: {
+			event:
+				event.value.id,
+
+			mode:
+				'edit',
+		},
+	})
+}
+
+/*
+ * ============================================================
+ * DELETE TICKET TYPE
+ * ============================================================
+ *
+ * Your current EventController updates
+ * all ticket types together.
+ *
+ * So for now it is safer to edit/remove
+ * the ticket type inside Edit Event.
+ *
+ * Later we can create:
+ *
+ * DELETE /organizer/events/{event}/ticket-types/{ticketType}
+ */
+
+async function deleteTicketType(
+	ticket: TicketType,
+) {
+	if (!event.value) {
+		return
+	}
+
+	await navigateTo({
+		path:
+			'/organizer/eventmanagement/event-details',
+
+		query: {
+			event:
+				event.value.id,
+
+			mode:
+				'edit',
+		},
+	})
+}
+
+watch(
+	eventId,
+	() => {
+		loadTicketTypes()
+	},
+)
+
+onMounted(() => {
+	loadTicketTypes()
+})
 </script>

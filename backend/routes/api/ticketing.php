@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Ticketing\GuestCheckoutController;
 use App\Http\Controllers\Api\V1\Ticketing\PublicEventController;
 use App\Http\Controllers\Api\V1\Ticketing\TicketingController;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,17 @@ $uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]
 Route::middleware('throttle:public')->where(['event' => $uuid])->group(function () {
     Route::get('public-events', [PublicEventController::class, 'index'])->name('public-events.index');
     Route::get('public-events/{event}', [PublicEventController::class, 'show'])->name('public-events.show');
+});
+
+// Public registration page: guests (e-mail codes) and signed-in buyers alike.
+// A guest's registration is opened by its `access` key, not a session.
+Route::where(['event' => $uuid, 'registration' => $uuid, 'ticket' => $uuid])->name('guest-checkout.')->group(function () {
+    Route::post('public-events/{event}/email-code', [GuestCheckoutController::class, 'sendCode'])->middleware('throttle:guest-codes')->name('code.send');
+    Route::post('public-events/{event}/email-code/verify', [GuestCheckoutController::class, 'verifyCode'])->middleware('throttle:checkout')->name('code.verify');
+    Route::post('public-events/{event}/checkout', [GuestCheckoutController::class, 'register'])->middleware(['throttle:checkout', 'idempotent'])->name('register');
+    Route::get('public-registrations/{registration}', [GuestCheckoutController::class, 'show'])->middleware('throttle:public')->name('show');
+    Route::get('public-registrations/{registration}/tickets/{ticket}/pdf', [GuestCheckoutController::class, 'ticketPdf'])->middleware('throttle:public')->name('ticket.pdf');
+    Route::post('public-registrations/{registration}/tickets/{ticket}/email', [GuestCheckoutController::class, 'emailTicket'])->middleware('throttle:sensitive')->name('ticket.email');
 });
 
 Route::middleware(['auth:sanctum', 'active', 'verified'])
