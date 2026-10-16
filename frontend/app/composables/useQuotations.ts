@@ -1,7 +1,7 @@
 // Quotations (B5) and the organizer price list behind the quotation calculator.
 
 export type QuotationStatus = 'draft' | 'submitted' | 'accepted' | 'rejected' | 'withdrawn' | 'cancelled'
-export type PricingUnit = 'flat' | 'per_guest'
+export type PricingUnit = 'flat' | 'per_guest' | 'per_hour' | 'per_day' | 'per_unit'
 
 export interface QuotationLine {
   id?: string
@@ -53,6 +53,10 @@ export interface PriceOption {
   pricing_unit: PricingUnit
   price: string
   min_guests: number | null
+  /** 0048: per_unit's unit name ("table"), and how many a client may pick (per_hour/per_day/per_unit). */
+  unit_label?: string | null
+  min_quantity?: number | null
+  max_quantity?: number | null
   is_active?: boolean
   sort_order?: number
 }
@@ -86,13 +90,12 @@ export function linesTotal(items: QuotationLine[]): number {
   return Math.round(items.reduce((sum, i) => sum + lineSubtotal(i.quantity, i.unit_price), 0) * 100) / 100
 }
 
-/** A calculator / price-list option as a quotation line for a guest count. */
-export function optionAsLine(option: PriceOption, guests: number | null): QuotationLine {
-  const perGuest = option.pricing_unit === 'per_guest'
+/** A calculator / price-list option as a quotation line (guest count, and the chosen quantity for hour/day/unit options). */
+export function optionAsLine(option: PriceOption, guests: number | null, quantity?: number | null): QuotationLine {
   return {
     organization_service_id: option.organization_service_id,
-    description: perGuest ? `${option.name} (per guest)` : option.name,
-    quantity: perGuest ? Math.max(guests ?? 1, option.min_guests ?? 1) : 1,
+    description: `${option.name}${unitSuffix(option)}`,
+    quantity: optionQuantity(option, guests, quantity),
     unit_price: option.price,
   }
 }

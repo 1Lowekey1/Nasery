@@ -24,3 +24,6 @@ Schedule::command('nasery:reminders:send')->hourly()->onOneServer()->withoutOver
 
 // B18: subscription renewals, grace periods and cancellations at period end.
 Schedule::command('nasery:billing:cycle')->hourly()->onOneServer()->withoutOverlapping();
+
+// Demo: keep the always-open demo event's check-in door open (does nothing without the demo dataset).
+Schedule::command('nasery:demo:event')->hourly()->onOneServer()->withoutOverlapping();

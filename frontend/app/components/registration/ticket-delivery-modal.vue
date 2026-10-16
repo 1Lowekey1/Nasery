@@ -25,7 +25,11 @@
 					</div>
 
 					<div class="p-6">
-						<p class="mb-5 text-sm text-gray-500">
+						<p v-if="alreadyEmailedTo" class="mb-5 flex items-start gap-2 rounded-xl bg-green-50 px-3.5 py-3 text-sm text-green-800">
+							<IconBase name="check-circle" class="mt-0.5 h-4 w-4 shrink-0" />
+							<span>Already e-mailed to <span class="font-semibold">{{ alreadyEmailedTo }}</span>. Download it below to keep a copy on this device.</span>
+						</p>
+						<p v-else class="mb-5 text-sm text-gray-500">
 							Choose how you'd like to receive this ticket. You can do both.
 						</p>
 
@@ -53,10 +57,10 @@
 								</span>
 								<span class="min-w-0 flex-1">
 									<span class="block text-sm font-bold text-gray-900">
-										{{ emailing ? 'Sending…' : emailSent ? 'Sent to your email' : 'Email Ticket' }}
+										{{ emailing ? 'Sending…' : emailSent ? 'Sent to your email' : alreadyEmailedTo ? 'Send another copy' : 'Email Ticket' }}
 									</span>
 									<span class="block text-xs text-gray-500">
-										{{ emailSent ? 'Check your inbox for the PDF copy' : 'Send a PDF copy to your verified email' }}
+										{{ emailSent ? 'Check your inbox (and Spam) for the PDF copy' : alreadyEmailedTo ? 'Only if the first e-mail never arrived' : 'Send a PDF copy to your verified email' }}
 									</span>
 								</span>
 								<IconBase v-if="!emailSent" name="arrow-right" class="h-4 w-4 shrink-0 text-gray-300" />
@@ -84,7 +88,10 @@ withDefaults(defineProps<{
 	emailing?: boolean
 	emailSent?: boolean
 	emailError?: string
+	/** Set when NaSeRy already e-mailed this ticket (automatic on purchase). */
+	alreadyEmailedTo?: string
 }>(), {
+	alreadyEmailedTo: '',
 	ticketLabel: '',
 	emailing: false,
 	emailSent: false,

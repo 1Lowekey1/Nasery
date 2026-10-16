@@ -38,6 +38,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
         Route::get('me/tickets', [PublicEventController::class, 'myTickets'])->name('me.tickets');
         Route::post('me/tickets/{ticket}/cancel', [PublicEventController::class, 'cancelMine'])->middleware('throttle:sensitive')->name('me.tickets.cancel');
         Route::get('me/tickets/{ticket}/pdf', [PublicEventController::class, 'myTicketPdf'])->name('me.tickets.pdf');
+        Route::post('me/tickets/{ticket}/email', [PublicEventController::class, 'emailMine'])->middleware('throttle:sensitive')->name('me.tickets.email');
 
         Route::prefix('organizations/{organization}/events/{event}')->name('organizations.events.')
             ->middleware('account:business')->scopeBindings()->group(function () {

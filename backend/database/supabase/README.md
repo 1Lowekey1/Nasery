@@ -28,6 +28,10 @@ triggers that the schema builder cannot express. Laravel migrations
 | `0035_default_event_stages.down.sql` | Rollback of 0035 (clears references, removes the seed) | — |
 | `0036_ticket_tiers_public_events.sql` | ticket_types zone_name/benefits/sort_order; public views public_events + public_ticket_types (system reads, no anon grant) | applied 2026-09-24 |
 | `0036_ticket_tiers_public_events.down.sql` | Rollback of 0036 | — |
+| `0037` – `0046` | Event reports, review replies, admin access requests (0039 unused), SaaS billing, inquiry threads, payouts, task reviews, event activities, profile details: see each file's header | applied 2026-09-25 – 2026-09-30 |
+| `0047_services_rls.sql` | Enables RLS on `services`: it was already on in Supabase but in no file, so databases built from these files failed `nasery:doctor` | no-op on Supabase; applied by the local setup |
+
+**Self-hosted database:** the same files build a plain PostgreSQL 18 database. See `../local/README.md`; it adds a small Supabase-compatibility script first.
 
 Apply/dry-run with `php artisan nasery:db:sql <file>` (dry run, rolled back) and
 `php artisan nasery:db:sql <file> --apply` (takes a backup first).

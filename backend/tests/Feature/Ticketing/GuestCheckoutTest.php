@@ -112,7 +112,16 @@ class GuestCheckoutTest extends TestCase
         // Download and re-send a ticket with the key; another registration's ticket is refused.
         $ticket = $shown->json('data.tickets.0.id');
         $this->get("/api/v1/public-registrations/{$registration}/tickets/{$ticket}/pdf?access={$access}")->assertOk()->assertHeader('Content-Type', 'application/pdf');
-        $this->spaJson('POST', "/api/v1/public-registrations/{$registration}/tickets/{$ticket}/email", ['access' => $access])->assertOk();
+        // It was e-mailed on payment, so "send again" right away doesn't send a duplicate.
+        $this->assertContains(DB::connection('system')->table('mail_deliveries')->whereJsonContains('ticket_ids', $ticket)->latest('created_at')->value('status'), ['queued', 'sent']);
+        $deliveries = DB::connection('system')->table('mail_deliveries')->count();
+        $this->spaJson('POST', "/api/v1/public-registrations/{$registration}/tickets/{$ticket}/email", ['access' => $access])->assertOk()
+            ->assertJsonPath('data.already_sent', true);
+        $this->assertSame($deliveries, DB::connection('system')->table('mail_deliveries')->count());
+        // Later, it sends a fresh copy.
+        $this->travel(3)->minutes();
+        $this->spaJson('POST', "/api/v1/public-registrations/{$registration}/tickets/{$ticket}/email", ['access' => $access])->assertOk()
+            ->assertJsonPath('data.queued', 1);
         $other = DB::table('tickets')->where('event_id', '!=', $event)->value('id') ?? (string) Str::uuid7();
         $this->get("/api/v1/public-registrations/{$registration}/tickets/{$other}/pdf?access={$access}")->assertNotFound();
     }

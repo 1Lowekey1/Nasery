@@ -2,7 +2,7 @@
 	<div>
 		<NuxtLink to="/login" class="mb-5 inline-flex text-sm font-semibold text-primary-700">← Back to sign in</NuxtLink>
 		<h2 class="text-2xl font-extrabold text-gray-900">Reset your password</h2>
-		<p class="mb-6 mt-2 text-sm leading-relaxed text-gray-500">Enter the email registered to your account. We’ll send a secure code there. New NaSeRy admins: use this page to set your first password.</p>
+		<p class="mb-6 mt-2 text-sm leading-relaxed text-gray-500">Enter the email registered to your account. We’ll send a secure code there. New NaSeRy admins: use the “Set up my admin account” button in your invitation e-mail instead.</p>
 
 		<div v-if="message" class="mb-4 rounded-xl border px-4 py-3 text-sm" :class="error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'">{{ message }}</div>
 

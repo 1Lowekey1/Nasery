@@ -84,8 +84,8 @@ class GuestCheckoutController extends Controller
     public function emailTicket(Request $request, string $registration, string $ticket): JsonResponse
     {
         $this->checkout->ticketFor($registration, (string) $request->input('access'), $ticket);
-        $result = $this->mailer->send([$ticket]);
+        $result = $this->mailer->resend($ticket);
 
-        return ApiResponse::success($result, $result['queued'] ? 'Ticket sent again.' : 'We can\'t send e-mail to this address.');
+        return ApiResponse::success($result, TicketMailer::resendMessage($result));
     }
 }

@@ -32,12 +32,12 @@
 
 		<AuthSocialButtons mode="register" :role="role" />
 
-		<form @submit.prevent="handleSubmit">
-			<div class="mb-5">
+		<form novalidate @submit.prevent="handleSubmit">
+			<div class="mb-5" data-field="fullName">
 				<FormsLabel text="Full Name" required />
 
 				<FormsTextField v-model="form.fullName" type="text" placeholder="Sean Kenneth H. Axalan" size="lg"
-					required>
+					required :error="check.err('fullName')">
 					<template #icon>
 						<svg viewBox="0 0 20 20"
 							class="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400">
@@ -47,15 +47,15 @@
 					</template>
 				</FormsTextField>
 			</div>
-			<div class="mb-5">
+			<div class="mb-5" data-field="email">
 				<FormsLabel text="Email Address" required />
-				<FormsTextField v-model="form.email" type="email" placeholder="you@example.com" size="lg" required autocomplete="email" />
-				<p class="mt-1.5 text-xs text-gray-400">We'll send a 6-digit code here right after you sign up.</p>
+				<FormsTextField v-model="form.email" type="email" placeholder="you@example.com" size="lg" required autocomplete="email" :error="check.err('email')" />
+				<p v-if="!check.err('email')" class="mt-1.5 text-xs text-gray-400">We'll send a 6-digit code here right after you sign up.</p>
 			</div>
-			<div class="mb-5">
+			<div class="mb-5" data-field="password">
 				<FormsLabel text="Password" required />
 
-				<FormsPasswordField v-model="form.password" placeholder="Create a strong password" size="lg" required>
+				<FormsPasswordField v-model="form.password" placeholder="Create a strong password" size="lg" required :error="check.err('password')">
 					<template #icon>
 						<svg viewBox="0 0 20 20"
 							class="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400">
@@ -64,11 +64,16 @@
 						</svg>
 					</template>
 				</FormsPasswordField>
+				<ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label="Password requirements">
+					<li v-for="rule in passwordRules" :key="rule.label" class="flex items-center gap-1" :class="rule.ok ? 'text-emerald-700' : 'text-gray-500'">
+						<span aria-hidden="true">{{ rule.ok ? '✓' : '○' }}</span>{{ rule.label }}
+					</li>
+				</ul>
 			</div>
-			<div class="mb-5">
+			<div class="mb-5" data-field="phone">
 				<FormsLabel text="Phone No" required />
 
-				<FormsTextField v-model="form.phone" type="tel" placeholder="+63 912 345 6789" size="lg" required>
+				<FormsTextField v-model="form.phone" type="tel" placeholder="+63 912 345 6789" size="lg" required :error="check.err('phone')">
 					<template #icon>
 						<svg viewBox="0 0 20 20"
 							class="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400">
@@ -107,9 +112,9 @@
 			</p>
 
 
-			<div v-if="errorMessage"
-				class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-				{{ errorMessage }}
+			<div v-if="check.summary.value || errorMessage"
+				class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+				{{ check.summary.value || errorMessage }}
 			</div>
 
 
@@ -347,89 +352,32 @@ function normalizePhone(
 	return normalized
 }
 
+// Every problem at once, under its field (no browser pop-ups, no one-at-a-time messages).
+const passwordRules = computed(() => [
+	{ label: 'At least 8 characters', ok: form.password.length >= 8 },
+	{ label: 'A letter', ok: /[A-Za-z]/.test(form.password) },
+	{ label: 'A number', ok: /\d/.test(form.password) },
+])
+const check = useFormCheck(() => {
+	const { firstname, lastname } = parseFullName(form.fullName)
+	const email = form.email.trim()
+	const phone = normalizePhone(form.phone)
+	return {
+		fullName: !form.fullName.trim() ? 'Enter your full name.' : (!firstname || !lastname) ? 'Enter both your first and last name.' : '',
+		email: !email ? 'Enter your e-mail address.' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'Enter a valid e-mail address (like name@example.com).' : '',
+		password: !form.password ? 'Create a password.' : passwordRules.value.every(r => r.ok) ? '' : 'Your password needs 8+ characters with a letter and a number.',
+		phone: !form.phone.trim() ? 'Enter your mobile number.' : !/^\+639\d{9}$/.test(phone) ? 'Enter a Philippine mobile number, e.g. 0917 123 4567.' : '',
+	}
+})
+
 async function handleSubmit() {
 	errorMessage.value = ''
 
-	const {
-		firstname,
-		middlename,
-		lastname,
-	} = parseFullName(
-		form.fullName
-	)
+	if (!check.ok()) return
 
-	if (
-		!firstname ||
-		!lastname
-	) {
-		errorMessage.value =
-			'Please enter your first name and last name.'
-
-		return
-	}
-
-	const email =
-		form.email
-			.trim()
-			.toLowerCase()
-
-	if (!email) {
-		errorMessage.value =
-			'Email address is required.'
-
-		return
-	}
-
-
-	const emailPattern =
-		/^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-	if (
-		!emailPattern.test(email)
-	) {
-		errorMessage.value =
-			'Please enter a valid email address.'
-
-		return
-	}
-
-	if (!form.password) {
-		errorMessage.value =
-			'Password is required.'
-
-		return
-	}
-
-	if (
-		form.password.length < 8
-	) {
-		errorMessage.value =
-			'Password must be at least 8 characters.'
-
-		return
-	}
-
-	const phone =
-		normalizePhone(
-			form.phone
-		)
-
-	if (!phone) {
-		errorMessage.value =
-			'Phone number is required.'
-
-		return
-	}
-
-	if (
-		!/^\+639\d{9}$/
-			.test(phone)
-	) {
-		errorMessage.value =
-			'Please enter a valid Philippine mobile number.'
-
-		return
-	}
+	const { firstname, middlename, lastname } = parseFullName(form.fullName)
+	const email = form.email.trim().toLowerCase()
+	const phone = normalizePhone(form.phone)
 
 	const registrationPayload:
 		RegisterPayload = {
@@ -464,10 +412,8 @@ async function handleSubmit() {
 		showSuccessModal.value =
 			true
 	} catch (error: unknown) {
-		console.error(
-			'Registration failed:',
-			error
-		)
+		// Field problems from the server (e.g. e-mail already registered) go under the field.
+		check.fromServer(error, { first_name: 'fullName', last_name: 'fullName', middle_name: 'fullName' })
 	}
 }
 

@@ -12,7 +12,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 #[Fillable(['organization_id', 'business_name', 'description', 'location_text', 'latitude', 'longitude', 'contact_email', 'contact_phone', 'cover_image_url', 'is_published',
     // 0046: details from the business profile panel.
-    'years_experience', 'service_radius_km', 'event_tags', 'specialties', 'website', 'facebook', 'instagram', 'banner_color'])]
+    'years_experience', 'service_radius_km', 'event_tags', 'specialties', 'website', 'facebook', 'instagram', 'banner_color',
+    // 0048: estimate settings shown with every client estimate.
+    'estimate_service_charge_percent', 'estimate_tax_percent', 'estimate_note'])]
 class OrganizationProfile extends Model
 {
     protected $attributes = [
@@ -34,6 +36,8 @@ class OrganizationProfile extends Model
             'is_published' => 'boolean',
             'service_radius_km' => 'integer',
             'event_tags' => 'array',
+            'estimate_service_charge_percent' => 'decimal:2',
+            'estimate_tax_percent' => 'decimal:2',
             'specialties' => 'array',
         ];
     }

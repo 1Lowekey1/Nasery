@@ -57,6 +57,9 @@ function readCookie(name: string): string | null {
   return match ? decodeURIComponent(match[1]!) : null
 }
 
+/** API requests in flight (the start-up splash waits until the first page's data has arrived). */
+export const apiPending = ref(0)
+
 export const useApi = () => {
   const config = useRuntimeConfig()
   const apiBase = config.public.apiBase as string
@@ -82,6 +85,7 @@ export const useApi = () => {
     if (mutating && xsrf) headers['X-XSRF-TOKEN'] = xsrf
     if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey
 
+    apiPending.value++
     try {
       return await $fetch<ApiSuccess<T>>(url, {
         baseURL: apiBase,
@@ -119,6 +123,8 @@ export const useApi = () => {
 
       throw new ApiError(status, status === 0 ? 'NETWORK_ERROR' : 'SERVER_ERROR',
         status === 0 ? 'Cannot reach the server. Check your connection.' : 'Something went wrong. Please try again.')
+    } finally {
+      apiPending.value--
     }
   }
 

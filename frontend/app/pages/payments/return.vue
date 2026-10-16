@@ -29,6 +29,7 @@
 				<NuxtLink to="/my-tickets" class="mt-5 inline-block rounded-lg bg-primary-700 px-5 py-3 text-sm font-bold text-white">Try again from My Tickets</NuxtLink>
 			</div>
 			<p v-if="state.mode !== 'live'" class="mt-4 text-xs text-gray-400">Test mode: no real money was charged.</p>
+			<NuxtLink to="/" class="mt-4 inline-block text-sm font-bold text-gray-500 hover:text-primary-700">Back to home</NuxtLink>
 		</template>
 	</div>
 </template>

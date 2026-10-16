@@ -42,6 +42,8 @@ export interface OrganizerPublicProfile {
   services: { id: string, name: string, description: string | null, base_price: string | null }[]
   /** The organizer's quotation-calculator price list (B5). */
   price_options: import('./useQuotations').PriceOption[]
+  /** 0048: service charge %, VAT % and a note shown with every estimate (null = not set). */
+  estimate?: { service_charge_percent: number | null, tax_percent: number | null, note: string | null }
   event_types: { id: string, name: string, description: string | null }[]
   rating: { average: number | null, count: number, distribution: Record<string, number> }
   recent_reviews: PublicReview[]

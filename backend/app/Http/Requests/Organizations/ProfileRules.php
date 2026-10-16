@@ -34,6 +34,10 @@ final class ProfileRules
             "{$prefix}facebook" => ['nullable', 'string', 'max:255'],
             "{$prefix}instagram" => ['nullable', 'string', 'max:255'],
             "{$prefix}banner_color" => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            // 0048: estimate settings.
+            "{$prefix}estimate_service_charge_percent" => ['nullable', 'numeric', 'min:0', 'max:30', 'decimal:0,2'],
+            "{$prefix}estimate_tax_percent" => ['nullable', 'numeric', 'min:0', 'max:20', 'decimal:0,2'],
+            "{$prefix}estimate_note" => ['nullable', 'string', 'max:500'],
         ];
     }
 }

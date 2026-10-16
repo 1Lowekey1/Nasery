@@ -95,7 +95,7 @@ const { organization, fetchOrganization } = useOrganization()
 const api = usePayments()
 
 const eventId = computed(() => typeof route.query.event === 'string' ? route.query.event : null)
-const data = ref<{ payments: EventPayment[], totals: { gross: string, fees: string, refunds: string, net: string } } | null>(null)
+const data = ref<{ payments: EventPayment[], totals: { gross: string, fees: string, fee_returned: string, refunds: string, net: string } } | null>(null)
 const error = ref('')
 const notice = ref('')
 const formError = ref('')

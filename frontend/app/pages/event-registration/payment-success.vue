@@ -3,10 +3,10 @@
         <div class="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-primary-100/50 blur-3xl" />
 
         <div class="relative mx-auto max-w-2xl">
-            <div class="mb-8 flex items-center gap-3">
+            <NuxtLink to="/" class="mb-8 flex w-fit items-center gap-3" aria-label="NaSeRy home">
                 <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#285F6b] font-bold text-white shadow-lg shadow-primary-900/20 ring-1 ring-black/5">N</div>
                 <div><p class="font-bold text-slate-900">NaSeRy</p><p class="text-xs text-slate-500">Secure event payment</p></div>
-            </div>
+            </NuxtLink>
 
             <section class="overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-2xl shadow-slate-900/10">
                 <div class="h-1.5 bg-[#285F6b]" />
@@ -32,7 +32,7 @@
                             <IconBase name="check-circle" class="h-8 w-8 text-emerald-600" />
                         </div>
                         <h1 class="mt-5 text-center text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Payment confirmed</h1>
-                        <p class="mx-auto mt-2 max-w-sm text-center text-sm leading-6 text-slate-500">Your registration is complete. Download your ticket or send another copy to your verified email.</p>
+                        <p class="mx-auto mt-2 max-w-sm text-center text-sm leading-6 text-slate-500">Your registration is complete. We've e-mailed your {{ tickets.length > 1 ? 'tickets' : 'ticket' }} to <span class="font-semibold text-slate-700">{{ sentTo }}</span> (check Spam if it isn't there in a few minutes). You can also download or print {{ tickets.length > 1 ? 'them' : 'it' }} here.</p>
 
                         <div class="mt-8 space-y-3">
                             <div v-for="ticket in tickets" :key="ticket.id"
@@ -70,25 +70,45 @@
                     </template>
                 </div>
             </section>
+
+            <!-- Way out once the purchase is done (this page has no site menu). -->
+            <nav v-if="!loading" class="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row" aria-label="After your purchase">
+                <NuxtLink to="/"
+                    class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#1f4a54] sm:w-auto">
+                    <IconBase name="home" class="h-4 w-4" />
+                    Back to home
+                </NuxtLink>
+                <NuxtLink v-if="isLoggedIn" to="/my-tickets"
+                    class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-primary-200 hover:text-primary-700 sm:w-auto">
+                    <IconBase name="ticket" class="h-4 w-4" />
+                    My Tickets
+                </NuxtLink>
+                <NuxtLink to="/events"
+                    class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-primary-200 hover:text-primary-700 sm:w-auto">
+                    Browse more events
+                </NuxtLink>
+            </nav>
         </div>
 
         <RegistrationTicketDeliveryModal :open="activeTicket !== null" :ticket-name="activeTicket?.name ?? ''"
             :ticket-label="activeTicket ? `${activeTicket.ticket_type?.name ?? ''} · ${activeTicket.ticket_id}` : ''"
             :emailing="activeTicket !== null && emailingId === activeTicket.id"
             :email-sent="activeTicket !== null && emailedIds.has(activeTicket.id)" :email-error="emailError"
+            :already-emailed-to="activeTicket?.email || sentTo"
             @close="closeDeliveryModal" @download="downloadTicket(activeTicket!)" @email="emailTicket(activeTicket!)"
             @print="printTicket(activeTicket!)" />
     </main>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import type { RegisteredTicket } from '~/types/public-registration'
 
 definePageMeta({ layout: false })
 const route = useRoute()
 const config = useRuntimeConfig()
 const api = useApi()
+const { isLoggedIn } = useAuth()
 const apiBaseURL = String(config.public.apiBase)
 const loading = ref(true)
 const errorMessage = ref('')
@@ -116,6 +136,8 @@ const openDeliveryModal = (ticket: RegisteredTicket) => {
     activeTicket.value = ticket
 }
 const closeDeliveryModal = () => { activeTicket.value = null }
+// Tickets are e-mailed automatically once the payment is confirmed (to the attendee, else the buyer).
+const sentTo = computed(() => tickets.value.find(t => t.email)?.email || 'your e-mail')
 
 const loadPayment = async () => {
     loading.value = true

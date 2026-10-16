@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use App\Services\Tickets\TicketCards;
+use App\Services\Tickets\TicketMailer;
 use App\Services\Tickets\TicketPdf;
 
 /**
@@ -25,6 +26,7 @@ class PublicEventController extends Controller
         private readonly Payments $payments,
         private readonly TicketCards $cards,
         private readonly TicketPdf $pdf,
+        private readonly TicketMailer $mailer,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -77,6 +79,17 @@ class PublicEventController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="ticket-'.strtolower(substr(str_replace('-', '', $ticket), -8)).'.pdf"',
         ]);
+    }
+
+    /** The holder e-mails one of their tickets to themselves again (it was e-mailed on purchase). */
+    public function emailMine(Request $request, string $ticket): JsonResponse
+    {
+        if (! $this->registration->owns($request->user(), $ticket)) {
+            throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
+        }
+        $result = $this->mailer->resend($ticket);
+
+        return ApiResponse::success($result, TicketMailer::resendMessage($result));
     }
 
     public function cancelMine(Request $request, string $ticket): JsonResponse

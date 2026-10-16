@@ -1,6 +1,7 @@
 <template>
-	<div>
-		<div class="mb-5 grid grid-cols-2 gap-2.5">
+	<!-- Only providers configured on this server (the API says which); nothing at all when none are. -->
+	<div v-if="providers.length">
+		<div class="mb-5 grid gap-2.5" :class="providers.length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
 			<button v-for="provider in providers" :key="provider.id" type="button"
 				:disabled="loading === provider.id"
 				class="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-1 py-2.5 text-[13px] font-semibold text-gray-700 transition hover:-translate-y-px hover:border-primary-200 hover:bg-primary-50/40 disabled:cursor-wait disabled:opacity-60"
@@ -37,12 +38,22 @@ const props = withDefaults(defineProps<{
 
 const loading = ref<SocialProvider | null>(null)
 const error = ref('')
-const providers = [
+const allProviders = [
 	{ id: 'google' as const, label: 'Google', icon: 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg' },
 	{ id: 'facebook' as const, label: 'Facebook', icon: '' },
 ]
+const enabled = ref<SocialProvider[]>([])
+const providers = computed(() => allProviders.filter(p => enabled.value.includes(p.id)))
 
-const { startSocial } = useAuth()
+const { startSocial, socialProviders } = useAuth()
+
+onMounted(async () => {
+	try {
+		enabled.value = (await socialProviders()).filter(p => p.enabled).map(p => p.provider as SocialProvider)
+	} catch {
+		enabled.value = []
+	}
+})
 
 /** The API hands back the provider's consent URL (and remembers the account type for sign-ups). */
 async function continueWith(provider: SocialProvider) {

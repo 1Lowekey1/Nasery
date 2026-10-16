@@ -85,6 +85,7 @@ class EventActivities
                 'id' => $id, 'event_id' => $event->id, 'organization_id' => $event->organization_id,
                 ...$this->fields($data, $event),
                 'status' => $data['status'] ?? 'pending',
+                'visible_to_client' => (bool) ($data['visible_to_client'] ?? false),
                 'created_by' => $user->id, 'created_at' => now(), 'updated_at' => now(),
             ]);
 
@@ -103,7 +104,8 @@ class EventActivities
     {
         $this->assertCanWrite($user, $event);
         $row = $this->db->system('activities.update', function () use ($event, $activityId, $data) {
-            $changes = [...$this->fields($data, $event, partial: true), ...(isset($data['status']) ? ['status' => $data['status']] : [])];
+            $changes = [...$this->fields($data, $event, partial: true), ...(isset($data['status']) ? ['status' => $data['status']] : []),
+                ...(array_key_exists('visible_to_client', $data) ? ['visible_to_client' => (bool) $data['visible_to_client']] : [])];
             $updated = DB::table('event_activities')->where('id', $activityId)->where('event_id', $event->id)->whereNull('deleted_at')
                 ->update([...$changes, 'updated_at' => now()]);
             if ($updated === 0) {
@@ -112,7 +114,7 @@ class EventActivities
 
             return DB::table('event_activities')->where('id', $activityId)->first();
         });
-        $this->audit->record('event_activity.updated', ['event_activities', $activityId], new: ['status' => $row->status], organizationId: $event->organization_id);
+        $this->audit->record('event_activity.updated', ['event_activities', $activityId], new: ['status' => $row->status, 'visible_to_client' => (bool) $row->visible_to_client], organizationId: $event->organization_id);
 
         return $this->present($row, $event);
     }
@@ -169,10 +171,34 @@ class EventActivities
             'person' => $a->person,
             'status' => $a->status,
             'activity_at' => $a->activity_at ? CarbonImmutable::parse($a->activity_at)->toIso8601String() : CarbonImmutable::parse($a->created_at)->toIso8601String(),
+            'visible_to_client' => (bool) $a->visible_to_client,
             'source' => 'organizer',
             'editable' => true,
             'event' => ['id' => $event->id, 'name' => $event->name, 'event_type' => null],
         ];
+    }
+
+    /**
+     * The program items the organizer chose to show the client (0049), in
+     * time order. Title, description, time and status only: the person in
+     * charge and internal tags stay with the team. The caller has already
+     * checked that $event is this client's event.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function forClient(Event $event): array
+    {
+        return $this->db->system('activities.client', fn () => DB::table('event_activities')->where('event_id', $event->id)
+            ->where('visible_to_client', true)->whereNull('deleted_at')
+            ->orderByRaw('activity_at asc nulls last')->orderBy('created_at')->limit(200)->get())
+            ->map(fn ($a) => [
+                'id' => $a->id,
+                'title' => $a->title,
+                'description' => $a->description,
+                'category' => $a->category,
+                'status' => $a->status,
+                'activity_at' => $a->activity_at ? CarbonImmutable::parse($a->activity_at)->setTimezone($event->timezone ?: 'Asia/Manila')->toIso8601String() : null,
+            ])->values()->all();
     }
 
     /** @return Collection<int, mixed> */

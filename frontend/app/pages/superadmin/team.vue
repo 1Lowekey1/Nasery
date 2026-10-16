@@ -1,7 +1,7 @@
 <template>
 	<div class="mx-auto max-w-4xl">
 		<h1 class="text-2xl font-extrabold text-gray-900">Admin Team</h1>
-		<p class="mt-1 text-gray-500">Everyone who can run NaSeRy. New admins get an e-mail with a code and choose their own password; nobody else ever sees it.</p>
+		<p class="mt-1 text-gray-500">Everyone who can run NaSeRy. New admins get an e-mail with a “Set up my admin account” link and choose their own password; nobody else ever sees it.</p>
 
 		<Alert v-if="error" type="danger" :text="error" class="mt-4" />
 		<Alert v-if="notice" type="success" :text="notice" class="mt-4" />
@@ -16,7 +16,7 @@
 				<div class="sm:col-span-3">
 					<button type="submit" :disabled="busy || !form.first_name.trim() || !form.last_name.trim() || !form.email.trim()"
 						class="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Add admin</button>
-					<span class="ml-2 text-xs text-gray-500">Use an e-mail that has no NaSeRy account yet. The code is valid 10 minutes; they can request a new one on “Forgot password”.</span>
+					<span class="ml-2 text-xs text-gray-500">Use an e-mail that has no NaSeRy account yet. The set-up link works for 72 hours; if it expires, use “Resend” below.</span>
 				</div>
 			</form>
 		</section>
@@ -102,7 +102,7 @@ async function run(fn: () => Promise<unknown>, message: string) {
 async function invite() {
 	const email = form.email.trim()
 	if (await run(() => api.inviteAdmin({ first_name: form.first_name.trim(), last_name: form.last_name.trim(), email }),
-		`${form.first_name.trim()} was added. We e-mailed ${email} a code to set their password.`)) {
+		`${form.first_name.trim()} was added. We e-mailed ${email} a link to set up their account (valid for 72 hours).`)) {
 		Object.assign(form, { first_name: '', last_name: '', email: '' })
 	}
 }

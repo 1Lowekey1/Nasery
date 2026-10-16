@@ -29,7 +29,7 @@
 				</span>
 			</div>
 
-			<div v-if="selectedEvent.status !== 'ongoing'" class="mb-5 flex items-start gap-3 rounded-2xl border border-amber-100 bg-amber-50 p-4">
+			<div v-if="selectedEvent && selectedEvent.status !== 'ongoing'" class="mb-5 flex items-start gap-3 rounded-2xl border border-amber-100 bg-amber-50 p-4">
 				<IconBase name="clock" class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
 				<p class="text-sm leading-6 text-amber-800">
 					This event is marked <strong>{{ formatEventStatus(selectedEvent.status) }}</strong>, not "Ongoing" yet — the numbers below are still real, but check-in activity typically only starts once you mark the event Ongoing in Event Management.
@@ -37,7 +37,7 @@
 			</div>
 
 			<div class="mb-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-				<h2 class="text-base font-bold text-gray-900">{{ selectedEvent.name }}</h2>
+				<h2 class="text-base font-bold text-gray-900">{{ selectedEvent?.name }}</h2>
 				<p class="mb-6 text-sm text-gray-500">Real-time event analytics</p>
 
 				<div class="mb-8 grid grid-cols-2 gap-5 sm:grid-cols-4">

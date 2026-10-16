@@ -533,6 +533,11 @@ const navItems = [
 		icon: 'users',
 	},
 	{
+		label: 'Price List',
+		to: '/organizer/price-list',
+		icon: 'tag',
+	},
+	{
 		label: 'Earnings',
 		to: '/organizer/earnings',
 		icon: 'peso',

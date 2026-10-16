@@ -115,6 +115,14 @@ class TicketingTest extends TestCase
         $this->assertSame(3, DB::table('qr_tickets')->join('tickets', 'tickets.id', '=', 'qr_tickets.ticket_id')->where('tickets.event_id', $event)->count());
         $this->assertSame(1, DB::table('tickets')->join('ticket_types', 'ticket_types.id', '=', 'tickets.ticket_type_id')->where('ticket_types.name', 'Family')->where('tickets.event_id', $event)->count());
 
+        // Excel's semicolon "CSV" with first/last name columns also works; a file without a name column is explained.
+        $post("First name;Last name;Email address;Mobile number;Ticket tier\nDina;Uy;dina@example.com;0918;Family\nEli;Tan;;;")
+            ->assertCreated()->assertJsonPath('data.imported', 2);
+        $this->assertTrue(DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')->where('t.event_id', $event)
+            ->where('a.full_name', 'Dina Uy')->where('a.contact_number', '0918')->exists());
+        $post("email,contact\nfay@example.com,0917")->assertUnprocessable()
+            ->assertJsonPath('error.details.fields.file.0', 'The first row needs a "name" column (or "first name" and "last name"). Download the template to see the format.');
+
         // Exported CSV neutralizes the formula-looking name.
         $csv = $this->actingAs($owner)->get($this->base($org, $event).'/guests/export')->assertOk()->streamedContent();
         $this->assertStringContainsString("'=HYPERLINK", $csv);

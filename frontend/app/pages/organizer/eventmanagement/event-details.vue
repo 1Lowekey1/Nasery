@@ -576,6 +576,7 @@ interface OrganizerEvent {
 
 	name: string
 	event_type: string
+	event_type_id?: string | null
 	description: string | null
 
 	event_date: string | null
@@ -637,6 +638,7 @@ interface QuotationEventData {
 		id: number
 		event_title: string | null
 		event_type: string
+	event_type_id?: string | null
 		event_date: string | null
 		location: string | null
 		expected_guests: number

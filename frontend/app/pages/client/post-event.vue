@@ -28,7 +28,7 @@
 		<div v-if="target" class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary-100 bg-primary-50 px-5 py-4">
 			<div>
 				<p class="text-xs font-bold uppercase tracking-widest text-primary-700">Direct quotation request</p>
-				<p class="mt-1 text-sm text-primary-900">This inquiry goes only to <span class="font-bold">{{ target.display_name }}</span>.
+				<p class="mt-1 text-sm text-primary-900">This inquiry goes only to <span class="font-bold">{{ target.display_name.replace(/\.$/, '') }}</span>.
 					<template v-if="target.picks.length"> You picked {{ target.picks.length }} option{{ target.picks.length === 1 ? '' : 's' }} from their calculator<template v-if="target.estimate"> (estimate {{ formatPeso(target.estimate) }})</template>.</template>
 				</p>
 			</div>
@@ -36,7 +36,7 @@
 		</div>
 
 		<div class="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
-			<form class="space-y-5" @submit.prevent="requestInquirySubmission">
+			<form class="space-y-5" novalidate @submit.prevent="requestInquirySubmission">
 				<section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
 					<div
 						class="flex flex-col justify-between gap-4 border-b border-gray-100 bg-gradient-to-r from-primary-50/80 to-white px-5 py-5 sm:flex-row sm:items-center sm:px-7">
@@ -63,7 +63,7 @@
 								class="mt-1" />
 						</div>
 
-						<div class="mb-3 mt-6 flex items-end justify-between gap-3">
+						<div id="field-eventType" class="mb-3 mt-6 flex scroll-mt-24 items-end justify-between gap-3">
 							<div><label class="block text-sm font-bold text-gray-800">What are you celebrating? <span
 										class="text-rose-500">*</span></label>
 								<p class="mt-1 text-xs text-gray-400">Select one event type. Click it again to clear
@@ -91,6 +91,31 @@
 								<span class="pointer-events-none relative text-sm font-bold">{{ type.value }}</span>
 							</button>
 						</div>
+						<p v-if="showMissing('eventType')" class="mt-2 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">Choose the kind of event.</p>
+
+						<div id="field-services" class="mt-6 scroll-mt-24">
+							<div class="mb-3 flex items-end justify-between gap-3">
+								<div>
+									<label class="block text-sm font-bold text-gray-800">What services do you need?
+										<span v-if="servicesRequired" class="text-rose-500">*</span>
+										<span v-else class="font-normal text-gray-400">(optional)</span></label>
+									<p class="mt-1 text-xs text-gray-400">Pick everything you'd like organizers to quote. NaSeRy sends your inquiry to organizers who offer them.</p>
+								</div>
+								<span v-if="form.services.length" class="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">{{ form.services.length }} selected</span>
+							</div>
+							<div v-if="serviceOptions.length" class="flex flex-wrap gap-2">
+								<button v-for="service in serviceOptions" :key="service.name" type="button"
+									:aria-pressed="form.services.includes(service.name)"
+									class="rounded-full border px-3.5 py-2 text-sm font-semibold transition"
+									:class="form.services.includes(service.name) ? 'border-primary-700 bg-primary-700 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300'"
+									@click="toggleService(service.name)">
+									{{ service.name }}
+									<span class="ml-1 text-xs font-normal opacity-70">· {{ service.organizers }} {{ service.organizers === 1 ? 'organizer' : 'organizers' }}</span>
+								</button>
+							</div>
+							<p v-else class="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-500">{{ servicesLoaded ? 'No organizers have listed services yet, so open posting isn’t available. You can still request a quotation from an organizer’s page.' : 'Loading services…' }}</p>
+							<p v-if="showMissing('services')" class="mt-2 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">Choose at least one service so NaSeRy can find matching organizers.</p>
+						</div>
 
 						<div class="mt-6 rounded-2xl border border-primary-100 bg-primary-50/40 p-4 sm:p-5">
 							<div class="mb-4 flex items-center gap-2"><span
@@ -107,7 +132,8 @@
 								<div class="sm:col-span-2">
 									<FormsLabel text="Event date" required />
 									<FormsDateField v-model="form.date" name="event_date"
-										placeholder="Choose event date" :min-date="minimumEventDate" />
+										placeholder="Choose event date" :min-date="minimumEventDate" :max-date="maximumEventDate" />
+									<p class="mt-1.5 text-xs text-gray-400">Any date from today up to {{ maximumEventDateLabel }}.</p>
 									<p v-if="form.date" class="mt-1.5 text-xs font-semibold text-primary-700">{{
 										formattedEventDate }}</p>
 								</div>
@@ -123,13 +149,15 @@
 								</div>
 							</div>
 							<p v-if="timeError" class="mt-3 text-xs font-semibold text-rose-600">{{ timeError }}</p>
+							<p v-else-if="showMissing('schedule')" class="mt-2 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">{{ form.date && form.startTime && form.endTime ? `Choose a date between today and ${maximumEventDateLabel}.` : 'Choose the event date, start time and end time.' }}</p>
 						</div>
 
-						<div class="mt-5 max-w-sm">
+						<div id="field-guests" class="mt-5 max-w-sm scroll-mt-24">
 							<FormsLabel text="Expected guests" required />
 							<FormsTextField v-model="form.guests" type="number" min="1" icon="users" size="lg"
 								placeholder="e.g. 150" required />
-							<p class="mt-1.5 text-xs text-gray-400">An estimate is okay—you can update this later.</p>
+							<p v-if="showMissing('guests')" class="mt-2 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">Enter how many guests you expect (at least 1).</p>
+							<p v-else class="mt-1.5 text-xs text-gray-400">An estimate is okay—you can update this later.</p>
 						</div>
 					</div>
 				</section>
@@ -147,6 +175,7 @@
 
 					<div class="space-y-6">
 						<div>
+							<span id="field-location" class="block scroll-mt-24" />
 							<FormsLabel text="Location" required />
 							<div v-if="!locationIqApiKey" class="mb-2 flex flex-wrap items-center gap-2 rounded-xl bg-primary-50/60 px-3 py-2 text-xs text-gray-600">
 								<span>Type the venue or city below, then</span>
@@ -196,7 +225,7 @@
 						</div>
 						<div class="border-t border-gray-100 pt-5">
 							<div class="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-								<div><label class="block text-sm font-semibold text-gray-700">What is your estimated
+								<div id="field-budget" class="scroll-mt-24"><label class="block text-sm font-semibold text-gray-700">What is your estimated
 										budget? <span class="text-rose-500">*</span></label>
 									<p class="mt-1 text-xs text-gray-400">This helps organizers prepare offers that fit
 										your plans.</p>
@@ -206,6 +235,7 @@
 									<IconBase name="check-circle" class="h-3.5 w-3.5" /> Budget selected
 								</span>
 							</div>
+							<p v-if="showMissing('budget')" class="-mt-2 mb-3 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">Choose a budget range.</p>
 							<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="radiogroup"
 								aria-label="Budget range">
 								<button v-for="option in budgetOptions" :key="option.value" type="button" role="radio"
@@ -239,6 +269,7 @@
 					<div v-if="locationError"
 						class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{
 							locationError }}</div>
+					<p v-if="showMissing('location')" class="mt-2 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">{{ target ? 'Enter where the event will be.' : 'Choose a place from the suggestions (or use your current location) so NaSeRy can find organizers near it.' }}</p>
 					<div v-if="hasSelectedLocation"
 						class="mt-5 overflow-hidden rounded-2xl border border-primary-100 bg-primary-50/40">
 						<div class="flex items-start gap-3 p-4"><span
@@ -263,10 +294,9 @@
 						<div v-else ref="mapContainer" class="h-[280px] w-full border-t border-primary-100 bg-gray-100" />
 						<div
 							class="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-primary-100 bg-white px-4 py-3 text-xs text-gray-500">
-							<span class="flex items-center gap-2"><span
-									class="h-2.5 w-2.5 rounded-full bg-primary-700 ring-2 ring-primary-100" />Your
+							<span class="flex items-center gap-2"><svg width="12" height="16" viewBox="0 0 30 40" aria-hidden="true"><path d="M15 39C15 39 28 24.5 28 14.5A13 13 0 0 0 2 14.5C2 24.5 15 39 15 39Z" fill="#285F6b"/><circle cx="15" cy="14.5" r="5" fill="#ffffff"/></svg>Your
 								venue</span><span class="flex items-center gap-2"><span
-									class="h-2.5 w-2.5 rounded-full bg-gray-600 ring-2 ring-gray-200" />Nearby
+									class="h-2.5 w-2.5 rounded-full bg-amber-600 ring-2 ring-white shadow" />Nearby
 								organizer</span><span class="ml-auto">Map data by LocationIQ &amp; OpenStreetMap</span>
 						</div>
 					</div>
@@ -360,11 +390,13 @@
 				</section>
 
 				<div v-if="errorMessage"
-					class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ errorMessage }}
+					class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ errorMessage }}
 				</div>
+				<!-- Stays clickable while incomplete: pressing it lists what's missing and jumps there. -->
 				<button type="submit"
 					class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-900 disabled:cursor-not-allowed disabled:opacity-50"
-					:disabled="!isValid || isSubmitting">
+					:class="{ 'opacity-75': !isValid }"
+					:disabled="isSubmitting">
 					<template v-if="isSubmitting">Submitting inquiry…</template><template v-else>
 						<IconBase name="send" class="h-4 w-4" />{{ target ? `Send to ${target.display_name}` : 'Submit inquiry & find organizers' }}
 					</template>
@@ -623,6 +655,23 @@ const form = reactive({
 	guests: '',
 	budget: '',
 	details: '',
+	services: [] as string[],
+})
+
+// Services listed organizers offer (open posting matches on these).
+const serviceOptions = ref<{ name: string, organizers: number }[]>([])
+const servicesLoaded = ref(false)
+function toggleService(name: string) {
+	form.services = form.services.includes(name) ? form.services.filter(s => s !== name) : [...form.services, name]
+}
+onMounted(async () => {
+	try {
+		serviceOptions.value = (await useMarketplace().serviceNames()).filter(s => s.organizers > 0)
+	} catch {
+		serviceOptions.value = []
+	} finally {
+		servicesLoaded.value = true
+	}
 })
 
 function toggleEventType(eventType: string) {
@@ -689,26 +738,40 @@ const staticMapUrl = computed(() => {
 	return `https://maps.locationiq.com/v3/staticmap?${params.toString()}`
 })
 
-const isValid =
-	computed(() => {
-		return Boolean(
-			form.eventType &&
-			form.date &&
-			form.startTime &&
-			form.endTime &&
-			!timeError.value &&
-			(hasSelectedLocation.value || Boolean(target.value && locationQuery.value.trim())) &&
-			form.guests &&
-			Number(form.guests) > 0 &&
-			form.budget
-		)
-	})
+// Open posting needs services to match organizers; a direct request already names the organizer.
+const servicesRequired = computed(() => !target.value)
+
+// What's still missing, in page order (drives the notes under each field and the summary).
+const attempted = ref(false)
+const missing = computed(() => {
+	const list: { key: string, label: string }[] = []
+	if (!form.eventType) list.push({ key: 'eventType', label: 'Event type' })
+	if (servicesRequired.value && !form.services.length) list.push({ key: 'services', label: 'Services needed' })
+	if (!form.date || !form.startTime || !form.endTime || timeError.value) list.push({ key: 'schedule', label: 'Date and time' })
+	else if (form.date < minimumEventDate.value || form.date > maximumEventDate.value) list.push({ key: 'schedule', label: `A date on or before ${maximumEventDateLabel.value}` })
+	if (!form.guests || Number(form.guests) < 1) list.push({ key: 'guests', label: 'Expected guests' })
+	if (!(hasSelectedLocation.value || Boolean(target.value && locationQuery.value.trim()))) list.push({ key: 'location', label: 'Location' })
+	if (!form.budget) list.push({ key: 'budget', label: 'Budget' })
+	return list
+})
+const showMissing = (key: string) => attempted.value && missing.value.some(m => m.key === key)
+const isValid = computed(() => missing.value.length === 0)
+
+function pointToFirstMissing() {
+	attempted.value = true
+	errorMessage.value = `Still needed: ${missing.value.map(m => m.label).join(', ')}.`
+	document.getElementById(`field-${missing.value[0]?.key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 const minimumEventDate = computed(() => {
 	const now = new Date()
 	const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000)
 	return localDate.toISOString().slice(0, 10)
 })
+
+// Inquiries accept dates up to December 31, three years from now (same rule as the server).
+const maximumEventDate = computed(() => `${Number(minimumEventDate.value.slice(0, 4)) + 3}-12-31`)
+const maximumEventDateLabel = computed(() => `December 31, ${maximumEventDate.value.slice(0, 4)}`)
 
 const formattedEventDate = computed(() => {
 	if (!form.date) return ''
@@ -742,17 +805,20 @@ onMounted(async () => {
 		const org = await useMarketplace().organizer(route.query.organizer)
 		const guests = Number(route.query.guests)
 		if (guests > 0) form.guests = String(guests)
-		const ids = typeof route.query.options === 'string' ? route.query.options.split(',') : []
-		const picks = org.price_options.filter(o => ids.includes(o.id))
+		// Picks arrive as "id" or "id:quantity" (hours/days/items), see utils/priceCalc.ts.
+		const chosen = decodePicks(route.query.options)
+		const picks = org.price_options.filter(o => o.id in chosen)
+		const estimate = buildEstimate(org.price_options, chosen, guests > 0 ? guests : null, org.estimate ?? {})
 		target.value = {
 			id: org.id,
 			display_name: org.display_name,
 			picks: picks.map((o) => {
 				const service = org.services.find(sv => sv.id === o.organization_service_id)?.name
-				const price = `${formatPeso(o.price)}${o.pricing_unit === 'per_guest' ? ' per guest' : ''}`
-				return { custom_service_name: service ?? o.name, notes: service ? `${o.name} (${price})` : price }
+				const line = estimate.lines.find(l => l.id === o.id)!
+				const detail = `${line.detail} = ${formatPeso(line.subtotal)}`
+				return { custom_service_name: service ?? o.name, notes: service ? `${o.name}: ${detail}` : detail }
 			}),
-			estimate: picks.length ? linesTotal(picks.map(o => optionAsLine(o, guests > 0 ? guests : null))) : null,
+			estimate: picks.length ? estimate.total : null,
 		}
 	} catch (error: unknown) {
 		errorMessage.value = authMessage(error) || 'That organizer could not be found. You can still post to nearby organizers.'
@@ -1248,22 +1314,19 @@ async function renderMap() {
 				center,
 			])
 
+		// Venue: a teardrop pin (different shape and colour from the organizer dots).
 		const venueMarker =
-			L.circleMarker(
-				center,
-				{
-					radius:
-						9,
-					weight:
-						3,
-					color:
-						'#285F6b',
-					fillColor:
-						'#285F6b',
-					fillOpacity:
-						1,
-				}
-			)
+			L.marker(center, {
+				zIndexOffset: 1000,
+				title: form.venueName || 'Your venue',
+				icon: L.divIcon({
+					className: '',
+					iconSize: [30, 40],
+					iconAnchor: [15, 39],
+					popupAnchor: [0, -34],
+					html: '<svg width="30" height="40" viewBox="0 0 30 40" aria-hidden="true"><path d="M15 39C15 39 28 24.5 28 14.5A13 13 0 0 0 2 14.5C2 24.5 15 39 15 39Z" fill="#285F6b" stroke="#ffffff" stroke-width="2.5"/><circle cx="15" cy="14.5" r="5" fill="#ffffff"/></svg>',
+				}),
+			})
 				.addTo(
 					leafletMap
 				)
@@ -1328,7 +1391,7 @@ async function renderMap() {
 						color:
 							'#ffffff',
 						fillColor:
-							'#4b5563',
+							'#d97706',
 						fillOpacity:
 							1,
 					}
@@ -1579,9 +1642,7 @@ function escapeHtml(
 
 function requestInquirySubmission() {
 	if (!isValid.value) {
-		errorMessage.value =
-			'Please complete all required fields and select a valid location.'
-
+		pointToFirstMissing()
 		return
 	}
 
@@ -1594,12 +1655,13 @@ function goToMyEvents() {
 	navigateTo('/client/my-events')
 }
 
+// The draft made by a failed attempt is reused on retry (no pile of unsent drafts).
+let draftId: string | null = null
+
 async function submitInquiry() {
 	if (!isValid.value) {
 		showSubmitConfirmation.value = false
-		errorMessage.value =
-			'Please complete all required fields and select a valid location.'
-
+		pointToFirstMissing()
 		return
 	}
 
@@ -1640,7 +1702,7 @@ async function submitInquiry() {
 		].filter(Boolean).join('\n')
 
 		const clientInquiries = useInquiries()
-		const draft = await clientInquiries.create({
+		const payload = {
 			event_type_id: type?.id ?? null,
 			requested_date: form.date,
 			guest_count: Number(form.guests),
@@ -1652,19 +1714,33 @@ async function submitInquiry() {
 				? `${details}
 Estimate from ${target.value.display_name}${/s$/i.test(target.value.display_name) ? '’' : '’s'} quotation calculator: ${formatPeso(target.value.estimate)} for ${form.guests} guests.`
 				: details,
-			services: target.value?.picks.length ? target.value.picks : undefined,
-		})
+			services: target.value?.picks.length
+				? target.value.picks
+				: form.services.map(name => ({ custom_service_name: name, notes: null })),
+		}
+		draftId = draftId
+			? (await clientInquiries.update(draftId, payload)).id
+			: (await clientInquiries.create(payload)).id
 		// Straight to the chosen organizer, or to listed organizers within the chosen distance.
-		await clientInquiries.submit(draft.id, target.value
+		await clientInquiries.submit(draftId, target.value
 			? { mode: 'direct', organization_ids: [target.value.id] }
 			: { mode: 'open', match_radius_km: nearbyRadiusKm.value })
 
+		draftId = null
 		showSubmitConfirmation.value = false
 		showSubmissionSuccess.value = true
 
 	} catch (error: unknown) {
+		showSubmitConfirmation.value = false
 		if (error instanceof ApiError) {
-			errorMessage.value = authMessage(error)
+			// Point at the field the server objected to, when we have one on this form.
+			const fields = Object.keys(((error.details as { fields?: Record<string, string[]> })?.fields) ?? {})
+			const onForm: Record<string, string> = { services: 'services', guest_count: 'guests', requested_date: 'schedule', budget_min: 'budget', budget_max: 'budget', location_text: 'location', latitude: 'location', event_type_id: 'eventType' }
+			const key = fields.map(f => onForm[f.split('.')[0]!]).find(Boolean)
+			// Say what the server objected to, not just "The given data was invalid".
+			const firstReason = Object.values(error.fields).flat()[0]
+			errorMessage.value = error.code === 'VALIDATION_ERROR' && firstReason ? firstReason : authMessage(error)
+			if (key) document.getElementById(`field-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 			return
 		}
 		console.error(

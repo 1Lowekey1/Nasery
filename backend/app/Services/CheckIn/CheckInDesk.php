@@ -45,7 +45,7 @@ class CheckInDesk
     /**
      * @return array<string, mixed>
      */
-    public function scan(Event $event, OrganizationMember $by, string $token, ?string $sessionId): array
+    public function scan(Event $event, OrganizationMember $by, #[SensitiveParameter] string $token, ?string $sessionId): array
     {
         $token = trim($token);
 

@@ -121,13 +121,19 @@ class MarketplaceDirectory
                 'facebook' => $profile->facebook ?? null,
                 'instagram' => $profile->instagram ?? null,
                 'banner_color' => $profile->banner_color ?? null,
+                // 0048: estimate settings for the client calculator.
+                'estimate' => [
+                    'service_charge_percent' => isset($profile->estimate_service_charge_percent) ? (float) $profile->estimate_service_charge_percent : null,
+                    'tax_percent' => isset($profile->estimate_tax_percent) ? (float) $profile->estimate_tax_percent : null,
+                    'note' => $profile->estimate_note ?? null,
+                ],
                 'services' => DB::table('public_organization_services')->where('organization_id', $profile->organization_id)
                     ->orderBy('name')->get(['id', 'name', 'description', 'base_price'])
                     ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'description' => $s->description, 'base_price' => $s->base_price])->all(),
                 // Quotation calculator (0033): the organizer's own price list.
                 'price_options' => DB::table('public_organization_price_options')->where('organization_id', $profile->organization_id)
                     ->orderBy('sort_order')->orderBy('name')
-                    ->get(['id', 'organization_service_id', 'name', 'description', 'pricing_unit', 'price', 'min_guests'])
+                    ->get(['id', 'organization_service_id', 'name', 'description', 'pricing_unit', 'price', 'min_guests', 'unit_label', 'min_quantity', 'max_quantity'])
                     ->map(fn ($o) => (array) $o)->all(),
                 'event_types' => DB::table('public_event_types')->where('organization_id', $profile->organization_id)
                     ->orderBy('name')->get(['id', 'name', 'description'])->map(fn ($t) => (array) $t)->all(),

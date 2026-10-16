@@ -120,7 +120,7 @@ class SocialAuthService
      * Final step, called by the SPA (first-party, CSRF-protected): turn the
      * one-time code into a session, in the browser that started the flow.
      */
-    public function exchange(string $code, Request $request): User
+    public function exchange(#[SensitiveParameter] string $code, Request $request): User
     {
         $payload = Cache::pull('social:exchange:'.hash('sha256', $code));
 

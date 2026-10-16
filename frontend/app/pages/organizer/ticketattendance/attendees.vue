@@ -30,7 +30,8 @@
 				</button>
 
 				<button type="button"
-					class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+					class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+					@click="openImport">
 					<IconBase name="upload" class="h-4 w-4" />
 
 					Bulk Import
@@ -697,6 +698,8 @@
 				</div>
 			</div>
 		</Transition>
+		<OrganizerGuestImportDialog :open="showImport" :tiers="ticketTypes" :event-name="selectedEventName"
+			:upload="importGuests" @close="showImport = false" @imported="afterImport" />
 	</div>
 </template>
 
@@ -1302,6 +1305,24 @@ async function refreshTopSummary() {
 	} catch {
 		// The summary is a nicety; the list still works.
 	}
+}
+
+// ---- Bulk import (CSV) ----------------------------------------------------------
+const showImport = ref(false)
+const selectedEventName = computed(() => selectedEvent.value?.name ?? 'event')
+
+async function openImport() {
+	if (!selectedEventId.value) return
+	if (!ticketTypes.value.length) await loadTicketTypes()
+	showImport.value = true
+}
+
+async function importGuests(file: File, tierId: string, admission: 'invited' | 'complimentary', sendEmail: boolean) {
+	return (await ticketingApi.importGuests(await orgIdOf(), eventKey(), file, tierId, admission, sendEmail)).imported
+}
+
+async function afterImport() {
+	await Promise.all([loadAttendees(), refreshTopSummary()])
 }
 
 async function openRegisterAttendee() {

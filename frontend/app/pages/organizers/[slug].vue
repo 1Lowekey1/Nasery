@@ -155,45 +155,17 @@
 					<h2 id="calculator-heading" class="text-xl font-bold">Quotation calculator</h2>
 					<p class="mt-2 text-sm text-gray-500">Pick what you need for an estimate from {{ organizer.name }}’s own prices.</p>
 
-					<label class="mt-5 block max-w-xs">
-						<span class="text-sm font-semibold text-gray-700">Expected guests</span>
-						<input v-model.number="calcGuests" type="number" min="1" max="100000"
-							class="mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm focus:border-primary-500 focus:outline-none">
-					</label>
-
-					<fieldset v-for="group in calcGroups" :key="group.key" class="mt-5">
-						<legend class="text-sm font-bold text-gray-900">{{ group.label }}
-							<span class="font-normal text-gray-400">· {{ group.single ? 'choose one' : 'any' }}</span></legend>
-						<div class="mt-2 grid gap-2 sm:grid-cols-2">
-							<label v-for="o in group.options" :key="o.id"
-								class="flex cursor-pointer items-start justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-sm transition"
-								:class="picked.has(o.id) ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-primary-200'">
-								<span class="flex items-start gap-2.5">
-									<input :type="group.single ? 'radio' : 'checkbox'" :name="group.key" :checked="picked.has(o.id)" class="mt-1 accent-[#285F6b]"
-										:aria-label="`${group.label}: ${o.name}`" @click="toggle(group, o.id)">
-									<span>
-										<span class="font-semibold">{{ o.name }}</span>
-										<span v-if="o.description" class="block text-xs text-gray-500">{{ o.description }}</span>
-										<span v-if="o.min_guests && o.pricing_unit === 'per_guest'" class="block text-xs text-gray-400">Minimum {{ o.min_guests }} guests</span>
-									</span>
-								</span>
-								<span class="shrink-0 font-semibold text-gray-700">{{ formatPeso(o.price) }}{{ o.pricing_unit === 'per_guest' ? ' / guest' : '' }}</span>
-							</label>
-						</div>
-					</fieldset>
-
-					<div class="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-primary-50 p-4">
-						<div>
-							<div class="text-xs text-gray-500">Estimated total</div>
-							<div class="text-2xl font-extrabold text-primary-900">{{ formatPeso(calcTotal) || '₱0' }}</div>
-						</div>
-						<NuxtLink v-if="user?.role !== 'organizer'" :to="calcInquiryLink"
-							class="rounded-lg bg-primary-700 px-5 py-3 text-sm font-bold text-white hover:bg-primary-900"
-							:class="{ 'pointer-events-none opacity-50': !picked.size }" :aria-disabled="!picked.size">
-							Request a quotation with these
-						</NuxtLink>
-					</div>
-					<p class="mt-2 text-xs text-gray-400">An estimate only; the organizer confirms the final price in their quotation.</p>
+					<PricingPriceCalculator class="mt-5" :options="profile.price_options" :services="profile.services" :settings="profile.estimate">
+						<template #action="{ estimate, picks, guests }">
+							<div v-if="user?.role !== 'organizer'" class="mt-4 flex justify-end">
+								<NuxtLink :to="{ path: '/client/post-event', query: { organizer: identifier, guests: String(guests), options: picks } }"
+									class="rounded-lg bg-primary-700 px-5 py-3 text-sm font-bold text-white hover:bg-primary-900"
+									:class="{ 'pointer-events-none opacity-50': !estimate.lines.length }" :aria-disabled="!estimate.lines.length">
+									Request a quotation with these
+								</NuxtLink>
+							</div>
+						</template>
+					</PricingPriceCalculator>
 				</section>
 
 				<section aria-labelledby="reviews-heading" class="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
@@ -265,7 +237,6 @@
 <script setup lang="ts">
 import { useOrganizerPortfolio } from '~/services/organizerPortfolioService'
 import type { OrganizerPublicProfile, PublicReview } from '~/composables/useMarketplace'
-import type { PriceOption } from '~/composables/useQuotations'
 
 definePageMeta({ layout: 'public', key: route => route.path })
 const route = useRoute()
@@ -283,42 +254,6 @@ const profile = ref<OrganizerPublicProfile | null>(null)
 const reviews = ref<PublicReview[]>([])
 const reviewPage = ref<{ current_page: number, last_page: number } | null>(null)
 const reviewNotice = ref('')
-
-// Quotation calculator: one pick per service (alternatives), add-ons freely.
-const calcGuests = ref(100)
-const picked = reactive(new Set<string>())
-const calcGroups = computed(() => {
-	if (!profile.value) return []
-	const byService = new Map<string | null, PriceOption[]>()
-	for (const o of profile.value.price_options) {
-		byService.set(o.organization_service_id, [...(byService.get(o.organization_service_id) ?? []), o])
-	}
-	return [...byService.entries()]
-		.map(([serviceId, options]) => ({
-			key: serviceId ?? 'addons',
-			label: serviceId ? profile.value!.services.find(sv => sv.id === serviceId)?.name ?? 'Options' : 'Add-ons',
-			single: serviceId !== null,
-			options,
-		}))
-		.sort((a, b) => Number(!a.single) - Number(!b.single))
-})
-const calcTotal = computed(() => {
-	const guests = Math.max(1, Number(calcGuests.value) || 1)
-	return linesTotal((profile.value?.price_options ?? []).filter(o => picked.has(o.id)).map(o => optionAsLine(o, guests)))
-})
-const calcInquiryLink = computed(() => ({
-	path: '/client/post-event',
-	query: { organizer: identifier.value, guests: String(calcGuests.value || ''), options: [...picked].join(',') },
-}))
-
-function toggle(group: { single: boolean, options: PriceOption[] }, id: string) {
-	if (picked.has(id)) {
-		picked.delete(id)
-		return
-	}
-	if (group.single) group.options.forEach(o => picked.delete(o.id))
-	picked.add(id)
-}
 
 // Anyone signed in can flag a review for the admin; it stays visible meanwhile.
 async function reportReview(id: string) {

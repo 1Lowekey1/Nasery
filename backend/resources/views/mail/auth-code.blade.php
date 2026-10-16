@@ -7,19 +7,22 @@
         <p style="margin:0 0 4px;font-size:20px;font-weight:bold;">NaSeRy</p>
         <p style="margin:24px 0 8px;">Hi {{ $firstName }},</p>
         @if ($invitedBy)
-            <p style="margin:0 0 12px;">{{ $invitedBy }} added you as a <strong>NaSeRy administrator</strong>. Set your password to sign in:</p>
-            <p style="margin:0 0 20px;">Open <a href="{{ $resetUrl }}" style="color:#1f6f5c;">{{ $resetUrl }}</a>, enter this e-mail address, and use this code:</p>
+            <p style="margin:0 0 20px;">{{ $invitedBy }} added you as a <strong>NaSeRy administrator</strong>. Choose your password to activate your account:</p>
+            <p style="margin:0 0 24px;text-align:center;">
+                <a href="{{ $setupUrl }}" style="display:inline-block;background:#285f6b;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:8px;">Set up my admin account</a>
+            </p>
+            <p style="margin:0 0 8px;color:#6b7280;font-size:14px;">The link works for {{ $inviteHours }} hours. If the button doesn't open, copy this address into your browser:</p>
+            <p style="margin:0 0 20px;font-size:12px;word-break:break-all;"><a href="{{ $setupUrl }}" style="color:#1f6f5c;">{{ $setupUrl }}</a></p>
+            <p style="margin:0;color:#6b7280;font-size:14px;">Never share this link with anyone, including NaSeRy staff. If it has expired, ask the admin who invited you to resend it. If you weren't expecting this, you can ignore this email.</p>
         @else
             <p style="margin:0 0 20px;">Use this code to {{ $action }}:</p>
-        @endif
-        <p style="margin:0 0 20px;font-size:32px;font-weight:bold;letter-spacing:8px;text-align:center;">{{ $code }}</p>
-        <p style="margin:0 0 8px;color:#6b7280;font-size:14px;">It expires in {{ $minutes }} minutes. Never share it with anyone, including NaSeRy staff.</p>
-        @if ($invitedBy)
-            <p style="margin:0;color:#6b7280;font-size:14px;">If the code has expired, request a new one on the same page. If you weren't expecting this, you can ignore this email.</p>
-        @elseif ($isReset)
-            <p style="margin:0;color:#6b7280;font-size:14px;">If you didn't ask to reset your password, you can ignore this email; your password stays the same.</p>
-        @else
-            <p style="margin:0;color:#6b7280;font-size:14px;">If you didn't create a NaSeRy account, you can ignore this email.</p>
+            <p style="margin:0 0 20px;font-size:32px;font-weight:bold;letter-spacing:8px;text-align:center;">{{ $code }}</p>
+            <p style="margin:0 0 8px;color:#6b7280;font-size:14px;">It expires in {{ $minutes }} minutes. Never share it with anyone, including NaSeRy staff.</p>
+            @if ($isReset)
+                <p style="margin:0;color:#6b7280;font-size:14px;">If you didn't ask to reset your password, you can ignore this email; your password stays the same.</p>
+            @else
+                <p style="margin:0;color:#6b7280;font-size:14px;">If you didn't create a NaSeRy account, you can ignore this email.</p>
+            @endif
         @endif
     </td></tr>
 </table>

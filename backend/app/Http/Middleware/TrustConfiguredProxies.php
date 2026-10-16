@@ -20,7 +20,10 @@ class TrustConfiguredProxies extends TrustProxies
 
         return match ($proxies) {
             '' => null,
-            '*', '**' => $proxies,
+            // "*" = trust only the proxy that connected to us (one hop), never every
+            // address in X-Forwarded-For: Laravel ≥ 13.3x treats "*" as 0.0.0.0/0,
+            // which lets a client pick its own IP by sending a fake left entry.
+            '*', '**' => ['REMOTE_ADDR'],
             default => array_values(array_filter(array_map('trim', explode(',', $proxies)))),
         };
     }

@@ -42,22 +42,27 @@ return [
     |
     | [max attempts, decay in minutes, key: ip|user|user_or_ip]
     |
+    | Raised 2026-10-16 for live demos: everyone on one venue/school Wi-Fi
+    | shares ONE public IP, so per-IP limits are shared by the whole room
+    | (e.g. 5 logins/min per IP blocked the 6th panelist). Account-level
+    | protection (login-account) is unchanged. Previous values in comments.
+    |
     */
 
     'rate_limits' => [
-        'login' => [5, 1, 'ip'],
+        'login' => [30, 1, 'ip'],                    // was 5/min
         // Per target account, so a botnet rotating IPs still can't brute-force one user.
         'login-account' => [10, 15, 'email'],
-        'register' => [5, 60, 'ip'],
-        'password-reset' => [5, 60, 'ip'],
-        'email-verification' => [5, 60, 'user'],
-        'public' => [60, 1, 'ip'],
-        'api' => [120, 1, 'user_or_ip'],
-        'sensitive' => [30, 1, 'user_or_ip'],
-        'checkout' => [10, 1, 'user_or_ip'],
+        'register' => [30, 60, 'ip'],                // was 5/hour
+        'password-reset' => [20, 60, 'ip'],          // was 5/hour
+        'email-verification' => [10, 60, 'user'],    // was 5/hour
+        'public' => [300, 1, 'ip'],                  // was 60/min
+        'api' => [300, 1, 'user_or_ip'],             // was 120/min
+        'sensitive' => [60, 1, 'user_or_ip'],        // was 30/min
+        'checkout' => [20, 1, 'user_or_ip'],         // was 10/min
         // Guest ticket checkout: e-mail codes per attendee (up to 10 per registration, plus resends).
-        'guest-codes' => [20, 60, 'ip'],
-        'checkin' => [120, 1, 'user'],
+        'guest-codes' => [60, 60, 'ip'],             // was 20/hour
+        'checkin' => [240, 1, 'user'],               // was 120/min
         'webhook' => [300, 1, 'ip'],
     ],
 
@@ -73,6 +78,8 @@ return [
         'codes' => [
             'length' => 6,
             'ttl_minutes' => 10,
+            // Admin invitations: the code in the "Set up my admin account" link lasts longer.
+            'invite_ttl_hours' => 72,
             'max_attempts' => 5,
             'resend_cooldown_seconds' => 60,
         ],

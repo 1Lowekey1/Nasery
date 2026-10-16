@@ -12,6 +12,8 @@
 			Full activity log across all your managed events
 		</p>
 
+		<p v-if="toggleError" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ toggleError }}</p>
+
 		<div v-if="isLoading"
 			class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
 			Loading activity timeline...
@@ -291,6 +293,16 @@
 												activity.tag
 											}}
 										</span>
+
+										<button v-if="activity.editable" type="button"
+											class="flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold transition disabled:opacity-50"
+											:class="activity.visible_to_client ? 'bg-primary-50 text-primary-700 hover:bg-primary-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+											:disabled="togglingId === activity.id"
+											:title="activity.visible_to_client ? 'The client sees this on their timeline. Click to hide it.' : 'Only your team sees this. Click to show it to the client.'"
+											@click="toggleClientVisibility(activity)">
+											<IconBase name="users" class="h-3.5 w-3.5" />
+											{{ activity.visible_to_client ? 'Client can see' : 'Team only' }}
+										</button>
 									</div>
 								</div>
 
@@ -445,6 +457,14 @@
 								placeholder="Choose date and time" />
 						</div>
 					</div>
+
+					<label class="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-3.5 hover:border-primary-200">
+						<input v-model="activityForm.visibleToClient" type="checkbox" class="mt-0.5 h-4 w-4 accent-[#285F6b]">
+						<span>
+							<span class="block text-sm font-semibold text-gray-800">Show this on the client's timeline</span>
+							<span class="block text-xs text-gray-500">The client sees the title, description, time and status. The person in charge and the tag stay with your team.</span>
+						</span>
+					</label>
 				</div>
 
 				<div class="shrink-0 border-t border-gray-200 px-6 py-4">
@@ -555,6 +575,11 @@ interface EventActivity {
 
 	activity_at: string | null
 
+	/** 0049: shown on the client's Activity Timeline (organizer-written items only). */
+	visible_to_client?: boolean
+	source?: 'organizer' | 'nasery'
+	editable?: boolean
+
 	event?: ActivityEvent
 }
 
@@ -634,6 +659,7 @@ const activityForm =
 		person: '',
 		status: 'pending' as EventActivity['status'],
 		activityAt: '',
+		visibleToClient: false,
 	})
 
 const selectedStatus =
@@ -654,6 +680,24 @@ const statusFilters = [
 	'In Progress',
 	'Pending',
 ]
+// 0049: show or hide one written program item on the client's timeline.
+const togglingId = ref<EventActivity['id'] | null>(null)
+const toggleError = ref('')
+async function toggleClientVisibility(activity: EventActivity) {
+	togglingId.value = activity.id
+	toggleError.value = ''
+	try {
+		const updated = (await useApi().patch<EventActivity>(`/organizations/${orgId}/events/${activity.event_id}/activities/${activity.id}`, {
+			visible_to_client: !activity.visible_to_client,
+		})).data
+		activity.visible_to_client = updated.visible_to_client
+	} catch (error: unknown) {
+		toggleError.value = authMessage(error) || 'Could not change who sees this activity.'
+	} finally {
+		togglingId.value = null
+	}
+}
+
 function resetActivityForm() {
 	activityForm.title = ''
 	activityForm.description = ''
@@ -662,6 +706,7 @@ function resetActivityForm() {
 	activityForm.person = ''
 	activityForm.status = 'pending'
 	activityForm.activityAt = ''
+	activityForm.visibleToClient = false
 	activityFormError.value = ''
 }
 
@@ -741,6 +786,7 @@ async function saveActivity() {
 			person: activityForm.person.trim() || null,
 			status: activityForm.status,
 			activity_at: activityForm.activityAt || null,
+			visible_to_client: activityForm.visibleToClient,
 		})
 
 		activities.value.unshift(

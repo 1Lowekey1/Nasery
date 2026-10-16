@@ -341,13 +341,47 @@
 						</div>
 					</div>
 
-					<div class="mt-4">
+					<!-- Build the offer from the price list: an itemized quote instead of one lump sum. -->
+					<div class="mt-5 rounded-2xl border border-primary-100 bg-primary-50/40 p-4">
+						<div class="flex flex-wrap items-center justify-between gap-2">
+							<div>
+								<p class="text-sm font-bold text-gray-900">Build from my price list</p>
+								<p class="text-xs text-gray-500">Pick options and quantities; the lines and total go into your offer.</p>
+							</div>
+							<button type="button" class="rounded-lg border border-primary-200 bg-white px-3 py-1.5 text-xs font-bold text-primary-700"
+								@click="toggleBuilder">{{ showBuilder ? 'Close' : offerLines.length ? 'Change' : 'Open' }}</button>
+						</div>
+						<div v-if="showBuilder" class="mt-4">
+							<p v-if="builderLoading" class="text-sm text-gray-500">Loading your price list…</p>
+							<p v-else-if="!builderOptions.length" class="text-sm text-gray-500">
+								Your price list is empty. <NuxtLink to="/organizer/price-list" class="font-semibold text-primary-700 underline">Add options</NuxtLink> to build offers from it.
+							</p>
+							<PricingPriceCalculator v-else :options="builderOptions" :services="builderServices" :settings="builderSettings"
+								:initial-guests="Number(offerForm.guests) || 1">
+								<template #action="{ estimate, guests }">
+									<div class="mt-3 flex justify-end">
+										<button type="button" class="rounded-lg bg-primary-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+											:disabled="!estimate.lines.length" @click="useEstimate(estimate, guests)">Use these in my offer</button>
+									</div>
+								</template>
+							</PricingPriceCalculator>
+						</div>
+						<div v-if="offerLines.length && !showBuilder" class="mt-3 rounded-xl bg-white p-3 text-sm">
+							<div v-for="(line, i) in offerLines" :key="i" class="flex justify-between gap-3 py-0.5">
+								<span class="text-gray-700">{{ line.description }} <span class="text-xs text-gray-400">× {{ Number(line.quantity).toLocaleString('en-PH') }}</span></span>
+								<span class="font-semibold text-gray-800">{{ formatPeso(lineSubtotal(line.quantity, line.unit_price)) }}</span>
+							</div>
+							<button type="button" class="mt-2 text-xs font-semibold text-rose-600" @click="clearLines">Remove breakdown (enter one amount instead)</button>
+						</div>
+					</div>
+
+					<div class="mt-4" data-field="budget">
 						<FormsLabel text="Your Quotation Amount" required />
 
-						<FormsTextField v-model="offerForm.budget" icon="cash" placeholder="e.g. ₱240,000" />
+						<FormsTextField v-model="offerForm.budget" icon="cash" placeholder="e.g. ₱240,000" :disabled="offerLines.length > 0" :error="amountError" />
 
-						<p class="mt-1 text-xs text-gray-400">
-							Enter one final quotation amount.
+						<p v-if="!amountError" class="mt-1 text-xs text-gray-400">
+							{{ offerLines.length ? 'The total of your itemized lines.' : 'Enter one final quotation amount, or build it from your price list above.' }}
 						</p>
 					</div>
 
@@ -452,6 +486,7 @@
 </template>
 
 <script setup lang="ts">
+import type { EstimateSettings } from '~/utils/priceCalc'
 interface InquiryUser {
 	id: number
 	firstname: string
@@ -751,6 +786,10 @@ function openOfferForm(
 		offerForm,
 		emptyOfferForm(),
 	)
+	// A fresh offer: no breakdown carried over from another inquiry.
+	offerLines.value = []
+	amountError.value = ''
+	showBuilder.value = false
 
 	selectedInquiryId.value =
 		inquiry.id
@@ -827,8 +866,8 @@ function validateOffer() {
 	if (
 		!offerForm.budget.trim()
 	) {
-		offerError.value =
-			'Please enter your quotation amount.'
+		amountError.value = 'Enter your quotation amount, or build it from your price list.'
+		document.querySelector('[data-field="budget"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
 		return null
 	}
@@ -841,13 +880,14 @@ function validateOffer() {
 		) ||
 		quotationAmount <= 0
 	) {
-		offerError.value =
-			'Please enter a valid quotation amount.'
+		amountError.value = 'Enter an amount greater than zero, e.g. 240000.'
+		document.querySelector('[data-field="budget"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
 		return null
 	}
 
 	offerError.value = ''
+	amountError.value = ''
 	return quotationAmount
 }
 
@@ -855,6 +895,55 @@ function requestOfferSubmission() {
 	if (validateOffer() === null) return
 
 	showOfferConfirmation.value = true
+}
+
+// ---- offer builder (price list → itemized quotation lines) ----------------------
+const amountError = ref('')
+const showBuilder = ref(false)
+const builderLoading = ref(false)
+const builderOptions = ref<import('~/composables/useQuotations').PriceOption[]>([])
+const builderServices = ref<{ id: string, name: string }[]>([])
+const builderSettings = ref<EstimateSettings>({})
+const offerLines = ref<import('~/composables/useQuotations').QuotationLine[]>([])
+
+async function toggleBuilder() {
+	showBuilder.value = !showBuilder.value
+	if (!showBuilder.value || builderOptions.value.length || builderLoading.value) return
+	builderLoading.value = true
+	try {
+		const org = await useOrganization().fetchOrganization()
+		const [list, services] = await Promise.all([usePriceOptions().list(orgId), useOrganization().services()])
+		builderOptions.value = list.filter(o => o.is_active)
+		builderServices.value = services.map(sv => ({ id: sv.id, name: sv.custom_name || sv.name }))
+		const pr = org?.profile as { estimate_service_charge_percent?: number | null, estimate_tax_percent?: number | null } | undefined
+		builderSettings.value = { service_charge_percent: pr?.estimate_service_charge_percent ?? null, tax_percent: pr?.estimate_tax_percent ?? null }
+	} catch (e: unknown) {
+		offerError.value = authMessage(e) || 'Unable to load your price list.'
+	} finally {
+		builderLoading.value = false
+	}
+}
+
+/** Turn the estimate into quotation lines (charges as their own lines) and fill the offer. */
+function useEstimate(estimate: import('~/utils/priceCalc').Estimate, guests: number) {
+	const byId = new Map(builderOptions.value.map(o => [o.id, o]))
+	const lines = estimate.lines.map((l) => {
+		const o = byId.get(l.id)!
+		return { organization_service_id: o.organization_service_id, description: `${o.name}${unitSuffix(o)}`, quantity: l.quantity, unit_price: o.price }
+	})
+	if (estimate.serviceCharge) lines.push({ organization_service_id: null, description: `Service charge (${estimate.serviceChargePercent}%)`, quantity: 1, unit_price: String(estimate.serviceCharge) })
+	if (estimate.tax) lines.push({ organization_service_id: null, description: `VAT (${estimate.taxPercent}%)`, quantity: 1, unit_price: String(estimate.tax) })
+	offerLines.value = lines
+	offerForm.budget = String(estimate.total)
+	amountError.value = ''
+	if (!offerForm.inclusions.some(i => i.trim())) offerForm.inclusions = estimate.lines.map(l => `${l.label}: ${l.detail}`)
+	if (guests && !offerForm.guests) offerForm.guests = String(guests)
+	showBuilder.value = false
+}
+
+function clearLines() {
+	offerLines.value = []
+	offerForm.budget = ''
 }
 
 async function submitOffer() {
@@ -878,7 +967,9 @@ async function submitOffer() {
 			package_name: offerForm.packageName.trim() || null,
 			proposal: proposal || null,
 			terms: offerForm.timeline.trim() || null,
-			items: [{ description: offerForm.packageName.trim() || 'Event package', quantity: 1, unit_price: quotationAmount }],
+			items: offerLines.value.length
+				? offerLines.value
+				: [{ description: offerForm.packageName.trim() || 'Event package', quantity: 1, unit_price: quotationAmount }],
 		}, true)
 		const response = { message: 'Quotation sent to the client.' }
 

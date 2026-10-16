@@ -23,6 +23,8 @@ class AuthCodeMail extends Mailable
         public readonly string $firstName,
         // Set when an admin added this person as a NaSeRy admin: the reset code sets their first password.
         public readonly ?string $invitedBy = null,
+        // The invitee's address (for the set-up link). Only used with $invitedBy.
+        public readonly ?string $email = null,
     ) {}
 
     public function envelope(): Envelope
@@ -50,6 +52,12 @@ class AuthCodeMail extends Mailable
                 'isReset' => $this->purpose === AuthCodePurpose::PasswordReset,
                 'invitedBy' => $this->invitedBy,
                 'resetUrl' => rtrim((string) config('nasery.auth.frontend_url'), '/').'/forgot-password',
+                // Admin invitations: one link straight to the account set-up page, with the
+                // e-mail and code in the #fragment (browsers never send it to the server, so
+                // it stays out of server logs).
+                'setupUrl' => $this->invitedBy === null ? null : rtrim((string) config('nasery.auth.frontend_url'), '/')
+                    .'/admin-setup#'.http_build_query(['email' => $this->email, 'code' => $this->code]),
+                'inviteHours' => (int) config('nasery.auth.codes.invite_ttl_hours', 72),
             ],
         );
     }

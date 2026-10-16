@@ -51,6 +51,7 @@ class EventActivityController extends Controller
             'person' => ['sometimes', 'nullable', 'string', 'max:120'],
             'status' => ['sometimes', Rule::in(['pending', 'in_progress', 'completed'])],
             'activity_at' => ['sometimes', 'nullable', 'date'],
+            'visible_to_client' => ['sometimes', 'boolean'],
         ]);
     }
 }

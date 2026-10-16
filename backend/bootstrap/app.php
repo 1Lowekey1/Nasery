@@ -38,6 +38,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(AssignRequestId::class);
         $middleware->replace(TrustProxies::class, TrustConfiguredProxies::class);
 
+        // API only: a signed-out request is a 401 JSON answer, never a redirect to a
+        // "login" route (there is none; the Nuxt site has its own sign-in page).
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/login');
+
         // Sanctum SPA (cookie + CSRF) authentication for the Nuxt frontend.
         $middleware->statefulApi();
 
@@ -87,6 +91,8 @@ return Application::configure(basePath: dirname(__DIR__))
                 ? ApiExceptionRenderer::render($e, $request)
                 : null,
         );
+
+        $exceptions->dontReportWhen(fn (Throwable $e) => $e instanceof \App\Exceptions\ApiException && $e->status < 500);
 
         $exceptions->dontFlash(['password', 'password_confirmation', 'current_password', 'token']);
     })->create();

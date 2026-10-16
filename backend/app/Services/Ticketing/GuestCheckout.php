@@ -104,7 +104,7 @@ class GuestCheckout
     /**
      * @return array{verified: true, email: string, verification_token: string}
      */
-    public function verifyCode(string $eventId, string $email, string $code): array
+    public function verifyCode(string $eventId, string $email, #[SensitiveParameter] string $code): array
     {
         $this->publicEvent($eventId);
         $email = $this->normalize($email);

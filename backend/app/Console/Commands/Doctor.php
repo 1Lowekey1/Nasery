@@ -133,6 +133,13 @@ class Doctor extends Command
             "select count(*) = 8 from information_schema.columns where table_schema = 'public' and table_name = 'public_organization_profiles'
                 and column_name in ('years_experience', 'service_radius_km', 'event_tags', 'specialties', 'website', 'facebook', 'instagram', 'banner_color')",
         ));
+        $this->check('0048 price list details (units, quantities, estimate settings)', $this->exists(
+            "select count(*) = 3 from information_schema.columns where table_schema = 'public' and table_name = 'public_organization_price_options'
+                and column_name in ('unit_label', 'min_quantity', 'max_quantity')",
+        ));
+        $this->check('0049 activities can be shown to the client', $this->exists(
+            "select count(*) = 1 from information_schema.columns where table_schema = 'public' and table_name = 'event_activities' and column_name = 'visible_to_client'",
+        ));
         $this->check('laravel migrations table', $this->exists("select to_regclass('laravel.migrations') is not null"));
         $this->check('every public table has RLS enabled', $this->exists(
             "select count(*) = 0 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity",
