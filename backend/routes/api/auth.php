@@ -28,6 +28,10 @@ Route::prefix('auth')->name('auth.')->group(function () {
     Route::post('password/reset', [PasswordController::class, 'reset'])
         ->middleware(['throttle:password-reset', 'throttle:sensitive'])->name('password.reset');
 
+    // Team invitation link (account created by the invitation): set the first password and join.
+    Route::post('team-setup', [PasswordController::class, 'teamSetup'])
+        ->middleware(['throttle:password-reset', 'throttle:sensitive'])->name('team-setup');
+
     Route::prefix('social')->name('social.')->group(function () {
         Route::get('providers', [SocialAuthController::class, 'providers'])
             ->middleware('throttle:public')->name('providers');

@@ -115,6 +115,29 @@ class Alerts
             'Open NaSeRy to accept or decline the invitation.', ['organization_member_id' => $member->id], '/organizer/onboarding');
     }
 
+    /** Owner (or a staff manager) removed this member; their account stays, the team access ends. */
+    public function staffRemoved(OrganizationMember $member, string $organizationName): void
+    {
+        $this->notifier->send($member->user_id, 'staff.removed', "You're no longer on {$organizationName}'s team",
+            "{$organizationName} removed you from their team on NaSeRy, so you can't open their events anymore. Your account stays; another organizer can invite you.",
+            ['organization_member_id' => $member->id], '/organizer/onboarding');
+    }
+
+    /** A member left on their own: tell whoever manages the team. */
+    public function staffLeft(OrganizationMember $member, string $name, int $openTasks): void
+    {
+        $this->notifier->send($this->recipients->forOrganization($member->organization_id, ['staff.manage']), 'staff.left', "{$name} left your team",
+            $openTasks > 0 ? "{$openTasks} of their open ".($openTasks === 1 ? 'task needs' : 'tasks need').' a new assignee in Preparation.' : 'They had no open tasks.',
+            ['organization_member_id' => $member->id, 'organization_id' => $member->organization_id], '/organizer/team');
+    }
+
+    /** Open tasks of a removed member were handed to this person. */
+    public function tasksHandedOver(OrganizationMember $to, int $count): void
+    {
+        $this->notifier->send($to->user_id, 'task.assigned', $count === 1 ? 'A task was handed over to you' : "{$count} tasks were handed over to you",
+            'A teammate left, so their open work is now yours. See My Assignments.', ['organization_member_id' => $to->id], '/team/dashboard');
+    }
+
     /** @param  list<string>  $eventMemberIds  newly assigned */
     public function taskAssigned(Event $event, Task $task, array $eventMemberIds, ?string $actorUserId): void
     {

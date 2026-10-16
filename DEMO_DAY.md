@@ -20,8 +20,13 @@ They end in `@demo.nasery.test`, so NaSeRy never sends them real e-mail.
 | Event coordinator / finance staff | `ken@demo.nasery.test` / `paolo@demo.nasery.test` |
 | Another organizer (Mindanao Grand Occasions) | `carlo@demo.nasery.test` |
 | Mindanao Grand staff (coordinator / check-in) | `jessa@demo.nasery.test` / `mark@demo.nasery.test` |
+| Former staff (sees "You're no longer on … team") | `paula@demo.nasery.test` (left Davao Dream) / `leo@demo.nasery.test` (removed by Mindanao Grand) |
 | Client with bookings, reviews and tickets | `ella@demo.nasery.test`, `miguel@demo.nasery.test`, `bea@demo.nasery.test` |
 | Demo platform admin | `admin@demo.nasery.test` (your own super-admin account works too) |
+
+Staff accounts were created by invitation (the new way). On Davao Dream's Team page, **Rina Cortez** is an
+invitation not opened yet ("Waiting for set-up", with Resend); she has no password, so she can't sign in.
+Ken and Aira are the door team of the Live Demo Night.
 
 Pending / under-review / rejected organizer applications: Toril Party Planners, Buhangin Balloons, Quick Party PH.
 
@@ -37,10 +42,20 @@ keeps its start within the next ~2 hours (check-in opens 3 hours before the star
    - **Regular ₱150 / VIP ₱500**: goes to PayMongo **test mode**. Pay with one of PayMongo's
      published test cards (developers.paymongo.com → "Testing"); no real money moves.
 2. The buyer shows the QR (from the e-mail, or My Tickets when signed in).
-3. **Door** (signed in as `aira@`): Ticketing & Attendance → QR Check-in tab → pick the event → scan the QR with the camera.
+3. **Door** (signed in as `aira@`): **QR Check-in** in her Team Member Portal menu → pick the event → scan the QR with the camera.
    It says *Welcome, …*; scanning the same QR again says *Already checked in*.
 4. **Organizer** (`maria@`): the event's dashboard shows the sale, the payment and the check-in live;
    Earnings shows the ticket share.
+
+## Team members (onboarding, roles, removal)
+
+1. As `maria@` → **Team** → enter a first name, last name, the panelist's real e-mail and a role (e.g. Check-in Staff) → **Send invite**.
+2. They get one e-mail, "Maria Santos invited you to join Davao Dream Events", with a **Join the team** button
+   (works 72 hours, once). It opens a page where they only choose a password: the invitation creates the account.
+3. They sign in and land in the **Team Member Portal**. The menu shows only what their role and event assignments
+   allow (check-in staff: My Assignments + QR Check-in).
+4. **Remove**: Team → Remove → NaSeRy lists their open tasks and lets you hand them to someone else. Access ends at
+   once; their finished work keeps their name; they're told by e-mail. A member can also **Leave this team** themselves.
 
 ## What else is in the data (about a year of use)
 

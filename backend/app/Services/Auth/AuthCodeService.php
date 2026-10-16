@@ -24,7 +24,10 @@ class AuthCodeService
      * Create (or replace) the user's code for $purpose and email it.
      * Throws RESEND_COOLDOWN when asked again too soon.
      */
-    public function issue(User $user, AuthCodePurpose $purpose, ?string $invitedBy = null): void
+    /**
+     * @param  array{organization: string, role: string}|null  $team  set for a team invitation (with $invitedBy)
+     */
+    public function issue(User $user, AuthCodePurpose $purpose, ?string $invitedBy = null, ?array $team = null): void
     {
         $settings = config('nasery.auth.codes');
 
@@ -58,7 +61,7 @@ class AuthCodeService
         // Sent as soon as the request commits (never for a rolled-back sign-up), directly
         // rather than through the queue: codes expire in minutes. A mail failure never
         // undoes the request; the user can press "Resend code".
-        $mail = new AuthCodeMail($code, $purpose, $user->first_name, $invitedBy, $user->email);
+        $mail = new AuthCodeMail($code, $purpose, $user->first_name, $invitedBy, $user->email, $team);
         DB::afterCommit(function () use ($user, $mail, $purpose) {
             try {
                 Mail::to($user->email)->send($mail);

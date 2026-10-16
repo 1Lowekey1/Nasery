@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Staff;
 
+use App\Mail\AuthCodeMail;
 use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Tests\Concerns\InteractsWithOrganizations;
 use Tests\TestCase;
@@ -107,8 +109,10 @@ class StaffTest extends TestCase
         $client = User::factory()->create();
         $pending = $this->businessUser();
 
-        $this->invite($owner, $org, 'nobody@nasery.test')->assertUnprocessable()->assertJsonStructure(['error' => ['details' => ['fields' => ['email']]]]);
-        $this->invite($owner, $org, $client->email)->assertUnprocessable();
+        // A new e-mail needs a name (the invitation creates the account); a client account can't be invited (generic answer).
+        $this->invite($owner, $org, 'nobody@nasery.test')->assertUnprocessable()->assertJsonStructure(['error' => ['details' => ['fields' => ['first_name']]]]);
+        $this->invite($owner, $org, $client->email)->assertConflict()
+            ->assertJsonPath('error.message', "This e-mail can't be invited right now. Ask them for another address, or to leave their current team first.");
         $this->invite($owner, $org, $owner->email)->assertUnprocessable();
         $this->invite($owner, $org, $pending->email)->assertCreated();
         $this->invite($owner, $org, $pending->email)->assertConflict();
@@ -237,5 +241,135 @@ class StaffTest extends TestCase
         $this->join($owner, $org, ['role_id' => $role['id']]);
         $this->actingAs($owner)->spaJson('DELETE', "{$base}/{$role['id']}")->assertConflict();
         $this->actingAs($owner)->spaJson('PATCH', "{$base}/{$role['id']}", ['permissions' => ['checkin.perform']])->assertOk();
+    }
+    public function test_invitation_creates_the_account_and_the_link_joins_the_team(): void
+    {
+        Mail::fake();
+        [$org, $owner] = $this->listedOrganizer();
+
+        $this->invite($owner, $org, 'Rosa.New@nasery.test', ['preset' => 'coordinator', 'first_name' => 'Rosa', 'last_name' => 'Lim'])->assertCreated();
+        $rosa = User::query()->where('email', 'rosa.new@nasery.test')->firstOrFail();
+        $this->assertNull($rosa->password_hash);
+        $this->assertSame('business', $rosa->account_type->value);
+        $row = collect($this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/team")->json('data.members'))->firstWhere('user_id', $rosa->id);
+        $this->assertSame('invited', $row['status']);
+        $this->assertTrue($row['account_pending']);
+
+        // One e-mail with the set-up link (organization and role shown), no second "invited" notice.
+        $mail = null;
+        Mail::assertSent(AuthCodeMail::class, function (AuthCodeMail $m) use (&$mail) {
+            $mail = $m;
+
+            return $m->hasTo('rosa.new@nasery.test');
+        });
+        $this->assertSame(['organization' => $org->display_name, 'role' => 'Coordinator'], $mail->team);
+        $this->assertStringContainsString('/team-setup#', $mail->content()->with['setupUrl']);
+        $this->assertSame(0, DB::table('notifications')->where('recipient_user_id', $rosa->id)->count());
+
+        // Resend works while pending; a wrong code changes nothing.
+        $memberId = $this->memberId($org, $rosa);
+        $this->travel(2)->minutes();
+        $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/team/{$memberId}/resend")->assertOk();
+        Mail::assertSent(AuthCodeMail::class, 2);
+        $this->spaJson('POST', '/api/v1/auth/team-setup', ['email' => $rosa->email, 'code' => '000000', 'password' => 'NewPass123', 'password_confirmation' => 'NewPass123'])->assertUnprocessable();
+
+        $code = null;
+        Mail::assertSent(AuthCodeMail::class, function (AuthCodeMail $m) use (&$code) {
+            $code = $m->code;
+
+            return true;
+        });
+        $this->spaJson('POST', '/api/v1/auth/team-setup', ['email' => 'ROSA.new@nasery.test', 'code' => $code, 'password' => 'NewPass123', 'password_confirmation' => 'NewPass123'])
+            ->assertOk()->assertJsonPath('data.organization', $org->display_name);
+
+        // Active, verified, on the team; the link can't be used twice.
+        $rosa->refresh();
+        $this->assertNotNull($rosa->email_verified_at);
+        $this->assertSame('active', DB::table('organization_members')->where('id', $memberId)->value('status'));
+        $this->spaJson('POST', '/api/v1/auth/team-setup', ['email' => $rosa->email, 'code' => $code, 'password' => 'Other1234', 'password_confirmation' => 'Other1234'])->assertUnprocessable();
+        // They sign in with the new password and are a Coordinator on the team.
+        $this->app['auth']->forgetGuards();
+        $this->spaJson('POST', '/api/v1/auth/login', ['email' => $rosa->email, 'password' => 'NewPass123'])->assertOk();
+        $this->spaJson('GET', '/api/v1/organizations/mine')->assertOk()->assertJsonPath('data.0.my_membership.role', 'Coordinator');
+    }
+
+    public function test_cancelled_invitation_removes_the_unused_account(): void
+    {
+        Mail::fake();
+        [$org, $owner] = $this->listedOrganizer();
+        $this->invite($owner, $org, 'temp@nasery.test', ['preset' => 'sales', 'first_name' => 'Tem', 'last_name' => 'Porary'])->assertCreated();
+        $temp = User::query()->where('email', 'temp@nasery.test')->firstOrFail();
+
+        $this->actingAs($owner)->spaJson('DELETE', "/api/v1/organizations/{$org->id}/team/{$this->memberId($org, $temp)}")->assertOk();
+        $this->assertNotNull(DB::table('users')->where('id', $temp->id)->value('deleted_at'));
+        // The address can be invited again.
+        $this->invite($owner, $org, 'temp@nasery.test', ['preset' => 'sales', 'first_name' => 'Tem', 'last_name' => 'Porary'])->assertCreated();
+    }
+
+    public function test_removed_member_loses_access_and_open_tasks_are_handed_over(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $leaving = $this->join($owner, $org, ['preset' => 'checkin']);
+        $staying = $this->join($owner, $org, ['preset' => 'checkin']);
+        $event = $this->event($owner, $org);
+        $eventMember = $this->assignToEvent($owner, $org, $event, $leaving);
+        $base = "/api/v1/organizations/{$org->id}/events/{$event}";
+        $tasks = $this->actingAs($owner)->spaJson('POST', "{$base}/checklists", ['starter' => true])->json('data.checklists.0.tasks');
+        foreach ([0, 1, 2] as $i) {
+            $this->actingAs($owner)->spaJson('PUT', "{$base}/tasks/{$tasks[$i]['id']}/assignees", ['event_member_ids' => [$eventMember]])->assertOk();
+        }
+        // One finished task stays theirs (history).
+        $this->actingAs($leaving)->spaJson('PATCH', "{$base}/tasks/{$tasks[0]['id']}", ['status' => 'done', 'completion_note' => 'Booked'])->assertOk();
+
+        $leavingId = $this->memberId($org, $leaving);
+        $this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/team/{$leavingId}/open-tasks")->assertOk()->assertJsonCount(2, 'data');
+
+        $this->actingAs($owner)->spaJson('DELETE', "/api/v1/organizations/{$org->id}/team/{$leavingId}", ['reassign_to' => $this->memberId($org, $staying)])
+            ->assertOk()->assertJsonPath('message', 'Team member removed. 2 open tasks were handed over.');
+
+        // Access ends; the finished task keeps their name; the open ones are now the other member's.
+        $this->actingAs($leaving)->spaJson('GET', "/api/v1/organizations/{$org->id}/events/{$event}")->assertNotFound();
+        $assignees = fn (string $task) => DB::table('task_assignees as ta')->join('event_members as em', 'em.id', '=', 'ta.event_member_id')
+            ->join('organization_members as m', 'm.id', '=', 'em.organization_member_id')->where('ta.task_id', $task)->pluck('m.user_id')->all();
+        $this->assertSame([$leaving->id], $assignees($tasks[0]['id']));
+        $this->assertSame([$staying->id], $assignees($tasks[1]['id']));
+        $this->assertSame([$staying->id], $assignees($tasks[2]['id']));
+
+        // They're told, and their dashboard knows why.
+        $this->actingAs($leaving)->spaJson('GET', '/api/v1/me/notifications')->assertJsonPath('data.0.type', 'staff.removed');
+        $this->actingAs($leaving)->spaJson('GET', '/api/v1/me/former-team')->assertOk()
+            ->assertJsonPath('data.organization', $org->display_name)->assertJsonPath('data.how', 'removed');
+    }
+
+    public function test_member_can_leave_and_open_tasks_need_a_new_assignee(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $quitter = $this->join($owner, $org, ['preset' => 'coordinator']);
+        $event = $this->event($owner, $org);
+        $eventMember = $this->assignToEvent($owner, $org, $event, $quitter);
+        $base = "/api/v1/organizations/{$org->id}/events/{$event}";
+        $task = $this->actingAs($owner)->spaJson('POST', "{$base}/checklists", ['starter' => true])->json('data.checklists.0.tasks.0.id');
+        $this->actingAs($owner)->spaJson('PUT', "{$base}/tasks/{$task}/assignees", ['event_member_ids' => [$eventMember]])->assertOk();
+
+        $this->actingAs($owner)->spaJson('POST', '/api/v1/me/team/leave')->assertForbidden(); // owners transfer ownership instead
+        $this->actingAs($quitter)->spaJson('POST', '/api/v1/me/team/leave')->assertOk();
+
+        $this->assertSame(0, DB::table('task_assignees')->where('task_id', $task)->count());
+        $this->assertSame('deactivated', DB::table('organization_members')->where('organization_id', $org->id)->where('user_id', $quitter->id)->value('status'));
+        $this->actingAs($owner)->spaJson('GET', '/api/v1/me/notifications')->assertJsonPath('data.0.type', 'staff.left')
+            ->assertJsonPath('data.0.body', '1 of their open task needs a new assignee in Preparation.');
+        $this->actingAs($quitter)->spaJson('GET', '/api/v1/me/former-team')->assertJsonPath('data.how', 'left');
+        // Free to join another organization now.
+        [$other, $otherOwner] = $this->listedOrganizer('Other Co');
+        $this->invite($otherOwner, $other, $quitter->email)->assertCreated();
+    }
+
+    public function test_event_only_permissions_are_listed_for_the_team_portal(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $checker = $this->join($owner, $org, ['preset' => 'checkin']);
+        $this->actingAs($checker)->spaJson('GET', '/api/v1/organizations/mine')->assertJsonPath('data.0.my_membership.event_permissions', []);
+        $this->assignToEvent($owner, $org, $this->event($owner, $org), $checker, ['checkin.perform']);
+        $this->actingAs($checker)->spaJson('GET', '/api/v1/organizations/mine')->assertJsonPath('data.0.my_membership.event_permissions', ['checkin.perform']);
     }
 }

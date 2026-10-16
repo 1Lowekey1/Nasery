@@ -100,6 +100,10 @@
 								class="mt-1 block text-xs font-semibold text-[#285F6b]">
 								Assigned to {{ memberName(item.assigned_team_member) }}
 							</span>
+							<!-- e.g. the assignee left or was removed from the team -->
+							<span v-else-if="!item.is_completed" class="mt-1 block text-xs font-semibold text-amber-700">
+								Needs an assignee
+							</span>
 							<span v-if="item.completed_by" class="mt-1 block text-xs text-gray-500">
 								Completed by {{ userName(item.completed_by) }}
 								<template v-if="item.completion_note"> —

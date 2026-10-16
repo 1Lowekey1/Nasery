@@ -56,6 +56,15 @@ function Workers([bool]$changed) {
   Ok 'Queue worker (e-mails) and scheduler (ticket holds, reminders, billing) started'
 }
 
+function DemoEvent {
+  # The always-open demo event (ticket purchase -> check-in): create it or move its
+  # door window now, instead of waiting for the scheduler's next hourly run.
+  # Safe to repeat; never touches tickets. Does nothing without the demo dataset.
+  Push-Location $Backend
+  try { & $Php artisan nasery:demo:event *> $null } finally { Pop-Location }
+  if ($LASTEXITCODE -eq 0) { Ok 'Demo event ready (check-in open)' } else { Info 'Demo event not updated (run: php artisan nasery:demo:event)' }
+}
+
 Write-Host "`n  NaSeRy ($Mode)`n  ------"
 
 # 1. Database ----------------------------------------------------------------
@@ -87,6 +96,7 @@ if ($Mode -eq 'dev') {
   }
   Ok 'Development settings'
   Workers $changed
+  DemoEvent
   if (Listening 3000) { Ok 'Website already running' } else { Window 'Website (dev)' $Frontend 'npm.cmd run dev'; Info 'Website starting (about 20 seconds)' }
   for ($i = 0; $i -lt 120 -and -not (Listening 3000); $i++) { Start-Sleep 1 }
   Start-Process 'http://localhost:3000'
@@ -156,6 +166,7 @@ if (-not $changed) {
 
 # 5. Workers -----------------------------------------------------------------
 Workers $changed
+DemoEvent
 
 # 6. Check the link from outside ---------------------------------------------
 Info 'Checking the link answers (new links can take ~30 seconds to work)'

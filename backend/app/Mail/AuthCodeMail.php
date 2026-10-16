@@ -25,10 +25,15 @@ class AuthCodeMail extends Mailable
         public readonly ?string $invitedBy = null,
         // The invitee's address (for the set-up link). Only used with $invitedBy.
         public readonly ?string $email = null,
+        // Team invitation (organizer staff): which organization and role. Null = admin invitation.
+        public readonly ?array $team = null,
     ) {}
 
     public function envelope(): Envelope
     {
+        if ($this->team !== null) {
+            return new Envelope(subject: "{$this->invitedBy} invited you to join {$this->team['organization']} on NaSeRy");
+        }
         if ($this->invitedBy !== null) {
             return new Envelope(subject: "{$this->invitedBy} added you as a NaSeRy administrator");
         }
@@ -56,7 +61,11 @@ class AuthCodeMail extends Mailable
                 // e-mail and code in the #fragment (browsers never send it to the server, so
                 // it stays out of server logs).
                 'setupUrl' => $this->invitedBy === null ? null : rtrim((string) config('nasery.auth.frontend_url'), '/')
-                    .'/admin-setup#'.http_build_query(['email' => $this->email, 'code' => $this->code]),
+                    .($this->team !== null
+                        // Organization and role are only shown on the page; the server decides what they join.
+                        ? '/team-setup#'.http_build_query(['email' => $this->email, 'code' => $this->code, 'org' => $this->team['organization'], 'role' => $this->team['role']])
+                        : '/admin-setup#'.http_build_query(['email' => $this->email, 'code' => $this->code])),
+                'team' => $this->team,
                 'inviteHours' => (int) config('nasery.auth.codes.invite_ttl_hours', 72),
             ],
         );

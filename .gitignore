@@ -10,6 +10,7 @@ backend/CLAUDE.md
 backend/AGENTS.md
 node_modules/
 Context Folder/
+.github/
 
 # Dependency Folders
 backend/vendor/

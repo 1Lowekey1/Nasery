@@ -7,9 +7,13 @@
         <p style="margin:0 0 4px;font-size:20px;font-weight:bold;">NaSeRy</p>
         <p style="margin:24px 0 8px;">Hi {{ $firstName }},</p>
         @if ($invitedBy)
-            <p style="margin:0 0 20px;">{{ $invitedBy }} added you as a <strong>NaSeRy administrator</strong>. Choose your password to activate your account:</p>
+            @if ($team)
+                <p style="margin:0 0 20px;">{{ $invitedBy }} invited you to join <strong>{{ $team['organization'] }}</strong> on NaSeRy as <strong>{{ $team['role'] }}</strong>. Choose your password to create your team account:</p>
+            @else
+                <p style="margin:0 0 20px;">{{ $invitedBy }} added you as a <strong>NaSeRy administrator</strong>. Choose your password to activate your account:</p>
+            @endif
             <p style="margin:0 0 24px;text-align:center;">
-                <a href="{{ $setupUrl }}" style="display:inline-block;background:#285f6b;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:8px;">Set up my admin account</a>
+                <a href="{{ $setupUrl }}" style="display:inline-block;background:#285f6b;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:8px;">{{ $team ? 'Join the team' : 'Set up my admin account' }}</a>
             </p>
             <p style="margin:0 0 8px;color:#6b7280;font-size:14px;">The link works for {{ $inviteHours }} hours. If the button doesn't open, copy this address into your browser:</p>
             <p style="margin:0 0 20px;font-size:12px;word-break:break-all;"><a href="{{ $setupUrl }}" style="color:#1f6f5c;">{{ $setupUrl }}</a></p>

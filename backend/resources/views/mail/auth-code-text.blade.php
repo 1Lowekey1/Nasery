@@ -1,7 +1,11 @@
 Hi {{ $firstName }},
 
 @if ($invitedBy)
+@if ($team)
+{{ $invitedBy }} invited you to join {{ $team['organization'] }} on NaSeRy as {{ $team['role'] }}. Choose your password to create your team account:
+@else
 {{ $invitedBy }} added you as a NaSeRy administrator. Choose your password to activate your account:
+@endif
 
 {{ $setupUrl }}
 

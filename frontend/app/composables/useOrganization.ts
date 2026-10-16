@@ -44,6 +44,8 @@ export interface Organization {
     role: string | null
     permissions: string[]
     sees_all_events: boolean
+    /** Permissions held only on events they're assigned to (e.g. checkin.perform). */
+    event_permissions?: string[]
   } | null
   profile?: OrganizationProfile
   created_at: string

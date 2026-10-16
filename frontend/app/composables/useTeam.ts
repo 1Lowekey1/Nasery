@@ -7,6 +7,8 @@ export interface TeamMember {
   email: string | null
   phone: string | null
   status: 'active' | 'invited' | 'deactivated'
+  /** Invited by e-mail and hasn't opened the set-up link yet. */
+  account_pending?: boolean
   is_owner: boolean
   is_primary_owner: boolean
   role_id: string | null
@@ -27,6 +29,12 @@ export interface Team {
   permissions: Permission[]
   can_manage: boolean
 }
+
+/** An open task of a member, shown before removing them. */
+export interface OpenTask { id: string, name: string, status: string, due_at: string | null, event: { id: string, name: string } }
+
+/** The team a business account was on last (removed or left). */
+export interface FormerTeam { organization: string, ended_at: string | null, how: 'removed' | 'left' }
 
 export interface MyInvitation { id: string, organization: string, role: string, invited_by: string | null, invited_at: string }
 
@@ -76,11 +84,18 @@ export const useTeam = () => {
 
   return {
     team: async (orgId: string) => (await api.get<Team>(`${base(orgId)}/team`)).data,
-    invite: async (orgId: string, email: string, role: RoleChoice) =>
-      (await api.post<TeamMember[]>(`${base(orgId)}/team/invitations`, { email, ...role })).data,
+    /** No NaSeRy account yet? Give their name: the invitation creates it and e-mails a set-up link. */
+    invite: async (orgId: string, email: string, role: RoleChoice, name?: { first_name: string, last_name: string }) =>
+      (await api.post<TeamMember[]>(`${base(orgId)}/team/invitations`, { email, ...role, ...(name ?? {}) })).data,
+    resend: async (orgId: string, memberId: string) => (await api.post<TeamMember[]>(`${base(orgId)}/team/${memberId}/resend`)).data,
+    openTasks: async (orgId: string, memberId: string) => (await api.get<OpenTask[]>(`${base(orgId)}/team/${memberId}/open-tasks`)).data,
     changeRole: async (orgId: string, memberId: string, role: RoleChoice) =>
       (await api.patch<TeamMember[]>(`${base(orgId)}/team/${memberId}`, role)).data,
-    remove: async (orgId: string, memberId: string) => (await api.delete<TeamMember[]>(`${base(orgId)}/team/${memberId}`)).data,
+    /** Deactivate (or cancel an invite). Their open tasks go to reassignTo, or become unassigned. */
+    remove: async (orgId: string, memberId: string, reassignTo?: string | null) => {
+      const r = await api.delete<TeamMember[]>(`${base(orgId)}/team/${memberId}`, reassignTo ? { query: { reassign_to: reassignTo } } : undefined)
+      return { members: r.data, message: r.message }
+    },
     reactivate: async (orgId: string, memberId: string) => (await api.post<TeamMember[]>(`${base(orgId)}/team/${memberId}/reactivate`)).data,
     createRole: async (orgId: string, body: { name: string, description?: string | null, permissions: string[] }) =>
       (await api.post<TeamRole[]>(`${base(orgId)}/roles`, body)).data,
@@ -91,6 +106,8 @@ export const useTeam = () => {
     myInvitations: async () => (await api.get<MyInvitation[]>('/me/invitations')).data,
     accept: (id: string) => api.post(`/me/invitations/${id}/accept`),
     decline: (id: string) => api.post(`/me/invitations/${id}/decline`),
+    leave: () => api.post('/me/team/leave'),
+    formerTeam: async () => (await api.get<FormerTeam | null>('/me/former-team')).data,
 
     eventTeam: async (orgId: string, eventId: string) => (await api.get<EventTeamMember[]>(`${base(orgId)}/events/${eventId}/team`)).data,
     addToEvent: async (orgId: string, eventId: string, body: { organization_member_id: string, label: string | null, permissions: string[] }) =>

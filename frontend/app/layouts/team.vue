@@ -4,16 +4,23 @@
       <div class="flex h-full w-64 flex-col overflow-y-auto">
         <div class="flex items-center gap-2.5 px-5 py-5"><div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-700 text-sm font-bold text-white">N</div><div><div class="text-base font-bold leading-tight text-gray-900">NaSeRy</div><div class="text-[11px] text-gray-400">Event Management System</div></div></div>
         <div class="px-5 pb-3"><span class="inline-flex items-center gap-1.5 rounded-md bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700"><span class="h-1.5 w-1.5 rounded-full bg-primary-600" />Team Member Portal</span></div>
-        <nav class="flex-1 space-y-1 px-3"><NuxtLink to="/team/dashboard" class="flex items-center gap-3 rounded-lg bg-primary-700 px-3 py-2.5 text-sm font-semibold text-white"><IconBase name="clipboard-list" class="h-[18px] w-[18px]" />My Assignments</NuxtLink></nav>
+        <nav class="flex-1 space-y-1 px-3" aria-label="Team member menu">
+          <NuxtLink v-for="item in nav" :key="item.to" :to="item.to" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold"
+            :class="isActive(item) ? 'bg-primary-700 text-white' : 'text-gray-600 hover:bg-gray-100'" :aria-current="isActive(item) ? 'page' : undefined">
+            <IconBase :name="item.icon" class="h-[18px] w-[18px]" />{{ item.label }}
+          </NuxtLink>
+        </nav>
+        <p v-if="orgName" class="px-5 pb-2 text-[11px] text-gray-400">Team: <span class="font-semibold text-gray-500">{{ orgName }}</span></p>
         <div class="border-t border-gray-100 px-4 py-4">
           <button type="button" class="mb-1 flex w-full items-center gap-3 rounded-lg p-1.5 text-left hover:bg-gray-50" @click="openProfilePanel"><div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-700 text-sm font-bold text-white"><img v-if="user?.avatar_url" :src="user.avatar_url" alt="" class="h-full w-full object-cover" /><span v-else>{{ initials }}</span></div><div class="min-w-0"><div class="truncate text-sm font-semibold text-gray-900">{{ fullName }}</div><div class="text-xs text-gray-400">Team Member</div></div></button>
           <p class="mb-3 px-1.5 text-[11px] text-gray-400">Click profile to customise</p>
           <button type="button" class="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-700" @click="signOut"><IconBase name="log-out" class="h-4 w-4" />Sign out</button>
+          <button type="button" class="mt-2 text-xs font-semibold text-rose-600 hover:text-rose-800" @click="leaveTeam">Leave this team</button>
         </div>
       </div>
     </aside>
     <div class="flex min-w-0 flex-1 flex-col">
-      <header class="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-3.5"><div class="flex items-center gap-4"><button type="button" class="text-gray-400 hover:text-gray-600" @click="sidebarOpen = !sidebarOpen"><IconBase :name="sidebarOpen ? 'x' : 'menu'" class="h-5 w-5" /></button><div><div class="text-xs text-gray-400">Team Member Portal</div><div class="text-sm font-bold text-gray-900">My Assignments</div></div></div><span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700"><span class="h-1.5 w-1.5 rounded-full bg-green-500" />System Online</span></header>
+      <header class="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-3.5"><div class="flex items-center gap-4"><button type="button" class="text-gray-400 hover:text-gray-600" @click="sidebarOpen = !sidebarOpen"><IconBase :name="sidebarOpen ? 'x' : 'menu'" class="h-5 w-5" /></button><div><div class="text-xs text-gray-400">Team Member Portal</div><div class="text-sm font-bold text-gray-900">{{ currentLabel }}</div></div></div><span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700"><span class="h-1.5 w-1.5 rounded-full bg-green-500" />System Online</span></header>
       <main class="flex-1 overflow-y-auto p-6"><slot /></main>
     </div>
 
@@ -41,6 +48,26 @@
 
 <script setup lang="ts">
 const { user, fullName, initials, logout, updateProfile } = useAuth('team_member')
+const route = useRoute()
+const { organization, fetchOrganization } = useOrganization()
+const { nav } = useTeamNav()
+const orgName = computed(() => organization.value?.display_name ?? '')
+const isActive = (item: { to: string, matches?: string[] }) => (item.matches ?? [item.to]).some(p => route.path === p || route.path.startsWith(`${p}/`))
+const currentLabel = computed(() => nav.value.find(isActive)?.label ?? 'My Assignments')
+onMounted(() => { if (!organization.value) fetchOrganization().catch(() => {}) })
+
+async function leaveTeam() {
+  const name = orgName.value || 'this team'
+  if (!(await confirmDialog(`Leave ${name}? You lose access to its events right away. Your open tasks go back to the owner to reassign, and your account stays yours.`, { confirmLabel: 'Leave team' }))) return
+  try {
+    await useTeam().leave()
+    await fetchOrganization(true).catch(() => null)
+    await navigateTo('/organizer/onboarding', { replace: true })
+    window.location.reload()
+  } catch (error: unknown) {
+    saveError.value = authMessage(error) || 'Unable to leave the team.'
+  }
+}
 const sidebarOpen = ref(true)
 const showProfilePanel = ref(false)
 const isSaving = ref(false)

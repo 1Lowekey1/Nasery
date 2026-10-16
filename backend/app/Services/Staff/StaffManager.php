@@ -3,12 +3,15 @@
 namespace App\Services\Staff;
 
 use App\Enums\AccountType;
+use App\Enums\AuthCodePurpose;
 use App\Enums\MembershipStatus;
 use App\Exceptions\ApiException;
+use App\Models\Auth\AuthCode;
 use App\Models\Organization;
 use App\Models\OrganizationMember;
 use App\Models\OrganizationRole;
 use App\Models\User;
+use App\Services\Auth\AuthCodeService;
 use App\Services\Billing\Entitlements;
 use App\Services\Notifications\Alerts;
 use App\Support\Audit\AuditLogger;
@@ -153,7 +156,7 @@ class StaffManager
         $members = OrganizationMember::query()->where('organization_id', $organization->id)
             ->orderByDesc('is_owner')->orderBy('status')->orderBy('created_at')->get();
         $users = $this->db->system('staff.member_names', fn () => DB::table('users')->whereIn('id', $members->pluck('user_id'))
-            ->get(['id', 'first_name', 'last_name', 'email', 'phone'])->keyBy('id'));
+            ->get(['id', 'first_name', 'last_name', 'email', 'phone', 'password_hash'])->keyBy('id'));
         $roles = OrganizationRole::query()->whereIn('id', $members->pluck('organization_role_id')->filter())->pluck('name', 'id');
 
         return $members->map(fn (OrganizationMember $m) => [
@@ -163,6 +166,8 @@ class StaffManager
             'email' => $u->email ?? null,
             'phone' => $u->phone ?? null,
             'status' => $m->status->value,
+            // Invited by e-mail and hasn't opened the set-up link yet.
+            'account_pending' => $m->status === MembershipStatus::Invited && ($users[$m->user_id] ?? null)?->password_hash === null,
             'is_owner' => $m->is_owner,
             'is_primary_owner' => $m->is_primary_owner,
             'role_id' => $m->organization_role_id,
@@ -173,31 +178,56 @@ class StaffManager
         ])->values();
     }
 
-    public function invite(Organization $organization, User $actor, string $email, OrganizationRole $role): OrganizationMember
+/**
+     * Invite someone by e-mail. The invitation is the sign-up: when no NaSeRy
+     * account uses the address yet, a business account without a password is
+     * created and the e-mail carries a one-time set-up link (/team-setup), the
+     * same way admins are onboarded. Opening it proves they own the mailbox;
+     * choosing a password joins the team. Existing business accounts that
+     * aren't on a team accept from their dashboard as before.
+     */
+    public function invite(Organization $organization, User $actor, string $email, OrganizationRole $role, ?string $firstName = null, ?string $lastName = null): OrganizationMember
     {
         $this->assertGrantable($organization, $actor, $this->rolePermissionKeys($role));
         $this->entitlements->assertRoom($organization, 'staff_limit');
         $email = Str::lower(trim($email));
 
-        return $this->db->system('staff.invite', function () use ($organization, $actor, $email, $role) {
-            $invitee = User::query()->whereRaw('lower(email) = ?', [$email])->first();
+        $member = $this->db->system('staff.invite', function () use ($organization, $actor, $email, $role, $firstName, $lastName) {
+            $invitee = User::query()->whereRaw('lower(email) = ?', [$email])->whereNull('deleted_at')->first();
 
-            if ($invitee === null || $invitee->account_type !== AccountType::Business) {
-                throw ValidationException::withMessages(['email' => 'No NaSeRy business account uses this email. Ask them to sign up as an organizer or team member first.']);
+            if ($invitee !== null && $invitee->id === $actor->id) {
+                throw ValidationException::withMessages(['email' => 'You are already on this team.']);
             }
 
-            if ($invitee->id === $actor->id) {
-                throw ValidationException::withMessages(['email' => 'You are already on this team.']);
+            // Same answer for "a client account", "an admin" and "on another team": an invite
+            // must not tell an organizer whether an address works somewhere else on NaSeRy.
+            $unavailable = fn () => new ApiException(ErrorCode::Conflict,
+                'This e-mail can\'t be invited right now. Ask them for another address, or to leave their current team first.', 409);
+
+            if ($invitee !== null && $invitee->account_type !== AccountType::Business) {
+                throw $unavailable();
+            }
+
+            if ($invitee === null) {
+                if (blank($firstName) || blank($lastName)) {
+                    throw ValidationException::withMessages(['first_name' => 'Add their first and last name: NaSeRy creates their account from this invitation.']);
+                }
+                $invitee = new User;
+                $invitee->forceFill([
+                    'email' => $email, 'first_name' => trim($firstName), 'last_name' => trim($lastName),
+                    'account_type' => AccountType::Business, 'password_hash' => null,
+                ])->save();
+                $invitee->refresh();
             }
 
             $rows = OrganizationMember::query()->where('user_id', $invitee->id)->whereNull('deleted_at')->get();
 
             if ($rows->contains(fn ($m) => $m->status === MembershipStatus::Active)) {
-                throw new ApiException(ErrorCode::Conflict, 'This person already belongs to an organization on NaSeRy.', 409);
+                throw $unavailable();
             }
 
             if ($rows->contains(fn ($m) => $m->organization_id === $organization->id && $m->status === MembershipStatus::Invited)) {
-                throw new ApiException(ErrorCode::Conflict, 'This person already has a pending invitation.', 409);
+                throw new ApiException(ErrorCode::Conflict, 'This person already has a pending invitation. Use "Resend" if they lost it.', 409);
             }
 
             // A previously deactivated membership in this organization is reused.
@@ -212,10 +242,55 @@ class StaffManager
             ])->save();
 
             $this->audit->record('staff.invited', $member, new: ['email' => $email, 'role' => $role->name], organizationId: $organization->id);
-            $this->alerts->staffInvited($member, (string) $organization->display_name);
+            // New accounts get the set-up e-mail only (one e-mail, one link); existing ones the usual notice.
+            if ($invitee->password_hash !== null) {
+                $this->alerts->staffInvited($member, (string) $organization->display_name);
+            }
 
             return $member->refresh();
         });
+
+        $this->sendSetupLink($organization, $actor, $member);
+
+        return $member;
+    }
+
+    /** E-mail (again) the invitation: the set-up link for someone without a password yet, otherwise a reminder. */
+    public function resendInvite(Organization $organization, User $actor, OrganizationMember $member): void
+    {
+        if ($member->organization_id !== $organization->id || $member->status !== MembershipStatus::Invited) {
+            throw new ApiException(ErrorCode::NotFound, 'This invitation is no longer pending.', 404);
+        }
+        if (! $this->sendSetupLink($organization, $actor, $member)) {
+            $this->alerts->staffInvited($member, (string) $organization->display_name);
+        }
+        $this->audit->record('staff.invitation_resent', $member, organizationId: $organization->id);
+    }
+
+    /** @return bool whether a set-up link was sent (the invitee has no password yet) */
+    private function sendSetupLink(Organization $organization, User $actor, OrganizationMember $member): bool
+    {
+        $invitee = $this->db->system('staff.invitee', fn () => User::query()->find($member->user_id));
+        if ($invitee === null || $invitee->password_hash !== null) {
+            return false;
+        }
+        $role = $member->organization_role_id ? OrganizationRole::query()->whereKey($member->organization_role_id)->value('name') : null;
+        app(AuthCodeService::class)->issue($invitee, AuthCodePurpose::PasswordReset, trim("{$actor->first_name} {$actor->last_name}"),
+            ['organization' => (string) $organization->display_name, 'role' => $role ?? 'Team member']);
+
+        return true;
+    }
+
+    /**
+     * /team-setup: the invitee opened the link and chose a password. Joins the
+     * organization that invited them (their newest pending invitation).
+     */
+    public function completeSetup(User $user): ?Organization
+    {
+        $memberId = $this->db->system('staff.setup_invitation', fn () => OrganizationMember::query()->where('user_id', $user->id)
+            ->where('status', MembershipStatus::Invited->value)->whereNull('deleted_at')->latest('created_at')->value('id'));
+
+        return $memberId ? $this->respond($user, $memberId, true) : null;
     }
 
     /**
@@ -290,26 +365,178 @@ class StaffManager
         return $member;
     }
 
-    /** Deactivate an active member, or cancel a pending invitation. */
-    public function remove(Organization $organization, User $actor, OrganizationMember $member): void
+/**
+     * Deactivate an active member (fired / left), or cancel a pending invitation.
+     * Their open tasks go to $reassignTo when given, otherwise they become
+     * unassigned ("Needs a new assignee"). History (finished tasks, check-ins,
+     * audit) keeps their name; access ends at once (RLS only sees active members).
+     */
+    public function remove(Organization $organization, User $actor, OrganizationMember $member, ?OrganizationMember $reassignTo = null): array
     {
         $this->assertManageable($organization, $actor, $member);
 
         if ($member->status === MembershipStatus::Invited) {
             $member->forceFill(['deleted_at' => now()])->save();
             $this->audit->record('staff.invitation_cancelled', $member, organizationId: $organization->id);
+            $this->dropUnusedAccount($member->user_id);
 
-            return;
+            return ['reassigned' => 0, 'unassigned' => 0];
         }
 
-        $member->forceFill(['status' => MembershipStatus::Deactivated, 'deactivated_at' => now()])->save();
-        // Their event assignments end with the membership.
-        $this->db->system('staff.deactivate_event_members', fn () => DB::table('event_members')
-            ->where('organization_member_id', $member->id)->where('status', MembershipStatus::Active->value)
-            ->update(['status' => MembershipStatus::Deactivated->value, 'updated_at' => now()]));
+        if ($reassignTo !== null && ($reassignTo->organization_id !== $organization->id || $reassignTo->status !== MembershipStatus::Active || $reassignTo->id === $member->id)) {
+            throw ValidationException::withMessages(['reassign_to' => 'Choose an active member of your team.']);
+        }
 
-        $this->audit->record('staff.deactivated', $member, organizationId: $organization->id);
+        $result = $this->endMembership($member, $reassignTo, $actor->id);
+        $this->audit->record('staff.deactivated', $member, new: $result, organizationId: $organization->id);
+        $this->alerts->staffRemoved($member, (string) $organization->display_name);
+
+        return $result;
+    }
+
+    /** A team member leaves on their own (owners transfer ownership instead). */
+    public function leave(User $user): Organization
+    {
+        $member = OrganizationMember::query()->where('user_id', $user->id)->where('status', MembershipStatus::Active->value)
+            ->whereNull('deleted_at')->first()
+            ?? throw new ApiException(ErrorCode::NotFound, 'You are not on a team.', 404);
+
+        if ($member->is_owner) {
+            throw new ApiException(ErrorCode::Forbidden, 'Owners can\'t leave their own organization. Transfer ownership first.', 403);
+        }
+
+        $organization = Organization::query()->findOrFail($member->organization_id);
+        $result = $this->endMembership($member, null, $user->id);
+        $this->audit->record('staff.left', $member, new: $result, organizationId: $organization->id);
+        $this->alerts->staffLeft($member, trim("{$user->first_name} {$user->last_name}"), $result['unassigned']);
+
+        return $organization;
+    }
+
+    /**
+     * Open tasks (not done or cancelled) assigned to the member, for the
+     * "remove" confirmation.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function openTasks(Organization $organization, OrganizationMember $member): Collection
+    {
+        if ($member->organization_id !== $organization->id) {
+            throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
+        }
+
+        return $this->openTaskRows($member->id)->map(fn ($t) => [
+            'id' => $t->task_id, 'name' => $t->name, 'status' => $t->status,
+            'due_at' => $t->due_at ? \Carbon\CarbonImmutable::parse($t->due_at)->toIso8601String() : null,
+            'event' => ['id' => $t->event_id, 'name' => $t->event_name],
+        ])->values();
+    }
+
+    private function openTaskRows(string $memberId): Collection
+    {
+        return $this->db->system('staff.open_tasks', fn () => DB::table('task_assignees as ta')
+            ->join('event_members as em', 'em.id', '=', 'ta.event_member_id')
+            ->join('tasks as t', 't.id', '=', 'ta.task_id')
+            ->join('checklists as c', 'c.id', '=', 't.checklist_id')
+            ->join('events as e', 'e.id', '=', 'c.event_id')
+            ->where('em.organization_member_id', $memberId)
+            ->whereNull('t.deleted_at')->whereNull('c.deleted_at')->whereNull('e.deleted_at')
+            ->whereNotIn('t.status', ['done', 'cancelled'])->whereNotIn('e.status', ['completed', 'cancelled'])
+            ->orderBy('t.due_at')
+            ->get(['ta.id as assignment_id', 'ta.task_id', 't.name', 't.status', 't.due_at', 'e.id as event_id', 'e.name as event_name', 'em.event_role_label']));
+    }
+
+    /** @return array{reassigned: int, unassigned: int} */
+    private function endMembership(OrganizationMember $member, ?OrganizationMember $reassignTo, string $actorId): array
+    {
+        $open = $this->openTaskRows($member->id);
+        $reassigned = 0;
+
+        $this->db->system('staff.end_membership', function () use ($member, $reassignTo, $actorId, $open, &$reassigned) {
+            // Open work leaves with them; finished work keeps their name.
+            DB::table('task_assignees')->whereIn('id', $open->pluck('assignment_id'))->delete();
+
+            if ($reassignTo !== null) {
+                foreach ($open->groupBy('event_id') as $eventId => $tasks) {
+                    // The new person joins that event's team if needed (no extra permissions: assignees can work their own tasks).
+                    $eventMemberId = DB::table('event_members')->where('event_id', $eventId)->where('organization_member_id', $reassignTo->id)->value('id');
+                    if ($eventMemberId === null) {
+                        $eventMemberId = (string) Str::uuid7();
+                        DB::table('event_members')->insert(['id' => $eventMemberId, 'event_id' => $eventId, 'organization_member_id' => $reassignTo->id,
+                            'organization_id' => $reassignTo->organization_id, 'event_role_label' => $tasks->first()->event_role_label,
+                            'assigned_by' => $actorId, 'status' => MembershipStatus::Active->value, 'created_at' => now(), 'updated_at' => now()]);
+                    } else {
+                        DB::table('event_members')->where('id', $eventMemberId)->update(['status' => MembershipStatus::Active->value, 'updated_at' => now()]);
+                    }
+                    foreach ($tasks as $task) {
+                        if (! DB::table('task_assignees')->where('task_id', $task->task_id)->where('event_member_id', $eventMemberId)->exists()) {
+                            DB::table('task_assignees')->insert(['id' => (string) Str::uuid7(), 'task_id' => $task->task_id, 'event_member_id' => $eventMemberId,
+                                'assigned_at' => now(), 'created_at' => now()]);
+                        }
+                        $reassigned++;
+                    }
+                }
+            }
+
+            $member->forceFill(['status' => MembershipStatus::Deactivated, 'deactivated_at' => now()])->save();
+            // Their event assignments end with the membership.
+            DB::table('event_members')->where('organization_member_id', $member->id)->where('status', MembershipStatus::Active->value)
+                ->update(['status' => MembershipStatus::Deactivated->value, 'updated_at' => now()]);
+        });
+
+        if ($reassignTo !== null && $reassigned > 0) {
+            $this->alerts->tasksHandedOver($reassignTo, $reassigned);
+        }
         $this->access->flush();
+
+        return ['reassigned' => $reassigned, 'unassigned' => $reassignTo === null ? $open->count() : 0];
+    }
+
+    /** A cancelled invitation's account that was never used (no password, no other team, nothing else) is removed. */
+    private function dropUnusedAccount(string $userId): void
+    {
+        $this->db->system('staff.drop_unused_account', function () use ($userId) {
+            $user = User::query()->find($userId);
+            if ($user === null || $user->password_hash !== null || $user->account_type !== AccountType::Business) {
+                return;
+            }
+            if (OrganizationMember::query()->where('user_id', $userId)->whereNull('deleted_at')->exists()) {
+                return; // invited by someone else too
+            }
+            // Soft delete (the app role can't hard-delete users) and free the address for a new invitation.
+            AuthCode::query()->where('user_id', $userId)->delete();
+            DB::table('users')->where('id', $userId)->update([
+                'deleted_at' => now(), 'updated_at' => now(), 'status' => 'deactivated',
+                'email' => 'cancelled-invite-'.$userId.'@invalid.nasery',
+            ]);
+        });
+    }
+
+    /**
+     * For a business account that isn't on a team: the team it was on last, so
+     * the dashboard can say "You're no longer on X's team".
+     *
+     * @return array{organization: string, ended_at: ?string, how: string}|null
+     */
+    public function formerTeam(User $user): ?array
+    {
+        return $this->db->system('staff.former_team', function () use ($user) {
+            if (OrganizationMember::query()->where('user_id', $user->id)->where('status', MembershipStatus::Active->value)->whereNull('deleted_at')->exists()) {
+                return null;
+            }
+            $last = OrganizationMember::query()->where('user_id', $user->id)->where('status', MembershipStatus::Deactivated->value)
+                ->whereNull('deleted_at')->latest('deactivated_at')->first();
+            if ($last === null) {
+                return null;
+            }
+            $left = DB::table('audit_logs')->where('entity_id', $last->id)->whereIn('action', ['staff.left', 'staff.deactivated'])->latest('created_at')->value('action') === 'staff.left';
+
+            return [
+                'organization' => (string) Organization::query()->whereKey($last->organization_id)->value('display_name'),
+                'ended_at' => $last->deactivated_at?->toIso8601String(),
+                'how' => $left ? 'left' : 'removed',
+            ];
+        });
     }
 
     public function reactivate(Organization $organization, User $actor, OrganizationMember $member): void

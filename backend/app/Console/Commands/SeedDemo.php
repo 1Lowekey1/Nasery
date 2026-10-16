@@ -49,6 +49,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 /**
@@ -86,6 +87,8 @@ class SeedDemo extends Command
 
     private \Carbon\Carbon $started;
 
+    private string $password = '';
+
     /** Set before prepare() on events that are moved into the past afterwards (their final date). */
     private ?CarbonImmutable $eventAt = null;
 
@@ -115,6 +118,8 @@ class SeedDemo extends Command
 
         // No e-mail while seeding (in-app notifications are still created).
         config(['nasery.mail.enabled' => false]);
+        Mail::fake();
+        $this->password = $password;
 
         $this->line('Building the demo dataset (a year of use; takes a few minutes)…');
         $this->started = now();
@@ -159,10 +164,8 @@ class SeedDemo extends Command
         foreach ([
             'maria' => ['Maria', 'Santos'], 'carlo' => ['Carlo', 'Reyes'], 'liza' => ['Liza', 'Tan'],
             'jomar' => ['Jomar', 'Uy'], 'rhea' => ['Rhea', 'Lim'],
-            'ken' => ['Ken', 'Aquino'], 'aira' => ['Aira', 'Mendoza'], 'paolo' => ['Paolo', 'Rivera'],
             'nina' => ['Nina', 'Cabrera'], 'oscar' => ['Oscar', 'Lumapas'], 'tess' => ['Tess', 'Bacalso'], 'luz' => ['Luz', 'Dalisay'],
             'ramon' => ['Ramon', 'Ilagan'], 'benjo' => ['Benjo', 'Sarmiento'], 'cris' => ['Cris', 'Padilla'],
-            'jessa' => ['Jessa', 'Villamor'], 'mark' => ['Mark', 'Ong'],
         ] as $key => [$first, $last]) {
             $this->users["organizer:{$key}"] = $this->user($key, $first, $last, AccountType::Business, $password);
         }
@@ -413,29 +416,72 @@ class SeedDemo extends Command
         }
     }
 
+    /**
+     * Staff join the way real ones do: the owner invites a new e-mail with a
+     * role, NaSeRy creates the account and e-mails a set-up link, and opening
+     * it (choosing a password) joins the team. Plus every state the Team page
+     * can show: an invitation not opened yet, someone removed, someone who left.
+     */
     private function team(): void
     {
-        $org = $this->orgs['dream'];
-        $owner = $this->u('maria');
-        foreach (['ken' => 'coordinator', 'aira' => 'checkin', 'paolo' => 'finance'] as $who => $preset) {
-            $member = $this->as($owner, function () use ($org, $owner, $who, $preset) {
-                $role = app(StaffManager::class)->presetRole($org, $owner, $preset);
+        $this->hire('dream', 'ken', 'Ken', 'Aquino', 'coordinator', daysAgo: 300);
+        $this->hire('dream', 'aira', 'Aira', 'Mendoza', 'checkin', daysAgo: 210);
+        $this->hire('dream', 'paolo', 'Paolo', 'Rivera', 'finance', daysAgo: 330);
+        $this->hire('grand', 'jessa', 'Jessa', 'Villamor', 'coordinator', daysAgo: 280);
+        $this->hire('grand', 'mark', 'Mark', 'Ong', 'checkin', daysAgo: 150);
 
-                return app(StaffManager::class)->invite($org, $owner, $this->u($who)->email, $role);
-            });
-            $this->as($this->u($who), fn () => app(StaffManager::class)->respond($this->u($who), $member->id, true));
-        }
-        // Mindanao Grand's staff.
+        // Left on their own a month and a half ago (Paula's dashboard: "You're no longer on Davao Dream Events' team").
+        $paula = $this->hire('dream', 'paula', 'Paula', 'Gonzaga', 'coordinator', daysAgo: 320);
+        $this->as($paula, fn () => app(StaffManager::class)->leave($paula));
+        $this->endedAt('dream', $paula, daysAgo: 45);
+
+        // Removed by the owner two months ago.
+        $leo = $this->hire('grand', 'leo', 'Leo', 'Panganiban', 'checkin', daysAgo: 260);
         $grand = $this->orgs['grand'];
-        $carlo = $this->u('carlo');
-        foreach (['jessa' => 'coordinator', 'mark' => 'checkin'] as $who => $preset) {
-            $member = $this->as($carlo, function () use ($grand, $carlo, $who, $preset) {
-                $role = app(StaffManager::class)->presetRole($grand, $carlo, $preset);
+        $this->as($this->u('carlo'), fn () => app(StaffManager::class)->remove($grand, $this->u('carlo'), $this->member($grand, 'leo')));
+        $this->endedAt('grand', $leo, daysAgo: 60);
 
-                return app(StaffManager::class)->invite($grand, $carlo, $this->u($who)->email, $role);
-            });
-            $this->as($this->u($who), fn () => app(StaffManager::class)->respond($this->u($who), $member->id, true));
-        }
+        // Invited two days ago, hasn't opened the link yet (Team page: "Waiting for set-up", with Resend).
+        $dream = $this->orgs['dream'];
+        $maria = $this->u('maria');
+        $this->as($maria, function () use ($dream, $maria) {
+            $role = app(StaffManager::class)->presetRole($dream, $maria, 'sales');
+            app(StaffManager::class)->invite($dream, $maria, "rina@{$this->domain}", $role, 'Rina', 'Cortez');
+        });
+        $at = now()->subDays(2);
+        DB::table('organization_members')->where('organization_id', $dream->id)->where('status', 'invited')->update(['created_at' => $at, 'updated_at' => $at]);
+        DB::table('users')->where('email', "rina@{$this->domain}")->update(['created_at' => $at, 'updated_at' => $at]);
+    }
+
+    /** Invite a new e-mail to $orgKey's team, then "open the link": set the password and join. */
+    private function hire(string $orgKey, string $key, string $first, string $last, string $preset, int $daysAgo): User
+    {
+        $org = $this->orgs[$orgKey];
+        $owner = $this->u($this->ownerOf($orgKey));
+        $email = "{$key}@{$this->domain}";
+        $this->as($owner, function () use ($org, $owner, $email, $preset, $first, $last) {
+            $role = app(StaffManager::class)->presetRole($org, $owner, $preset);
+            app(StaffManager::class)->invite($org, $owner, $email, $role, $first, $last);
+        });
+        // Seed shortcut for "opened the e-mail link and chose a password" (the link proves the mailbox).
+        $user = User::query()->where('email', $email)->firstOrFail();
+        $user->forceFill(['password_hash' => $this->password, 'email_verified_at' => now(), 'phone' => '0917 '.random_int(100, 999).' '.random_int(1000, 9999)])->save();
+        app(StaffManager::class)->completeSetup($user->refresh());
+        $this->users["organizer:{$key}"] = $user->refresh();
+
+        $joined = now()->subDays($daysAgo);
+        DB::table('organization_members')->where('organization_id', $org->id)->where('user_id', $user->id)
+            ->update(['created_at' => $joined->copy()->subDays(1), 'joined_at' => $joined, 'updated_at' => $joined]);
+
+        return $user;
+    }
+
+    /** Seed shortcut: the removal / leaving happened $daysAgo. */
+    private function endedAt(string $orgKey, User $user, int $daysAgo): void
+    {
+        $at = now()->subDays($daysAgo);
+        DB::table('organization_members')->where('organization_id', $this->orgs[$orgKey]->id)->where('user_id', $user->id)
+            ->update(['deactivated_at' => $at, 'updated_at' => $at]);
     }
 
     // ---- Client bookings (inquiry → quotation → event) ------------------------
@@ -841,7 +887,9 @@ class SeedDemo extends Command
                 SELECT a2.id, row_number() OVER (PARTITION BY a2.entity_id ORDER BY a2.created_at) AS n,
                     CASE WHEN a2.entity_type = 'events' AND a2.action ILIKE '%complet%' THEN (SELECT max(s.ends_at) FROM event_sessions s WHERE s.event_id = a2.entity_id)
                          WHEN a2.entity_type = 'tasks' AND a2.action <> 'task.created' THEN tk.updated_at
-                         ELSE COALESCE(e.created_at, i.created_at, q.created_at, r.created_at, p.created_at, o.created_at, v.created_at, t.created_at, tk.created_at, ch.created_at, ea.created_at, em.created_at) END AS at
+                    WHEN a2.entity_type = 'organization_members' AND a2.action IN ('staff.left', 'staff.deactivated') THEN omm.deactivated_at
+                    WHEN a2.entity_type = 'organization_members' AND a2.action = 'staff.joined' THEN omm.joined_at
+                         ELSE COALESCE(e.created_at, i.created_at, q.created_at, r.created_at, p.created_at, o.created_at, v.created_at, t.created_at, tk.created_at, ch.created_at, ea.created_at, em.created_at, omm.created_at) END AS at
                 FROM audit_logs a2
                 LEFT JOIN events e ON a2.entity_type = 'events' AND e.id = a2.entity_id
                 LEFT JOIN inquiries i ON a2.entity_type = 'inquiries' AND i.id = a2.entity_id
@@ -855,6 +903,7 @@ class SeedDemo extends Command
                 LEFT JOIN checklists ch ON a2.entity_type = 'checklists' AND ch.id = a2.entity_id
                 LEFT JOIN event_activities ea ON a2.entity_type = 'event_activities' AND ea.id = a2.entity_id
                 LEFT JOIN event_members em ON a2.entity_type = 'event_members' AND em.id = a2.entity_id
+                LEFT JOIN organization_members omm ON a2.entity_type = 'organization_members' AND omm.id = a2.entity_id
                 WHERE a2.created_at >= ?
             ) x
             WHERE x.id = a.id AND x.at IS NOT NULL
@@ -869,6 +918,8 @@ class SeedDemo extends Command
                 (SELECT p.paid_at FROM payments p WHERE p.id::text = n.data->>'payment_id'),
                 (SELECT i.created_at + interval '1 hour' FROM inquiries i WHERE i.id::text = n.data->>'inquiry_id'),
                 (SELECT min(s.starts_at) FROM event_sessions s WHERE s.event_id::text = n.data->>'event_id'),
+                (SELECT m.deactivated_at FROM organization_members m WHERE m.id::text = n.data->>'organization_member_id' AND m.deactivated_at IS NOT NULL),
+                (SELECT m.joined_at FROM organization_members m WHERE m.id::text = n.data->>'organization_member_id' AND m.joined_at IS NOT NULL),
                 (SELECT o.created_at + interval '1 hour' FROM organizations o WHERE o.id::text = n.data->>'organization_id'),
                 n.created_at)))
             WHERE n.created_at >= ?

@@ -7,6 +7,7 @@ use App\Models\Organization;
 use App\Models\OrganizationMember;
 use App\Models\User;
 use App\Services\Events\EventManager;
+use App\Services\Staff\EventTeam;
 use App\Services\Ticketing\TierManager;
 use App\Support\Database\DatabaseContext;
 use Carbon\CarbonImmutable;
@@ -94,7 +95,19 @@ class DemoEvent extends Command
             app(TierManager::class)->create($event, ['name' => $name, 'price' => $price, 'capacity' => $capacity, 'status' => 'on_sale', 'description' => $about, 'sort_order' => $i]);
         }
 
-        return app(EventManager::class)->transition($event->refresh(), 'publish');
+        $event = app(EventManager::class)->transition($event->refresh(), 'publish');
+
+        // Door team: check-in staff and the coordinator (they see it in QR Check-in / My Assignments).
+        foreach (['aira' => ['Check-in & ushers', ['checkin.perform', 'attendee.manage']], 'ken' => ['Coordinator', ['checkin.perform', 'attendee.manage', 'checklist.manage', 'task.manage']]] as $who => [$label, $permissions]) {
+            $staff = app(DatabaseContext::class)->system('demo_event.door_team', fn () => OrganizationMember::query()
+                ->where('organization_id', $org->id)->where('status', 'active')
+                ->whereIn('user_id', User::query()->where('email', $who.'@'.config('nasery.demo.domain'))->select('id'))->first());
+            if ($staff !== null) {
+                app(EventTeam::class)->assign($event->refresh(), $staff, $label, $permissions, $member->user_id);
+            }
+        }
+
+        return $event->refresh();
     }
 
     /** Seed shortcut: move the session so it starts within ~2 hours (the door opens 3 hours before). */

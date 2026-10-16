@@ -16,6 +16,8 @@ final class NotificationTypes
         'quotation.accepted' => ['label' => 'A client accepted your quotation', 'group' => 'organizer', 'critical' => false, 'email' => true],
         'quotation.declined' => ['label' => 'A client declined your quotation', 'group' => 'organizer', 'critical' => false, 'email' => true],
         'staff.invited' => ['label' => 'Invitations to join an organizer team', 'group' => 'organizer', 'critical' => false, 'email' => true],
+        'staff.removed' => ['label' => 'You were removed from an organizer team', 'group' => 'organizer', 'critical' => true, 'email' => true],
+        'staff.left' => ['label' => 'A team member left your organization', 'group' => 'organizer', 'critical' => false, 'email' => true],
         'task.assigned' => ['label' => 'Tasks assigned to you', 'group' => 'organizer', 'critical' => false, 'email' => false],
         'task.reviewed' => ['label' => 'Reviews of tasks you finished', 'group' => 'organizer', 'critical' => false, 'email' => false],
         'capacity.warning' => ['label' => 'An event is almost full', 'group' => 'organizer', 'critical' => false, 'email' => true],

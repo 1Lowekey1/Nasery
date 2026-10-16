@@ -5,8 +5,10 @@ namespace App\Http\Resources;
 use App\Models\Organization;
 use App\Models\OrganizationRole;
 use App\Support\Authorization\OrganizationAccess;
+use App\Support\Database\DatabaseContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\DB;
 
 /**
  * An organization as seen by one of its members (or an admin).
@@ -41,6 +43,15 @@ class OrganizationResource extends JsonResource
                 // B8: drives which dashboard areas the member sees.
                 'permissions' => $access->permissionKeys($request->user(), $this->resource),
                 'sees_all_events' => $access->seesAllEvents($request->user(), $this->resource),
+                // Permissions granted only on events they're assigned to (e.g. check-in staff:
+                // checkin.perform), so the team portal can link the pages they can use.
+                'event_permissions' => $member->is_owner ? [] : app(DatabaseContext::class)->system('org.my_event_permissions', fn () => DB::table('event_member_permissions as emp')
+                    ->join('event_members as em', 'em.id', '=', 'emp.event_member_id')
+                    ->join('permissions as p', 'p.id', '=', 'emp.permission_id')
+                    ->join('events as e', 'e.id', '=', 'em.event_id')
+                    ->where('em.organization_member_id', $member->id)->where('em.status', 'active')
+                    ->whereNull('e.deleted_at')->whereNotIn('e.status', ['completed', 'cancelled'])
+                    ->distinct()->orderBy('p.key')->pluck('p.key')->all()),
             ] : null,
             'profile' => new OrganizationProfileResource($this->whenLoaded('profile')),
             'created_at' => $this->created_at?->toIso8601String(),

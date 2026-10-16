@@ -29,13 +29,13 @@
 						class="inline-flex items-center gap-1.5 rounded-md bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700">
 						<span class="h-1.5 w-1.5 rounded-full bg-primary-600" />
 
-						Organizer Portal
+						{{ isStaff ? 'Team Member Portal' : 'Organizer Portal' }}
 					</span>
 				</div>
 
 				<nav class="flex-1 space-y-1 px-3">
-					<NuxtLink v-for="item in navItems" :key="item.label" :to="item.to"
-						class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold" :class="activeItem.label === item.label
+					<NuxtLink v-for="item in visibleNav" :key="item.label" :to="item.to"
+						class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold" :class="isCurrent(item)
 							? 'bg-primary-700 text-white'
 							: 'text-gray-600 hover:bg-gray-100'
 							">
@@ -604,6 +604,15 @@ const isEventManagementRoute = computed(() => {
 		route.path
 	)
 })
+
+// Team members (staff) get only the pages their role and event assignments allow.
+const isStaff = computed(() => (user.value as { role?: string } | null)?.role === 'team_member')
+const { nav: teamNav } = useTeamNav()
+const visibleNav = computed<{ label: string, to: string, icon: string, matches?: string[] }[]>(() => (isStaff.value ? teamNav.value : navItems))
+function isCurrent(item: { label: string, to: string, matches?: string[] }) {
+	if (!isStaff.value) return activeItem.value?.label === item.label
+	return (item.matches ?? [item.to]).some(p => route.path === p || route.path.startsWith(`${p}/`))
+}
 
 const isTicketAttendanceRoute = computed(() => {
 	return ticketAttendanceRoutes.includes(
