@@ -68,9 +68,17 @@ function DemoEvent {
 Write-Host "`n  NaSeRy ($Mode)`n  ------"
 
 # 1. Database ----------------------------------------------------------------
-& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Backend 'database\local\start-local-db.ps1') | Out-Null
-if ($LASTEXITCODE -ne 0) { Fail 'The database did not start. See C:\xampp\pgsql\data\startup.log' }
-Ok 'Database is running (127.0.0.1:5433)'
+if (Listening 5433) { Ok 'Database already running (127.0.0.1:5433)' }
+else {
+  # In its own hidden window, NOT piped: PostgreSQL's server process inherits the
+  # caller's output handles, so capturing them (| Out-Null) would wait forever.
+  Start-Process powershell -WindowStyle Hidden -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+    "`"$(Join-Path $Backend 'database\local\start-local-db.ps1')`"" | Out-Null
+  Info 'Starting the database'
+  for ($i = 0; $i -lt 60 -and -not (Listening 5433); $i++) { Start-Sleep 1 }
+  if (-not (Listening 5433)) { Fail 'The database did not start. See C:\xampp\pgsql\data\startup.log' }
+  Ok 'Database started (127.0.0.1:5433)'
+}
 
 # 2. Apache (API on :8000, website on :8080) ---------------------------------
 if (Listening 8000) { Ok 'Apache already running' }
