@@ -133,15 +133,21 @@ export const useAuth = (requiredRole?: AuthRole) => {
 
   const setUser = async (value: AuthUser | null) => {
     // Another person (or nobody) is now signed in: drop per-user state.
-    if (value?.id !== account.value?.id) {
+    const changed = (value?.id ?? null) !== (account.value?.id ?? null)
+    if (changed) {
       clearNuxtState(['org.current', 'org.loaded'])
     }
     account.value = value
     loaded.value = true
     await loadMembership()
-    if (import.meta.client) {
-      // Other tabs reload when the signed-in person changes.
-      localStorage.setItem('auth_session_changed', JSON.stringify({ userId: value?.id ?? null, timestamp: Date.now() }))
+    if (import.meta.client && changed) {
+      // Other tabs of this browser reload (plugins/auth-sync) only when the signed-in
+      // person changes, not on profile edits or e-mail verification.
+      try {
+        localStorage.setItem('auth_session_changed', JSON.stringify({ userId: value?.id ?? null, timestamp: Date.now() }))
+      } catch {
+        // Storage blocked: other tabs catch up on their next request (401 → sign-in).
+      }
     }
   }
 
@@ -203,6 +209,8 @@ export const useAuth = (requiredRole?: AuthRole) => {
   })
 
   const logout = async () => {
+    // Unfinished form drafts stay on this device only while you're signed in (shared computers).
+    clearDraftsFor(account.value?.id)
     try {
       await api.post('/auth/logout')
     } catch {

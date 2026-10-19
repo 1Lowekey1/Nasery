@@ -43,6 +43,7 @@
 					</ClientOnly>
 					<p v-if="distributionTotal === 0" class="py-16 text-center text-sm text-gray-400">
 						No inquiry activity yet.
+						<NuxtLink to="/organizer/inquiries/match-inquiries" class="mt-2 block font-semibold text-primary-700 hover:underline">See matching inquiries</NuxtLink>
 					</p>
 				</div>
 

@@ -273,6 +273,7 @@
 
 				<!-- Body -->
 				<div class="flex-1 overflow-y-auto px-6 py-5">
+					<FormsDraftNotice :draft="offerDraft" />
 
 					<!-- Error -->
 					<div v-if="offerError"
@@ -616,6 +617,11 @@ const offerForm =
 		emptyOfferForm(),
 	)
 
+// Unfinished offer per inquiry (the price, package, timeline, inclusions and pitch you typed).
+const offerDraft = useDraft(() => (showOfferForm.value && selectedInquiryId.value ? `offer:${selectedInquiryId.value}` : null), offerForm, {
+	isEmpty: v => !v.budget?.trim() && !v.packageName?.trim() && !v.timeline?.trim() && !v.pitch?.trim() && (v.inclusions ?? []).every(i => !String(i).trim()),
+})
+
 function parseOfferAmount() {
 	return Number(
 		offerForm.budget.replace(/[₱,\s]/g, ''),
@@ -828,6 +834,9 @@ function closeOfferForm() {
 		return
 	}
 
+	// Keep what was typed (tapping outside or Cancel), before the form is emptied.
+	offerDraft.flush()
+
 	showOfferForm.value = false
 	showOfferConfirmation.value = false
 
@@ -978,6 +987,7 @@ async function submitOffer() {
 			'Quotation submitted successfully.'
 
 		showOfferConfirmation.value = false
+		offerDraft.clear()
 
 		await loadMatchingInquiries()
 

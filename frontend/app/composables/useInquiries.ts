@@ -41,6 +41,8 @@ export interface ClientInquiry {
   longitude?: number | null
   match_radius_km?: number | null
   additional_requirements?: string | null
+  /** Set once the accepted quotation became an event. */
+  event_id?: string | null
   services?: { id: string, service_id: string | null, custom_service_name: string | null, notes: string | null }[]
   invitations?: { organization_id: string, display_name: string, slug: string | null, status: InvitationStatus, decline_reason: string | null, invited_at: string, responded_at: string | null }[]
 }

@@ -130,6 +130,10 @@ class ClientInquiryController extends Controller
             'longitude' => $inquiry->longitude !== null ? (float) $inquiry->longitude : null,
             'match_radius_km' => $inquiry->match_radius_km !== null ? (float) $inquiry->match_radius_km : null,
             'additional_requirements' => $inquiry->additional_requirements,
+            // The event the accepted quotation became (for "See your event").
+            'event_id' => $inquiry->status->value === 'converted_to_event'
+                ? $this->db->system('inquiry.event_id', fn () => DB::table('events')->where('inquiry_id', $inquiry->id)->whereNull('deleted_at')->value('id'))
+                : null,
             'services' => $inquiry->services()->get(['id', 'service_id', 'custom_service_name', 'notes'])->map(fn ($s) => [
                 'id' => $s->id, 'service_id' => $s->service_id, 'custom_service_name' => $s->custom_service_name, 'notes' => $s->notes,
             ]),

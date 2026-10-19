@@ -16,6 +16,10 @@
 			<h2 class="mt-4 text-lg font-bold text-gray-900">Nothing here yet</h2>
 			<p class="mt-1 max-w-sm text-sm text-gray-500">Once an organizer sets up your event, its milestones show here as
 				they happen. Offers and messages on your inquiries are in My Events.</p>
+			<div class="mt-5 flex flex-wrap justify-center gap-2">
+				<NuxtLink to="/client/my-events" class="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Go to My Events</NuxtLink>
+				<NuxtLink to="/client/post-event" class="inline-flex items-center gap-1.5 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-900">Post an inquiry</NuxtLink>
+			</div>
 		</div>
 
 		<template v-else>

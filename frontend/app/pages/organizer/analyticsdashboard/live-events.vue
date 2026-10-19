@@ -14,6 +14,7 @@
 			<p class="mx-auto mt-1 max-w-sm text-xs text-gray-500">
 				Create an event in Event Management to see its live check-in activity here.
 			</p>
+			<NuxtLink to="/organizer/eventmanagement/all-events" class="mt-3 inline-block text-sm font-semibold text-primary-700 hover:underline">Go to Event Management</NuxtLink>
 		</div>
 
 		<template v-else>

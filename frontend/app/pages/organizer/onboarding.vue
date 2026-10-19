@@ -44,6 +44,7 @@
 		<p v-else-if="!formerTeam" class="mb-6 text-sm text-gray-500">Joining an organizer's team instead? Ask them to invite {{ user?.email }}; the invitation will appear here.</p>
 
 		<form v-if="!formerTeam || invitations.length || showSetup" novalidate class="space-y-6" @submit.prevent="handleSubmit">
+			<FormsDraftNotice :draft="draft" />
 			<section class="rounded-2xl border border-gray-200 bg-white p-6">
 				<h2 class="mb-4 text-base font-bold text-gray-900">Business</h2>
 				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -155,6 +156,7 @@ const form = reactive<OnboardingPayload>({
 		contact_phone: '',
 	},
 })
+const draft = useDraft(() => 'organizer:onboarding', form)
 const submitting = ref(false)
 const error = ref('')
 const fields = ref<Record<string, string>>({})
@@ -172,6 +174,7 @@ async function handleSubmit() {
 			...form,
 			profile: { ...form.profile, contact_phone: form.profile.contact_phone || null, description: form.profile.description || null },
 		})
+		draft.clear()
 		await navigateTo('/organizer/home')
 	} catch (e) {
 		fields.value = fieldErrors(e)

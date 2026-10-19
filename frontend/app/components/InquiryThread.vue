@@ -43,6 +43,8 @@ const api = useThreads()
 const thread = ref<ThreadDetail | null>(null)
 const error = ref('')
 const draft = ref('')
+// A half-written message survives leaving the page (per thread); sending empties it.
+useDraft(() => `message:${props.threadId}`, reactive({ text: draft }))
 const sending = ref(false)
 const list = ref<HTMLElement | null>(null)
 let timer: ReturnType<typeof setInterval> | undefined

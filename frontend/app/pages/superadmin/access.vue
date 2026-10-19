@@ -40,7 +40,7 @@
 
 			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
 				<h2 class="text-base font-bold text-gray-900">Your requests</h2>
-				<p v-if="!data.requests.length" class="mt-4 text-sm text-gray-400">You haven't asked any organizer yet.</p>
+				<p v-if="!data.requests.length" class="mt-4 text-sm text-gray-400">You haven't asked any organizer yet. Open an organizer from <NuxtLink to="/superadmin/organizers" class="font-semibold text-primary-700 hover:underline">Organizers</NuxtLink> to ask for access.</p>
 				<div v-else class="mt-4 overflow-x-auto">
 					<table class="w-full text-left text-sm">
 						<thead><tr class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">

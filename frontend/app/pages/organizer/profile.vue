@@ -127,7 +127,7 @@
 						<button type="button" class="text-xs font-semibold text-rose-700" @click="removeOption(o.id)">Remove</button>
 					</span>
 				</li>
-				<li v-if="!priceOptions.length" class="py-2 text-sm text-gray-400">No price options yet. Your public page won't show a calculator until you add some.</li>
+				<li v-if="!priceOptions.length" class="py-2 text-sm text-gray-400">No price options yet. Your public page won't show a calculator until you add some. <NuxtLink to="/organizer/price-list" class="font-semibold text-primary-700 hover:underline">Open the Price List</NuxtLink></li>
 			</ul>
 			<form v-if="isOwner" class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2" @submit.prevent="addOption">
 				<select v-model="newOption.organization_service_id" aria-label="Service"

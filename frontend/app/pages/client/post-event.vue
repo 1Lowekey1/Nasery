@@ -37,6 +37,7 @@
 
 		<div class="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
 			<form class="space-y-5" novalidate @submit.prevent="requestInquirySubmission">
+				<FormsDraftNotice :draft="draft" />
 				<section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
 					<div
 						class="flex flex-col justify-between gap-4 border-b border-gray-100 bg-gradient-to-r from-primary-50/80 to-white px-5 py-5 sm:flex-row sm:items-center sm:px-7">
@@ -349,7 +350,8 @@
 						class="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-8 text-center">
 						<IconBase name="map-pin" class="mx-auto h-6 w-6 text-gray-400" />
 						<p class="mt-2 text-sm font-semibold text-gray-700">No nearby organizers found</p>
-						<p class="mt-1 text-xs text-gray-500">You can still submit your inquiry for matching.</p>
+						<p class="mt-1 text-xs text-gray-500">Try a larger distance above, or submit anyway: new organizers in range will see it.</p>
+						<NuxtLink to="/organizers" target="_blank" class="mt-2 inline-block text-xs font-semibold text-primary-700 hover:underline">Browse all organizers ↗</NuxtLink>
 					</div>
 					<div v-else class="grid gap-3 sm:grid-cols-2">
 						<article v-for="organizer in nearbyOrganizers" :key="organizer.id"
@@ -798,6 +800,8 @@ const showLocationSuggestions =
 // Direct request from an organizer's page (?organizer=slug), with their calculator picks (&guests=&options=id,id).
 const route = useRoute()
 const target = ref<{ id: string, display_name: string, picks: { custom_service_name: string, notes: string }[], estimate: number | null } | null>(null)
+// Unfinished inquiry kept in this browser (one per organizer for direct requests).
+const draft = useDraft(() => (target.value ? `inquiry:to:${target.value.id}` : 'inquiry:new'), form)
 
 onMounted(async () => {
 	if (typeof route.query.organizer !== 'string') return
@@ -1727,6 +1731,7 @@ Estimate from ${target.value.display_name}${/s$/i.test(target.value.display_name
 			: { mode: 'open', match_radius_km: nearbyRadiusKm.value })
 
 		draftId = null
+		draft.clear()
 		showSubmitConfirmation.value = false
 		showSubmissionSuccess.value = true
 

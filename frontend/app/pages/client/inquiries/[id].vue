@@ -28,7 +28,7 @@
 			</div>
 
 			<div v-if="inquiry.status === 'converted_to_event'" class="mt-4 rounded-xl bg-green-50 p-4 text-sm text-green-900">
-				Your organizer has set up the event. <NuxtLink to="/client/event-details" class="font-semibold underline">See your event</NuxtLink>
+				Your organizer has set up the event. <NuxtLink :to="inquiry.event_id ? `/client/event-details?event=${inquiry.event_id}` : '/client/event-details'" class="font-semibold underline">See your event</NuxtLink>
 			</div>
 
 			<section class="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-gray-200 bg-white p-6 sm:grid-cols-4">

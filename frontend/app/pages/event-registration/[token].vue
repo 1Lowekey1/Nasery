@@ -6,7 +6,7 @@
 
         <header class="relative z-10 border-b border-white/10 bg-[#173d45]/40 text-white backdrop-blur-xl">
             <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-                <div class="flex items-center gap-3">
+                <NuxtLink to="/" class="flex items-center gap-3" aria-label="NaSeRy home">
                     <div
                         class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sm font-black text-[#285F6b] shadow-lg shadow-black/10">
                         N
@@ -21,7 +21,7 @@
                             Secure event registration
                         </p>
                     </div>
-                </div>
+                </NuxtLink>
 
                 <span v-if="eventData?.public_registration"
                     class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-bold text-white shadow-sm backdrop-blur">
@@ -681,6 +681,7 @@
 
                         <p v-else class="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
                             No ticket types are currently available.
+                            <NuxtLink to="/events" class="ml-1 font-semibold underline">Browse other events</NuxtLink>
                         </p>
                     </div>
 

@@ -58,6 +58,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo(homePath(user), { replace: true })
   }
 
+  // Team members: task notices link to /organizer/my-tasks; their task view is My Assignments.
+  if (user.role === 'team_member' && to.path === '/organizer/my-tasks') {
+    return navigateTo('/team/dashboard', { replace: true })
+  }
+
   // Organizers set up their workspace first (onboarding).
   if (user.role === 'organizer' && area?.prefix === '/organizer') {
     const organization = await useOrganization().fetchOrganization()

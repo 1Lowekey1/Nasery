@@ -33,6 +33,7 @@
 		<AuthSocialButtons mode="register" :role="role" />
 
 		<form novalidate @submit.prevent="handleSubmit">
+			<FormsDraftNotice :draft="draft" />
 			<div class="mb-5" data-field="fullName">
 				<FormsLabel text="Full Name" required />
 
@@ -228,6 +229,8 @@ const form = reactive({
 	serviceRadiusKm: 25,
 })
 
+const draft = useDraft(() => 'register', form, { omit: ['password'] })
+
 const serviceRadiusOptions = [5, 10, 15, 25, 50, 75, 100, 150, 200]
 const serviceRadiusSelectOptions = serviceRadiusOptions.map(radius => ({
 	value: radius,
@@ -408,6 +411,7 @@ async function handleSubmit() {
 
 		registeredContact.value =
 			email
+		draft.clear()
 
 		showSuccessModal.value =
 			true

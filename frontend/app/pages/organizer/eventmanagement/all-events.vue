@@ -212,6 +212,8 @@
 				Won client quotations and manually created events
 				will appear here.
 			</p>
+			<p class="mt-3 text-sm text-gray-500">Use <span class="font-semibold">Create event</span> above, or
+				<NuxtLink to="/organizer/inquiries/match-inquiries" class="font-semibold text-primary-700 hover:underline">win one from an inquiry</NuxtLink>.</p>
 		</div>
 	</div>
 </template>

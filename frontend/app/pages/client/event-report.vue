@@ -7,6 +7,7 @@
 		<div v-else-if="data && !data.shared" class="mt-4 rounded-2xl border border-gray-200 bg-white px-6 py-16 text-center">
 			<h1 class="text-lg font-bold text-gray-900">No report yet</h1>
 			<p class="mt-1 text-sm text-gray-500">Your organizer shares the attendance report after the event. You'll get a notification when it's ready.</p>
+			<NuxtLink :to="`/client/event-details?event=${eventId}`" class="mt-3 inline-block text-sm font-semibold text-primary-700 hover:underline">← Back to your event</NuxtLink>
 		</div>
 
 		<template v-else-if="data?.shared">

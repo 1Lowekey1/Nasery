@@ -228,6 +228,7 @@
                     <div v-if="!ticketTiers.length"
                         class="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
                         No ticket types are configured for this event.
+                        <NuxtLink to="/organizer/eventmanagement/ticket-tiers" class="ml-1 font-semibold underline">Add ticket tiers</NuxtLink>
                     </div>
 
                     <div v-if="selectedTicketType" class="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-3">

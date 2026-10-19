@@ -24,6 +24,7 @@
 				</template>
 				<p v-else class="py-16 text-center text-sm text-gray-400">
 					No bid decisions in the last 6 months yet.
+					<NuxtLink to="/organizer/inquiries/match-inquiries" class="mt-2 block font-semibold text-primary-700 hover:underline">See inquiries you can bid on</NuxtLink>
 				</p>
 			</div>
 

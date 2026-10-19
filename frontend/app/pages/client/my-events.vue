@@ -169,6 +169,7 @@
 				<p class="mt-1 text-sm text-gray-500">
 					No organizer quotations are available for this event yet.
 				</p>
+				<NuxtLink to="/organizers" class="mt-3 inline-block text-sm font-semibold text-primary-700 hover:underline">Browse organizers to invite</NuxtLink>
 			</div>
 		</div>
 

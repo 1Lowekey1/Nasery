@@ -24,6 +24,7 @@
 				</template>
 				<p v-else class="py-16 text-center text-sm text-gray-400">
 					No ticketed events in the last 6 months yet.
+					<NuxtLink to="/organizer/eventmanagement/ticket-tiers" class="mt-2 block font-semibold text-primary-700 hover:underline">Set up tickets for an event</NuxtLink>
 				</p>
 			</div>
 

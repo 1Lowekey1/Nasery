@@ -198,6 +198,7 @@
 			<p class="mt-1 text-sm text-gray-500">
 				Your submitted quotations will appear here.
 			</p>
+			<NuxtLink to="/organizer/inquiries/match-inquiries" class="mt-3 inline-block text-sm font-semibold text-primary-700 hover:underline">Browse matching inquiries</NuxtLink>
 		</div>
 	</div>
 </template>

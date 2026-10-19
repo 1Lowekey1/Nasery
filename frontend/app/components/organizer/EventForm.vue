@@ -13,6 +13,7 @@
 			</div>
 
 			<form novalidate class="flex-1 space-y-6 overflow-y-auto px-6 py-5" @submit.prevent="save">
+				<FormsDraftNotice :draft="draft" />
 				<Alert v-if="error" type="danger" :text="error" />
 
 				<section class="space-y-3">
@@ -164,6 +165,8 @@ const form = reactive({
 	contact_phone: source?.contact_phone ?? props.quotation?.client?.phone ?? '',
 })
 const coords = reactive({ latitude: source?.latitude?.toString() ?? '', longitude: source?.longitude?.toString() ?? '' })
+// Unfinished new event (from scratch or from a won quotation); edits aren't drafted.
+const draft = useDraft(() => (props.event ? null : props.quotation ? `event:from:${props.quotation.id}` : 'event:new'), form)
 const sessions = reactive<SessionInput[]>([blankSession(inquiry?.requested_date ?? '')])
 
 function payload(): EventFields & { sessions?: SessionInput[] } {
@@ -197,6 +200,7 @@ async function save() {
 			: mode.value === 'convert'
 				? await eventsApi.convert(props.organizationId, props.quotation!.id, data)
 				: await eventsApi.create(props.organizationId, data)
+		draft.clear()
 		emit('saved', saved)
 	} catch (e) {
 		// Session errors come back as sessions.0.starts_at; show them under Schedule.
