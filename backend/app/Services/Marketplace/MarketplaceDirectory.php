@@ -2,6 +2,7 @@
 
 namespace App\Services\Marketplace;
 
+use App\Services\Media\ImageStore;
 use App\Support\Database\DatabaseContext;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -33,7 +34,7 @@ class MarketplaceDirectory
                 ->leftJoinSub($this->ratings(), 'r', 'r.organization_id', '=', 'p.organization_id')
                 ->select([
                     'p.organization_id', 'p.slug', 'p.display_name', 'p.business_name', 'p.description',
-                    'p.location_text', 'p.cover_image_url', 'p.latitude', 'p.longitude',
+                    'p.location_text', 'p.cover_image_url', 'p.logo_path', 'p.cover_path', 'p.latitude', 'p.longitude',
                     DB::raw('coalesce(r.rating_avg, 0) as rating_avg'),
                     DB::raw('coalesce(r.reviews_count, 0) as reviews_count'),
                 ]);
@@ -112,6 +113,8 @@ class MarketplaceDirectory
                 'contact_email' => $profile->contact_email,
                 'contact_phone' => $profile->contact_phone,
                 'cover_image_url' => $profile->cover_image_url,
+                'logo_url' => ImageStore::url($profile->logo_path ?? null),
+                'cover_url' => ImageStore::url($profile->cover_path ?? null) ?? $profile->cover_image_url,
                 // 0046: details from the business profile panel.
                 'years_experience' => $profile->years_experience ?? null,
                 'service_radius_km' => isset($profile->service_radius_km) ? (int) $profile->service_radius_km : null,
@@ -245,6 +248,8 @@ class MarketplaceDirectory
             'excerpt' => $row->description ? mb_strimwidth($row->description, 0, 180, '…') : null,
             'location_text' => $row->location_text,
             'cover_image_url' => $row->cover_image_url,
+            'logo_url' => ImageStore::url($row->logo_path ?? null),
+            'cover_url' => ImageStore::url($row->cover_path ?? null) ?? $row->cover_image_url,
             'latitude' => $row->latitude !== null ? (float) $row->latitude : null,
             'longitude' => $row->longitude !== null ? (float) $row->longitude : null,
             'rating_avg' => (int) $row->reviews_count ? (float) $row->rating_avg : null,
@@ -273,7 +278,7 @@ class MarketplaceDirectory
         return DB::table('events as e')
             ->leftJoin('event_types as t', 't.id', '=', 'e.event_type_id')
             ->where('e.organization_id', $organizationId)->where('e.status', 'completed')->whereNull('e.deleted_at')
-            ->selectRaw('e.id, e.name, e.description, e.venue_name, e.visibility, t.name as type,
+            ->selectRaw('e.id, e.name, e.description, e.venue_name, e.visibility, e.cover_path, t.name as type,
                 (select min(s.starts_at) from event_sessions s where s.event_id = e.id and s.deleted_at is null) as held_at')
             ->orderByDesc('held_at')->limit(12)->get()
             ->map(function (object $e) {
@@ -286,6 +291,7 @@ class MarketplaceDirectory
                     'date' => $e->held_at ? substr((string) $e->held_at, 0, 10) : null,
                     'venue' => $public ? $e->venue_name : null,
                     'description' => $public ? $e->description : null,
+                    'cover_url' => $public ? ImageStore::url($e->cover_path) : null,
                     'is_public' => $public,
                 ];
             })->all();

@@ -37,6 +37,8 @@ function summary(card: CardWithCount | (OrganizerPublicProfile & { completed_eve
     years_experience: extra.years_experience ?? null,
     specialties: extra.specialties?.length ? extra.specialties : services,
     banner_color: extra.banner_color || bannerColor(card.slug),
+    logo_url: card.logo_url ?? null,
+    cover_url: card.cover_url ?? null,
     portfolio_events_count: card.completed_events ?? 0,
     average_rating: rating ?? 0,
     reviews_count: reviews,
@@ -70,7 +72,7 @@ export function useOrganizerPortfolio(identifier: MaybeRefOrGetter<string>) {
     async () => {
       const profile = (await api.get<OrganizerPublicProfile & {
         completed_events: number
-        portfolio: { id: string | null, title: string, category: string, date: string | null, venue: string | null, description: string | null }[]
+        portfolio: { id: string | null, title: string, category: string, date: string | null, venue: string | null, description: string | null, cover_url?: string | null }[]
       }>(`/marketplace/organizers/${encodeURIComponent(toValue(identifier))}`)).data
 
       const portfolio: OrganizerPortfolio = {
@@ -83,6 +85,7 @@ export function useOrganizerPortfolio(identifier: MaybeRefOrGetter<string>) {
           year: e.date ? Number(e.date.slice(0, 4)) : null,
           venue: e.venue,
           description: e.description,
+          cover_url: e.cover_url ?? null,
         })),
       }
       return { data: portfolio }

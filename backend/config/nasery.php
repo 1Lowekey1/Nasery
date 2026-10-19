@@ -147,6 +147,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Uploaded images (App\Services\Media\ImageStore)
+    |--------------------------------------------------------------------------
+    |
+    | Profile photos, organizer logos/covers and event covers. Stored outside
+    | the public web folder and re-encoded by the server; see ImageStore.
+    |
+    */
+
+    'media' => [
+        'root' => env('MEDIA_ROOT', storage_path('app/media')),
+        'max_bytes' => (int) env('MEDIA_MAX_BYTES', 5 * 1024 * 1024),
+        'max_dimension' => 6000,          // px per side, checked before decoding
+        'max_pixels' => 36_000_000,       // 6000×6000: no decompression bombs
+        'min_dimension' => 100,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Demo dataset (nasery:demo:seed)
     |--------------------------------------------------------------------------
     |

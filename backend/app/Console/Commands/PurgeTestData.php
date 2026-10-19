@@ -192,6 +192,8 @@ class PurgeTestData extends Command
         }
 
         $this->info('Purged.');
+        // Their uploaded pictures (older than an hour; the daily prune gets the rest).
+        $this->call('nasery:media:prune');
 
         return self::SUCCESS;
     }

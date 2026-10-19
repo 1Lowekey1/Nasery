@@ -8,6 +8,7 @@ export interface MarketplaceTicketType {
 export interface MarketplaceEvent {
   id: number
   name: string
+  cover_url?: string | null
   event_type: string
   description: string | null
   event_date: string | null

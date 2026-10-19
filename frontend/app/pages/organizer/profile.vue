@@ -79,10 +79,10 @@
 				</div>
 				<p class="text-xs text-gray-400">Coordinates let clients find you with "Near me". Leave empty to show your address only.</p>
 				<p v-if="fields.latitude || fields.longitude" class="text-xs text-red-600">{{ fields.latitude || fields.longitude }}</p>
-				<div>
-					<FormsLabel text="Cover Image URL (https)" />
-					<FormsTextField v-model="profile.cover_image_url" placeholder="https://…" />
-					<p v-if="fields.cover_image_url" class="mt-1 text-xs text-red-600">{{ fields.cover_image_url }}</p>
+				<div v-if="organization && isOwner" class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+					<MediaOrganizationImages :organization-id="organization.id" :logo-url="organization.profile?.logo_url"
+						:cover-url="organization.profile?.cover_url" :cover-uploaded="organization.profile?.cover_uploaded"
+						@changed="fetchOrganization(true)" />
 				</div>
 			</fieldset>
 			<button v-if="isOwner" type="submit" :disabled="saving"
@@ -211,6 +211,8 @@ function numberOrNull(value: string) {
 	return value.trim() === '' ? null : Number(value)
 }
 
+// Logo and cover picked in the form are uploaded by Save.
+const mediaBatch = provideMediaBatch()
 const saveProfile = () => run(async () => {
 	const saved = await updateProfile({
 		business_name: profile.business_name,
@@ -223,6 +225,8 @@ const saveProfile = () => run(async () => {
 		longitude: numberOrNull(coords.longitude),
 	})
 	Object.assign(profile, saved)
+	const pictureProblem = await mediaBatch.flush()
+	if (pictureProblem) throw new ApiError(422, 'PICTURE_FAILED', pictureProblem)
 }, 'Profile saved.')
 
 const togglePublished = () => run(async () => {

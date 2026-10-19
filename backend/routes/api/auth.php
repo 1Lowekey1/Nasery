@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\MediaController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\Auth\PasswordController;
@@ -52,6 +53,8 @@ Route::prefix('auth')->name('auth.')->group(function () {
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
         Route::get('me', [AuthController::class, 'me'])->name('me');
         Route::patch('me', [AuthController::class, 'updateMe'])->middleware('throttle:sensitive')->name('me.update');
+        Route::post('me/avatar', [MediaController::class, 'storeAvatar'])->middleware('throttle:sensitive')->name('me.avatar.store');
+        Route::delete('me/avatar', [MediaController::class, 'destroyAvatar'])->middleware('throttle:sensitive')->name('me.avatar.destroy');
 
         Route::post('email/verification-code', [EmailVerificationController::class, 'send'])
             ->middleware('throttle:email-verification')->name('email.send');

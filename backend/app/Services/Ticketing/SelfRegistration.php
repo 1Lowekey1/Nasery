@@ -2,6 +2,7 @@
 
 namespace App\Services\Ticketing;
 
+use App\Services\Media\ImageStore;
 use App\Enums\AdmissionType;
 use App\Enums\HoldStatus;
 use App\Enums\RegistrationSource;
@@ -322,6 +323,7 @@ class SelfRegistration
             'organizer' => ['name' => $e->organizer_name, 'slug' => $e->organizer_slug],
             'venue_name' => $e->venue_name,
             'venue_address' => $e->venue_address,
+            'cover_url' => ImageStore::url($e->cover_path ?? null),
             'timezone' => $e->timezone,
             'starts_at' => $e->starts_at ? CarbonImmutable::parse($e->starts_at)->setTimezone($e->timezone)->toIso8601String() : null,
             'ends_at' => $e->ends_at ? CarbonImmutable::parse($e->ends_at)->setTimezone($e->timezone)->toIso8601String() : null,

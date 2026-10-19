@@ -360,7 +360,7 @@
 									class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary-50 text-sm font-extrabold text-primary-700"><img
 										v-if="organizer.avatar_url" :src="organizer.avatar_url"
 										:alt="`${organizerDisplayName(organizer)} profile`"
-										class="h-full w-full object-cover"><span v-else>{{ organizerInitials(organizer)
+										class="h-full w-full bg-white object-contain"><span v-else>{{ organizerInitials(organizer)
 										}}</span></span>
 								<div class="min-w-0 flex-1">
 									<p class="truncate font-bold text-gray-900">{{ organizerDisplayName(organizer) }}
@@ -1183,6 +1183,7 @@ async function fetchNearbyOrganizers() {
 			id: o.id as unknown as number,
 			user_id: 0,
 			company_name: o.display_name,
+			avatar_url: o.logo_url ?? null,
 			location: o.location_text,
 			google_place_id: null,
 			latitude: o.latitude ?? 0,

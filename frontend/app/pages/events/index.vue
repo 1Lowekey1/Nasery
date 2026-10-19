@@ -15,7 +15,8 @@
 		</div>
 
 		<div v-else-if="events.length" class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-			<NuxtLink v-for="e in events" :key="e.id" :to="`/events/${e.id}`" class="rounded-2xl border border-gray-200 bg-white p-6 hover:border-primary-300 hover:shadow-sm">
+			<NuxtLink v-for="e in events" :key="e.id" :to="`/events/${e.id}`" class="overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 hover:border-primary-300 hover:shadow-sm">
+				<img v-if="e.cover_url" :src="e.cover_url" alt="" class="-mx-6 -mt-6 mb-5 aspect-[16/9] w-[calc(100%+3rem)] max-w-none object-cover">
 				<p class="text-xs font-semibold uppercase tracking-wide text-primary-700">{{ e.event_type ?? 'Event' }}<span v-if="e.status === 'ongoing'" class="text-green-700"> · Happening now</span></p>
 				<h2 class="mt-2 text-lg font-bold text-gray-900">{{ e.name }}</h2>
 				<p class="mt-1 text-sm text-gray-500">by {{ e.organizer.name }}</p>

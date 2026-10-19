@@ -235,7 +235,8 @@
 					</div>
 
 					<div v-else-if="activeProfileTab === 'Appearance'">
-						<ProfileMediaEditor class="mb-6" />
+						<p v-if="pictureError" class="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{{ pictureError }}</p>
+						<MediaBatchScope :batch="mediaBatch"><MediaAvatarUploader class="mb-6" /></MediaBatchScope>
 						<div class="mb-5 flex items-center gap-3">
 							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
 								<IconBase name="settings" class="h-4 w-4" />
@@ -258,8 +259,8 @@
 					<FormsButton variant="secondary" class="flex-1" @click="closeProfilePanel">
 						Cancel
 					</FormsButton>
-					<FormsButton class="flex-1" @click="saveProfile">
-						Save Profile
+					<FormsButton class="flex-1" :disabled="savingPictures" @click="saveProfile">
+						{{ savingPictures ? 'Saving...' : 'Save Profile' }}
 					</FormsButton>
 				</div>
 			</div>
@@ -541,11 +542,26 @@ function openProfilePanel() {
 	showProfilePanel.value = true
 }
 
+// Pictures picked in the panel are uploaded by Save Profile.
+const mediaBatch = createMediaBatch()
+const pictureError = ref('')
+const savingPictures = ref(false)
+
 function closeProfilePanel() {
 	showProfilePanel.value = false
+	pictureError.value = ''
+	mediaBatch.clear()
 }
 
-function saveProfile() {
+async function saveProfile() {
+	savingPictures.value = true
+	pictureError.value = await mediaBatch.flush()
+	savingPictures.value = false
+	if (pictureError.value) {
+		activeProfileTab.value = 'Appearance'
+		return
+	}
+
 	Object.assign(
 		profile,
 		draftProfile

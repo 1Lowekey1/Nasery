@@ -14,6 +14,10 @@ export interface OrganizationProfile {
   contact_email: string | null
   contact_phone: string | null
   cover_image_url: string | null
+  /** Uploaded pictures (the cover falls back to cover_image_url). */
+  logo_url?: string | null
+  cover_url?: string | null
+  cover_uploaded?: boolean
   is_published: boolean
   /** 0046: details from the business profile panel. */
   years_experience?: string | null

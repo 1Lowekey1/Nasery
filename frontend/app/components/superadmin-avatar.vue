@@ -1,12 +1,15 @@
 <template>
-	<div class="flex shrink-0 items-center justify-center rounded-full font-bold" :class="[sizeClass, tone.bg, tone.text]">
-		{{ initials }}
+	<div class="flex shrink-0 items-center justify-center overflow-hidden rounded-full font-bold" :class="[sizeClass, tone.bg, tone.text]">
+		<img v-if="src" :src="src" alt="" class="h-full w-full object-cover">
+		<template v-else>{{ initials }}</template>
 	</div>
 </template>
 
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
 	name: string
+	/** Uploaded profile photo, when there is one. */
+	src?: string | null
 	size?: 'sm' | 'md' | 'lg'
 	tone?: 'primary' | 'amber' | 'violet' | 'blue' | 'gray'
 }>(), {

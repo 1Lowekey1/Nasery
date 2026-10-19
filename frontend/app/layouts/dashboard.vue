@@ -112,7 +112,7 @@
 				<div class="flex min-h-0 flex-1 flex-col overflow-hidden">
 					<!-- Banner -->
 					<div class="relative shrink-0 pb-10">
-						<div class="h-24" :style="{ backgroundColor: draftProfile.bannerColor }"><img v-if="user?.cover_url" :src="user.cover_url" alt="" class="h-full w-full object-cover" /></div>
+						<div class="h-24" :style="{ backgroundColor: draftProfile.bannerColor }"><img v-if="ownOrg?.profile?.cover_url" :src="ownOrg.profile.cover_url" alt="" class="h-full w-full object-cover" /></div>
 
 						<button type="button"
 							class="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-black/20 text-white transition hover:bg-black/30"
@@ -403,7 +403,12 @@
 
 						<!-- Appearance -->
 						<div v-else-if="activeProfileTab === 'Appearance'">
-							<ProfileMediaEditor v-model="draftProfile.coverImageUrl" class="mb-6" />
+							<MediaBatchScope :batch="mediaBatch">
+							<MediaAvatarUploader class="mb-6" />
+							<MediaOrganizationImages v-if="ownOrg?.my_membership?.is_owner" class="mb-6 border-t border-gray-100 pt-6"
+								:organization-id="ownOrg.id" :logo-url="ownOrg.profile?.logo_url" :cover-url="ownOrg.profile?.cover_url"
+								:cover-uploaded="ownOrg.profile?.cover_uploaded" @changed="useOrganization().fetchOrganization(true)" />
+							</MediaBatchScope>
 							<div class="mb-6 flex items-center gap-3 border-b border-gray-100 pb-5">
 								<div
 									class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
@@ -602,6 +607,11 @@ const isEventManagementRoute = computed(() => {
 		route.path
 	)
 })
+
+// The organizer's own organization (logo / cover uploads in the profile panel).
+const ownOrg = computed(() => useOrganization().organization.value)
+// Pictures picked in the panel are uploaded by Save Profile.
+const mediaBatch = createMediaBatch()
 
 // Team members (staff) get only the pages their role and event assignments allow.
 const isStaff = computed(() => (user.value as { role?: string } | null)?.role === 'team_member')
@@ -1097,6 +1107,7 @@ function closeProfilePanel() {
 
 	showProfilePanel.value = false
 	profileSaveError.value = ''
+	mediaBatch.clear()
 }
 
 async function saveProfile() {
@@ -1156,6 +1167,12 @@ async function saveProfile() {
 		})
 
 		await loadOrganizerProfile(true)
+		const pictureProblem = await mediaBatch.flush()
+		if (pictureProblem) {
+			profileSaveError.value = pictureProblem
+			activeProfileTab.value = 'Appearance'
+			return
+		}
 		showProfilePanel.value = false
 	} catch (error: unknown) {
 		profileSaveError.value = authMessage(error) || 'Unable to save your profile. Please try again.'

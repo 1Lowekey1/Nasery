@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\MediaController;
 use App\Http\Controllers\Api\V1\Marketplace\MarketplaceController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,3 +20,11 @@ Route::prefix('marketplace')->name('marketplace.')
         Route::get('event-types', [MarketplaceController::class, 'eventTypes'])->name('event-types');
         Route::get('services', [MarketplaceController::class, 'services'])->name('services');
     });
+
+// Uploaded pictures (profile photos, logos, covers): public by link, served
+// with a fixed image type; the path must be a known folder + UUID.webp.
+Route::get('media/{folder}/{file}', [MediaController::class, 'show'])
+    ->whereIn('folder', ['avatars', 'logos', 'covers', 'event-covers'])
+    ->where('file', '[0-9a-f-]{36}\.webp')
+    ->withoutMiddleware('throttle:api')->middleware('throttle:public')
+    ->name('media.show');

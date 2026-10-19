@@ -6,6 +6,8 @@ export interface PortfolioEvent {
   year: number | null
   venue: string | null
   description: string | null
+  /** Uploaded event cover (public events only). */
+  cover_url?: string | null
 }
 
 export interface OrganizerPortfolio {
@@ -17,6 +19,9 @@ export interface OrganizerPortfolio {
   years_experience: string | null
   specialties: string[]
   banner_color: string
+  /** Uploaded pictures (the cover falls back to a pasted link). */
+  logo_url?: string | null
+  cover_url?: string | null
   portfolio_events_count: number
   average_rating: number
   reviews_count: number

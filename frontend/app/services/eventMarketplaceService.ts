@@ -30,6 +30,7 @@ function toMarketplace(e: ListedEvent): MarketplaceEvent {
   return {
     id: e.id as unknown as number,
     name: e.name,
+    cover_url: e.cover_url ?? null,
     event_type: e.event_type ?? 'Event',
     description: e.excerpt,
     event_date: dateIn(e.starts_at, e.timezone),

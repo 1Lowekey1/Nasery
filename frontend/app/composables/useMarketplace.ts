@@ -8,6 +8,8 @@ export interface OrganizerCard {
   excerpt: string | null
   location_text: string | null
   cover_image_url: string | null
+  logo_url?: string | null
+  cover_url?: string | null
   latitude: number | null
   longitude: number | null
   rating_avg: number | null
@@ -39,6 +41,8 @@ export interface OrganizerPublicProfile {
   contact_email: string | null
   contact_phone: string | null
   cover_image_url: string | null
+  logo_url?: string | null
+  cover_url?: string | null
   services: { id: string, name: string, description: string | null, base_price: string | null }[]
   /** The organizer's quotation-calculator price list (B5). */
   price_options: import('./useQuotations').PriceOption[]

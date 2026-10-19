@@ -116,13 +116,13 @@
 				<div v-if="filtered.length" class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
 					<article v-for="organizer in filtered" :key="organizer.slug"
 						class="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-lg">
-						<PortfolioCover :color="organizer.banner_color" :label="organizer.specialties[0] || 'Events'"
+						<PortfolioCover :color="organizer.banner_color" :label="organizer.specialties[0] || 'Events'" :image="organizer.cover_url"
 							compact />
 						<div class="flex flex-1 flex-col p-6">
 							<div class="mb-4 flex items-center gap-3"><span
-									class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
-									:style="{ backgroundColor: organizer.banner_color }">{{ initials(organizer.name)
-									}}</span>
+									class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl text-sm font-bold text-white"
+									:class="organizer.logo_url ? 'border border-gray-200 bg-white' : ''"
+									:style="organizer.logo_url ? {} : { backgroundColor: organizer.banner_color }"><img v-if="organizer.logo_url" :src="organizer.logo_url" :alt="`${organizer.name} logo`" class="h-full w-full bg-white object-contain"><template v-else>{{ initials(organizer.name) }}</template></span>
 								<div>
 									<h3 class="font-bold">{{ organizer.name }}</h3>
 									<p class="mt-1 text-xs text-gray-500">{{ organizer.location || 'Location not added'

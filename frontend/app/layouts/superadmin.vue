@@ -71,16 +71,19 @@
 						<button type="button"
 							class="flex items-center gap-2.5 rounded-xl border border-gray-200 bg-white py-1.5 pl-1.5 pr-3 transition hover:border-primary-200 hover:bg-primary-50"
 							@click="toggleProfileMenu">
-							<SuperadminAvatar :name="fullName || 'Super Admin'" size="sm" />
+							<SuperadminAvatar :name="fullName || 'Super Admin'" :src="user?.avatar_url" size="sm" />
 							<span class="text-sm font-semibold text-gray-700">Profile</span>
 							<IconBase name="chevron-down" class="h-3.5 w-3.5 text-gray-400" />
 						</button>
 
 						<div v-if="profileMenuOpen"
-							class="absolute right-0 top-12 z-[80] w-56 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+							class="absolute right-0 top-12 z-[80] w-80 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
 							<div class="border-b border-gray-100 px-4 py-3.5">
 								<p class="truncate text-sm font-bold text-gray-900">{{ fullName || 'NaSeRy HQ' }}</p>
 								<p class="text-xs text-gray-400">Super Admin</p>
+							</div>
+							<div class="border-b border-gray-100 px-4 py-4">
+								<MediaAvatarUploader />
 							</div>
 							<button type="button"
 								class="flex w-full items-center gap-2.5 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50"
@@ -129,7 +132,7 @@ const activeItem = computed(
 const pageTitles: Record<string, string> = { '/notifications': 'Notifications', '/my-tickets': 'My Tickets' }
 const headerTitle = computed(() => pageTitles[route.path] ?? activeItem.value?.label ?? '')
 
-const { fullName, logout } = useAuth('superadmin')
+const { fullName, logout, user } = useAuth('superadmin')
 
 const profileMenuOpen = ref(false)
 const profileMenuRef = ref<HTMLElement | null>(null)
@@ -142,7 +145,9 @@ function toggleProfileMenu() {
 }
 
 function closeProfileMenuOnOutsideClick(event: MouseEvent) {
-	if (profileMenuOpen.value && !profileMenuRef.value?.contains(event.target as Node)) {
+	// Dialogs opened from the menu (photo crop, confirmations) sit outside it.
+	const inDialog = (event.target as Element | null)?.closest?.('[aria-modal="true"], .fixed.inset-0')
+	if (profileMenuOpen.value && !inDialog && !profileMenuRef.value?.contains(event.target as Node)) {
 		profileMenuOpen.value = false
 	}
 }

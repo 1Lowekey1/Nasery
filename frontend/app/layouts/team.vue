@@ -31,7 +31,7 @@
         <div class="relative shrink-0 pb-10"><div class="h-24 bg-primary-700"><img v-if="user?.cover_url" :src="user.cover_url" alt="" class="h-full w-full object-cover" /></div><button type="button" aria-label="Close profile" class="absolute right-4 top-4 text-white/80 hover:text-white" @click="closeProfilePanel"><IconBase name="x" class="h-5 w-5" /></button><div class="absolute -bottom-1 left-6 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-primary-50 text-lg font-bold text-primary-700 shadow-sm"><img v-if="user?.avatar_url" :src="user.avatar_url" alt="" class="h-full w-full object-cover" /><span v-else>{{ draftInitials }}</span></div></div>
         <div class="border-b border-gray-200 px-6 pb-5"><p class="text-xs font-bold uppercase tracking-widest text-primary-700">Team member profile</p><h2 id="team-profile-title" class="mt-1 text-xl font-bold text-gray-900">{{ draftFullName || 'Your profile' }}</h2><p class="mt-1 text-sm text-gray-500">Update the contact details your organizer sees.</p></div>
         <div class="flex-1 overflow-y-auto px-6 py-6">
-          <ProfileMediaEditor class="mb-6" />
+          <MediaBatchScope :batch="mediaBatch"><MediaAvatarUploader class="mb-6" /></MediaBatchScope>
           <div class="mb-6 flex items-start gap-3 rounded-xl border border-primary-100 bg-primary-50 p-4"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-primary-700"><IconBase name="user" class="h-4 w-4" /></span><div><p class="text-sm font-bold text-primary-900">Personal information</p><p class="mt-1 text-xs leading-relaxed text-primary-800/70">Keep this current so your organizer can identify and contact you.</p></div></div>
           <div class="grid gap-4 sm:grid-cols-2"><div><label class="profile-label">First name *</label><input v-model="draft.firstname" class="profile-input" autocomplete="given-name" /></div><div><label class="profile-label">Middle name</label><input v-model="draft.middlename" class="profile-input" autocomplete="additional-name" /></div></div>
           <div class="mt-4"><label class="profile-label">Last name *</label><input v-model="draft.lastname" class="profile-input" autocomplete="family-name" /></div>
@@ -41,7 +41,7 @@
           <div v-if="saveError" class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ saveError }}</div>
           <div v-if="saveSuccess" class="mt-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700" role="status">Profile updated successfully.</div>
         </div>
-        <div class="flex shrink-0 gap-3 border-t border-gray-200 px-6 py-4"><button type="button" class="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50" @click="closeProfilePanel">Cancel</button><button type="button" class="flex-1 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-900 disabled:cursor-not-allowed disabled:opacity-50" :disabled="isSaving || !canSave" @click="saveProfile">{{ isSaving ? 'Saving…' : 'Save changes' }}</button></div>
+        <div class="flex shrink-0 gap-3 border-t border-gray-200 px-6 py-4"><button type="button" class="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50" @click="closeProfilePanel">Cancel</button><button type="button" class="flex-1 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-900 disabled:cursor-not-allowed disabled:opacity-50" :disabled="isSaving || (!canSave && !mediaBatch.count.value)" @click="saveProfile">{{ isSaving ? 'Saving…' : 'Save changes' }}</button></div>
       </section>
     </Transition>
   </div>
@@ -84,14 +84,18 @@ function syncDraft() {
   Object.assign(draft, { firstname: user.value.firstname ?? '', middlename: user.value.middlename ?? '', lastname: user.value.lastname ?? '', email: user.value.email ?? '', phone: user.value.phone ?? '', address: user.value.address ?? '' })
 }
 function openProfilePanel() { syncDraft(); saveError.value = ''; saveSuccess.value = false; showProfilePanel.value = true }
-function closeProfilePanel() { showProfilePanel.value = false }
+// Pictures picked in the panel are uploaded by Save changes.
+const mediaBatch = createMediaBatch()
+function closeProfilePanel() { showProfilePanel.value = false; mediaBatch.clear() }
 
 async function saveProfile() {
-  if (!canSave.value) return
+  if (!canSave.value && !mediaBatch.count.value) return
   isSaving.value = true; saveError.value = ''; saveSuccess.value = false
   try {
-    await updateProfile({ first_name: draft.firstname.trim(), middle_name: draft.middlename.trim() || null, last_name: draft.lastname.trim(), phone: draft.phone.trim() || null })
-    saveSuccess.value = true
+    if (canSave.value) await updateProfile({ first_name: draft.firstname.trim(), middle_name: draft.middlename.trim() || null, last_name: draft.lastname.trim(), phone: draft.phone.trim() || null })
+    const pictureProblem = await mediaBatch.flush()
+    if (pictureProblem) saveError.value = pictureProblem
+    else saveSuccess.value = true
   } catch (error: unknown) {
     saveError.value = authMessage(error) || 'Unable to save your profile.'
   } finally { isSaving.value = false }

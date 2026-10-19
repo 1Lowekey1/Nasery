@@ -17,5 +17,10 @@ if errorlevel 1 (
   if /I not "%~1"=="quiet" pause
   exit /b 1
 )
+rem Uploaded pictures live on disk, not in the database: keep a mirror next to the dumps.
+if exist "%~dp0backend\storage\app\media" (
+  "%SystemRoot%\System32\robocopy.exe" "%~dp0backend\storage\app\media" "%~dp0backend\storage\backups\media" /MIR /NFL /NDL /NJH /NJS /NP >nul
+  echo  [ok] Pictures copied to backend\storage\backups\media
+)
 if /I not "%~1"=="quiet" "%SystemRoot%\System32\timeout.exe" /t 5 >nul
 endlocal

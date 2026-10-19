@@ -6,6 +6,10 @@ export default {
     './app/pages/**/*.vue',
     './app/app.vue',
     './app/plugins/**/*.{js,ts}',
+    // Composables and helpers build class lists too (e.g. useResponsiveSidebar).
+    './app/composables/**/*.{js,ts}',
+    './app/utils/**/*.{js,ts}',
+    './app/services/**/*.{js,ts}',
   ],
   theme: {
     extend: {

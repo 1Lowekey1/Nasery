@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Media\ImageStore;
 use App\Models\OrganizationProfile;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -28,6 +29,10 @@ class OrganizationProfileResource extends JsonResource
             'contact_email' => $this->contact_email,
             'contact_phone' => $this->contact_phone,
             'cover_image_url' => $this->cover_image_url,
+            // Uploaded pictures; the cover falls back to the older pasted link.
+            'logo_url' => ImageStore::url($this->logo_path ?? null),
+            'cover_url' => ImageStore::url($this->cover_path ?? null) ?? $this->cover_image_url,
+            'cover_uploaded' => ($this->cover_path ?? null) !== null,
             'is_published' => $this->is_published,
             'years_experience' => $extra('years_experience'),
             'service_radius_km' => $extra('service_radius_km'),

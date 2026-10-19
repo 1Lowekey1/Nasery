@@ -11,6 +11,7 @@
 
 		<template v-else>
 			<section v-if="event" class="relative overflow-hidden rounded-3xl bg-primary-700 px-6 py-7 text-white shadow-sm sm:px-8">
+				<img v-if="event.cover_url" :src="event.cover_url" alt="" class="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30">
 				<div class="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
 				<div class="relative">
 					<p class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/60">
@@ -20,6 +21,13 @@
 					<h2 class="mt-2 text-2xl font-black tracking-tight sm:text-3xl">{{ event.name }}</h2>
 					<p class="mt-1 text-sm text-white/70">Manage the core details, venue, and settings for this event.</p>
 				</div>
+			</section>
+
+			<section v-if="event && event.id && canEditCover" class="rounded-2xl border border-gray-200 bg-white p-6">
+				<h3 class="text-base font-bold text-gray-900">Event cover photo</h3>
+				<p class="mb-4 mt-1 text-sm text-gray-500">Shown on the Events page and the event's public page when the event is public.</p>
+				<MediaImageUploader shape="event" alt="Event cover" :current="event.cover_url"
+					:upload="saveCover" :remove="removeCover" />
 			</section>
 
 			<div v-if="event && isEditMode" class="rounded-2xl border border-gray-200 bg-white">
@@ -569,8 +577,28 @@ interface EventTicketType {
 	capacity: number
 }
 
+// Event cover: anyone who may edit the event (the server checks event.update again).
+const coverOrgId = computed(() => useOrganization().organization.value?.id ?? '')
+const canEditCover = computed(() => {
+	const m = useOrganization().organization.value?.my_membership
+	return Boolean(m && (m.is_owner || m.permissions?.includes('event.update') || m.event_permissions?.includes('event.update')))
+})
+async function saveCover(file: File) {
+	if (!event.value) return null
+	const url = await useMedia().uploadEventCover(coverOrgId.value, String(event.value.id), file)
+	event.value = { ...event.value, cover_url: url }
+	return url
+}
+async function removeCover() {
+	if (!event.value) return
+	await useMedia().removeEventCover(coverOrgId.value, String(event.value.id))
+	event.value = { ...event.value, cover_url: null }
+}
+
 interface OrganizerEvent {
 	id: number
+	/** Uploaded cover picture (MediaController). */
+	cover_url?: string | null
 	inquiry_id: number | null
 	quotation_id: number | null
 

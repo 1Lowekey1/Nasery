@@ -57,6 +57,8 @@ export interface GuestRow {
 export interface PublicEventCard {
   id: string
   name: string
+  /** Uploaded event cover, when there is one. */
+  cover_url?: string | null
   event_type: string | null
   status: string
   organizer: { name: string, slug: string }

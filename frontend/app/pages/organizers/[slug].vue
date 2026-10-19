@@ -24,12 +24,14 @@
 			<span aria-hidden="true">←</span> All organizers
 		</NuxtLink>
 		<section class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-			<PortfolioCover :color="organizer.banner_color" :label="organizer.name" />
+			<PortfolioCover :color="organizer.banner_color" :label="organizer.name" :image="organizer.cover_url" />
 			<div class="flex flex-col justify-between gap-6 p-6 sm:p-8 lg:flex-row lg:items-center">
 				<div class="flex items-start gap-4"><span
-						class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white"
-						:style="{ backgroundColor: organizer.banner_color }">
-						{{ initials(organizer.name) }}
+						class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl text-xl font-bold text-white"
+						:class="organizer.logo_url ? 'border border-gray-200 bg-white' : ''"
+						:style="organizer.logo_url ? {} : { backgroundColor: organizer.banner_color }">
+						<img v-if="organizer.logo_url" :src="organizer.logo_url" :alt="`${organizer.name} logo`" class="h-full w-full bg-white object-contain">
+						<template v-else>{{ initials(organizer.name) }}</template>
 					</span>
 					<div>
 						<h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{{ organizer.name }}</h1>
@@ -124,7 +126,7 @@
 					<div v-if="organizer.events.length" class="grid gap-5 sm:grid-cols-2">
 						<article v-for="event in organizer.events" :key="event.id"
 							class="overflow-hidden rounded-xl border border-gray-200 bg-white">
-							<PortfolioCover :color="organizer.banner_color" :label="event.title" compact />
+							<PortfolioCover :color="organizer.banner_color" :label="event.title" :image="event.cover_url" compact />
 							<div class="p-5">
 								<p class="text-xs font-semibold text-primary-700">
 									{{ event.category }}

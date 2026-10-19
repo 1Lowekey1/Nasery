@@ -42,6 +42,7 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
+        <env name="MEDIA_ROOT" value="storage/framework/testing/media" force="true"/>
         <env name="CACHE_LIMITER_STORE" value="array"/>
         <!-- Tests run against the DB in .env (Supabase) inside transactions that
              are always rolled back. Run via `composer test`, which takes a

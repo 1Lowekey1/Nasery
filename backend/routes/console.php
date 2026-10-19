@@ -27,3 +27,6 @@ Schedule::command('nasery:billing:cycle')->hourly()->onOneServer()->withoutOverl
 
 // Demo: keep the always-open demo event's check-in door open (does nothing without the demo dataset).
 Schedule::command('nasery:demo:event')->hourly()->onOneServer()->withoutOverlapping();
+
+// Uploaded pictures no account, organizer or event uses anymore.
+Schedule::command('nasery:media:prune')->dailyAt('03:30')->onOneServer();

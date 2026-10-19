@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\MediaController;
 use App\Http\Controllers\Api\V1\Events\ClientEventController;
 use App\Http\Controllers\Api\V1\Events\EventActivityController;
 use App\Http\Controllers\Api\V1\Events\OrganizerEventController;
@@ -38,6 +39,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
                 Route::get('{event}', [OrganizerEventController::class, 'view'])->name('show');
                 Route::patch('{event}', [OrganizerEventController::class, 'update'])->middleware('throttle:sensitive')->name('update');
                 Route::delete('{event}', [OrganizerEventController::class, 'destroy'])->middleware('throttle:sensitive')->name('destroy');
+                Route::post('{event}/cover', [MediaController::class, 'storeEventCover'])->middleware('throttle:sensitive')->name('cover.store');
+                Route::delete('{event}/cover', [MediaController::class, 'destroyEventCover'])->middleware('throttle:sensitive')->name('cover.destroy');
                 Route::post('{event}/{action}', [OrganizerEventController::class, 'transition'])
                     ->whereIn('action', ['publish', 'unpublish', 'start', 'complete', 'cancel'])
                     ->middleware('throttle:sensitive')->name('transition');

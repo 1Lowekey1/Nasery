@@ -103,7 +103,11 @@
 						class="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-lg">
 						<div class="relative flex h-44 items-end overflow-hidden p-6 text-white"
 							:style="{ backgroundColor: event.organizer.banner_color }">
-							<div aria-hidden="true"
+							<template v-if="event.cover_url">
+								<img :src="event.cover_url" alt="" class="absolute inset-0 h-full w-full object-cover">
+								<div aria-hidden="true" class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+							</template>
+							<div v-else aria-hidden="true"
 								class="absolute -right-12 -top-16 h-48 w-48 rounded-full bg-white/10" />
 							<div aria-hidden="true"
 								class="absolute -bottom-20 left-10 h-40 w-40 rounded-full border border-white/15" />
