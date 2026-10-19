@@ -123,6 +123,7 @@
 
 					<div v-if="expandedId === offer.id" class="mt-5 rounded-xl border border-gray-100 bg-gray-50 p-4">
 						<div class="mb-2 text-xs font-semibold tracking-wide text-gray-400">PRICE BREAKDOWN</div>
+						<div class="overflow-x-auto">
 						<table class="w-full text-sm">
 							<thead>
 								<tr class="text-left text-xs text-gray-400">
@@ -147,6 +148,7 @@
 								</tr>
 							</tfoot>
 						</table>
+						</div>
 						<p v-if="offer.timeline" class="mt-3 text-xs text-gray-500"><span class="font-semibold">Terms:</span> {{ offer.timeline }}</p>
 					</div>
 

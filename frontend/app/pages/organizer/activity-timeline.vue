@@ -23,8 +23,8 @@
 			{{ errorMessage }}
 		</div>
 
-		<div v-else class="flex gap-6">
-			<div class="flex w-72 shrink-0 flex-col">
+		<div v-else class="flex flex-col gap-6 lg:flex-row">
+			<div class="flex w-full shrink-0 flex-col lg:w-72">
 				<div class="mb-2 shrink-0 text-xs font-semibold tracking-wide text-gray-400">
 					EVENTS
 				</div>
@@ -51,7 +51,7 @@
 					</span>
 				</button>
 
-				<div class="flex-1 space-y-2 overflow-y-auto pr-1">
+				<div class="max-h-64 flex-1 space-y-2 overflow-y-auto pr-1 lg:max-h-none">
 					<button v-for="ev in timelineEvents" :key="ev.key" type="button"
 						class="w-full rounded-2xl border bg-white px-4 py-3.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md"
 						:class="selectedEventKey === ev.key
@@ -111,14 +111,14 @@
 			</div>
 
 			<div class="min-w-0 flex-1">
-				<div class="mb-4 flex items-center gap-3">
-					<div class="flex-1">
+				<div class="mb-4 flex flex-wrap items-center gap-3">
+					<div class="min-w-[12rem] flex-1">
 						<FormsTextField v-model="searchQuery" icon="search" placeholder="Search activities..." />
 					</div>
 
 					<IconBase name="filter" class="h-4 w-4 shrink-0 text-gray-400" />
 
-					<div class="flex shrink-0 gap-2">
+					<div class="flex flex-wrap gap-2">
 						<button v-for="filter in statusFilters" :key="filter" type="button"
 							class="rounded-lg px-3 py-2 text-sm font-semibold" :class="selectedStatus === filter
 								? 'bg-[#285F6b] text-white'
@@ -132,8 +132,8 @@
 					</div>
 				</div>
 
-				<div class="mb-4 flex items-center justify-between">
-					<div class="flex gap-2">
+				<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+					<div class="flex flex-wrap gap-2">
 						<span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
 							{{ doneCount }}
 							Completed

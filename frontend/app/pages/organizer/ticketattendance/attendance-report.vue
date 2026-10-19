@@ -320,7 +320,8 @@
                         </p>
                     </div>
 
-                    <table v-if="attendees.length" class="w-full text-left text-sm">
+                    <div v-if="attendees.length" class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
                         <thead>
                             <tr
                                 class="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -424,6 +425,7 @@
                             </tr>
                         </tbody>
                     </table>
+                    </div>
 
                     <div v-else class="px-5 py-12 text-center">
                         <IconBase name="users" class="mx-auto h-7 w-7 text-gray-400" />

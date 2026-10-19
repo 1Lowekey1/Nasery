@@ -104,6 +104,9 @@
 				Create account
 			</NuxtLink>
 		</p>
+		<p class="mt-3 text-center text-xs text-gray-400">
+			NaSeRy staff? <NuxtLink to="/superadmin/login" class="font-semibold text-gray-500 hover:text-primary-700 hover:underline">Admin sign-in</NuxtLink>
+		</p>
 	</div>
 </template>
 

@@ -1,5 +1,5 @@
 <template>
-	<div class="relative">
+	<div ref="root" class="relative">
 		<button type="button" aria-label="Open notifications"
 			class="relative flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
 			@click="togglePanel">
@@ -9,7 +9,7 @@
 			</span>
 		</button>
 
-		<div v-if="open" class="absolute right-0 top-12 z-[80] w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+		<div v-if="open" class="fixed inset-x-3 top-16 z-[80] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-96">
 			<header class="flex items-center justify-between border-b border-gray-100 px-4 py-3.5">
 				<div>
 					<p class="text-sm font-bold text-gray-900">Notifications</p>
@@ -20,7 +20,7 @@
 				</button>
 			</header>
 
-			<div class="max-h-96 overflow-y-auto overscroll-contain">
+			<div class="max-h-[min(24rem,calc(100dvh-10rem))] overflow-y-auto overscroll-contain">
 				<div v-if="loading && !items.length" class="px-5 py-10 text-center text-sm text-gray-500">Loading updates…</div>
 				<div v-else-if="!items.length" class="px-5 py-10 text-center">
 					<span class="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-50 text-primary-700"><IconBase name="bell" class="h-5 w-5" /></span>
@@ -132,12 +132,27 @@ function closePanel() {
 	open.value = false
 }
 
+// Close when tapping/clicking outside the panel, pressing Escape, or changing page.
+const root = ref<HTMLElement | null>(null)
+const route = useRoute()
+function onOutside(e: Event) {
+	if (open.value && root.value && !root.value.contains(e.target as Node)) open.value = false
+}
+function onKey(e: KeyboardEvent) {
+	if (e.key === 'Escape') open.value = false
+}
+watch(() => route.fullPath, closePanel)
+
 onMounted(() => {
 	window.addEventListener('dashboard:close-notifications', closePanel)
+	document.addEventListener('pointerdown', onOutside)
+	window.addEventListener('keydown', onKey)
 	load()
 })
 
 onBeforeUnmount(() => {
 	window.removeEventListener('dashboard:close-notifications', closePanel)
+	document.removeEventListener('pointerdown', onOutside)
+	window.removeEventListener('keydown', onKey)
 })
 </script>

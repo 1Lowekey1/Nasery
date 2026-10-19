@@ -89,7 +89,10 @@
 					</div>
 
 					<div class="mb-7">
-						<FormsLabel text="Password" field-for="admin-login-password" required />
+						<div class="flex items-center justify-between">
+							<FormsLabel text="Password" field-for="admin-login-password" required />
+							<NuxtLink to="/forgot-password" class="text-[13px] font-semibold text-primary-600 hover:underline">Forgot password?</NuxtLink>
+						</div>
 
 						<FormsPasswordField id="admin-login-password" v-model="state.password"
 							autocomplete="current-password" placeholder="Enter password" size="lg" required>
@@ -125,6 +128,11 @@
 				<p class="mt-6 text-center text-xs text-gray-400">
 					This portal is for authorized NaSeRy staff only.
 				</p>
+				<div class="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm">
+					<NuxtLink to="/login" class="font-semibold text-primary-700 hover:underline">Not staff? Regular sign-in</NuxtLink>
+					<span class="text-gray-300" aria-hidden="true">·</span>
+					<NuxtLink to="/" class="font-semibold text-gray-500 hover:text-primary-700 hover:underline">Back to NaSeRy</NuxtLink>
+				</div>
 			</div>
 		</div>
 	</div>

@@ -3,7 +3,7 @@
 		<!-- <div class="fixed inset-x-0 top-0 z-50 h-1 bg-gray-900" /> -->
 
 		<aside class="shrink-0 overflow-hidden border-r border-gray-200 bg-white transition-all duration-200"
-			:class="sidebarOpen ? 'w-64' : 'w-0 border-r-0'">
+			:class="asideClass">
 			<div class="flex h-full w-64 flex-col overflow-y-auto">
 				<div class="flex items-center gap-2.5 px-5 py-5">
 					<div
@@ -48,16 +48,17 @@
 				</div>
 			</div>
 		</aside>
+		<div v-if="isMobile && sidebarOpen" class="fixed inset-0 z-[85] bg-gray-900/40" aria-hidden="true" @click="closeSidebar" />
 
 		<div class="flex min-w-0 flex-1 flex-col">
-			<header class="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-3.5">
+			<header class="flex shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-3.5">
 				<div class="flex items-center gap-4">
-					<button type="button" class="text-gray-400 hover:text-gray-600" @click="sidebarOpen = !sidebarOpen">
+					<button type="button" class="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700" :aria-label="sidebarOpen ? 'Close menu' : 'Open menu'" :aria-expanded="sidebarOpen" @click="sidebarOpen = !sidebarOpen">
 						<IconBase :name="sidebarOpen ? 'x' : 'menu'" class="h-5 w-5" />
 					</button>
 					<div>
 						<div class="text-xs text-gray-400">Client Portal</div>
-						<div class="text-sm font-bold text-gray-900">{{ activeItem.label }}</div>
+						<div class="text-sm font-bold text-gray-900">{{ headerTitle }}</div>
 					</div>
 				</div>
 				<div class="flex items-center gap-2">
@@ -71,7 +72,7 @@
 				</div>
 			</header>
 
-			<main class="flex-1 overflow-y-auto p-6">
+			<main class="flex-1 overflow-y-auto p-4 sm:p-6">
 				<slot />
 			</main>
 		</div>
@@ -277,7 +278,7 @@ const {
 	logout,
 } = useAuth()
 
-const sidebarOpen = ref(true)
+const { sidebarOpen, isMobile, asideClass, closeSidebar } = useResponsiveSidebar()
 
 const navItems = [
 	{
@@ -301,6 +302,11 @@ const navItems = [
 		icon: 'activity',
 	},
 	{
+		label: 'My Tickets',
+		to: '/my-tickets',
+		icon: 'ticket',
+	},
+	{
 		label: 'Event Marketplace',
 		to: '/marketplace',
 		icon: 'calendar',
@@ -319,6 +325,10 @@ const activeItem = computed(() => {
 		) ?? navItems[0]
 	)
 })
+
+// Pages outside the menu still get their own title in the header.
+const pageTitles: Record<string, string> = { '/notifications': 'Notifications', '/my-tickets': 'My Tickets' }
+const headerTitle = computed(() => pageTitles[route.path] ?? activeItem.value?.label ?? '')
 
 /**
  * Sidebar name.

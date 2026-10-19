@@ -27,6 +27,8 @@
 param(
   [Parameter(Mandatory = $true, Position = 0)][ValidateSet('production', 'development')][string]$Mode,
   [string]$PublicUrl = '',
+  # Force rebuilding PHP's optimized class index (normally only after composer install/update).
+  [switch]$RebuildAutoload,
   [switch]$SkipFrontend,
   [string]$Php = 'C:\xampp\php8.5.10\php.exe',
   [string]$Composer = 'C:\composer\composer.phar'
@@ -85,7 +87,15 @@ Push-Location $Backend
 try {
   if ($Mode -eq 'production') {
     Step 'Optimizing the backend'
-    Run 'composer dump-autoload' { & $Php $Composer dump-autoload --optimize --no-interaction --quiet }
+    # The optimized class index (~11 s to rebuild: it scans all of vendor\) only goes stale
+    # when dependencies change; new classes in app\ still load without it. Rebuild it only
+    # when composer.json / composer.lock is newer than the index, or with -RebuildAutoload.
+    $classmap = Join-Path $Backend 'vendor\composer\autoload_classmap.php'
+    $deps = @('composer.json', 'composer.lock') | ForEach-Object { Join-Path $Backend $_ } | Where-Object { Test-Path $_ }
+    $stale = $RebuildAutoload -or -not (Test-Path $classmap) -or
+      [bool]($deps | Where-Object { (Get-Item $_).LastWriteTime -gt (Get-Item $classmap).LastWriteTime })
+    if ($stale) { Run 'composer dump-autoload' { & $Php $Composer dump-autoload --optimize --no-interaction --quiet } }
+    else { Write-Host '  Class index is up to date (dependencies unchanged).' }
     Run 'artisan optimize' { & $Php artisan optimize }
   } else {
     Step 'Clearing the backend caches'
