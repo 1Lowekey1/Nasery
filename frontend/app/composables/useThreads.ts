@@ -36,6 +36,7 @@ export function useOrganizerThreads() {
   const route = useRoute()
   const unread = ref<Record<string, number>>({})
   const open = ref<{ id: string, title: string, inquiryId: string } | null>(null)
+  const dropThreadQuery = () => navigateTo({ query: { ...route.query, thread: undefined } }, { replace: true })
 
   async function loadUnread(orgId: string) {
     try {
@@ -43,6 +44,8 @@ export function useOrganizerThreads() {
       unread.value = Object.fromEntries(list.map(t => [t.inquiry_id, t.unread]))
       const wanted = typeof route.query.thread === 'string' ? list.find(t => t.id === route.query.thread) : null
       if (wanted && !open.value) open.value = { id: wanted.id, title: `${wanted.client} · ${wanted.event_type}`, inquiryId: wanted.inquiry_id }
+      // Use ?thread= once: closing the drawer reloads the counts, which must not reopen it.
+      if (route.query.thread) await dropThreadQuery()
     } catch {
       unread.value = {} // members without inquiry duties: no messages
     }

@@ -238,7 +238,11 @@ async function load() {
 				selectedThread.value = (threads.value.find(t => t.unread) ?? threads.value.find(t => t.can_send) ?? threads.value[0])?.id ?? null
 			}
 			// Opened from a message notification: bring the conversation into view.
-			if (route.query.thread) nextTick(() => document.getElementById('messages')?.scrollIntoView({ behavior: 'smooth' }))
+			// Once: later reloads (after accepting, declining…) must not jump back to the messages.
+			if (route.query.thread) {
+				nextTick(() => document.getElementById('messages')?.scrollIntoView({ behavior: 'smooth' }))
+				navigateTo({ query: { ...route.query, thread: undefined }, hash: route.hash }, { replace: true })
+			}
 		}
 		// From My Events ("Invite organizers"): go to the invite search, ready to type.
 		if (route.hash === '#invite') {
