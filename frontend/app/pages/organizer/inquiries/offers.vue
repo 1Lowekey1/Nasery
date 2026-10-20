@@ -37,6 +37,18 @@
 						</span>
 					</div>
 
+					<div v-if="raw(offer)?.before_changes"
+						class="mt-4 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center">
+						<IconBase name="clock" class="hidden h-5 w-5 shrink-0 text-amber-600 sm:block" />
+						<p class="min-w-0 flex-1 leading-6">
+							<span class="font-semibold">The client changed this request</span>
+							<template v-if="raw(offer)?.inquiry?.revised_at"> on {{ formatDate(raw(offer)!.inquiry!.revised_at!) }}</template>,
+							after you sent this offer. The details below are the new ones. Revise your offer if it no longer fits.
+						</p>
+						<button type="button" class="shrink-0 rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+							@click="revising = raw(offer)">Revise offer</button>
+					</div>
+
 					<div
 						class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-primary-100 bg-primary-50/60 px-4 py-3 text-sm">
 						<span class="flex items-center gap-2 font-semibold text-gray-800">
@@ -176,6 +188,12 @@
 								class="ml-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{{ threads.unread.value[String(offer.inquiry_id)] }}</span>
 						</button>
 
+						<button v-if="raw(offer)?.status === 'submitted' && !raw(offer)?.before_changes" type="button"
+							class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+							@click="revising = raw(offer)">
+							<IconBase name="edit" class="h-4 w-4" /> Revise offer
+						</button>
+
 						<button type="button"
 							class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
 							:aria-expanded="expandedId === offer.id" @click="expandedId = expandedId === offer.id ? null : offer.id">
@@ -200,10 +218,17 @@
 			</p>
 			<NuxtLink to="/organizer/inquiries/match-inquiries" class="mt-3 inline-block text-sm font-semibold text-primary-700 hover:underline">Browse matching inquiries</NuxtLink>
 		</div>
+
+		<OrganizerQuotationForm v-if="revising && orgId" :organization-id="orgId" :inquiry-id="revising.inquiry_id"
+			:event-label="`${revising.inquiry?.event_type ?? 'Event'}${revising.inquiry?.requested_date ? ` on ${formatDate(revising.inquiry.requested_date)}` : ''}`"
+			:guest-count="revising.inquiry?.guest_count ?? null" :quotation="revising"
+			@close="revising = null" @saved="onRevised" />
 	</div>
 </template>
 
 <script setup lang="ts">
+import type { OrganizerQuotation } from '~/composables/useQuotations'
+
 const startingPlanningId =
 	ref<number | null>(null)
 
@@ -326,6 +351,15 @@ function formatSchedule(start?: string | null, end?: string | null): string {
 // Private messages with each client (one thread per inquiry).
 const threads = useOrganizerThreads()
 const orgId = ref<string | null>(null)
+
+// Revising a sent offer (also when the client changed the request, 0051).
+const rawById = ref<Record<string, OrganizerQuotation>>({})
+const raw = (offer: { id: unknown }) => rawById.value[String(offer.id)] ?? null
+const revising = ref<OrganizerQuotation | null>(null)
+async function onRevised() {
+	revising.value = null
+	await loadOffers()
+}
 const openingThreadId = ref<number | null>(null)
 const threadError = ref('')
 
@@ -355,8 +389,16 @@ async function loadOffers() {
 			matchingInquiryCount.value = r.items.filter(i => i.is_open && (!i.quotation || i.quotation.status === 'draft')).length
 		}).catch(() => {})
 		const quotations = await allItems(page => useOrganizerQuotations().list(org.id, ['submitted', 'accepted', 'rejected', 'withdrawn'], page))
-		myOffersCount.value = quotations.length
-		offers.value = quotations.map((q) => {
+		// One card per request: a revision replaces (withdraws) the earlier version.
+		const stamp = (q: OrganizerQuotation) => q.submitted_at ?? q.updated_at ?? ''
+		const latest = Object.values(quotations.reduce<Record<string, OrganizerQuotation>>((acc, q) => {
+			const seen = acc[q.inquiry_id]
+			if (!seen || stamp(q) > stamp(seen)) acc[q.inquiry_id] = q
+			return acc
+		}, {})).sort((a, b) => stamp(b).localeCompare(stamp(a)))
+		rawById.value = Object.fromEntries(latest.map(q => [q.id, q]))
+		myOffersCount.value = latest.length
+		offers.value = latest.map((q) => {
 			const legacy = toLegacyQuotation(q)
 			return {
 				id: q.id as unknown as number,

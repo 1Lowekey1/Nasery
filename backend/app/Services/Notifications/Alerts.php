@@ -44,6 +44,27 @@ class Alerts
         }
     }
 
+    /**
+     * The client changed a sent request (0051).
+     *
+     * @param  Collection<int, string>  $organizationIds  invited, not declined or withdrawn
+     * @param  list<string>  $changes  e.g. ['the date', 'the budget']
+     * @param  list<string>  $quoted  of those, the ones with a quotation out (opens Offers)
+     */
+    public function inquiryRevised(Inquiry $inquiry, Collection $organizationIds, array $changes, array $quoted = []): void
+    {
+        $what = $changes === [] ? 'the details' : (count($changes) > 1
+            ? implode(', ', array_slice($changes, 0, -1)).' and '.end($changes)
+            : $changes[0]);
+
+        foreach ($organizationIds->unique() as $orgId) {
+            $this->notifier->send($this->recipients->forOrganization($orgId, ['inquiry.manage']), 'inquiry.revised',
+                'A client updated their request', "The client changed {$what}. Check the request, and revise your quotation if it no longer fits.",
+                ['inquiry_id' => $inquiry->id], in_array($orgId, $quoted, true) ? '/organizer/inquiries/offers' : '/organizer/inquiries/match-inquiries',
+                "inquiry-revised:{$inquiry->id}:{$orgId}:{$inquiry->revision_count}");
+        }
+    }
+
     public function quotationReceived(Quotation $quotation, bool $revised = false): void
     {
         $row = $this->quotationInfo($quotation);

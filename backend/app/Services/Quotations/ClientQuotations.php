@@ -59,13 +59,15 @@ class ClientQuotations
             ->whereIn('organization_id', $current->keys())
             ->get(['organization_id', 'display_name', 'slug', 'contact_email', 'contact_phone'])->keyBy('organization_id'));
 
-        return $current->map(function (array $entry, string $orgId) use ($items, $organizers) {
+        return $current->map(function (array $entry, string $orgId) use ($items, $organizers, $inquiry) {
             $q = $entry['quotation'];
             $org = $organizers[$orgId] ?? null;
 
             return [
                 ...OrganizerQuotations::content($q, $items[$q->id] ?? collect()),
                 'earlier_versions' => $entry['earlier_versions'],
+                // 0051: sent before the client's latest change to the request.
+                'before_changes' => OrganizerQuotations::beforeChanges($q, $inquiry),
                 'organizer' => [
                     'id' => $orgId,
                     'display_name' => $org->display_name ?? 'Organizer no longer listed',

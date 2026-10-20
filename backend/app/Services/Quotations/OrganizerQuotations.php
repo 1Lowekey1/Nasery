@@ -361,6 +361,7 @@ class OrganizerQuotations
             return [
                 ...self::content($q, $items[$q->id] ?? collect()),
                 'event_id' => $events[$q->id] ?? null,
+                'before_changes' => self::beforeChanges($q, $inquiry),
                 'inquiry' => $inquiry ? [
                     'id' => $inquiry->id,
                     'status' => $inquiry->status->value,
@@ -371,6 +372,7 @@ class OrganizerQuotations
                     'budget_min' => $inquiry->budget_min,
                     'budget_max' => $inquiry->budget_max,
                     'location_text' => $inquiry->location_text,
+                    'revised_at' => $inquiry->revised_at?->toIso8601String(),
                 ] : null,
                 'client' => $client ? ($revealed
                     ? ['name' => trim($client->first_name.' '.$client->last_name), 'email' => $client->email, 'phone' => $client->phone]
@@ -378,6 +380,14 @@ class OrganizerQuotations
                     : null,
             ];
         })->values();
+    }
+
+    /** 0051: a sent quotation the client's later change may have outdated. */
+    public static function beforeChanges(Quotation $q, ?Inquiry $inquiry): bool
+    {
+        // Whole seconds: submitted_at is written without fractions (status transition).
+        return $inquiry?->revised_at !== null && $q->status === QuotationStatus::Submitted
+            && $q->submitted_at !== null && $q->submitted_at->lt($inquiry->revised_at->copy()->startOfSecond());
     }
 
     /**

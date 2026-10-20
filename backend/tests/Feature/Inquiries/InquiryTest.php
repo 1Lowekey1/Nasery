@@ -155,7 +155,7 @@ class InquiryTest extends TestCase
             ->assertConflict()->assertJsonPath('error.code', 'INVALID_STATE_TRANSITION');
     }
 
-    public function test_drafts_are_editable_and_sent_inquiries_are_not(): void
+    public function test_drafts_are_editable_and_sent_inquiries_only_revisable(): void
     {
         [$org] = $this->listedOrganizer();
         $id = $this->draft();
@@ -166,7 +166,10 @@ class InquiryTest extends TestCase
         ])->assertOk()->assertJsonPath('data.guest_count', 200)->assertJsonCount(2, 'data.services');
 
         $this->submit($id, ['mode' => 'direct', 'organization_ids' => [$org->id]])->assertOk();
-        $this->actingAs($this->client)->spaJson('PATCH', "/api/v1/inquiries/{$id}", ['guest_count' => 10])->assertConflict();
+        // Sent: a revision (0051, see RequestRevisionTest) that can't move the event type or place; never deleted.
+        $this->actingAs($this->client)->spaJson('PATCH', "/api/v1/inquiries/{$id}", ['guest_count' => 10, 'location_text' => 'Elsewhere'])->assertOk()
+            ->assertJsonPath('data.guest_count', 10)->assertJsonPath('data.revisions_left', 4)
+            ->assertJsonPath('data.location_text', DB::table('inquiries')->where('id', $id)->value('location_text'));
         $this->actingAs($this->client)->spaJson('DELETE', "/api/v1/inquiries/{$id}")->assertConflict();
     }
 

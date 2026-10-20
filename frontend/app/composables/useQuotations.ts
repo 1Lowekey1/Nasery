@@ -35,13 +35,17 @@ export interface Quotation extends QuotationContent {
 export interface OrganizerQuotation extends Quotation {
   /** The event created from this (won) quotation, B6. */
   event_id: string | null
-  inquiry: { id: string, status: string, event_type_id: string | null, event_type: string | null, requested_date: string | null, guest_count: number | null, budget_min: string | null, budget_max: string | null, location_text: string | null } | null
+  /** 0051: sent before the client's latest change to the request. */
+  before_changes?: boolean
+  inquiry: { id: string, status: string, event_type_id: string | null, event_type: string | null, requested_date: string | null, guest_count: number | null, budget_min: string | null, budget_max: string | null, location_text: string | null, revised_at?: string | null } | null
   client: { name: string, email: string | null, phone: string | null } | null
 }
 
 /** Client view: one current offer per organizer. */
 export interface ClientQuotation extends Quotation {
   earlier_versions: number
+  /** 0051: sent before your latest change to the request; the organizer may revise it. */
+  before_changes?: boolean
   organizer: { id: string, display_name: string, slug: string | null, contact_email: string | null, contact_phone: string | null }
 }
 

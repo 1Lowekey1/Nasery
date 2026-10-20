@@ -41,6 +41,9 @@ export interface ClientInquiry {
   longitude?: number | null
   match_radius_km?: number | null
   additional_requirements?: string | null
+  /** 0051: when the client last changed the request after sending it, and how many changes remain. */
+  revised_at?: string | null
+  revisions_left?: number
   /** Set once the accepted quotation became an event. */
   event_id?: string | null
   services?: { id: string, service_id: string | null, custom_service_name: string | null, notes: string | null }[]
@@ -66,7 +69,9 @@ export interface OrganizerInquiry {
   services: { name: string | null, notes: string | null }[]
   additional_requirements: string | null
   /** This organization's latest quotation for the inquiry (B5). */
-  quotation: { id: string, status: 'draft' | 'submitted' | 'accepted' | 'rejected' | 'withdrawn' | 'cancelled', total_amount: string } | null
+  quotation: { id: string, status: 'draft' | 'submitted' | 'accepted' | 'rejected' | 'withdrawn' | 'cancelled', total_amount: string, before_changes?: boolean } | null
+  /** 0051: when the client last changed the request after sending it. */
+  revised_at?: string | null
 }
 
 export const inquiryStatusLabels: Record<InquiryStatus, string> = {

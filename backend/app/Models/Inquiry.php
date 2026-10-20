@@ -13,7 +13,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * Lifecycle: draft → submitted (invitations sent) → receiving_bids (first
  * quotation, B5) → accepted (accept_quotation(), B5) → converted_to_event
- * (B6); open states can become cancelled (client, or auto-close).
+ * (B6); open states can become cancelled (client, or auto-close). While open,
+ * the client may change it (0051: revised_at, revision_count); organizers who
+ * already quoted are told and can revise their quotation.
  * Direct inquiries invite chosen organizers; open postings (match_radius_km
  * set) invite every listed organizer that matches.
  */
@@ -23,6 +25,9 @@ class Inquiry extends Model
     use SoftDeletes;
 
     public const OPEN_STATUSES = [InquiryStatus::Submitted, InquiryStatus::ReceivingBids];
+
+    /** 0051: how many times a client may change a request after sending it. */
+    public const MAX_REVISIONS = 5;
 
     protected $attributes = [
         'event_type_id' => null,
@@ -36,6 +41,8 @@ class Inquiry extends Model
         'match_radius_km' => null,
         'additional_requirements' => null,
         'status' => 'draft',
+        'revised_at' => null,
+        'revision_count' => 0,
         'deleted_at' => null,
     ];
 
@@ -50,6 +57,8 @@ class Inquiry extends Model
             'latitude' => 'decimal:6',
             'longitude' => 'decimal:6',
             'match_radius_km' => 'decimal:1',
+            'revised_at' => 'datetime',
+            'revision_count' => 'integer',
         ];
     }
 

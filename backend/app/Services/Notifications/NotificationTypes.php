@@ -13,6 +13,7 @@ final class NotificationTypes
     public const ALL = [
         // Organizers
         'inquiry.received' => ['label' => 'New inquiries for your business', 'group' => 'organizer', 'critical' => false, 'email' => true],
+        'inquiry.revised' => ['label' => 'A client changed a request you were invited to', 'group' => 'organizer', 'critical' => false, 'email' => true],
         'quotation.accepted' => ['label' => 'A client accepted your quotation', 'group' => 'organizer', 'critical' => false, 'email' => true],
         'quotation.declined' => ['label' => 'A client declined your quotation', 'group' => 'organizer', 'critical' => false, 'email' => true],
         'staff.invited' => ['label' => 'Invitations to join an organizer team', 'group' => 'organizer', 'critical' => false, 'email' => true],

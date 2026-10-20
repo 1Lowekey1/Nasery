@@ -3,13 +3,18 @@
 		<OrganizerThreadDrawer :thread-id="openThreadId" :title="openThreadTitle" @close="openThreadId = null; loadThreadUnread()" />
 		<div v-if="threadError" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{{ threadError }}</div>
 		<div v-if="showQuotations && selectedEvent">
-			<div class="mb-5">
+			<div class="mb-5 flex flex-wrap gap-y-2">
 				<button type="button"
 					class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
 					@click="backToMyEvents">
 					<IconBase name="arrow-left" class="h-4 w-4" />
 					Back to My Events
 				</button>
+				<NuxtLink :to="`/client/inquiries/${selectedEvent.id}`"
+					class="ml-2 inline-flex items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-700 transition hover:bg-primary-100">
+					<IconBase name="edit" class="h-4 w-4" />
+					{{ ['submitted', 'receiving_bids'].includes(selectedEvent.status) ? 'Edit or cancel request' : 'View request' }}
+				</NuxtLink>
 			</div>
 
 			<div v-if="isLoadingQuotations" class="rounded-2xl border border-gray-200 bg-white p-10 text-center">
@@ -163,13 +168,30 @@
 				</div>
 
 				<h2 class="mt-4 text-lg font-bold text-gray-900">
-					No quotations found
+					No offers yet
 				</h2>
 
-				<p class="mt-1 text-sm text-gray-500">
-					No organizer quotations are available for this event yet.
-				</p>
-				<NuxtLink to="/organizers" class="mt-3 inline-block text-sm font-semibold text-primary-700 hover:underline">Browse organizers to invite</NuxtLink>
+				<template v-if="['submitted', 'receiving_bids'].includes(selectedEvent.status)">
+					<p class="mx-auto mt-1 max-w-md text-sm text-gray-500">
+						Your request is open. Organizers you invite, and those near your event, send their quotations here.
+					</p>
+					<div class="mt-5 flex flex-wrap justify-center gap-2">
+						<NuxtLink :to="`/client/inquiries/${selectedEvent.id}#invite`"
+							class="rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-900">
+							Invite organizers
+						</NuxtLink>
+						<NuxtLink :to="`/client/inquiries/${selectedEvent.id}`"
+							class="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+							View request
+						</NuxtLink>
+					</div>
+				</template>
+				<template v-else>
+					<p class="mt-1 text-sm text-gray-500">
+						No organizer quotations came in for this request.
+					</p>
+					<NuxtLink :to="`/client/inquiries/${selectedEvent.id}`" class="mt-3 inline-block text-sm font-semibold text-primary-700 hover:underline">View request</NuxtLink>
+				</template>
 			</div>
 		</div>
 

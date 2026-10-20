@@ -86,7 +86,7 @@
 				class="fixed inset-y-0 right-0 z-[100] flex w-full max-w-2xl flex-col overflow-hidden bg-white shadow-2xl"
 				role="dialog" aria-modal="true" aria-labelledby="client-profile-title">
 				<div class="relative shrink-0 pb-11">
-					<div class="h-28 bg-gradient-to-br from-primary-700 to-primary-900" :style="{ backgroundColor: draftProfile.bannerColor }"><img v-if="user?.cover_url" :src="user.cover_url" alt="" class="h-full w-full object-cover" /></div>
+					<div class="h-28 bg-gradient-to-br from-primary-700 to-primary-900" />
 					<div aria-hidden="true" class="absolute right-20 top-5 h-20 w-20 rounded-full border border-white/10" />
 					<button type="button" aria-label="Close profile" class="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-gray-900/20 text-white backdrop-blur-sm transition hover:bg-gray-900/35"
 						@click="closeProfilePanel">
@@ -100,8 +100,8 @@
 
 				<div class="shrink-0 px-6 pb-5">
 					<p class="mb-1 text-[10px] font-extrabold uppercase tracking-[.18em] text-primary-700">Client profile</p>
-					<h2 id="client-profile-title" class="truncate text-xl font-extrabold text-gray-900">{{ draftProfile.fullName }}</h2>
-					<p class="mt-0.5 text-sm text-gray-500">Manage what organizers see about you.</p>
+					<h2 id="client-profile-title" class="truncate text-xl font-extrabold text-gray-900">{{ draftName || 'Your profile' }}</h2>
+					<p class="mt-0.5 text-sm text-gray-500">Your name, contact number and photo on NaSeRy.</p>
 				</div>
 
 				<div class="flex shrink-0 scroll-px-6 scroll-smooth gap-2 overflow-x-auto overscroll-x-contain border-y border-gray-100 bg-gray-50/80 px-6 py-3">
@@ -122,76 +122,25 @@
 							</div>
 							<div>
 								<div class="text-sm font-bold text-gray-900">Identity</div>
-								<div class="text-xs text-gray-500">Your name and how organizers should address you</div>
+								<div class="text-xs text-gray-500">The name organizers see on your requests</div>
 							</div>
 						</div>
 
-						<FormsLabel text="Full Name" />
-						<FormsTextField v-model="draftProfile.fullName" />
-
-						<label class="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">Client Type</label>
-						<FormsSelect v-model="draftProfile.clientType" :options="clientTypes" :can-clear="false" />
-
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+							<div>
+								<FormsLabel text="First name" required />
+								<FormsTextField v-model="draft.first_name" autocomplete="given-name" />
+								<p v-if="fields.first_name" class="mt-1 text-xs text-rose-600">{{ fields.first_name }}</p>
+							</div>
+							<div>
+								<FormsLabel text="Last name" required />
+								<FormsTextField v-model="draft.last_name" autocomplete="family-name" />
+								<p v-if="fields.last_name" class="mt-1 text-xs text-rose-600">{{ fields.last_name }}</p>
+							</div>
+						</div>
 						<div class="mt-4">
-							<FormsLabel text="Location / City" />
-							<FormsTextField v-model="draftProfile.location" icon="map-pin"
-								placeholder="e.g. Quezon City" />
-						</div>
-					</div>
-
-					<div v-else-if="activeProfileTab === 'About'">
-						<div class="mb-5 flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="file-text" class="h-4 w-4" />
-							</div>
-							<div>
-								<div class="text-sm font-bold text-gray-900">About</div>
-								<div class="text-xs text-gray-500">Share a bit about your event vision</div>
-							</div>
-						</div>
-						<label class="mb-1.5 block text-sm font-semibold text-gray-700">Bio / Description</label>
-						<textarea v-model="draftProfile.bio" rows="7"
-							placeholder="Tell organizers about your event vision, priorities, and what matters most to you..."
-							class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15" />
-					</div>
-
-					<div v-else-if="activeProfileTab === 'Event Preferences'">
-						<div class="mb-5 flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="tag" class="h-4 w-4" />
-							</div>
-							<div>
-								<div class="text-sm font-bold text-gray-900">Event Preferences</div>
-								<div class="text-xs text-gray-500">Types of events you usually need help with</div>
-							</div>
-						</div>
-						<div class="flex flex-wrap gap-2">
-							<button v-for="type in eventPreferenceOptions" :key="type" type="button"
-								class="rounded-full px-3.5 py-1.5 text-sm font-semibold"
-								:class="draftProfile.eventPreferences.includes(type) ? 'bg-primary-700 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'"
-								@click="toggleEventPreference(type)">
-								{{ type }}
-							</button>
-						</div>
-					</div>
-
-					<div v-else-if="activeProfileTab === 'Planning Style'">
-						<div class="mb-5 flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="sparkles" class="h-4 w-4" />
-							</div>
-							<div>
-								<div class="text-sm font-bold text-gray-900">Planning Style</div>
-								<div class="text-xs text-gray-500">How involved you'd like organizers to be</div>
-							</div>
-						</div>
-						<div class="flex flex-wrap gap-2">
-							<button v-for="style in planningStyleOptions" :key="style" type="button"
-								class="rounded-full px-3.5 py-1.5 text-sm font-semibold"
-								:class="draftProfile.planningStyle.includes(style) ? 'bg-primary-700 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'"
-								@click="togglePlanningStyle(style)">
-								{{ style }}
-							</button>
+							<FormsLabel text="Middle name (optional)" />
+							<FormsTextField v-model="draft.middle_name" autocomplete="additional-name" />
 						</div>
 					</div>
 
@@ -206,61 +155,40 @@
 							</div>
 						</div>
 
-						<FormsLabel text="Email Address" />
-						<FormsTextField v-model="draftProfile.email" type="email" />
+						<FormsLabel text="Email address" />
+						<div class="rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-600">{{ user?.email }}</div>
+						<p class="mt-1.5 text-xs text-gray-400">This is your sign-in e-mail, so it can't be changed here.</p>
 
 						<div class="mt-4">
-							<FormsLabel text="Phone Number" />
-							<FormsTextField v-model="draftProfile.phone" />
-						</div>
-
-						<div
-							class="mb-2 mt-6 flex items-center gap-2 text-xs font-semibold tracking-wide text-gray-400">
-							<IconBase name="user" class="h-3.5 w-3.5" /> ALTERNATE CONTACT
-						</div>
-						<p class="mb-3 text-xs text-gray-400">Optional — for day-of coordination if you're unreachable
-						</p>
-
-						<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-							<div>
-								<FormsLabel text="Name" />
-								<FormsTextField v-model="draftProfile.altContactName" placeholder="e.g. Maria Santos" />
-							</div>
-							<div>
-								<FormsLabel text="Phone" />
-								<FormsTextField v-model="draftProfile.altContactPhone"
-									placeholder="e.g. 0917 123 4567" />
-							</div>
+							<FormsLabel text="Mobile number" />
+							<FormsTextField v-model="draft.phone" type="tel" autocomplete="tel" placeholder="0917 123 4567" />
+							<p v-if="fields.phone" class="mt-1 text-xs text-rose-600">{{ fields.phone }}</p>
+							<p v-else class="mt-1.5 text-xs text-gray-400">A Philippine mobile number. Leave it empty to remove it.</p>
 						</div>
 					</div>
 
 					<div v-else-if="activeProfileTab === 'Appearance'">
-						<p v-if="pictureError" class="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{{ pictureError }}</p>
-						<MediaBatchScope :batch="mediaBatch"><MediaAvatarUploader class="mb-6" /></MediaBatchScope>
 						<div class="mb-5 flex items-center gap-3">
 							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="settings" class="h-4 w-4" />
+								<IconBase name="camera" class="h-4 w-4" />
 							</div>
 							<div>
 								<div class="text-sm font-bold text-gray-900">Appearance</div>
-								<div class="text-xs text-gray-500">Customize your profile banner color</div>
+								<div class="text-xs text-gray-500">Your profile photo</div>
 							</div>
 						</div>
-						<div class="flex flex-wrap gap-3">
-							<button v-for="color in bannerColors" :key="color" type="button"
-								class="h-10 w-10 rounded-full border-2"
-								:class="draftProfile.bannerColor === color ? 'border-gray-900' : 'border-transparent'"
-								:style="{ backgroundColor: color }" @click="draftProfile.bannerColor = color" />
-						</div>
+						<MediaBatchScope :batch="mediaBatch"><MediaAvatarUploader /></MediaBatchScope>
 					</div>
+
+					<p v-if="saveError" class="mt-6 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{{ saveError }}</p>
 				</div>
 
 				<div class="flex shrink-0 gap-3 border-t border-gray-200 bg-white px-6 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.04)]">
 					<FormsButton variant="secondary" class="flex-1" @click="closeProfilePanel">
 						Cancel
 					</FormsButton>
-					<FormsButton class="flex-1" :disabled="savingPictures" @click="saveProfile">
-						{{ savingPictures ? 'Saving...' : 'Save Profile' }}
+					<FormsButton class="flex-1" :disabled="saving" @click="saveProfile">
+						{{ saving ? 'Saving...' : 'Save Profile' }}
 					</FormsButton>
 				</div>
 			</div>
@@ -274,9 +202,9 @@ const route = useRoute()
 const {
 	user,
 	firstName,
-	fullName,
 	initials,
 	logout,
+	updateProfile,
 } = useAuth()
 
 const { sidebarOpen, isMobile, asideClass, closeSidebar } = useResponsiveSidebar()
@@ -343,7 +271,6 @@ const headerTitle = computed(() => pageTitles[route.path] ?? activeItem.value?.l
 const sidebarName = computed(() => {
 	return (
 		firstName.value ||
-		profile.fullName ||
 		'User'
 	)
 })
@@ -351,267 +278,99 @@ const sidebarName = computed(() => {
 const sidebarInitials = computed(() => {
 	return (
 		initials.value ||
-		initialsOf(profile.fullName) ||
 		'U'
 	)
 })
 
+// The client profile is their account: name, mobile number and photo
+// (PATCH auth/me + the photo upload). E-mail is the sign-in and stays read-only.
 const profileTabs = [
-	{
-		label: 'Identity',
-		icon: 'user',
-	},
-	{
-		label: 'About',
-		icon: 'file-text',
-	},
-	{
-		label: 'Event Preferences',
-		icon: 'tag',
-	},
-	{
-		label: 'Planning Style',
-		icon: 'sparkles',
-	},
-	{
-		label: 'Contact',
-		icon: 'phone',
-	},
-	{
-		label: 'Appearance',
-		icon: 'settings',
-	},
+	{ label: 'Identity', icon: 'user' },
+	{ label: 'Contact', icon: 'phone' },
+	{ label: 'Appearance', icon: 'camera' },
 ]
 
-const clientTypes = [
-	'Individual',
-	'Couple',
-	'Family',
-	'Corporate',
-]
-
-const eventPreferenceOptions = [
-	'Wedding',
-	'Corporate',
-	'Birthday',
-	'Debut',
-	'Concert',
-	'Conference',
-	'Reunion',
-	'Seminar',
-]
-
-const planningStyleOptions = [
-	'Full Coordination',
-	'Partial Planning',
-	'Day-of Coordination',
-	'Vendor Referrals Only',
-	'Budget-Conscious',
-	'Premium / Luxury',
-]
-
-const bannerColors = [
-	'#285F6b',
-	'#7c3aed',
-	'#be123c',
-	'#b45309',
-	'#15803d',
-	'#1d4ed8',
-]
-
-function defaultProfile() {
-	return {
-		fullName: '',
-		clientType: clientTypes[0],
-		location: '',
-		bio: '',
-		eventPreferences: ['Wedding'],
-		planningStyle: [
-			'Full Coordination',
-		],
-		email: '',
-		phone: '',
-		altContactName: '',
-		altContactPhone: '',
-		bannerColor: '#285F6b',
-	}
-}
-
-const profile = reactive(
-	defaultProfile()
-)
-
-const draftProfile = reactive(
-	defaultProfile()
-)
+const draft = reactive({ first_name: '', middle_name: '', last_name: '', phone: '' })
+const draftName = computed(() => [draft.first_name, draft.middle_name, draft.last_name].map(v => v.trim()).filter(Boolean).join(' '))
 
 const showProfilePanel = ref(false)
-
 const activeProfileTab = ref('Identity')
+const saving = ref(false)
+const saveError = ref('')
+const fields = ref<Record<string, string>>({})
 
-/**
- * Populate profile information from
- * the actual authenticated user.
- */
-function syncProfileFromUser() {
-	if (!user.value) {
-		return
-	}
-
-	profile.fullName =
-		fullName.value
-
-	profile.email =
-		user.value.email ?? ''
-
-	profile.phone =
-		user.value.phone ?? ''
-
-	Object.assign(
-		draftProfile,
-		profile
-	)
-
-	draftProfile.eventPreferences = [
-		...profile.eventPreferences,
-	]
-
-	draftProfile.planningStyle = [
-		...profile.planningStyle,
-	]
+function syncDraft() {
+	Object.assign(draft, {
+		first_name: user.value?.first_name ?? '',
+		middle_name: user.value?.middle_name ?? '',
+		last_name: user.value?.last_name ?? '',
+		phone: user.value?.phone ?? '',
+	})
 }
 
-/**
- * Run when the authenticated
- * user becomes available.
- */
-watch(
-	() => user.value?.id,
-	() => {
-		syncProfileFromUser()
-	},
-	{
-		immediate: true,
-	}
-)
-
-function initialsOf(
-	name: string
-): string {
-	return (name || '')
-		.trim()
-		.split(/\s+/)
-		.filter(Boolean)
-		.slice(0, 2)
-		.map((word) => word[0])
-		.join('')
-		.toUpperCase()
+function initialsOf(name: string): string {
+	return (name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()
 }
 
-/**
- * Profile-panel initials.
- *
- * These can change when the user edits
- * their profile name.
- */
-const panelInitials = computed(() => {
-	return initialsOf(
-		draftProfile.fullName
-	)
-})
+/** Profile-panel initials (follow the name being edited). */
+const panelInitials = computed(() => initialsOf(draftName.value) || initials.value || 'U')
 
 function openProfilePanel() {
 	window.dispatchEvent(new CustomEvent('dashboard:close-notifications'))
-
-	Object.assign(
-		draftProfile,
-		profile
-	)
-
-	draftProfile.eventPreferences = [
-		...profile.eventPreferences,
-	]
-
-	draftProfile.planningStyle = [
-		...profile.planningStyle,
-	]
-
-	activeProfileTab.value =
-		'Identity'
-
+	syncDraft()
+	saveError.value = ''
+	fields.value = {}
+	activeProfileTab.value = 'Identity'
 	showProfilePanel.value = true
 }
 
 // Pictures picked in the panel are uploaded by Save Profile.
 const mediaBatch = createMediaBatch()
-const pictureError = ref('')
-const savingPictures = ref(false)
 
 function closeProfilePanel() {
 	showProfilePanel.value = false
-	pictureError.value = ''
+	saveError.value = ''
+	fields.value = {}
 	mediaBatch.clear()
 }
 
 async function saveProfile() {
-	savingPictures.value = true
-	pictureError.value = await mediaBatch.flush()
-	savingPictures.value = false
-	if (pictureError.value) {
+	saveError.value = ''
+	fields.value = {}
+	if (!draft.first_name.trim() || !draft.last_name.trim()) {
+		fields.value = {
+			...(draft.first_name.trim() ? {} : { first_name: 'Enter your first name.' }),
+			...(draft.last_name.trim() ? {} : { last_name: 'Enter your last name.' }),
+		}
+		activeProfileTab.value = 'Identity'
+		return
+	}
+
+	saving.value = true
+	try {
+		const phone = draft.phone.trim()
+		await updateProfile({
+			first_name: draft.first_name.trim(),
+			middle_name: draft.middle_name.trim() || null,
+			last_name: draft.last_name.trim(),
+			// Only when edited, so an older saved number never blocks a name change.
+			...(phone !== (user.value?.phone ?? '') ? { phone: phone || null } : {}),
+		})
+	} catch (e: unknown) {
+		fields.value = fieldErrors(e)
+		saveError.value = Object.keys(fields.value).length ? 'Please check the highlighted fields.' : authMessage(e)
+		activeProfileTab.value = fields.value.phone ? 'Contact' : 'Identity'
+		saving.value = false
+		return
+	}
+
+	saveError.value = await mediaBatch.flush()
+	saving.value = false
+	if (saveError.value) {
 		activeProfileTab.value = 'Appearance'
 		return
 	}
-
-	Object.assign(
-		profile,
-		draftProfile
-	)
-
-	profile.eventPreferences = [
-		...draftProfile.eventPreferences,
-	]
-
-	profile.planningStyle = [
-		...draftProfile.planningStyle,
-	]
-
 	closeProfilePanel()
-}
-
-function toggleEventPreference(
-	type: string
-) {
-	const index =
-		draftProfile.eventPreferences
-			.indexOf(type)
-
-	if (index === -1) {
-		draftProfile.eventPreferences
-			.push(type)
-
-		return
-	}
-
-	draftProfile.eventPreferences
-		.splice(index, 1)
-}
-
-function togglePlanningStyle(
-	style: string
-) {
-	const index =
-		draftProfile.planningStyle
-			.indexOf(style)
-
-	if (index === -1) {
-		draftProfile.planningStyle
-			.push(style)
-
-		return
-	}
-
-	draftProfile.planningStyle
-		.splice(index, 1)
 }
 
 async function handleLogout() {

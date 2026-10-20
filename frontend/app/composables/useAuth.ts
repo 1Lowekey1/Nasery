@@ -36,9 +36,8 @@ export interface AuthUser {
 
 /** AuthUser plus the field names and role the redesigned pages use. */
 export interface SessionUser extends AuthUser {
-  /** Not sent yet (no photo uploads); layouts fall back to initials. */
+  /** Uploaded profile photo (MediaController); layouts fall back to initials. */
   avatar_url?: string | null
-  cover_url?: string | null
   firstname: string
   middlename: string | null
   lastname: string

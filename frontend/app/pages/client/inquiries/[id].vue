@@ -14,8 +14,13 @@
 						<template v-if="inquiry.via === 'open_posting'"> · posted to organizers within {{ inquiry.match_radius_km }} km</template>
 						<template v-else-if="inquiry.via === 'direct'"> · sent to organizers you chose</template>
 					</p>
+					<p v-if="inquiry.revised_at" class="mt-1 text-xs text-gray-400">Changed after sending · {{ formatDateTime(inquiry.revised_at) }}</p>
 				</div>
-				<div class="flex gap-2">
+				<div class="flex flex-wrap gap-2">
+					<button v-if="isOpen && !editing && (inquiry.revisions_left ?? 0) > 0" type="button" :disabled="busy"
+						class="inline-flex items-center gap-1.5 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-100" @click="editing = true">
+						<IconBase name="edit" class="h-4 w-4" /> Edit request
+					</button>
 					<button v-if="inquiry.status === 'draft'" type="button" :disabled="busy"
 						class="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50" @click="removeDraft">
 						Delete draft
@@ -31,14 +36,17 @@
 				Your organizer has set up the event. <NuxtLink :to="inquiry.event_id ? `/client/event-details?event=${inquiry.event_id}` : '/client/event-details'" class="font-semibold underline">See your event</NuxtLink>
 			</div>
 
-			<section class="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-gray-200 bg-white p-6 sm:grid-cols-4">
+			<ClientRequestEditor v-if="editing" :inquiry="inquiry" @saved="onRequestSaved" @cancel="editing = false" />
+			<Alert v-if="requestNotice && !editing" type="success" :text="requestNotice" class="mt-4" />
+
+			<section v-if="!editing" class="mt-6 grid grid-cols-2 gap-3 rounded-2xl border border-gray-200 bg-white p-6 sm:grid-cols-4">
 				<div><div class="text-xs text-gray-500">Date</div><div class="mt-1 text-sm font-bold">{{ inquiry.requested_date || '—' }}</div></div>
 				<div><div class="text-xs text-gray-500">Guests</div><div class="mt-1 text-sm font-bold">{{ inquiry.guest_count ?? '—' }}</div></div>
 				<div class="col-span-2"><div class="text-xs text-gray-500">Budget</div><div class="mt-1 text-sm font-bold">{{ budgetLabel(inquiry.budget_min, inquiry.budget_max) }}</div></div>
 				<div class="col-span-2 sm:col-span-4"><div class="text-xs text-gray-500">Location</div><div class="mt-1 text-sm font-bold">{{ inquiry.location_text || '—' }}</div></div>
 			</section>
 
-			<section class="mt-4 rounded-2xl border border-gray-200 bg-white p-6">
+			<section v-if="!editing" class="mt-4 rounded-2xl border border-gray-200 bg-white p-6">
 				<h2 class="text-base font-bold text-gray-900">Services requested</h2>
 				<ul v-if="inquiry.services?.length" class="mt-2 list-disc pl-5 text-sm text-gray-700">
 					<li v-for="s in inquiry.services" :key="s.id">{{ s.custom_service_name }}<span v-if="s.notes" class="text-gray-500"> — {{ s.notes }}</span></li>
@@ -59,7 +67,7 @@
 					</li>
 				</ul>
 
-				<div v-if="isOpen" class="mt-4 border-t border-gray-100 pt-4">
+				<div v-if="isOpen" id="invite" class="mt-4 scroll-mt-6 border-t border-gray-100 pt-4">
 					<h3 class="text-sm font-bold text-gray-900">Invite more organizers</h3>
 					<form class="mt-2 flex gap-2" @submit.prevent="searchOrganizers">
 						<FormsTextField v-model="organizerSearch" placeholder="Search organizers by name or service…" class="flex-1" />
@@ -121,6 +129,10 @@
 								{{ clientLabels[q.status] }}
 							</span>
 							<p v-if="q.earlier_versions" class="mt-1 text-xs text-gray-400">Revised {{ q.earlier_versions }}×</p>
+							<p v-if="q.before_changes" class="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800"
+								title="This quotation was sent before you changed the request. The organizer was told and can revise it.">
+								<IconBase name="clock" class="h-3 w-3" /> Sent before your changes
+							</p>
 						</div>
 					</div>
 
@@ -203,6 +215,17 @@ const selectedThread = ref<string | null>(typeof route.query.thread === 'string'
 const markThreadRead = (id: string) => { const t = threads.value.find(x => x.id === id); if (t) t.unread = 0 }
 const busy = ref(false)
 
+// Editing a sent request (0051).
+const editing = ref(false)
+const requestNotice = ref('')
+async function onRequestSaved(updated: ClientInquiry) {
+	editing.value = false
+	requestNotice.value = 'Request updated. The organizers you invited were told what changed.'
+	inquiry.value = updated
+	quotations.value = await quotationsApi.forInquiry(updated.id).catch(() => quotations.value)
+}
+const formatDateTime = (iso: string) => new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+
 const cancellable = computed(() => inquiry.value && ['submitted', 'receiving_bids'].includes(inquiry.value.status))
 
 async function load() {
@@ -216,6 +239,14 @@ async function load() {
 			}
 			// Opened from a message notification: bring the conversation into view.
 			if (route.query.thread) nextTick(() => document.getElementById('messages')?.scrollIntoView({ behavior: 'smooth' }))
+		}
+		// From My Events ("Invite organizers"): go to the invite search, ready to type.
+		if (route.hash === '#invite') {
+			nextTick(() => {
+				const box = document.getElementById('invite')
+				box?.scrollIntoView({ behavior: 'smooth' })
+				box?.querySelector('input')?.focus({ preventScroll: true })
+			})
 		}
 	} catch (e) {
 		error.value = authMessage(e)

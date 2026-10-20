@@ -83,6 +83,12 @@
 											<IconBase name="send" class="h-3.5 w-3.5" />
 											Direct request
 										</span>
+										<span v-if="inquiry.revised_at"
+											class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800"
+											:title="`The client changed this request on ${new Date(inquiry.revised_at).toLocaleDateString('en-PH', { dateStyle: 'medium' })}`">
+											<IconBase name="clock" class="h-3.5 w-3.5" />
+											Updated by client
+										</span>
 									</div>
 
 									<div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-500">
@@ -510,6 +516,8 @@ interface MatchingInquiry {
 	start_time: string | null
 	/** The client asked only this organizer (not an open posting). */
 	direct?: boolean
+	/** 0051: the client changed the request after sending it. */
+	revised_at?: string | null
 	end_time: string | null
 	location: string
 	expected_guests: number
@@ -684,6 +692,7 @@ async function loadMatchingInquiries() {
 					start_time: i.additional_requirements?.match(/Time: (\d{2}:\d{2})/)?.[1] ?? null,
 					end_time: i.additional_requirements?.match(/Time: \d{2}:\d{2} – (\d{2}:\d{2})/)?.[1] ?? null,
 					direct: i.via === 'direct',
+					revised_at: i.revised_at ?? null,
 					location: i.location_text ?? 'Location to be discussed',
 					expected_guests: i.guest_count ?? 0,
 					budget_range: [peso(i.budget_min), peso(i.budget_max)].filter(Boolean).join(' – ') || 'Open budget',

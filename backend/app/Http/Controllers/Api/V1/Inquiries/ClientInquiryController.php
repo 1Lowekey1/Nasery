@@ -61,7 +61,13 @@ class ClientInquiryController extends Controller
 
     public function update(InquiryRequest $request, Inquiry $inquiry): JsonResponse
     {
-        return ApiResponse::success($this->detail($this->manager->updateDraft($inquiry, $request->validated())), 'Draft saved.');
+        // A draft is edited freely; a sent, open request is revised (0051).
+        if ($inquiry->status->value === 'draft') {
+            return ApiResponse::success($this->detail($this->manager->updateDraft($inquiry, $request->validated())), 'Draft saved.');
+        }
+
+        return ApiResponse::success($this->detail($this->manager->revise($inquiry, $request->validated())),
+            'Request updated. The organizers were told what changed.');
     }
 
     public function destroy(Inquiry $inquiry): JsonResponse
@@ -130,6 +136,9 @@ class ClientInquiryController extends Controller
             'longitude' => $inquiry->longitude !== null ? (float) $inquiry->longitude : null,
             'match_radius_km' => $inquiry->match_radius_km !== null ? (float) $inquiry->match_radius_km : null,
             'additional_requirements' => $inquiry->additional_requirements,
+            // 0051: changes after sending (capped).
+            'revised_at' => $inquiry->revised_at?->toIso8601String(),
+            'revisions_left' => max(0, Inquiry::MAX_REVISIONS - $inquiry->revision_count),
             // The event the accepted quotation became (for "See your event").
             'event_id' => $inquiry->status->value === 'converted_to_event'
                 ? $this->db->system('inquiry.event_id', fn () => DB::table('events')->where('inquiry_id', $inquiry->id)->whereNull('deleted_at')->value('id'))
