@@ -7,7 +7,7 @@
 					<h2 class="text-lg font-bold text-gray-900">{{ title }}</h2>
 					<p class="mt-0.5 text-sm text-gray-500">{{ context }}</p>
 				</div>
-				<button type="button" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Close" @click="$emit('close')">
+				<button type="button" class="tap-target rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Close" @click="$emit('close')">
 					<IconBase name="x" class="h-5 w-5" />
 				</button>
 			</div>

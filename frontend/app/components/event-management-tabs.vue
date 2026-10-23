@@ -53,7 +53,7 @@
 							<p class="text-sm text-gray-500">Fill in your event details below</p>
 						</div>
 					</div>
-					<button type="button" class="text-gray-400 hover:text-gray-600" @click="closeCreateEvent">
+					<button type="button" class="-m-2 flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600" aria-label="Close" @click="closeCreateEvent">
 						<IconBase name="x" class="h-5 w-5" />
 					</button>
 				</div>
@@ -158,7 +158,7 @@
 							</div>
 						</div>
 						<button type="button"
-							class="mt-3 flex items-center gap-1 text-sm font-semibold text-primary-700"
+							class="mt-2 flex min-h-10 items-center gap-1 text-sm font-semibold text-primary-700"
 							@click="addZone">
 							<IconBase name="plus" class="h-3.5 w-3.5" /> Add Zone
 						</button>

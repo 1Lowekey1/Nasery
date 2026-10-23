@@ -115,7 +115,7 @@
 				<!-- Mobile section chips -->
 				<div class="mt-5 flex shrink-0 gap-2 overflow-x-auto border-b border-gray-100 px-6 pb-3 md:hidden">
 					<button v-for="tab in profileTabs" :key="tab.label" type="button"
-						class="flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition"
+						class="flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition"
 						:class="activeProfileTab === tab.label ? 'bg-primary-700 text-white' : 'bg-gray-100 text-gray-600'"
 						@click="activeProfileTab = tab.label">
 						<IconBase :name="tab.icon" class="h-3.5 w-3.5" />

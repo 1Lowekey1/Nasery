@@ -117,7 +117,7 @@
 
 						<div class="flex flex-wrap items-center gap-2">
 							<div class="flex rounded-xl bg-gray-100 p-1 text-xs font-bold">
-								<button v-for="option in ratingOptions" :key="option.value" type="button" class="rounded-lg px-3 py-1.5 transition"
+								<button v-for="option in ratingOptions" :key="option.value" type="button" class="min-h-9 rounded-lg px-3 py-1.5 transition"
 									:class="ratingFilter === option.value ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
 									@click="ratingFilter = option.value">{{ option.label }}</button>
 							</div>
@@ -196,7 +196,7 @@
 									</div>
 
 									<div v-if="replyingId !== review.id" class="mt-4 flex items-center gap-4 text-xs font-bold">
-										<button v-if="!review.reply" type="button" class="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 px-3 py-1.5 text-primary-700 transition hover:bg-primary-100" @click="startReply(review)">
+										<button v-if="!review.reply" type="button" class="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-primary-50 px-3.5 py-2 text-primary-700 transition hover:bg-primary-100" @click="startReply(review)">
 											<IconBase name="message" class="h-3.5 w-3.5" />
 											Reply
 										</button>
@@ -204,7 +204,7 @@
 											<button type="button" class="text-primary-700 hover:underline" @click="startReply(review)">Edit reply</button>
 											<button type="button" class="text-red-600 hover:underline disabled:opacity-60" :disabled="savingId === review.id" @click="removeReply(review)">Remove reply</button>
 										</template>
-										<button v-if="!review.open_reports && review.status !== 'hidden'" type="button" class="ml-auto text-gray-400 hover:text-gray-600 hover:underline" @click="report(review)">Report to NaSeRy</button>
+										<button v-if="!review.open_reports && review.status !== 'hidden'" type="button" class="tap-target ml-auto text-gray-400 hover:text-gray-600 hover:underline" @click="report(review)">Report to NaSeRy</button>
 									</div>
 								</div>
 							</div>

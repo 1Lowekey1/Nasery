@@ -271,7 +271,7 @@
 						</div>
 					</div>
 
-					<button type="button" class="text-gray-400 hover:text-gray-600" :disabled="isSubmittingOffer"
+					<button type="button" class="tap-target text-gray-400 hover:text-gray-600" :disabled="isSubmittingOffer"
 						@click="closeOfferForm">
 						<IconBase name="x" class="h-5 w-5" />
 					</button>
@@ -355,7 +355,7 @@
 								<p class="text-sm font-bold text-gray-900">Build from my price list</p>
 								<p class="text-xs text-gray-500">Pick options and quantities; the lines and total go into your offer.</p>
 							</div>
-							<button type="button" class="rounded-lg border border-primary-200 bg-white px-3 py-1.5 text-xs font-bold text-primary-700"
+							<button type="button" class="min-h-9 rounded-lg border border-primary-200 bg-white px-3.5 py-2 text-xs font-bold text-primary-700"
 								@click="toggleBuilder">{{ showBuilder ? 'Close' : offerLines.length ? 'Change' : 'Open' }}</button>
 						</div>
 						<div v-if="showBuilder" class="mt-4">
@@ -415,7 +415,7 @@
 							v-model="offerForm.inclusions[index]" :placeholder="`Inclusion ${index + 1}`" />
 					</div>
 
-					<button type="button" class="mt-2 flex items-center gap-1 text-sm font-semibold text-primary-700"
+					<button type="button" class="mt-1 flex min-h-10 items-center gap-1 text-sm font-semibold text-primary-700"
 						@click="addInclusion">
 						<IconBase name="plus" class="h-3.5 w-3.5" />
 

@@ -284,7 +284,7 @@
                         </p>
                     </div>
 
-                    <button type="button" class="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600" @click="closeManualEntry">
+                    <button type="button" class="tap-target rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600" @click="closeManualEntry">
                         <IconBase name="x" class="h-5 w-5" />
                     </button>
                 </div>

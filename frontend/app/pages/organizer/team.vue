@@ -167,7 +167,7 @@
 								<h2 class="text-lg font-bold text-gray-950">Invite a teammate</h2>
 								<p class="mt-0.5 text-sm text-gray-500">NaSeRy e-mails them a link to join. New to NaSeRy? The link creates their account, so they only choose a password.</p>
 							</div>
-							<button type="button" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Close" @click="closePanel"><IconBase name="x" class="h-5 w-5" /></button>
+							<button type="button" class="tap-target rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Close" @click="closePanel"><IconBase name="x" class="h-5 w-5" /></button>
 						</div>
 						<form class="flex min-h-0 flex-1 flex-col" novalidate @submit.prevent="invite">
 							<div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
@@ -525,7 +525,7 @@ onMounted(async () => {
 .tm-chip.is-on { @apply border-primary-200 bg-primary-50 text-primary-800 shadow-sm shadow-primary-900/5; }
 .tm-chip-count { @apply text-xs tabular-nums opacity-60; }
 .tm-seg { @apply flex rounded-xl bg-gray-100 p-1; }
-.tm-seg > button { @apply flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:text-gray-800; }
+.tm-seg > button { @apply flex min-h-9 items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:text-gray-800; }
 .tm-seg > button.is-on { @apply bg-white text-gray-950 shadow-sm; }
 .tm-seg-slide { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .tm-seg-slide > button { position: relative; z-index: 1; justify-content: center; min-width: 3.5rem; }

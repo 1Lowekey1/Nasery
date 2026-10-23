@@ -9,7 +9,7 @@
 						<h2 :id="titleId" class="mt-1 text-xl font-extrabold text-gray-900">Bulk import guests</h2>
 						<p class="mt-1 text-sm text-gray-500">Add many guests at once from a spreadsheet. Each guest gets a QR ticket.</p>
 					</div>
-					<button type="button" aria-label="Close" class="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600" @click="close">
+					<button type="button" aria-label="Close" class="tap-target rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600" @click="close">
 						<IconBase name="x" class="h-4 w-4" />
 					</button>
 				</div>

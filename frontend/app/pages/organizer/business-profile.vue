@@ -30,7 +30,7 @@
 				<img v-if="coverUrl" :src="coverUrl" alt="" class="h-full w-full object-cover" />
 				<div v-else class="bp-dots absolute inset-0" aria-hidden="true" />
 				<div class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/20 to-transparent" aria-hidden="true" />
-				<button type="button" class="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-lg bg-black/30 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-black/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" @click="goTo('images')">
+				<button type="button" class="tap-target absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-lg bg-black/30 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-black/45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" @click="goTo('images')">
 					<IconBase name="camera" class="h-3.5 w-3.5" /> Change cover
 				</button>
 			</div>
@@ -270,7 +270,7 @@
 							<ul v-if="catalog.length" class="divide-y divide-gray-100 rounded-xl ring-1 ring-gray-200">
 								<li v-for="s in catalog" :key="s.id" class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
 									<span class="min-w-0 truncate font-semibold text-gray-900">{{ s.name }}<span v-if="s.base_price" class="font-normal text-gray-500"> · from {{ money(Number(s.base_price)) }}</span></span>
-									<button type="button" class="bp-btn-ghost !px-2 !py-1 text-xs text-gray-500 hover:text-red-600" @click="removeCatalogService(s.id)">Remove</button>
+									<button type="button" class="bp-btn-ghost tap-target !px-2 !py-1 text-xs text-gray-500 hover:text-red-600" @click="removeCatalogService(s.id)">Remove</button>
 								</li>
 							</ul>
 							<form class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_150px_auto]" @submit.prevent="addCatalogService">

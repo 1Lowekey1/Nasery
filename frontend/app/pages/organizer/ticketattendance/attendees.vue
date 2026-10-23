@@ -83,7 +83,7 @@
 						</div>
 					</div>
 
-					<button type="button" class="text-green-600 hover:text-green-800" @click="clearSuccess">
+					<button type="button" class="tap-target text-green-600 hover:text-green-800" @click="clearSuccess">
 						<IconBase name="x" class="h-4 w-4" />
 					</button>
 				</div>
@@ -359,7 +359,7 @@
 						<p class="mt-0.5 truncate text-sm text-gray-500">{{ selectedEvent?.name || 'Selected event' }}</p>
 					</div>
 
-					<button type="button" class="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600" aria-label="Close" @click="closeRegisterAttendee">
+					<button type="button" class="-m-1 rounded-lg p-2.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600" aria-label="Close" @click="closeRegisterAttendee">
 						<IconBase name="x" class="h-5 w-5" />
 					</button>
 				</header>
@@ -463,7 +463,7 @@
 					</div>
 				</div>
 
-				<footer class="shrink-0 border-t border-gray-200 bg-white px-6 py-4">
+				<footer class="shrink-0 border-t border-gray-200 bg-white px-4 py-4 sm:px-6">
 					<div class="mb-3 flex items-center justify-between gap-3 text-sm">
 						<p class="min-w-0 truncate text-gray-500">
 							<template v-if="selectedTicketType">{{ selectedTicketType.name }}</template>
@@ -482,7 +482,7 @@
 							Cancel
 						</FormsButton>
 
-						<FormsButton class="flex-1" :disabled="isRegistering || Boolean(registerBlocker)" @click="submitRegisterAttendee">
+						<FormsButton class="flex-[2] whitespace-nowrap" :disabled="isRegistering || Boolean(registerBlocker)" @click="submitRegisterAttendee">
 							<IconBase v-if="isRegistering" name="refresh-cw" class="h-4 w-4 animate-spin" />
 							<IconBase v-else name="user-plus" class="h-4 w-4" />
 							{{ isRegistering ? 'Registering...' : 'Register Attendee' }}

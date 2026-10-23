@@ -55,12 +55,13 @@
 
 			<div v-if="event && isEditMode" class="grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
 				<!-- Section menu -->
-				<nav class="rounded-2xl border border-gray-200 bg-white p-2 lg:sticky lg:top-0" aria-label="Edit sections">
+				<!-- Phones/tablets: one scrollable row of section tabs; large screens: the side menu -->
+				<nav class="flex gap-1.5 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1.5 lg:sticky lg:top-0 lg:block lg:overflow-visible lg:p-2" aria-label="Edit sections">
 					<button v-for="tab in editTabs" :key="tab.label" type="button" class="ed-nav" :class="activeEditTab === tab.label ? 'is-on' : ''" :aria-current="activeEditTab === tab.label ? 'step' : undefined" @click="activeEditTab = tab.label">
-						<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition" :class="activeEditTab === tab.label ? 'bg-primary-700 text-white' : 'bg-gray-100 text-gray-500'"><IconBase :name="tab.icon" class="h-4 w-4" /></span>
-						<span class="min-w-0 flex-1">
+						<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition lg:h-9 lg:w-9" :class="activeEditTab === tab.label ? 'bg-primary-700 text-white' : 'bg-gray-100 text-gray-500'"><IconBase :name="tab.icon" class="h-4 w-4" /></span>
+						<span class="min-w-0 lg:flex-1">
 							<span class="block text-sm font-semibold text-gray-950">{{ sectionMeta[tab.label]?.title ?? tab.label }}</span>
-							<span class="block truncate text-xs text-gray-500">{{ sectionMeta[tab.label]?.summary }}</span>
+							<span class="hidden truncate text-xs text-gray-500 lg:block">{{ sectionMeta[tab.label]?.summary }}</span>
 						</span>
 						<span v-if="sectionDone[tab.label]" class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-600" aria-label="complete"><IconBase name="check" class="h-3 w-3" /></span>
 					</button>
@@ -206,12 +207,13 @@
 					</div>
 
 					<!-- Save bar -->
-					<div class="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t border-gray-100 bg-white/95 px-6 py-4 backdrop-blur">
+					<div class="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t border-gray-100 bg-white/95 px-4 py-3 backdrop-blur sm:px-6 sm:py-4">
 						<Transition name="ed-fade" mode="out-in">
 							<p v-if="isDirty" key="dirty" class="flex items-center gap-2 text-sm font-medium text-amber-700"><span class="h-2 w-2 animate-pulse rounded-full bg-amber-500" />Unsaved changes</p>
 							<p v-else key="clean" class="text-sm text-gray-400">No changes yet</p>
 						</Transition>
-						<div class="flex gap-2">
+						<!-- Phones: the buttons share the full width -->
+						<div class="flex w-full gap-2 sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none">
 							<button v-if="activeEditTab !== editTabs[editTabs.length - 1]?.label" type="button" class="ed-btn" @click="nextSection">Next <IconBase name="arrow-right" class="h-4 w-4" /></button>
 							<button type="button" class="ed-btn" :disabled="isSaving" @click="cancelEdit">Cancel</button>
 							<button type="button" class="ed-btn ed-btn-primary" :disabled="isSaving" @click="saveEvent">
@@ -660,6 +662,8 @@ let apiQuotation: import('~/composables/useQuotations').OrganizerQuotation | nul
 
 const activeEditTab =
 	ref('Basic Info')
+// Keep the current section visible in the phone tab row (e.g. after Next).
+watch(activeEditTab, () => nextTick(() => document.querySelector('nav[aria-label="Edit sections"] .ed-nav.is-on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })))
 
 const eventId =
 	computed(() => routeId(route.query.event))
@@ -1384,7 +1388,7 @@ const viewLinks = [
 .ed-label { @apply mb-1.5 block text-sm font-semibold text-gray-800; }
 .ed-field { @apply h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 hover:border-gray-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10; }
 .ed-icon { @apply pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400; }
-.ed-nav { @apply flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600; }
+.ed-nav { @apply flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-2 py-1.5 text-left lg:w-full lg:gap-3 lg:whitespace-normal lg:px-2.5 lg:py-2.5 transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600; }
 .ed-nav.is-on { @apply bg-primary-25 ring-1 ring-primary-200; }
 .ed-choice { @apply flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 transition hover:border-gray-300; }
 .ed-choice.is-on { @apply border-primary-600 bg-primary-25 ring-1 ring-primary-600; }
@@ -1395,8 +1399,8 @@ const viewLinks = [
 .ed-switch.is-on { @apply bg-primary-700 group-hover:bg-primary-800; }
 .ed-knob { @apply absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200; }
 .ed-switch.is-on .ed-knob { transform: translateX(20px); }
-.ed-btn { @apply inline-flex h-11 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600 disabled:cursor-not-allowed disabled:opacity-50; }
-.ed-btn-primary { @apply border-primary-700 bg-primary-700 px-5 text-white hover:bg-primary-800; }
+.ed-btn { @apply inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-gray-200 bg-white px-3 sm:px-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600 disabled:cursor-not-allowed disabled:opacity-50; }
+.ed-btn-primary { @apply border-primary-700 bg-primary-700 px-3 sm:px-5 text-white hover:bg-primary-800; }
 .ed-dots { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1.3px); background-size: 16px 16px; mask-image: linear-gradient(105deg, transparent 20%, black 75%); }
 .ed-step-enter-active, .ed-step-leave-active { transition: opacity 0.22s ease, transform 0.22s ease; }
 .ed-step-enter-from { opacity: 0; transform: translateX(12px); }

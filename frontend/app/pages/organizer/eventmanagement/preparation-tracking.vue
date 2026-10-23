@@ -69,9 +69,9 @@
 							<div class="min-w-0 flex-1">
 								<p class="text-sm font-medium transition" :class="item.is_completed ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-950'">{{ item.label }}</p>
 								<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-									<label class="pt-chip cursor-pointer" :class="item.assigned_team_member ? '' : (item.is_completed ? 'text-gray-400' : 'border-amber-200 bg-amber-50 text-amber-800')">
+									<label class="pt-chip min-h-9 cursor-pointer !py-1.5" :class="item.assigned_team_member ? '' : (item.is_completed ? 'text-gray-400' : 'border-amber-200 bg-amber-50 text-amber-800')">
 										<span v-if="item.assigned_team_member" class="pt-avatar h-4 w-4 text-[8px]">{{ initials(memberName(item.assigned_team_member)) }}</span>
-										<select class="cursor-pointer appearance-none bg-transparent pr-1 outline-none" :value="item.assigned_team_member_id ?? ''"
+										<select class="min-h-7 cursor-pointer appearance-none bg-transparent pr-1 outline-none" :value="item.assigned_team_member_id ?? ''"
 											:disabled="updatingItemId === item.id || !teamMembers.length" :aria-label="`Assign ${item.label}`"
 											@change="assignItem(item, ($event.target as HTMLSelectElement).value)">
 											<option value="">{{ item.is_completed ? 'Unassigned' : 'Needs an assignee' }}</option>
@@ -596,7 +596,7 @@ async function confirmRemove(item: PreparationItem) {
 
 /* Segmented filter */
 .pt-seg { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-radius: 0.75rem; background: #f3f4f6; padding: 0.25rem; }
-.pt-seg > button { position: relative; z-index: 1; height: 2rem; padding: 0 0.7rem; border-radius: 0.5rem; font-size: 0.8rem; font-weight: 600; color: #6b7280; white-space: nowrap; transition: color 0.2s; }
+.pt-seg > button { position: relative; z-index: 1; height: 2.25rem; padding: 0 0.7rem; border-radius: 0.5rem; font-size: 0.8rem; font-weight: 600; color: #6b7280; white-space: nowrap; transition: color 0.2s; }
 .pt-seg > button.is-on { color: #1c4f5c; }
 .pt-seg-thumb { position: absolute; top: 0.25rem; bottom: 0.25rem; left: 0.25rem; width: calc((100% - 0.5rem) / 4); border-radius: 0.5rem; background: white; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08); transition: transform 0.3s cubic-bezier(0.3, 1.3, 0.5, 1); }
 
