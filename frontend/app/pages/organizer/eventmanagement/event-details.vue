@@ -1067,6 +1067,20 @@ async function cancelEdit() {
 }
 
 
+// A request has a date but no time: the new event starts 9:00–17:00 on that day as a
+// placeholder. The server refuses a start in the past, so for a request dated today
+// (or earlier) it starts at the next full hour instead, for 4 hours.
+function placeholderSession(day: string) {
+	const pad = (n: number) => String(n).padStart(2, '0')
+	const local = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+	const nine = new Date(`${day}T09:00`)
+	if (nine.getTime() > Date.now() + 30 * 60 * 1000) return { startsAt: `${day}T09:00`, endsAt: `${day}T17:00` }
+	const start = new Date()
+	start.setMinutes(0, 0, 0)
+	start.setHours(start.getHours() + 1)
+	return { startsAt: local(start), endsAt: local(new Date(start.getTime() + 4 * 3600 * 1000)) }
+}
+
 async function editAwardedEvent() {
 	if (
 		!token.value ||
@@ -1094,6 +1108,7 @@ async function editAwardedEvent() {
 	try {
 		const q = apiQuotation!
 		const day = q.inquiry?.requested_date ?? new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+		const { startsAt, endsAt } = placeholderSession(day)
 		const created = await useOrganizerEvents().convert(orgId, q.id, {
 			name: `${q.inquiry?.event_type ?? 'Event'}${q.client?.name ? ` for ${q.client.name}` : ''}`,
 			event_type_id: q.inquiry?.event_type_id ?? null,
@@ -1107,7 +1122,7 @@ async function editAwardedEvent() {
 			contact_name: q.client?.name ?? null,
 			contact_email: q.client?.email ?? null,
 			contact_phone: q.client?.phone ?? null,
-			sessions: [{ name: null, starts_at: `${day}T09:00`, ends_at: `${day}T17:00` }],
+			sessions: [{ name: null, starts_at: startsAt, ends_at: endsAt }],
 		})
 		const response = { data: { event: { id: created.id } } }
 		await navigateTo({
@@ -1135,6 +1150,7 @@ async function editAwardedEvent() {
 			}
 
 		errorMessage.value =
+			Object.values(fieldErrors(error))[0] ||
 			authMessage(error) ||
 			apiError.data?.message ||
 			'Unable to prepare this event for editing.'
