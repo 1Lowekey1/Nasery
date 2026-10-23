@@ -6,25 +6,25 @@
 			Back to dashboard
 		</NuxtLink>
 
-		<section class="pe-hero pe-rise relative overflow-hidden rounded-[2rem] text-white" style="--d: 40ms">
+		<section class="pe-hero pe-rise relative overflow-hidden rounded-[1.5rem] text-white sm:rounded-[2rem]" style="--d: 40ms">
 			<span class="pe-orb" />
 			<span class="pe-dots" />
 
-			<div class="relative flex flex-col gap-8 px-6 py-8 sm:px-10 sm:py-10 lg:flex-row lg:items-center lg:justify-between">
+			<div class="relative flex flex-col gap-4 px-5 py-5 sm:gap-8 sm:px-10 sm:py-10 lg:flex-row lg:items-center lg:justify-between">
 				<div class="max-w-2xl">
-					<div class="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 backdrop-blur">
+					<div class="hidden items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 backdrop-blur sm:inline-flex">
 						<IconBase name="sparkles" class="h-3.5 w-3.5" />
 						Plan your next occasion
 					</div>
-					<h1 class="mt-3 text-2xl font-extrabold tracking-tight sm:mt-4 sm:text-4xl">
+					<h1 class="text-2xl font-extrabold tracking-tight sm:mt-4 sm:text-4xl">
 						Tell us about your event.
 					</h1>
-					<p class="mt-3 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
+					<p class="mt-3 hidden max-w-xl text-sm leading-relaxed text-white/70 sm:block sm:text-base">
 						Share the essentials once. Qualified organizers can review your vision and send offers that fit your plans.
 					</p>
 				</div>
 
-				<div class="w-full max-w-sm rounded-2xl bg-white/10 p-5 ring-1 ring-white/20 backdrop-blur-sm lg:w-80">
+				<div class="w-full max-w-sm rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/20 backdrop-blur-sm sm:p-5 lg:w-80">
 					<div class="flex items-end justify-between">
 						<p class="text-xs font-bold uppercase tracking-[0.12em] text-white/70">Inquiry progress</p>
 						<p class="text-2xl font-extrabold leading-none">{{ completion.percent }}%</p>
@@ -32,7 +32,7 @@
 					<div class="mt-3 h-2 overflow-hidden rounded-full bg-white/20">
 						<div class="h-full rounded-full bg-white transition-all duration-500 ease-out" :style="{ width: completion.percent + '%' }" />
 					</div>
-					<p class="mt-3 text-xs text-white/70">
+					<p class="mt-2 text-xs text-white/70 sm:mt-3">
 						{{ completion.done === completion.total ? 'All set. You can submit your inquiry.' : `${completion.done} of ${completion.total} details completed` }}
 					</p>
 				</div>
@@ -66,7 +66,7 @@
 							</div>
 						</div>
 						<span
-							class="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary-100 bg-white px-3 py-1.5 text-xs font-semibold text-primary-700">
+							class="hidden w-fit items-center gap-1.5 sm:inline-flex rounded-full border border-primary-100 bg-white px-3 py-1.5 text-xs font-semibold text-primary-700">
 							<IconBase name="clock" class="h-3.5 w-3.5" /> Takes about 2 minutes
 						</span>
 					</div>

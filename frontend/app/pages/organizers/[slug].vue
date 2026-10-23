@@ -25,9 +25,9 @@
 		</NuxtLink>
 		<section class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
 			<PortfolioCover :color="organizer.banner_color" :label="organizer.name" :image="organizer.cover_url" />
-			<div class="flex flex-col justify-between gap-6 p-6 sm:p-8 lg:flex-row lg:items-center">
+			<div class="flex flex-col justify-between gap-4 p-6 sm:gap-6 sm:p-8 lg:flex-row lg:items-center">
 				<div class="flex items-start gap-4"><span
-						class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl text-xl font-bold text-white"
+						class="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl text-base font-bold text-white sm:h-16 sm:w-16 sm:text-xl"
 						:class="organizer.logo_url ? 'border border-gray-200 bg-white' : ''"
 						:style="organizer.logo_url ? {} : { backgroundColor: organizer.banner_color }">
 						<img v-if="organizer.logo_url" :src="organizer.logo_url" :alt="`${organizer.name} logo`" class="h-full w-full bg-white object-contain">
@@ -50,13 +50,13 @@
 						</p>
 					</div>
 				</div>
-				<div class="flex flex-wrap gap-3 self-start lg:self-auto">
+				<div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3 lg:self-auto">
 					<a href="#past-events"
-						class="rounded-lg border border-gray-200 px-5 py-3 text-sm font-semibold hover:bg-gray-50">
+						class="inline-flex min-h-11 items-center justify-center rounded-lg border border-gray-200 px-3 text-center text-sm font-semibold hover:bg-gray-50 sm:px-5">
 						Explore past work ↓
 					</a>
 					<NuxtLink v-if="user?.role !== 'organizer'" :to="{ path: '/client/post-event', query: { organizer: identifier } }"
-						class="rounded-lg bg-primary-700 px-5 py-3 text-sm font-bold text-white hover:bg-primary-900">
+						class="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-700 px-3 text-center text-sm font-bold text-white hover:bg-primary-900 sm:px-5">
 						Request a quotation
 					</NuxtLink>
 				</div>
@@ -124,7 +124,7 @@
 						</span>
 					</div>
 					<div v-if="organizer.events.length" class="grid gap-5 sm:grid-cols-2">
-						<article v-for="event in organizer.events" :key="event.id"
+						<article v-for="event in shownEvents" :key="event.id"
 							class="overflow-hidden rounded-xl border border-gray-200 bg-white">
 							<PortfolioCover :color="organizer.banner_color" :label="event.title" :image="event.cover_url" compact />
 							<div class="p-5">
@@ -145,7 +145,10 @@
 							</div>
 						</article>
 					</div>
-					<div v-else
+					<button v-if="organizer.events.length > shownEvents.length" type="button"
+						class="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-gray-200 bg-white text-sm font-semibold text-primary-700 hover:bg-gray-50"
+						@click="eventsShown = organizer.events.length">Show all {{ organizer.events.length }} past events</button>
+					<div v-else-if="!organizer.events.length"
 						class="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-sm text-gray-500">
 						This organizer has not published any completed events yet.
 					</div>
@@ -174,7 +177,7 @@
 					<h2 id="reviews-heading" class="text-xl font-bold">Client reviews</h2>
 					<p v-if="!reviews.length" class="mt-4 text-sm text-gray-500">No reviews yet. Reviews come only from clients who completed an event with this organizer.</p>
 					<ul v-else class="mt-5 space-y-5">
-						<li v-for="r in reviews" :key="r.id" class="border-b border-gray-100 pb-5 last:border-0">
+						<li v-for="r in reviews.slice(0, reviewsShown)" :key="r.id" class="border-b border-gray-100 pb-5 last:border-0">
 							<p class="text-sm font-semibold text-amber-700" :aria-label="`${r.rating} out of 5`">{{ '★'.repeat(r.rating) }}<span class="text-gray-300">{{ '★'.repeat(5 - r.rating) }}</span></p>
 							<p v-if="r.written_review" class="mt-2 text-sm text-gray-700">{{ r.written_review }}</p>
 							<p class="mt-2 text-xs text-gray-400">
@@ -188,8 +191,8 @@
 						</li>
 					</ul>
 					<p v-if="reviewNotice" class="mt-4 rounded-lg bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-800">{{ reviewNotice }}</p>
-					<button v-if="reviewPage && reviewPage.current_page < reviewPage.last_page" type="button"
-						class="mt-4 text-sm font-semibold text-primary-700" @click="moreReviews">Show more reviews</button>
+					<button v-if="reviews.length > reviewsShown || (reviewPage && reviewPage.current_page < reviewPage.last_page)" type="button"
+						class="mt-4 inline-flex min-h-10 items-center text-sm font-semibold text-primary-700" @click="moreReviews">Show more reviews</button>
 				</section>
 			</div>
 			<aside class="rounded-2xl border border-primary-100 bg-primary-50 p-7 lg:sticky lg:top-6">
@@ -269,8 +272,14 @@ async function reportReview(id: string) {
 	}
 }
 
+// Long lists start short (less scrolling on phones); one tap shows the rest.
+const eventsShown = ref(4)
+const shownEvents = computed(() => (organizer.value?.events ?? []).slice(0, eventsShown.value))
+const reviewsShown = ref(3)
+
 async function moreReviews() {
-	if (!reviewPage.value) return
+	reviewsShown.value += 5
+	if (reviews.value.length >= reviewsShown.value || !reviewPage.value || reviewPage.value.current_page >= reviewPage.value.last_page) return
 	const next = await useMarketplace().reviews(identifier.value, reviewPage.value.current_page + 1)
 	reviews.value.push(...next.items)
 	reviewPage.value = next.pagination

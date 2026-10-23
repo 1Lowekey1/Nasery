@@ -3,7 +3,7 @@ withDefaults(defineProps<{ color: string; label: string; compact?: boolean; imag
 </script>
 
 <template>
-  <div class="relative isolate overflow-hidden text-white" :class="compact ? 'h-44' : 'h-56 sm:h-64'" :style="{ backgroundColor: color }">
+  <div class="relative isolate overflow-hidden text-white" :class="compact ? 'h-36 sm:h-44' : 'h-36 sm:h-64'" :style="{ backgroundColor: color }">
     <template v-if="image">
       <img :src="image" alt="" class="absolute inset-0 h-full w-full object-cover">
       <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
