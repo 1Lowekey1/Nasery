@@ -312,6 +312,12 @@ async function addTicketType() {
 
 			mode:
 				'edit',
+
+			section:
+				'tickets',
+
+			new:
+				'1',
 		},
 	})
 }
@@ -333,6 +339,12 @@ async function editTicketType(
 
 			mode:
 				'edit',
+
+			section:
+				'tickets',
+
+			ticket:
+				String(ticket.id),
 		},
 	})
 }

@@ -162,13 +162,13 @@
 								<p v-if="ticketSummary.guests && ticketSummary.capacity < ticketSummary.guests" class="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"><IconBase name="sparkles" class="h-3.5 w-3.5" />You have {{ ticketSummary.guests - ticketSummary.capacity }} fewer seats than expected guests.</p>
 
 								<TransitionGroup tag="div" name="ed-card" class="space-y-3">
-									<div v-for="(type, index) in editForm.ticketTypes" :key="ticketKey(type, index)" class="relative overflow-hidden rounded-2xl border border-gray-200 p-4 pl-5">
+									<div v-for="(type, index) in editForm.ticketTypes" :key="ticketKey(type, index)" class="relative scroll-mt-24 overflow-hidden rounded-2xl border border-gray-200 p-4 pl-5" data-ticket-card>
 										<span class="absolute inset-y-0 left-0 w-1 bg-primary-600" aria-hidden="true" />
 										<div class="mb-3 flex items-center justify-between">
 											<p class="flex items-center gap-2 text-sm font-bold text-gray-950"><IconBase name="ticket" class="h-4 w-4 text-primary-700" />{{ type.name || `Ticket type ${index + 1}` }}</p>
 											<button v-if="editForm.ticketTypes.length > 1" type="button" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600" :aria-label="`Remove ${type.name || 'ticket type'}`" @click="removeTicketType(index)"><IconBase name="trash" class="h-4 w-4" /></button>
 										</div>
-										<div class="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+										<div class="grid gap-3 sm:grid-cols-[minmax(0,1.5fr)_minmax(7.5rem,1fr)_minmax(5rem,0.7fr)]">
 											<div><span class="ed-label">Name</span><input v-model="type.name" type="text" class="ed-field" placeholder="e.g. VIP" /></div>
 											<div><span class="ed-label">Price</span><div class="relative"><span class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">₱</span><input v-model="type.price" type="text" inputmode="decimal" class="ed-field !pl-8" placeholder="2500" /></div></div>
 											<div><span class="ed-label">Seats</span><input v-model="type.capacity" type="number" min="0" class="ed-field" placeholder="50" /></div>
@@ -1333,6 +1333,41 @@ watch(() => [isEditMode.value, event.value?.id, isLoading.value], () => {
 	if (isEditMode.value && event.value && !isLoading.value) nextTick(() => { editSnapshot.value = JSON.stringify(editForm) })
 }, { immediate: true })
 watch(saveSuccess, (v) => { if (v) editSnapshot.value = JSON.stringify(editForm) })
+
+// Deep links into the editor (?section=tickets&new=1, &ticket=<id>) so "Add ticket type"
+// and "Edit" buttons elsewhere land on the right section, not on Basic info (finding #5).
+const sectionTabs: Record<string, string> = { basic: 'Basic Info', venue: 'Venue', tickets: 'Ticket Types', settings: 'Settings', contact: 'Contact' }
+watch(() => [isEditMode.value, event.value?.id, isLoading.value, route.query.section], () => {
+	const tab = sectionTabs[String(route.query.section ?? '')]
+	if (!tab || !isEditMode.value || !event.value || isLoading.value) return
+	activeEditTab.value = tab
+	let focusIndex = -1
+	if (tab === 'Ticket Types') {
+		const ticketId = route.query.ticket ? String(route.query.ticket) : ''
+		if (route.query.new) {
+			nextTick(() => {
+				// Reuse the editor's empty starter row instead of adding a second blank one.
+				const last: any = editForm.ticketTypes[editForm.ticketTypes.length - 1]
+				if (!last || last.id || String(last.name ?? '').trim() || String(last.price ?? '').trim() || String(last.capacity ?? '').trim()) addTicketType()
+				focusTicket(editForm.ticketTypes.length - 1)
+			})
+		} else if (ticketId) {
+			focusIndex = editForm.ticketTypes.findIndex((t: any) => String(t.id) === ticketId)
+		}
+	}
+	const { section: _s, ticket: _t, new: _n, ...rest } = route.query
+	navigateTo({ path: route.path, query: rest }, { replace: true })
+	if (focusIndex >= 0) focusTicket(focusIndex)
+}, { immediate: true })
+function focusTicket(index: number) {
+	// Wait for the section swap transition before scrolling to the card.
+	setTimeout(() => {
+		const card = document.querySelectorAll<HTMLElement>('[data-ticket-card]')[index]
+		if (!card) return
+		card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+		card.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true })
+	}, 350)
+}
 
 
 // ---------- View mode ----------
