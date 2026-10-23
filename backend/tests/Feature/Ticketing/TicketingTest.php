@@ -197,6 +197,42 @@ class TicketingTest extends TestCase
         $this->actingAs(User::factory()->create())->spaJson('POST', "/api/v1/me/tickets/{$mine[1]['id']}/cancel")->assertNotFound();
     }
 
+    public function test_private_events_open_only_with_their_link(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $party = $this->event($owner, $org, ['name' => 'Ana Debut', 'visibility' => 'private']);
+        $seat = $this->tier($owner, $org, $party, ['name' => 'Dinner seat', 'price' => 0, 'capacity' => 3, 'status' => 'on_sale']);
+        $hidden = $this->tier($owner, $org, $party, ['name' => 'Guest list', 'price' => 0, 'capacity' => 50, 'status' => 'closed']);
+        $this->actingAs($owner)->spaJson('POST', $this->base($org, $party).'/publish')->assertOk();
+        $key = $this->actingAs($owner)->spaJson('GET', $this->base($org, $party))->assertOk()->json('data.private_link_key');
+        auth()->forgetGuards();
+        $this->assertNotEmpty($key);
+
+        // Never listed; the page needs the right key.
+        $this->getJson('/api/v1/public-events')->assertOk()->assertJsonMissing(['name' => 'Ana Debut']);
+        $this->getJson("/api/v1/public-events/{$party}")->assertNotFound();
+        $this->getJson("/api/v1/public-events/{$party}?key=wrong-key")->assertNotFound();
+        $page = $this->getJson("/api/v1/public-events/{$party}?key={$key}")->assertOk()->assertJsonPath('data.is_private', true)->json('data');
+        $this->assertSame([$seat], collect($page['tiers'])->pluck('id')->all()); // the invitation-only tier stays hidden
+
+        // A key opens only its own event.
+        $other = $this->event($owner, $org, ['name' => 'Other Party', 'visibility' => 'private']);
+        $this->actingAs($owner)->spaJson('POST', $this->base($org, $other).'/publish')->assertOk();
+        auth()->forgetGuards();
+        $this->getJson("/api/v1/public-events/{$other}?key={$key}")->assertNotFound();
+
+        $fan = User::factory()->create();
+        $this->actingAs($fan)->spaJson('POST', "/api/v1/public-events/{$party}/register", ['ticket_type_id' => $seat, 'attendees' => [['full_name' => 'Cousin']]], $this->key())->assertNotFound();
+        $this->actingAs($fan)->spaJson('POST', "/api/v1/public-events/{$party}/register", ['ticket_type_id' => $hidden, 'attendees' => [['full_name' => 'Cousin']], 'key' => $key], $this->key())->assertNotFound();
+        $this->actingAs($fan)->spaJson('POST', "/api/v1/public-events/{$party}/register", ['ticket_type_id' => $seat, 'attendees' => [['full_name' => 'Cousin']], 'key' => $key], $this->key())
+            ->assertCreated()->assertJsonPath('data.status', 'confirmed');
+        $this->actingAs($fan)->spaJson('GET', '/api/v1/me/tickets')->assertOk()->assertJsonCount(1, 'data');
+
+        // Public events carry no key.
+        $open = $this->event($owner, $org, ['name' => 'Open Fair', 'visibility' => 'public']);
+        $this->assertNull($this->actingAs($owner)->spaJson('GET', $this->base($org, $open))->json('data.private_link_key'));
+    }
+
     public function test_sales_window_is_respected(): void
     {
         [$org, $owner] = $this->listedOrganizer();

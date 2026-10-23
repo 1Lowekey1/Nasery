@@ -70,9 +70,9 @@ class GuestCheckout
     /**
      * @return array{expires_in: int, resend_in: int}
      */
-    public function sendCode(string $eventId, string $email): array
+    public function sendCode(string $eventId, string $email, ?string $key = null): array
     {
-        $event = $this->publicEvent($eventId);
+        $event = $this->publicEvent($eventId, $key);
         $email = $this->normalize($email);
         $key = $this->codeKey($eventId, $email);
         $current = Cache::get($key);
@@ -104,9 +104,9 @@ class GuestCheckout
     /**
      * @return array{verified: true, email: string, verification_token: string}
      */
-    public function verifyCode(string $eventId, string $email, #[SensitiveParameter] string $code): array
+    public function verifyCode(string $eventId, string $email, #[SensitiveParameter] string $code, ?string $key = null): array
     {
-        $this->publicEvent($eventId);
+        $this->publicEvent($eventId, $key);
         $email = $this->normalize($email);
         $key = $this->codeKey($eventId, $email);
         $current = Cache::get($key);
@@ -141,9 +141,9 @@ class GuestCheckout
      * @param  array{name?: ?string, email?: ?string, phone?: ?string}  $buyer
      * @return array<string, mixed>
      */
-    public function register(?User $user, string $eventId, array $attendees, array $buyer): array
+    public function register(?User $user, string $eventId, array $attendees, array $buyer, ?string $key = null): array
     {
-        $this->publicEvent($eventId);
+        $this->publicEvent($eventId, $key);
 
         // Guests: every attendee's e-mail must be one they confirmed for this event.
         $tokens = [];
@@ -159,9 +159,9 @@ class GuestCheckout
             }
         }
 
-        $result = $this->db->system('public.guest_register', function () use ($user, $eventId, $attendees, $buyer) {
+        $result = $this->db->system('public.guest_register', function () use ($user, $eventId, $attendees, $buyer, $key) {
             $byTier = collect($attendees)->groupBy('ticket_type_id');
-            $publicTiers = DB::table('public_ticket_types')->where('event_id', $eventId)->whereIn('id', $byTier->keys())->get()->keyBy('id');
+            $publicTiers = EventGate::tiers($eventId, $key)->whereIn('id', $byTier->keys())->get()->keyBy('id');
             $now = now();
 
             foreach ($byTier->keys() as $tierId) {
@@ -320,9 +320,9 @@ class GuestCheckout
         }
     }
 
-    private function publicEvent(string $eventId): object
+    private function publicEvent(string $eventId, ?string $key = null): object
     {
-        return $this->db->system('public.guest_event', fn () => DB::table('public_events')->where('id', $eventId)->first(['id', 'name']))
+        return $this->db->system('public.guest_event', fn () => EventGate::event($eventId, $key)->first(['id', 'name']))
             ?? throw new ApiException(ErrorCode::NotFound, 'This event isn\'t open to the public.', 404);
     }
 

@@ -36,9 +36,9 @@ class PublicEventController extends Controller
         return ApiResponse::success($this->registration->events($data));
     }
 
-    public function show(string $event): JsonResponse
+    public function show(Request $request, string $event): JsonResponse
     {
-        return ApiResponse::success($this->registration->event($event)
+        return ApiResponse::success($this->registration->event($event, $this->linkKey($request))
             ?? throw new ApiException(ErrorCode::NotFound, 'This event isn\'t open to the public.', 404));
     }
 
@@ -51,7 +51,7 @@ class PublicEventController extends Controller
             'attendees.*.email' => ['nullable', 'email', 'max:254'],
         ]);
 
-        $result = $this->registration->register($request->user(), $event, $data['ticket_type_id'], $data['attendees']);
+        $result = $this->registration->register($request->user(), $event, $data['ticket_type_id'], $data['attendees'], $this->linkKey($request));
 
         if ($result['status'] === 'confirmed') {
             return ApiResponse::created($result, 'You\'re registered. Your QR tickets are in My Tickets.');
@@ -97,5 +97,13 @@ class PublicEventController extends Controller
         $this->registration->cancelMine($request->user(), $ticket);
 
         return ApiResponse::success(null, 'Ticket cancelled.');
+    }
+
+    /** A private event's link key (?key=… on the page, or in the request body). */
+    private function linkKey(Request $request): ?string
+    {
+        $key = $request->input('key');
+
+        return is_string($key) && strlen($key) <= 64 ? $key : null;
     }
 }

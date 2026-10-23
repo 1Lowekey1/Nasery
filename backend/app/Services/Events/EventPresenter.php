@@ -3,6 +3,7 @@
 namespace App\Services\Events;
 
 use App\Services\Media\ImageStore;
+use App\Services\Ticketing\EventGate;
 use App\Models\Event;
 use App\Models\EventSession;
 use App\Support\Database\DatabaseContext;
@@ -133,6 +134,8 @@ class EventPresenter
             'latitude' => $e->latitude !== null ? (float) $e->latitude : null,
             'longitude' => $e->longitude !== null ? (float) $e->longitude : null,
             'visibility' => $e->visibility,
+            // A private event's page opens only with this key (EventGate): the host shares the link.
+            'private_link_key' => $e->visibility === 'private' ? EventGate::key($e->id) : null,
             'inquiry_id' => $e->inquiry_id,
             'cancelled_reason' => $e->cancelled_reason,
             'cancelled_at' => $e->cancelled_at?->toIso8601String(),

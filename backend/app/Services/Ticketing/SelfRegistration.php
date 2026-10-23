@@ -88,16 +88,16 @@ class SelfRegistration
     /**
      * @return array<string, mixed>|null
      */
-    public function event(string $eventId): ?array
+    public function event(string $eventId, ?string $key = null): ?array
     {
-        return $this->db->system('public.event', function () use ($eventId) {
-            $e = DB::table('public_events')->where('id', $eventId)->first();
+        return $this->db->system('public.event', function () use ($eventId, $key) {
+            $e = EventGate::event($eventId, $key)->first();
 
             if ($e === null) {
                 return null;
             }
 
-            $tiers = DB::table('public_ticket_types')->where('event_id', $eventId)->orderBy('sort_order')->orderBy('price')->get();
+            $tiers = EventGate::tiers($eventId, $key)->orderBy('sort_order')->orderBy('price')->get();
             $remaining = $this->capacity->remaining($tiers->pluck('id')->all());
             $sessions = DB::table('event_sessions')->where('event_id', $eventId)->whereNull('deleted_at')
                 ->where('status', '!=', 'cancelled')->orderBy('starts_at')->get(['name', 'starts_at', 'ends_at']);
@@ -105,6 +105,7 @@ class SelfRegistration
 
             return [
                 ...$this->eventCard($e),
+                'is_private' => ($e->visibility ?? 'public') !== 'public',
                 'description' => $e->description,
                 'latitude' => $e->latitude !== null ? (float) $e->latitude : null,
                 'longitude' => $e->longitude !== null ? (float) $e->longitude : null,
@@ -145,11 +146,11 @@ class SelfRegistration
      * @param  list<array{full_name: string, email?: ?string}>  $attendees
      * @return array<string, mixed>
      */
-    public function register(User $user, string $eventId, string $tierId, array $attendees): array
+    public function register(User $user, string $eventId, string $tierId, array $attendees, ?string $key = null): array
     {
-        $result = $this->db->system('public.register', function () use ($user, $eventId, $tierId, $attendees) {
-            // The public views are the gate: public, published, approved organizer, tier on sale.
-            $publicTier = DB::table('public_ticket_types')->where('id', $tierId)->where('event_id', $eventId)->first();
+        $result = $this->db->system('public.register', function () use ($user, $eventId, $tierId, $attendees, $key) {
+            // The gate: public (or private with its link), published, approved organizer, tier on sale.
+            $publicTier = EventGate::tiers($eventId, $key)->where('id', $tierId)->first();
 
             if ($publicTier === null) {
                 throw new ApiException(ErrorCode::NotFound, 'This ticket is not available.', 404);

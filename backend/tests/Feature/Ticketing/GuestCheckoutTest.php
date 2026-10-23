@@ -148,4 +148,36 @@ class GuestCheckoutTest extends TestCase
         ]], $this->key())->assertCreated()->assertJsonPath('data.status', 'confirmed');
         $this->assertCount(2, $this->actingAs($buyer)->spaJson('GET', '/api/v1/me/tickets')->json('data'));
     }
+
+    public function test_a_private_event_checks_out_only_through_its_link(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $day = now('Asia/Manila')->addDays(30)->format('Y-m-d');
+        $event = $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/events", [
+            'name' => 'Family Reunion', 'visibility' => 'private', 'sessions' => [['starts_at' => "{$day}T18:00", 'ends_at' => "{$day}T22:00"]],
+        ], $this->key())->json('data.id');
+        $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/events/{$event}/ticket-types",
+            ['name' => 'Seat', 'price' => 0, 'capacity' => 10, 'status' => 'on_sale'])->assertCreated();
+        $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/events/{$event}/publish")->assertOk();
+        $link = $this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/events/{$event}")->json('data.private_link_key');
+        $seat = DB::table('ticket_types')->where('event_id', $event)->value('id');
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+
+        $this->spaJson('POST', "/api/v1/public-events/{$event}/email-code", ['email' => 'aunt@example.com'])->assertNotFound();
+        $this->spaJson('POST', "/api/v1/public-events/{$event}/email-code", ['email' => 'aunt@example.com', 'key' => $link])->assertOk();
+        $code = null;
+        Mail::assertSent(EventEmailCodeMail::class, function (EventEmailCodeMail $m) use (&$code) {
+            $code = $m->code;
+
+            return true;
+        });
+        $token = $this->spaJson('POST', "/api/v1/public-events/{$event}/email-code/verify", ['email' => 'aunt@example.com', 'code' => $code, 'key' => $link])
+            ->assertOk()->json('data.verification_token');
+
+        $attendees = [['full_name' => 'Aunt May', 'email' => 'aunt@example.com', 'ticket_type_id' => $seat, 'verification_token' => $token]];
+        $this->spaJson('POST', "/api/v1/public-events/{$event}/checkout", ['attendees' => $attendees], $this->key())->assertNotFound();
+        $this->spaJson('POST', "/api/v1/public-events/{$event}/checkout", ['attendees' => $attendees, 'key' => $link], $this->key())
+            ->assertCreated()->assertJsonPath('data.status', 'confirmed');
+    }
 }

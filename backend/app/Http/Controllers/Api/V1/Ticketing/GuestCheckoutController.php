@@ -31,14 +31,14 @@ class GuestCheckoutController extends Controller
     {
         $data = $request->validate(['email' => ['required', 'email', 'max:254']]);
 
-        return ApiResponse::success($this->checkout->sendCode($event, $data['email']), 'We sent a 6-digit code to that address.');
+        return ApiResponse::success($this->checkout->sendCode($event, $data['email'], $this->linkKey($request)), 'We sent a 6-digit code to that address.');
     }
 
     public function verifyCode(Request $request, string $event): JsonResponse
     {
         $data = $request->validate(['email' => ['required', 'email', 'max:254'], 'code' => ['required', 'string', 'size:6']]);
 
-        return ApiResponse::success($this->checkout->verifyCode($event, $data['email'], $data['code']), 'E-mail confirmed.');
+        return ApiResponse::success($this->checkout->verifyCode($event, $data['email'], $data['code'], $this->linkKey($request)), 'E-mail confirmed.');
     }
 
     public function register(Request $request, string $event): JsonResponse
@@ -57,7 +57,7 @@ class GuestCheckoutController extends Controller
             'attendees.*.verification_token' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $result = $this->checkout->register($user, $event, $data['attendees'], $data['buyer'] ?? []);
+        $result = $this->checkout->register($user, $event, $data['attendees'], $data['buyer'] ?? [], $this->linkKey($request));
 
         return ApiResponse::created($result, $result['checkout']
             ? 'Places reserved. Continue to payment.'
@@ -87,5 +87,13 @@ class GuestCheckoutController extends Controller
         $result = $this->mailer->resend($ticket);
 
         return ApiResponse::success($result, TicketMailer::resendMessage($result));
+    }
+
+    /** A private event's link key (?key=… or in the request body). */
+    private function linkKey(Request $request): ?string
+    {
+        $key = $request->input('key');
+
+        return is_string($key) && strlen($key) <= 64 ? $key : null;
     }
 }
