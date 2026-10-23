@@ -476,6 +476,7 @@ interface EventTicketType {
 	name: string
 	price: string | number
 	capacity: number
+	status?: string
 }
 
 // Event cover: anyone who may edit the event (the server checks event.update again).
@@ -1008,10 +1009,10 @@ async function loadDetails() {
 async function loadEvent(id: string) {
 	const [apiEvent, tiers] = await Promise.all([
 		useOrganizerEvents().show(orgId, id),
-		useApi().get<{ tiers: { id: string, name: string, price: string, capacity: number }[] }>(`/organizations/${orgId}/events/${id}/ticket-types`)
+		useApi().get<{ tiers: { id: string, name: string, price: string, capacity: number, status: string }[] }>(`/organizations/${orgId}/events/${id}/ticket-types`)
 			.then(r => r.data.tiers).catch(() => []),
 	])
-	return { ...toLegacyEvent(apiEvent), ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity })) }
+	return { ...toLegacyEvent(apiEvent), ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity, status: t.status })) }
 }
 
 function addTicketType() {
@@ -1226,6 +1227,13 @@ async function saveEvent() {
 		}
 		const action = transitions[current.status]?.[editForm.status]
 		if (action) await events.transition(orgId, current.id, action)
+
+		// The editor has no per-ticket status: tickets follow the event. Ones added while it
+		// was a draft go on sale once it's published, or guests would have nothing to claim.
+		if (editForm.status !== 'draft') {
+			const drafts = (await useApi().get<{ tiers: { id: string, status: string }[] }>(base)).data.tiers.filter(t => t.status === 'draft')
+			for (const t of drafts) await useApi().patch(`${base}/${t.id}`, { status: 'on_sale' })
+		}
 
 		const response = { data: await loadEvent(current.id) }
 		event.value =
