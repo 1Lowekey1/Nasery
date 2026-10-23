@@ -75,7 +75,8 @@ const { user } = useAuth()
 const api = useNotifications()
 const unread = useUnreadCount()
 
-const layout = computed(() => ({ business: 'dashboard', client: 'client', admin: 'admin' } as Record<string, string>)[user.value?.account_type ?? ''] ?? 'public')
+type PortalLayout = 'dashboard' | 'client' | 'superadmin' | 'public'
+const layout = computed<PortalLayout>(() => ({ business: 'dashboard', client: 'client', admin: 'superadmin' } as Record<string, PortalLayout>)[user.value?.account_type ?? ''] ?? 'public')
 type Tab = 'all' | 'unread' | 'settings'
 const tabs: { key: Tab, label: string }[] = [{ key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' }, { key: 'settings', label: 'E-mail settings' }]
 const tab = ref<Tab>((['all', 'unread', 'settings'] as Tab[]).includes(route.query.tab as Tab) ? route.query.tab as Tab : 'all')

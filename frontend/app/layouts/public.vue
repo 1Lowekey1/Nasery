@@ -59,7 +59,10 @@ async function signOut() {
           <div v-if="isAuthenticated" ref="accountRef" class="relative">
             <button type="button" class="flex items-center gap-2 rounded-full border border-gray-200 py-1 pl-1 pr-3 text-sm font-semibold hover:bg-gray-50" aria-label="Account menu"
               :aria-expanded="accountOpen" aria-haspopup="menu" @click="accountOpen = !accountOpen">
-              <span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-700 text-xs font-bold text-white">{{ initials }}</span>
+              <span class="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-primary-700 text-xs font-bold text-white">
+                <img v-if="user?.avatar_url" :src="user.avatar_url" alt="" class="h-full w-full object-cover">
+                <template v-else>{{ initials }}</template>
+              </span>
               <span class="hidden max-w-[10rem] truncate sm:inline">{{ fullName }}</span>
               <IconBase name="chevron-down" class="h-4 w-4 text-gray-400" />
             </button>

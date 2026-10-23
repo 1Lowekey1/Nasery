@@ -32,8 +32,9 @@ Pending / under-review / rejected organizer applications: Toril Party Planners, 
 
 ## The live flow: buy a ticket → get the QR → scan at the door
 
-Event: **NaSeRy Live Demo Night** (Events page). Its check-in is open at any hour: the scheduler
-keeps its start within the next ~2 hours (check-in opens 3 hours before the start).
+Event: **NaSeRy Live Demo Night** (Events page). It is always live: the scheduler keeps it started
+a few minutes ago with hours to go, so tickets are on sale and a scan checks people in at any hour.
+(To show the "check-in isn't open yet" message, create an ordinary event for later.)
 
 1. **Buyer** (a panelist's phone): sign in as a demo client (e.g. `bea@demo.nasery.test`), or let the
    panelist **Register** with their own e-mail (they get a real 6-digit code). Then

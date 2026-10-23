@@ -24,9 +24,10 @@ use Illuminate\Support\Facades\DB;
  *   php artisan nasery:demo:event           create it, or keep it ready (the scheduler runs this hourly)
  *   php artisan nasery:demo:event --reset   start over: retire the current one (and its tickets), make a fresh one
  *
- * Its one session always starts within the next ~2 hours and lasts 6, so the
- * door (open from `nasery.checkin.opens_before_minutes` before the start) is
- * open and tickets are on sale at any hour. Needs the demo dataset
+ * Its one session has always just started (about 5 minutes ago) and runs for
+ * 6 hours, so the event is live: tickets are on sale, the door is open and a
+ * scan checks people in at any hour. (To show the "check-in not open yet"
+ * message, create an ordinary event for later.) Needs the demo dataset
  * (nasery:demo:seed) for the organizer and its staff.
  */
 #[Signature('nasery:demo:event {--reset : Retire the current demo event and its tickets, then create a fresh one}')]
@@ -78,7 +79,10 @@ class DemoEvent extends Command
 
     private function create(Organization $org, OrganizationMember $member): Event
     {
-        [$start, $end] = $this->window();
+        // Events can't be created starting in the past: create it a little
+        // ahead, then move the session to the live window (see keepOpen).
+        $start = CarbonImmutable::now('Asia/Manila')->addMinutes(15)->startOfMinute();
+        $end = $start->addHours(6);
         $event = app(EventManager::class)->create($org, $member, [
             'name' => self::NAME,
             'event_type_id' => DB::table('event_types')->whereNull('organization_id')->where('name', 'Concert')->value('id'),
@@ -107,20 +111,23 @@ class DemoEvent extends Command
             }
         }
 
+        $this->keepOpen($event);
+
         return $event->refresh();
     }
 
-    /** Seed shortcut: move the session so it starts within ~2 hours (the door opens 3 hours before). */
+    /** Seed shortcut: keep the session live (started a few minutes ago, hours left). */
     private function keepOpen(Event $event): void
     {
         $session = DB::table('event_sessions')->where('event_id', $event->id)->whereNull('deleted_at')->first();
-        if ($session && CarbonImmutable::parse($session->ends_at)->gt(now()->addHours(4))) {
-            return; // still comfortably open
+        if ($session && CarbonImmutable::parse($session->starts_at)->lte(now())
+            && CarbonImmutable::parse($session->ends_at)->gt(now()->addHours(4))) {
+            return; // live, with hours to go
         }
         [$start, $end] = $this->window();
         DB::table('event_sessions')->where('event_id', $event->id)->whereNull('deleted_at')
             ->update(['starts_at' => $start->utc(), 'ends_at' => $end->utc(), 'updated_at' => now()]);
-        $this->line('Moved the demo session to keep check-in open.');
+        $this->line('Moved the demo session: it started a few minutes ago and runs for 6 hours.');
     }
 
     /** Retire without refunds (demo money only): the event and its tickets stop working and disappear from lists. */
@@ -139,7 +146,7 @@ class DemoEvent extends Command
     /** @return array{0: CarbonImmutable, 1: CarbonImmutable} */
     private function window(): array
     {
-        $start = CarbonImmutable::now('Asia/Manila')->addHours(2)->startOfHour();
+        $start = CarbonImmutable::now('Asia/Manila')->subMinutes(5)->startOfMinute();
 
         return [$start, $start->addHours(6)];
     }
