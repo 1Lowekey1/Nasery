@@ -1292,8 +1292,10 @@ async function loadTicketTypes() {
 	isLoadingTicketTypes.value = true
 	try {
 		const { tiers } = await ticketingApi.tiers(await orgIdOf(), eventKey())
-		ticketTypes.value = tiers.filter(t => t.status !== 'closed').map(t => ({ id: t.id as unknown as number, name: t.name, price: t.price, capacity: t.capacity }))
-		if (ticketTypes.value.length === 1) registerForm.ticketTypeId = ticketTypes.value[0]?.id ?? null
+		// Closed types can't take new guests, except a private event's invitation list (always closed).
+		ticketTypes.value = tiers.filter(t => t.status !== 'closed' || isGuestTier(t)).map(t => ({ id: t.id as unknown as number, name: t.name, price: t.price, capacity: t.capacity }))
+		const invites = ticketTypes.value.find(t => isGuestTier(t))
+		if (invites || ticketTypes.value.length === 1) registerForm.ticketTypeId = (invites ?? ticketTypes.value[0])?.id ?? null
 	} catch (error: unknown) {
 		ticketTypes.value = []
 		registerError.value = authMessage(error) || 'Unable to load ticket types.'

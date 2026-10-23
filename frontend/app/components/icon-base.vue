@@ -247,6 +247,19 @@
 			<circle cx="5.5" cy="18.5" r="2.5" />
 			<circle cx="18.5" cy="18.5" r="2.5" />
 		</template>
+		<template v-else-if="name === 'globe'">
+			<circle cx="12" cy="12" r="10" />
+			<line x1="2" y1="12" x2="22" y2="12" />
+			<path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+		</template>
+		<template v-else-if="name === 'link'">
+			<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+			<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+		</template>
+		<template v-else-if="name === 'copy'">
+			<rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+			<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+		</template>
 	</svg>
 </template>
 

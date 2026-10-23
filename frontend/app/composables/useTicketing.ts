@@ -86,6 +86,7 @@ export interface PublicTier {
 }
 
 export interface PublicEventDetail extends PublicEventCard {
+  is_private?: boolean
   description: string | null
   latitude: number | null
   longitude: number | null
@@ -174,10 +175,11 @@ export const usePublicEvents = () => {
       const r = await api.get<PublicEventCard[]>('/public-events', { query })
       return { items: r.data, pagination: r.meta?.pagination as Page<PublicEventCard>['pagination'] }
     },
-    show: async (id: string) => (await api.get<PublicEventDetail>(`/public-events/${id}`)).data,
-    register: async (id: string, ticketTypeId: string, attendees: { full_name: string, email?: string | null }[]) =>
+    // key: a private event's link key (opens its page and checkout; public events need none).
+    show: async (id: string, key?: string | null) => (await api.get<PublicEventDetail>(`/public-events/${id}`, { query: key ? { key } : undefined })).data,
+    register: async (id: string, ticketTypeId: string, attendees: { full_name: string, email?: string | null }[], key?: string | null) =>
       (await api.post<{ registration_id: string, status: 'confirmed' | 'awaiting_payment', hold_expires_at: string | null, checkout?: CheckoutStart }>(
-        `/public-events/${id}/register`, { ticket_type_id: ticketTypeId, attendees }, { idempotencyKey: crypto.randomUUID() })),
+        `/public-events/${id}/register`, { ticket_type_id: ticketTypeId, attendees, ...(key ? { key } : {}) }, { idempotencyKey: crypto.randomUUID() })),
     myTickets: async () => (await api.get<MyTicket[]>('/me/tickets')).data,
     cancelMine: (ticketId: string) => api.post(`/me/tickets/${ticketId}/cancel`),
     myTicketPdf: (ticketId: string) => api.blob(`/me/tickets/${ticketId}/pdf`),

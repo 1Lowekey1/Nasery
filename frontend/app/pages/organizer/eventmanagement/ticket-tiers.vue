@@ -43,12 +43,24 @@
 					</dl>
 			</section>
 
+			<!-- Private event: invitations -->
+			<section v-if="event.invitations" class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-5 py-4 sm:px-6">
+				<div class="flex min-w-0 items-center gap-3">
+					<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><IconBase name="users" class="h-5 w-5" /></span>
+					<div class="min-w-0">
+						<p class="text-sm font-bold text-gray-950">Invitations</p>
+						<p class="text-sm text-gray-500"><strong class="font-semibold tabular-nums text-gray-900">{{ event.invitations.sold ?? 0 }}</strong> of {{ event.invitations.capacity }} guests invited</p>
+					</div>
+				</div>
+				<NuxtLink :to="{ path: '/organizer/ticketattendance/attendees', query: { event: route.query.event } }" class="tt-btn-primary"><IconBase name="user-plus" class="h-4 w-4" /> Invite guests</NuxtLink>
+			</section>
+
 			<!-- Empty -->
-			<section v-if="!event.ticket_types?.length" class="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center">
+			<section v-if="!event.ticket_types?.length" class="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
 				<span class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-500"><IconBase name="ticket" class="h-6 w-6" /></span>
-				<h3 class="mt-4 font-semibold text-gray-950">No ticket types yet</h3>
-				<p class="mx-auto mt-1 max-w-sm text-sm text-gray-500">Add options like VIP, Regular or Early bird so guests can pick their admission.</p>
-				<button type="button" class="tt-btn-primary mx-auto mt-5" @click="addTicketType"><IconBase name="plus" class="h-4 w-4" /> Add ticket type</button>
+				<h3 class="mt-4 font-semibold text-gray-950">{{ event.is_private ? 'No tickets for sale' : 'No ticket types yet' }}</h3>
+				<p class="mx-auto mt-1 max-w-sm text-sm text-gray-500">{{ event.is_private ? 'Optional for a private event: add tickets only if guests should buy or claim a seat themselves through the private link.' : 'Add options like VIP, Regular or Early bird so guests can pick their admission.' }}</p>
+				<button type="button" class="tt-btn-primary mx-auto mt-5" @click="addTicketType"><IconBase name="plus" class="h-4 w-4" /> {{ event.is_private ? 'Add tickets (optional)' : 'Add ticket type' }}</button>
 			</section>
 
 			<!-- Tiers -->
@@ -104,6 +116,11 @@ interface OrganizerEvent {
 	name: string
 
 	ticket_types?: TicketType[]
+
+	is_private?: boolean
+
+	// A private event's invitation list (the hidden "Guest list" type), shown on its own.
+	invitations?: TicketType | null
 }
 
 type EventResponse =
@@ -200,14 +217,14 @@ async function loadTicketTypes() {
 		event.value = {
 			id: apiEvent.id as unknown as number,
 			name: apiEvent.name,
-			ticket_types: tiers.tiers.map(t => ({
-				id: t.id as unknown as number,
-				event_id: apiEvent.id as unknown as number,
-				name: t.name,
-				price: t.price,
-				capacity: t.capacity,
-				sold: t.sold,
-			})),
+			ticket_types: [] as TicketType[],
+			is_private: apiEvent.visibility !== 'public',
+			invitations: null,
+		}
+		for (const t of tiers.tiers) {
+			const row = { id: t.id as unknown as number, event_id: apiEvent.id as unknown as number, name: t.name, price: t.price, capacity: t.capacity, sold: t.sold } as TicketType
+			if (isGuestTier(t)) event.value.invitations = row
+			else event.value.ticket_types!.push(row)
 		}
 	} catch (error: unknown) {
 		console.error(

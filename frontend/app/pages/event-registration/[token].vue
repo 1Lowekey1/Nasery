@@ -23,7 +23,12 @@
                     </div>
                 </NuxtLink>
 
-                <span v-if="eventData?.public_registration"
+                <span v-if="eventData && isPrivateEvent"
+                    class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-bold text-white shadow-sm backdrop-blur">
+                    <span class="h-2 w-2 rounded-full bg-amber-300" />
+                    Private event · by invitation
+                </span>
+                <span v-else-if="eventData?.public_registration"
                     class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-bold text-white shadow-sm backdrop-blur">
                     <span class="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_0_4px_rgba(110,231,183,0.15)]" />
                     Registration Open
@@ -870,6 +875,11 @@ const token = computed<string>(() => {
         : ''
 })
 
+// A private event's link key (?key=…): opens its page and checkout.
+const linkKey = computed(() => typeof route.query.key === 'string' && route.query.key ? route.query.key : null)
+const withKey = <T extends object>(body: T) => (linkKey.value ? { ...body, key: linkKey.value } : body)
+
+const isPrivateEvent = ref(false)
 const loading = ref(true)
 const submitting = ref(false)
 
@@ -1383,7 +1393,7 @@ const sendVerificationCode =
 
         try {
             const response =
-                await api.post<VerificationSendResponse['data']>(`/public-events/${encodeURIComponent(token.value)}/email-code`, { email })
+                await api.post<VerificationSendResponse['data']>(`/public-events/${encodeURIComponent(token.value)}/email-code`, withKey({ email }))
 
             state.sent = true
             state.verified = false
@@ -1464,7 +1474,7 @@ const verifyEmailCode =
 
         try {
             const response =
-                await api.post<VerificationVerifyResponse['data']>(`/public-events/${encodeURIComponent(token.value)}/email-code/verify`, { email, code })
+                await api.post<VerificationVerifyResponse['data']>(`/public-events/${encodeURIComponent(token.value)}/email-code/verify`, withKey({ email, code }))
 
             if (
                 !response.data?.verified ||
@@ -1515,8 +1525,10 @@ const loadEvent = async () => {
 
     try {
         await fetchUser()
+        const detail = (await api.get<PublicEventDetail>(`/public-events/${encodeURIComponent(token.value)}`, { query: linkKey.value ? { key: linkKey.value } : undefined })).data
+        isPrivateEvent.value = !!detail.is_private
         eventData.value =
-            toPublicEvent((await api.get<PublicEventDetail>(`/public-events/${encodeURIComponent(token.value)}`)).data)
+            toPublicEvent(detail)
 
         const defaultTicketTypeId =
             getDefaultTicketTypeId()
@@ -1541,8 +1553,9 @@ const loadEvent = async () => {
     } catch (error: unknown) {
         eventData.value = null
 
-        errorMessage.value =
-            getApiErrorMessage(
+        errorMessage.value = error instanceof ApiError && error.status === 404
+            ? 'This event isn’t open to the public. If you were invited, open the full link the host sent you.'
+            : getApiErrorMessage(
                 error,
                 'Unable to load this registration page.'
             )
@@ -1662,6 +1675,7 @@ const submitRegistration =
                     status: 'confirmed' | 'awaiting_payment'
                     checkout: { payment_id: string, checkout_url: string, amount: string } | null
                 }>(`/public-events/${encodeURIComponent(token.value)}/checkout`, {
+                    ...(linkKey.value ? { key: linkKey.value } : {}),
                     attendees: form.attendees.map((attendee, index) => ({
                         full_name: attendee.name.trim(),
                         email: attendee.email.trim() || null,

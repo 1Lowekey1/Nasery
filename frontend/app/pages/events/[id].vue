@@ -5,7 +5,7 @@
 		<div v-if="loading" class="mt-6 h-64 animate-pulse rounded-2xl bg-gray-100" />
 		<div v-else-if="notFound" class="py-20 text-center">
 			<h1 class="text-2xl font-bold">This event isn't open to the public</h1>
-			<p class="mt-2 text-sm text-gray-500">It may be private, finished or no longer listed.</p>
+			<p class="mt-2 text-sm text-gray-500">It may be private, finished or no longer listed. If you were invited, open the full link the host sent you.</p>
 		</div>
 		<p v-else-if="error && !event" class="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-800">{{ error }}</p>
 
@@ -116,6 +116,9 @@ function availabilityLabel(t: PublicTier) {
 	}[t.availability]
 }
 
+// A private event's link key (?key=…).
+const linkKey = computed(() => typeof route.query.key === 'string' && route.query.key ? route.query.key : null)
+
 async function register() {
 	if (!isLoggedIn.value) {
 		await navigateTo({ path: '/login', query: { redirect: route.fullPath } })
@@ -125,14 +128,14 @@ async function register() {
 	busy.value = true
 	try {
 		const attendees = people.filter(p => p.full_name.trim()).map(p => ({ full_name: p.full_name.trim(), email: p.email.trim() || null }))
-		const r = await api.register(event.value!.id, selected.value!, attendees)
+		const r = await api.register(event.value!.id, selected.value!, attendees, linkKey.value)
 		if (r.data.checkout) {
 			// Paid tier: continue on the checkout page (PayMongo, or the demo gateway in test builds).
 			window.location.href = r.data.checkout.checkout_url
 			return
 		}
 		result.value = r.data
-		event.value = await api.show(event.value!.id) // refresh availability
+		event.value = await api.show(event.value!.id, linkKey.value) // refresh availability
 	} catch (e) {
 		error.value = Object.values(fieldErrors(e))[0] ?? authMessage(e)
 	} finally {
@@ -142,7 +145,7 @@ async function register() {
 
 onMounted(async () => {
 	try {
-		event.value = await api.show(String(route.params.id))
+		event.value = await api.show(String(route.params.id), linkKey.value)
 		const { user } = useAuth()
 		if (user.value) people[0]!.full_name = `${user.value.first_name} ${user.value.last_name}`.trim()
 	} catch (e) {
