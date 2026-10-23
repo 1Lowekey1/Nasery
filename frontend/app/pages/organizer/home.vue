@@ -6,16 +6,16 @@
 			<span class="hm-orb hm-orb-b" />
 			<span class="hm-dots" />
 
-			<div class="relative flex flex-col gap-6 px-6 pb-6 pt-8 sm:px-9 lg:flex-row lg:items-center lg:justify-between">
+			<div class="relative flex flex-col gap-4 px-5 pb-5 pt-5 sm:gap-6 sm:px-9 sm:pb-6 sm:pt-8 lg:flex-row lg:items-center lg:justify-between">
 				<div class="max-w-2xl">
-					<div class="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 backdrop-blur">
+					<div class="hidden items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 backdrop-blur sm:inline-flex">
 						<span class="h-1.5 w-1.5 rounded-full bg-white/80"></span>
 						Organizer workspace
 					</div>
-					<h1 class="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
+					<h1 class="text-2xl font-extrabold tracking-tight sm:mt-4 sm:text-4xl">
 						{{ greeting }}, {{ organizerFirstName }}
 					</h1>
-					<p class="mt-2 max-w-xl text-sm leading-6 text-white/70 sm:text-base">
+					<p class="mt-1 max-w-xl text-sm leading-6 text-white/70 sm:mt-2 sm:text-base">
 						Here's what's happening with your events today.
 					</p>
 				</div>
@@ -29,7 +29,8 @@
 				</button>
 			</div>
 
-			<div class="relative grid gap-3 px-6 pb-7 sm:grid-cols-3 sm:px-9">
+			<!-- How it works: wider screens only -->
+			<div class="relative hidden gap-3 px-9 pb-7 sm:grid sm:grid-cols-3">
 				<div v-for="(step, index) in workflowSteps" :key="step.title"
 					class="hm-step hm-rise flex items-center gap-3.5 rounded-2xl bg-white/10 p-4 ring-1 ring-white/20 backdrop-blur-sm"
 					:style="{ '--d': 120 + index * 80 + 'ms' }">
@@ -111,7 +112,7 @@
 								</span>
 
 								<div class="min-w-0">
-									<div class="truncate text-sm font-bold text-gray-900">
+									<div class="line-clamp-2 break-words text-sm font-bold text-gray-900">
 										{{ item.title }}
 									</div>
 
@@ -122,7 +123,7 @@
 							</div>
 
 							<span class="flex shrink-0 items-center gap-1 text-sm font-bold text-primary-700">
-								{{ item.action }}
+								<span class="hidden sm:inline">{{ item.action }}</span>
 
 								<IconBase name="arrow-right" class="h-4 w-4 transition duration-200 group-hover:translate-x-1" />
 							</span>

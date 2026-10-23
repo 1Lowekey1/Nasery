@@ -12,7 +12,7 @@
 					Client Portal
 				</p>
 
-				<h1 class="mt-1 text-3xl font-black tracking-tight text-gray-900">
+				<h1 class="mt-1 text-2xl font-black tracking-tight text-gray-900 sm:text-3xl">
 					Event details
 				</h1>
 

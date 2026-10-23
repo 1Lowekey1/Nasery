@@ -9,13 +9,13 @@
 
 		<template v-else-if="event">
 			<!-- Banner with readiness -->
-			<section class="relative overflow-hidden rounded-3xl bg-primary-700 px-6 py-7 text-white sm:px-8">
+			<section class="relative overflow-hidden rounded-3xl bg-primary-700 px-5 py-5 text-white sm:px-8 sm:py-7">
 				<div class="pt-dots" aria-hidden="true" />
 				<div class="pt-glow" aria-hidden="true" />
 				<div class="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
 					<div class="min-w-0">
 						<p class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/60"><span class="h-1.5 w-1.5 rounded-full bg-white/60" />Preparation tracking</p>
-						<h2 class="mt-2 truncate text-2xl font-black tracking-tight sm:text-3xl">{{ event.name }}</h2>
+						<h2 class="mt-2 line-clamp-2 break-words text-2xl font-black tracking-tight sm:text-3xl">{{ event.name }}</h2>
 						<p class="mt-1 text-sm text-white/70">Track tasks, assignments, and readiness before the big day.</p>
 						<Transition name="pt-fade">
 							<p v-if="checklist.length && readinessPercent === 100" class="mt-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/20"><IconBase name="sparkles" class="h-3.5 w-3.5" /> All set. Every task is done.</p>
@@ -61,7 +61,7 @@
 					</form>
 
 					<TransitionGroup v-if="visibleTasks.length" tag="ul" name="pt-item" class="relative divide-y divide-gray-100">
-						<li v-for="item in visibleTasks" :key="item.id" class="group flex items-start gap-3 px-5 py-4 transition-colors hover:bg-gray-50/70">
+						<li v-for="item in visibleTasks" :key="item.id" class="group flex flex-wrap items-start gap-x-3 gap-y-2 px-4 py-4 transition-colors hover:bg-gray-50/70 sm:flex-nowrap sm:px-5">
 							<button type="button" class="pt-check" :class="item.is_completed ? 'is-done' : ''" :disabled="updatingItemId === item.id" :aria-label="item.is_completed ? `Mark ${item.label} as not done` : `Mark ${item.label} as done`" @click="toggleItem(item)">
 								<IconBase v-if="updatingItemId === item.id" name="refresh-cw" class="h-3 w-3 animate-spin" />
 								<svg v-else-if="item.is_completed" viewBox="0 0 20 20" class="h-3.5 w-3.5" aria-hidden="true"><path class="pt-tick" d="M5 10.5 8.5 14 15 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
@@ -88,7 +88,7 @@
 									<button type="button" class="text-xs font-semibold text-gray-500" @click="changesFor = null">Cancel</button>
 								</form>
 							</div>
-							<div class="flex shrink-0 items-center gap-1.5">
+							<div class="flex w-full shrink-0 items-center justify-end gap-1.5 pl-9 sm:w-auto sm:pl-0">
 								<template v-if="item.is_completed && item.review_status === 'pending' && item.completed_by">
 									<button type="button" class="pt-review is-ok" @click="reviewItem(item, 'verified')"><IconBase name="check" class="h-3.5 w-3.5" /> Verify</button>
 									<button type="button" class="pt-review" @click="startChanges(item)">Request changes</button>

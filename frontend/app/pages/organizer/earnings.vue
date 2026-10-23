@@ -53,7 +53,7 @@
 								<IconBase :name="card.icon" class="h-5 w-5" :class="card.iconColor" />
 							</span>
 						</div>
-						<div class="mt-3 text-3xl font-extrabold tracking-tight" :class="card.valueClass">{{ card.value }}</div>
+						<div class="mt-3 text-2xl font-extrabold tracking-tight sm:text-3xl" :class="card.valueClass">{{ card.value }}</div>
 						<p class="mt-2 text-xs leading-5 text-gray-500">{{ card.hint }}</p>
 					</div>
 				</div>
@@ -66,7 +66,7 @@
 			<div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
 				<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
 					<p class="text-sm font-semibold text-gray-500">Paid out to you</p>
-					<p class="mt-2 text-3xl font-extrabold tracking-tight text-gray-950">{{ formatMoney(earnings.paid_out) }}</p>
+					<p class="mt-2 text-2xl font-extrabold tracking-tight text-gray-950 sm:text-3xl">{{ formatMoney(earnings.paid_out) }}</p>
 					<p class="mt-2 text-xs text-gray-500">
 						<template v-if="earnings.last_payout">
 							Last payout {{ formatDate(earnings.last_payout.paid_at) }} by {{ earnings.last_payout.method }}.
@@ -77,7 +77,7 @@
 
 				<div class="rounded-2xl border border-primary-100 bg-primary-50/60 p-6 shadow-sm">
 					<p class="text-sm font-semibold text-primary-700">Still to be paid to you</p>
-					<p class="mt-2 text-3xl font-extrabold tracking-tight text-primary-700">{{ formatMoney(earnings.outstanding) }}</p>
+					<p class="mt-2 text-2xl font-extrabold tracking-tight text-primary-700 sm:text-3xl">{{ formatMoney(earnings.outstanding) }}</p>
 					<p class="mt-2 text-xs leading-5 text-primary-700/80">
 						NaSeRy transfers your share by bank, GCash or Maya. You get a notification with the reference number.
 					</p>

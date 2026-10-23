@@ -45,7 +45,7 @@
 						</div>
 						<p class="mt-6 text-sm font-semibold text-white/65">Your current plan</p>
 						<div class="mt-1 flex flex-wrap items-end gap-3">
-							<h1 class="text-5xl font-extrabold tracking-tight sm:text-6xl">{{ data.plan.name }}</h1>
+							<h1 class="text-4xl font-extrabold tracking-tight sm:text-6xl">{{ data.plan.name }}</h1>
 							<span v-if="data.subscription" class="mb-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold capitalize ring-1 ring-white/25">{{ data.subscription.cycle }}</span>
 						</div>
 						<template v-if="data.subscription">
@@ -144,7 +144,7 @@
 							<span v-if="p.slug === data.plan.slug" class="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-bold text-primary-700"><span class="h-1.5 w-1.5 rounded-full bg-primary-700" />Current</span>
 						</div>
 						<div class="mt-6 flex items-end gap-1.5">
-							<span class="text-5xl font-extrabold tracking-tight text-gray-950">{{ p.is_free ? '₱0' : peso(cycle === 'yearly' ? p.price_yearly : p.price_monthly) }}</span>
+							<span class="text-4xl font-extrabold tracking-tight text-gray-950 sm:text-5xl">{{ p.is_free ? '₱0' : peso(cycle === 'yearly' ? p.price_yearly : p.price_monthly) }}</span>
 							<span class="mb-1.5 text-sm font-semibold text-gray-400">/ {{ cycle === 'yearly' ? 'year' : 'month' }}</span>
 						</div>
 						<p class="mt-1 h-5 text-xs font-semibold text-gray-400">

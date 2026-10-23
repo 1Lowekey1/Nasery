@@ -548,10 +548,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .at-invalid { @apply border-red-300; }
 .at-btn-primary { @apply inline-flex items-center gap-2 rounded-xl bg-primary-700 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50; }
 .at-btn-secondary { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50; }
-.at-option { @apply flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-2 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50; }
+.at-option { @apply flex h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-gray-200 bg-white px-1.5 text-[13px] font-medium sm:gap-2 sm:px-2 sm:text-sm text-gray-700 transition hover:border-gray-300 hover:bg-gray-50; }
 .at-option.is-on { @apply border-primary-600 bg-primary-25 text-primary-800 ring-1 ring-primary-600; }
 .at-chip { @apply inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-gray-200 bg-white px-2.5 py-0.5 text-xs font-medium text-gray-600; }
-.at-quick { @apply flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-default; }
+.at-quick { @apply flex h-9 w-9 sm:h-7 sm:w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-default; }
 .at-quick.is-on { @apply bg-gray-100; }
 
 /* Status cards */

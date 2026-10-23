@@ -10,15 +10,15 @@
 				</div>
 				<div class="flex flex-wrap items-end gap-6 sm:gap-8">
 					<div>
-						<p class="text-3xl font-extrabold tabular-nums">{{ activeMembers.length }}</p>
+						<p class="text-2xl font-extrabold tabular-nums sm:text-3xl">{{ activeMembers.length }}</p>
 						<p class="text-xs font-medium text-white/60">active {{ activeMembers.length === 1 ? 'member' : 'members' }}</p>
 					</div>
 					<div>
-						<p class="text-3xl font-extrabold tabular-nums">{{ invitedMembers.length }}</p>
+						<p class="text-2xl font-extrabold tabular-nums sm:text-3xl">{{ invitedMembers.length }}</p>
 						<p class="text-xs font-medium text-white/60">waiting to join</p>
 					</div>
 					<div>
-						<p class="text-3xl font-extrabold tabular-nums">{{ team?.roles.length ?? 0 }}</p>
+						<p class="text-2xl font-extrabold tabular-nums sm:text-3xl">{{ team?.roles.length ?? 0 }}</p>
 						<p class="text-xs font-medium text-white/60">{{ team?.roles.length === 1 ? 'role' : 'roles' }}</p>
 					</div>
 					<button v-if="team?.can_manage" type="button" class="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-primary-800 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:translate-y-0" @click="openAdd">

@@ -43,3 +43,16 @@ body {
 .multiselect-option.is-selected.is-pointed {
     @apply bg-primary !important;
 }
+/* Touch screens have no hover: controls that only appear on hover
+   (edit, delete, move...) are always shown there. */
+@media (hover: none) {
+  [class*="group-hover:opacity-100"] {
+    opacity: 1 !important;
+  }
+}
+
+/* Grid items may shrink to their column: long content wraps or truncates
+   inside the card instead of pushing it wider than a phone screen. */
+.grid > * {
+  min-width: 0;
+}

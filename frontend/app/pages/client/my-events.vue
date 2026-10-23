@@ -210,7 +210,7 @@
 							<span class="h-1.5 w-1.5 rounded-full bg-white/80"></span>
 							Your event workspace
 						</div>
-						<h1 class="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
+						<h1 class="mt-3 text-2xl font-extrabold tracking-tight sm:mt-4 sm:text-4xl">
 							Welcome back, {{ clientName }}
 						</h1>
 						<p class="mt-2 max-w-xl text-sm leading-6 text-white/70 sm:text-base">

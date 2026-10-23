@@ -44,7 +44,7 @@
 							<span class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"><IconBase name="camera" class="h-6 w-6" /></span>
 						</button>
 						<div class="min-w-0 sm:pb-1">
-							<h2 class="truncate text-xl font-extrabold tracking-tight text-gray-950 sm:text-2xl">{{ displayName }}</h2>
+							<h2 class="line-clamp-2 break-words text-xl font-extrabold tracking-tight text-gray-950 sm:text-2xl">{{ displayName }}</h2>
 							<div class="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-gray-500">
 								<span class="flex min-w-0 max-w-full items-center gap-1.5 sm:max-w-md" :title="form.location || undefined">
 									<IconBase name="map-pin" class="h-4 w-4 shrink-0 text-gray-400" />

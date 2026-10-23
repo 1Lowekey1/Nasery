@@ -1,7 +1,7 @@
 <template>
 	<div class="mx-auto max-w-7xl px-5 pt-10 sm:px-8">
 		<p class="text-xs font-bold uppercase tracking-widest text-primary-700">Organizer directory</p>
-		<h1 class="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">Find the right team for your event</h1>
+		<h1 class="mt-2 text-2xl font-extrabold tracking-tight sm:text-4xl">Find the right team for your event</h1>
 		<p class="mt-3 max-w-2xl text-gray-600">
 			Every organizer here is reviewed by NaSeRy. Compare services and reviews, then post your event to receive their quotations.
 		</p>

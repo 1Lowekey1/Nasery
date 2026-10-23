@@ -13,7 +13,7 @@
 			<section class="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
 				<img v-if="event.cover_url" :src="event.cover_url" :alt="`${event.name} cover`" class="-mx-6 -mt-6 mb-6 aspect-[16/9] w-[calc(100%+3rem)] max-w-none object-cover sm:-mx-8 sm:-mt-8 sm:w-[calc(100%+4rem)]">
 				<p class="text-xs font-semibold uppercase tracking-wide text-primary-700">{{ event.event_type ?? 'Event' }}</p>
-				<h1 class="mt-1 text-3xl font-bold tracking-tight">{{ event.name }}</h1>
+				<h1 class="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{{ event.name }}</h1>
 				<p class="mt-1 text-sm text-gray-500">by <NuxtLink :to="`/organizers/${event.organizer.slug}`" class="font-semibold text-primary-700">{{ event.organizer.name }}</NuxtLink></p>
 				<div class="mt-5 grid gap-4 sm:grid-cols-2">
 					<div>

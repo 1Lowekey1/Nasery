@@ -1,32 +1,36 @@
 <template>
 	<div>
-		<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-			<div>
-				<NuxtLink v-if="hasSelectedEvent" to="/organizer/eventmanagement/all-events"
-					class="mb-2 inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 transition hover:text-[#285F6b]">
-					<IconBase name="arrow-left" class="h-3.5 w-3.5" />
-					Back to All Events
-				</NuxtLink>
-				<p class="text-xs font-bold uppercase tracking-[0.16em] text-[#285F6b]">Organizer workspace</p>
-				<h1 class="mt-1 text-3xl font-black tracking-tight text-gray-900">Event management</h1>
-				<p class="mt-2 max-w-2xl text-sm leading-6 text-gray-500">Plan event details, control ticket inventory, and keep your team on schedule.</p>
+		<!-- Inside one event: just the way back (the event's own header follows). -->
+		<NuxtLink v-if="hasSelectedEvent" to="/organizer/eventmanagement/all-events"
+			class="mb-3 inline-flex min-h-10 items-center gap-1.5 text-sm font-bold text-gray-500 transition hover:text-[#285F6b]">
+			<IconBase name="arrow-left" class="h-4 w-4" />
+			All events
+		</NuxtLink>
+
+		<div v-else class="mb-5 flex items-center justify-between gap-3 sm:mb-6 sm:items-end">
+			<div class="min-w-0">
+				<p class="hidden text-xs font-bold uppercase tracking-[0.16em] text-[#285F6b] sm:block">Organizer workspace</p>
+				<h1 class="text-2xl font-black tracking-tight text-gray-900 sm:mt-1 sm:text-3xl">Event management</h1>
+				<p class="mt-2 hidden max-w-2xl text-sm leading-6 text-gray-500 sm:block">Plan event details, control ticket inventory, and keep your team on schedule.</p>
 			</div>
 			<button type="button"
 				class="flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#1f4a54] hover:shadow-md"
 				@click="openCreateEvent">
-				<IconBase name="plus" class="h-4 w-4" /> Create event
+				<IconBase name="plus" class="h-4 w-4" /> <span class="sm:hidden">New</span><span class="hidden sm:inline">Create event</span>
 			</button>
 		</div>
 
-		<nav v-if="hasSelectedEvent" class="mb-6 flex w-full gap-1 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1.5 shadow-sm sm:w-fit" aria-label="Event management sections">
+		<!-- Phones: three equal tabs with short labels, so none is cut off. -->
+		<nav v-if="hasSelectedEvent" class="mb-5 grid w-full grid-cols-3 gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 shadow-sm sm:mb-6 sm:flex sm:w-fit" aria-label="Event management sections">
 			<template v-for="tab in tabs" :key="tab.label">
-				<NuxtLink :to="tab.to"
-					class="inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition" :class="route.path === tab.path
+				<NuxtLink :to="tab.to" :aria-label="tab.label"
+					class="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[13px] font-bold transition sm:shrink-0 sm:gap-2 sm:px-4 sm:text-sm" :class="route.path === tab.path
 						? 'bg-[#285F6b] text-white shadow-sm'
 						: 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
 						">
-					<IconBase :name="tab.icon" class="h-4 w-4" />
-					{{ tab.label }}
+					<IconBase :name="tab.icon" class="h-4 w-4 shrink-0" />
+					<span class="truncate sm:hidden">{{ tab.short }}</span>
+					<span class="hidden sm:inline">{{ tab.label }}</span>
 				</NuxtLink>
 			</template>
 		</nav>
@@ -299,6 +303,7 @@ const tabs =
 		{
 			label:
 				'Event Details',
+			short: 'Details',
 
 			icon: 'file-text',
 
@@ -317,6 +322,7 @@ const tabs =
 		{
 			label:
 				'Ticket Tiers',
+			short: 'Tickets',
 
 			icon: 'tag',
 
@@ -335,6 +341,7 @@ const tabs =
 		{
 			label:
 				'Preparation Tracking',
+			short: 'Prep',
 
 			icon: 'clipboard-list',
 

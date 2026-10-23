@@ -31,7 +31,7 @@
 			<!-- Filters -->
 			<div class="of-rise flex flex-wrap gap-2" style="--d: 200ms">
 				<button v-for="chip in chips" :key="chip.key" type="button"
-					class="rounded-full px-3.5 py-1.5 text-xs font-bold transition duration-200"
+					class="inline-flex min-h-9 items-center rounded-full px-3.5 py-1.5 text-xs font-bold transition duration-200"
 					:class="activeFilter === chip.key ? 'bg-primary-700 text-white' : 'border border-gray-200 bg-white text-gray-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700'"
 					@click="setFilter(chip.key)">
 					{{ chip.label }} <span class="ml-1 opacity-60">{{ chip.count }}</span>

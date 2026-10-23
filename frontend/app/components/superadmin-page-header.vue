@@ -1,20 +1,20 @@
 <template>
-	<div class="sa-hero relative mb-6 overflow-hidden rounded-[2rem] px-6 py-7 text-white sm:px-9 sm:py-8">
+	<div class="sa-hero relative mb-5 overflow-hidden rounded-3xl px-5 py-5 text-white sm:mb-6 sm:rounded-[2rem] sm:px-9 sm:py-8">
 		<span class="sa-orb" />
 		<span class="sa-dots" />
 
 		<div class="relative flex items-center gap-4">
-			<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/12 ring-1 ring-white/20 backdrop-blur">
+			<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/12 ring-1 ring-white/20 backdrop-blur sm:h-12 sm:w-12">
 				<IconBase :name="icon" class="h-5 w-5" />
 			</div>
 
 			<div class="min-w-0">
 				<p class="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Super Admin</p>
-				<h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">{{ title }}</h1>
+				<h1 class="text-xl font-extrabold tracking-tight sm:text-3xl">{{ title }}</h1>
 			</div>
 		</div>
 
-		<p class="relative mt-4 max-w-2xl text-sm leading-6 text-white/70">
+		<p class="relative mt-4 hidden max-w-2xl text-sm leading-6 text-white/70 sm:block">
 			{{ description }}
 		</p>
 	</div>

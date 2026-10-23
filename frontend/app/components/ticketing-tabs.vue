@@ -1,23 +1,23 @@
 <template>
 	<div>
-		<!-- Hero -->
-		<div class="tk-hero tk-rise relative mb-6 overflow-hidden rounded-[2rem] px-6 py-7 text-white shadow-sm sm:px-9 sm:py-8">
+		<!-- Hero (wider screens; on phones the top bar already names the page) -->
+		<div class="tk-hero tk-rise relative mb-6 hidden overflow-hidden rounded-[2rem] px-9 py-8 text-white shadow-sm sm:block">
 			<span class="tk-orb tk-orb-a" />
 			<span class="tk-orb tk-orb-b" />
 			<span class="tk-dots" />
 
-			<div class="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+			<div class="relative flex flex-col gap-3 sm:gap-5 lg:flex-row lg:items-center lg:justify-between">
 				<div class="max-w-2xl">
-					<div class="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 backdrop-blur">
+					<div class="hidden items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 backdrop-blur sm:inline-flex">
 						<IconBase name="ticket" class="h-3.5 w-3.5" />
 						Ticketing &amp; Attendance
 					</div>
 
-					<h1 class="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
-						Registration, Ticketing &amp; Attendance
+					<h1 class="text-xl font-extrabold tracking-tight sm:mt-4 sm:text-4xl">
+						<span class="sm:hidden">Ticketing &amp; Attendance</span><span class="hidden sm:inline">Registration, Ticketing &amp; Attendance</span>
 					</h1>
 
-					<p class="mt-2 text-sm leading-6 text-white/70 sm:text-base">
+					<p class="mt-2 hidden text-sm leading-6 text-white/70 sm:block sm:text-base">
 						Manage tickets, payments, and attendee check-in
 					</p>
 				</div>
@@ -49,7 +49,7 @@
 				</label>
 
 				<button v-if="selectedEvent" type="button"
-					class="flex items-center gap-1.5 text-xs font-semibold text-gray-500 transition hover:text-[#285F6b]"
+					class="-my-2 flex min-h-10 items-center gap-1.5 px-1 text-xs font-semibold text-gray-500 transition hover:text-[#285F6b]"
 					@click="clearSelectedEvent">
 					<IconBase name="arrow-left" class="h-3.5 w-3.5" />
 
@@ -194,7 +194,15 @@
 
 		<template v-if="selectedEventId">
 			<!-- Stats -->
-			<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+			<!-- Phones: the four numbers in one compact row -->
+			<div class="mb-4 grid grid-cols-4 divide-x divide-gray-100 rounded-2xl border border-gray-200 bg-white py-3 sm:hidden">
+				<div v-for="card in statCards" :key="card.key" class="min-w-0 px-1 text-center">
+					<div class="text-lg font-extrabold leading-tight tracking-tight text-gray-950">{{ card.value }}<span v-if="card.suffix" class="text-sm text-gray-400">{{ card.suffix }}</span></div>
+					<div class="mt-0.5 truncate text-[10px] font-bold uppercase tracking-wide text-gray-400">{{ card.short }}</div>
+				</div>
+			</div>
+
+			<div class="mb-6 hidden grid-cols-2 gap-5 sm:grid xl:grid-cols-4">
 				<div v-for="(card, index) in statCards" :key="card.key" class="tk-card tk-rise group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5" :style="{ '--d': 120 + index * 70 + 'ms' }">
 					<span class="tk-line absolute inset-x-0 top-0 h-[2px] bg-[#285F6b]" />
 
@@ -228,15 +236,17 @@
 			</div>
 
 			<!-- Tabs -->
-			<div class="mb-6 inline-flex max-w-full flex-wrap gap-1 rounded-2xl border border-gray-200 bg-white p-1.5">
-				<NuxtLink v-for="tab in tabs" :key="tab.label" :to="tab.to"
-					class="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition duration-200 active:scale-[0.97]"
+			<!-- Phones: an icon bar of five equal buttons; wider screens: pill tabs -->
+			<div class="mb-5 grid w-full grid-cols-5 gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 sm:mb-6 sm:inline-flex sm:w-auto sm:max-w-full sm:flex-wrap">
+				<NuxtLink v-for="tab in tabs" :key="tab.label" :to="tab.to" :aria-label="tab.label"
+					class="flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[11px] font-bold transition duration-200 active:scale-[0.97] sm:min-h-0 sm:flex-row sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
 					:class="route.path === tab.path
 						? 'bg-[#285F6b] text-white shadow-sm'
 						: 'text-gray-500 hover:bg-primary-50 hover:text-primary-700'">
-					<IconBase :name="tab.icon" class="h-4 w-4" />
+					<IconBase :name="tab.icon" class="h-4 w-4 shrink-0" />
 
-					{{ tab.label }}
+					<span class="max-w-full truncate sm:hidden">{{ tab.short }}</span>
+					<span class="hidden sm:inline">{{ tab.label }}</span>
 				</NuxtLink>
 			</div>
 		</template>
@@ -357,6 +367,7 @@ const tabs =
 		return [
 			{
 				label: 'Attendees',
+				short: 'Guests',
 
 				path:
 					'/organizer/ticketattendance/attendees',
@@ -376,6 +387,7 @@ const tabs =
 			{
 				label:
 					'QR Check-in',
+				short: 'Scan',
 
 				path:
 					'/organizer/ticketattendance/qr-checkin',
@@ -395,6 +407,7 @@ const tabs =
 			{
 				label:
 					'Walk-in Counter',
+				short: 'Walk-in',
 
 				path:
 					'/organizer/ticketattendance/walkin-counter',
@@ -414,6 +427,7 @@ const tabs =
 			{
 				label:
 					'Attendance Report',
+				short: 'Report',
 
 				path:
 					'/organizer/ticketattendance/attendance-report',
@@ -432,6 +446,7 @@ const tabs =
 
 			{
 				label: 'Payments',
+				short: 'Payments',
 				path: '/organizer/ticketattendance/payments',
 				to: { path: '/organizer/ticketattendance/payments', query: eventQuery },
 				icon: 'credit-card',
@@ -488,7 +503,7 @@ const checkInRate = computed(() =>
 
 const statCards = computed(() => [
 	{
-		key: 'registered',
+		key: 'registered', short: 'Registered',
 		label: 'Total Registered',
 		value: shown.total_registered,
 		suffix: '',
@@ -500,7 +515,7 @@ const statCards = computed(() => [
 		stroke: '#285F6b',
 	},
 	{
-		key: 'checked',
+		key: 'checked', short: 'Checked in',
 		label: 'Checked In',
 		value: shown.checked_in,
 		suffix: '',
@@ -512,7 +527,7 @@ const statCards = computed(() => [
 		stroke: '#285F6b',
 	},
 	{
-		key: 'walkins',
+		key: 'walkins', short: 'Walk-ins',
 		label: 'Walk-ins',
 		value: shown.walk_ins,
 		suffix: '',
@@ -524,7 +539,7 @@ const statCards = computed(() => [
 		stroke: '#285F6b',
 	},
 	{
-		key: 'capacity',
+		key: 'capacity', short: 'Capacity',
 		label: 'Capacity Status',
 		value: shown.capacity_percent,
 		suffix: '%',

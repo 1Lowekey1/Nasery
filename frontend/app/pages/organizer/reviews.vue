@@ -42,7 +42,7 @@
 				<div class="fade-up rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-3" style="--d: 60ms">
 					<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Overall rating</p>
 					<div class="mt-3 flex items-end gap-2">
-						<span class="text-6xl font-extrabold leading-none tracking-tight text-gray-950">{{ data.summary.average_rating.toFixed(1) }}</span>
+						<span class="text-5xl font-extrabold leading-none tracking-tight text-gray-950 sm:text-6xl">{{ data.summary.average_rating.toFixed(1) }}</span>
 						<span class="mb-1 text-sm font-semibold text-gray-400">/ 5</span>
 					</div>
 					<div class="mt-3 flex gap-0.5">

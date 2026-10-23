@@ -46,7 +46,7 @@
 				<div class="relative flex flex-wrap items-start justify-between gap-6">
 					<div class="min-w-0">
 						<p class="text-xs font-bold uppercase tracking-[0.16em] text-white/60">Your event</p>
-						<h2 class="mt-2 truncate text-2xl font-extrabold tracking-tight sm:text-3xl">{{ event.name }}</h2>
+						<h2 class="mt-2 line-clamp-2 break-words text-2xl font-extrabold tracking-tight sm:text-3xl">{{ event.name }}</h2>
 						<div class="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-white/75">
 							<span class="flex items-center gap-1.5"><IconBase name="calendar" class="h-4 w-4 shrink-0" />{{ eventDate }}</span>
 							<span v-if="venue" class="flex min-w-0 items-center gap-1.5"><IconBase name="map-pin" class="h-4 w-4 shrink-0" /><span class="truncate">{{ venue }}</span></span>

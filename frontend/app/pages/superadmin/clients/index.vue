@@ -35,7 +35,7 @@
 				<div class="flex flex-wrap items-center gap-2">
 					<span class="text-xs font-semibold uppercase tracking-wide text-gray-400">Sort by</span>
 					<button v-for="option in sortOptions" :key="option.value" type="button"
-						class="rounded-full px-3 py-1.5 text-xs font-semibold transition" :class="sortBy === option.value
+						class="inline-flex min-h-9 items-center rounded-full px-3 py-1.5 text-xs font-semibold transition" :class="sortBy === option.value
 							? 'bg-primary-700 text-white'
 							: 'border border-gray-200 bg-white text-gray-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700'
 							" @click="sortBy = option.value">

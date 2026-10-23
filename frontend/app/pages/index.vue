@@ -7,7 +7,7 @@
 					<p class="mb-5 text-xs font-bold uppercase tracking-[.2em] text-primary-200">
 						The organizer directory
 					</p>
-					<h1 class="max-w-2xl text-4xl font-bold leading-[1.12] tracking-tight sm:text-5xl lg:text-6xl">
+					<h1 class="max-w-2xl text-3xl font-bold leading-[1.12] tracking-tight sm:text-5xl lg:text-6xl">
 						Great events start<br />with the <span
 							class="font-serif font-normal italic text-primary-100">right
 							people.</span>

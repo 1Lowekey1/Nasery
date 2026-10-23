@@ -10,7 +10,7 @@
 		</div>
 
 		<template v-else>
-			<section v-if="event" class="relative overflow-hidden rounded-3xl bg-primary-800 px-6 py-7 text-white sm:px-8">
+			<section v-if="event" class="relative overflow-hidden rounded-3xl bg-primary-800 px-5 py-5 text-white sm:px-8 sm:py-7">
 				<img v-if="event.cover_url" :src="event.cover_url" alt="" class="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25">
 				<div class="ed-dots" aria-hidden="true" />
 				<div class="relative flex flex-wrap items-end justify-between gap-5">
@@ -18,7 +18,7 @@
 						<p class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80 ring-1 ring-white/15">
 							<span class="h-1.5 w-1.5 rounded-full" :class="isEditMode ? 'animate-pulse bg-amber-300' : 'bg-green-400'" />{{ isEditMode ? 'Editing event' : 'Event details' }}
 						</p>
-						<h2 class="mt-3 truncate text-2xl font-extrabold tracking-tight sm:text-3xl">{{ isEditMode && editForm.name.trim() ? editForm.name : event.name }}</h2>
+						<h2 class="mt-3 line-clamp-2 break-words text-2xl font-extrabold tracking-tight sm:text-3xl">{{ isEditMode && editForm.name.trim() ? editForm.name : event.name }}</h2>
 						<div class="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-white/70">
 							<span class="flex items-center gap-1.5"><IconBase name="calendar" class="h-4 w-4" />{{ formatDate(event.event_date) }}</span>
 							<span class="flex min-w-0 items-center gap-1.5" :title="event.location || undefined"><IconBase name="map-pin" class="h-4 w-4 shrink-0" /><span class="max-w-[420px] truncate">{{ event.location || 'No venue yet' }}</span></span>

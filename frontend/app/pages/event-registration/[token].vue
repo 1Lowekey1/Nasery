@@ -79,7 +79,7 @@
                                 <span class="text-xs font-medium text-white/50">Official NaSeRy event form</span>
                             </div>
 
-                            <h1 class="mt-5 text-3xl font-black tracking-tight text-white sm:text-4xl">
+                            <h1 class="mt-4 text-2xl font-black tracking-tight text-white sm:mt-5 sm:text-4xl">
                                 {{ eventData.name }}
                             </h1>
 

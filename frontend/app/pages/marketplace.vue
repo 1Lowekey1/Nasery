@@ -7,7 +7,7 @@
 					<p class="mb-5 text-xs font-bold uppercase tracking-[.2em] text-primary-200">
 						The event marketplace
 					</p>
-					<h1 class="max-w-3xl text-4xl font-bold leading-[1.12] tracking-tight sm:text-5xl lg:text-6xl">
+					<h1 class="max-w-3xl text-3xl font-bold leading-[1.12] tracking-tight sm:text-5xl lg:text-6xl">
 						Find events worth<br>
 						<span class="font-serif font-normal italic text-primary-100">showing up for.</span>
 					</h1>

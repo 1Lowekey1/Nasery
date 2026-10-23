@@ -9,13 +9,13 @@
 
 		<template v-else-if="event">
 			<!-- Banner -->
-			<section class="relative overflow-hidden rounded-3xl bg-primary-700 px-6 py-7 text-white sm:px-8">
+			<section class="relative overflow-hidden rounded-3xl bg-primary-700 px-5 py-5 text-white sm:px-8 sm:py-7">
 				<div class="tt-dots" aria-hidden="true" />
 				<div class="tt-glow" aria-hidden="true" />
 				<div class="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 					<div class="min-w-0">
 						<p class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/60"><span class="h-1.5 w-1.5 rounded-full bg-white/60" />Ticket inventory</p>
-						<h2 class="mt-2 truncate text-2xl font-black tracking-tight sm:text-3xl">{{ event.name }}</h2>
+						<h2 class="mt-2 line-clamp-2 break-words text-2xl font-black tracking-tight sm:text-3xl">{{ event.name }}</h2>
 						<p class="mt-1 text-sm text-white/70">Track sales, remaining capacity, and pricing for every admission type.</p>
 					</div>
 					<button type="button" class="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-primary-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0" @click="addTicketType"><IconBase name="plus" class="h-4 w-4" /> Add ticket type</button>

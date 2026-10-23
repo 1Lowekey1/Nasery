@@ -1,7 +1,7 @@
 <template>
 	<div class="mx-auto max-w-7xl px-5 pt-8 pb-16 sm:px-8">
 		<p class="text-xs font-bold uppercase tracking-widest text-primary-700">Events</p>
-		<h1 class="mt-2 text-3xl font-bold tracking-tight">Public events on NaSeRy</h1>
+		<h1 class="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Public events on NaSeRy</h1>
 		<p class="mt-2 max-w-2xl text-gray-500">Concerts, conferences and gatherings by organizers reviewed by NaSeRy. Register to get your QR ticket.</p>
 
 		<form class="mt-6 flex max-w-xl gap-2" @submit.prevent="load(1)">

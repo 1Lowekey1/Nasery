@@ -200,7 +200,7 @@
                                 </div>
 
                                 <div class="min-w-0">
-                                    <div class="truncate text-sm font-bold text-gray-900">
+                                    <div class="break-words text-sm font-bold text-gray-900">
                                         {{
                                             entry.ticket.attendee_name
                                         }}

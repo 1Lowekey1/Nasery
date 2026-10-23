@@ -16,7 +16,7 @@
 						<IconBase name="sparkles" class="h-3.5 w-3.5" />
 						Plan your next occasion
 					</div>
-					<h1 class="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
+					<h1 class="mt-3 text-2xl font-extrabold tracking-tight sm:mt-4 sm:text-4xl">
 						Tell us about your event.
 					</h1>
 					<p class="mt-3 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
