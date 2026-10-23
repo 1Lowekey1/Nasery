@@ -79,21 +79,32 @@
 							<div class="relative h-16 w-16 shrink-0">
 								<svg viewBox="0 0 64 64" class="h-full w-full -rotate-90" aria-hidden="true">
 									<circle cx="32" cy="32" r="27" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="6" />
-									<circle cx="32" cy="32" r="27" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" :stroke-dasharray="RING" :stroke-dashoffset="RING * (1 - selectedProgress.percent / 100)" class="transition-[stroke-dashoffset] duration-700 ease-out" />
+									<circle cx="32" cy="32" r="27" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" :stroke-dasharray="RING" :stroke-dashoffset="RING * (1 - (selectedReadiness ?? 0) / 100)" class="transition-[stroke-dashoffset] duration-700 ease-out" />
 								</svg>
-								<span class="absolute inset-0 flex items-center justify-center text-sm font-extrabold tabular-nums">{{ selectedProgress.percent }}%</span>
+								<span class="absolute inset-0 flex items-center justify-center text-sm font-extrabold tabular-nums">{{ selectedReadiness === null ? '—' : `${selectedReadiness}%` }}</span>
 							</div>
 							<div class="min-w-0 flex-1">
-								<p class="truncate text-xl font-extrabold tracking-tight">{{ selectedEventData.name }}</p>
+								<p class="line-clamp-2 break-words text-lg font-extrabold leading-snug tracking-tight sm:text-xl">{{ selectedEventData.name }}</p>
 								<p class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/70">
 									<span class="flex items-center gap-1.5"><IconBase name="calendar" class="h-4 w-4" />{{ formatDate(selectedEventData.eventDate) }}</span>
 									<span class="flex min-w-0 items-center gap-1.5"><IconBase name="map-pin" class="h-4 w-4 shrink-0" /><span class="truncate">{{ shortLocation(selectedEventData.location) }}</span></span>
 								</p>
 							</div>
-							<p class="text-sm text-white/80"><strong class="text-white">{{ selectedProgress.done }}</strong> of {{ selectedProgress.total }} done</p>
+							<div class="basis-full border-t border-white/15 pt-3 text-sm text-white/80 2xl:basis-auto 2xl:border-0 2xl:pt-0 2xl:text-right">
+								<p>{{ selectedReadiness === null ? 'Preparation not started' : `Preparation ${selectedReadiness}% done` }}</p>
+								<p v-if="selectedProgress.total"><strong class="text-white">{{ selectedProgress.done }}</strong> of {{ selectedProgress.total }} activities done</p>
+								<p v-else>No activities yet</p>
+							</div>
 						</div>
 					</div>
 				</Transition>
+
+				<!-- Activities / history -->
+				<div class="flex flex-wrap items-center gap-2" role="tablist" aria-label="Show">
+					<button v-for="k in kindOptions" :key="k.value" type="button" role="tab" :aria-selected="selectedKind === k.value" class="at-kind" :class="selectedKind === k.value ? 'is-on' : ''" @click="selectedKind = k.value">
+						{{ k.label }}<span class="tabular-nums opacity-70">{{ k.count }}</span>
+					</button>
+				</div>
 
 				<!-- Search -->
 				<div class="flex flex-wrap items-center gap-3">
@@ -119,10 +130,27 @@
 							<ol class="relative">
 								<li v-for="(activity, i) in group.items" :key="activity.id" class="at-item group relative flex gap-4 pb-3 last:pb-0" :style="{ '--i': i }">
 									<span v-if="i < group.items.length - 1" class="absolute left-[15px] top-9 h-[calc(100%-1.5rem)] w-px bg-gray-200" aria-hidden="true" />
-									<span class="at-node" :class="nodeClass(activity.status)" :aria-label="formatActivityStatus(activity.status)">
+									<span v-if="isHistory(activity)" class="at-node is-history" aria-label="History">
+										<IconBase name="clock" class="h-3.5 w-3.5" />
+									</span>
+									<span v-else class="at-node" :class="nodeClass(activity.status)" :aria-label="formatActivityStatus(activity.status)">
 										<IconBase v-if="activity.status === 'completed'" name="check" class="h-3.5 w-3.5" />
 									</span>
-									<article class="min-w-0 flex-1 rounded-2xl border border-gray-200 bg-white p-4 transition hover:border-primary-200 hover:shadow-[0_12px_28px_-20px_rgba(16,63,77,0.45)]" :class="activity.status === 'completed' ? 'bg-gray-50/40' : ''">
+									<article v-if="isHistory(activity)" class="min-w-0 flex-1 rounded-2xl border border-gray-100 bg-gray-50/60 px-4 py-3">
+										<div class="flex items-start justify-between gap-3">
+											<div class="min-w-0">
+												<p class="text-sm font-medium text-gray-700">{{ activity.title }}</p>
+												<p v-if="activity.description" class="mt-0.5 line-clamp-2 text-xs text-gray-500">{{ activity.description }}</p>
+											</div>
+											<span class="shrink-0 text-xs tabular-nums text-gray-400">{{ timeOf(activity.activity_at) }}</span>
+										</div>
+										<div class="mt-2 flex flex-wrap items-center gap-1.5">
+											<span class="at-chip"><IconBase name="clock" class="h-3 w-3" />Recorded by NaSeRy</span>
+											<span v-if="!selectedEventKey && activity.event?.name" class="at-chip"><IconBase name="calendar" class="h-3 w-3" />{{ activity.event.name }}</span>
+											<span v-if="activity.person" class="at-chip"><IconBase name="user" class="h-3 w-3" />{{ activity.person }}</span>
+										</div>
+									</article>
+									<article v-else class="min-w-0 flex-1 rounded-2xl border border-gray-200 bg-white p-4 transition hover:border-primary-200 hover:shadow-[0_12px_28px_-20px_rgba(16,63,77,0.45)]" :class="activity.status === 'completed' ? 'bg-gray-50/40' : ''">
 										<div class="flex items-start justify-between gap-3">
 											<div class="min-w-0">
 												<p class="text-sm font-semibold text-gray-950" :class="activity.status === 'completed' ? 'text-gray-600' : ''">{{ activity.title }}</p>
@@ -155,6 +183,9 @@
 								</li>
 							</ol>
 						</div>
+						<div v-if="hiddenCount > 0" class="flex justify-center">
+							<button type="button" class="at-kind min-h-10 px-5" @click="limit += PAGE">Show {{ Math.min(PAGE, hiddenCount) }} more <span class="opacity-70">({{ hiddenCount }} left)</span></button>
+						</div>
 					</div>
 
 					<!-- Empty -->
@@ -164,6 +195,7 @@
 						<p class="mx-auto mt-1 max-w-md text-sm text-gray-500">{{ emptyText }}</p>
 						<button v-if="canAddHere && !hasFilters" type="button" class="at-btn-primary mx-auto mt-5 h-11" @click="openAddActivity"><IconBase name="plus" class="h-4 w-4" /> Add the first activity</button>
 						<button v-else-if="hasFilters" type="button" class="mt-4 text-sm font-semibold text-primary-700 hover:underline" @click="clearFilters">Clear filters</button>
+						<button v-if="!hasFilters && selectedKind === 'activities' && scopedHistory.length" type="button" class="mx-auto mt-3 block text-sm font-semibold text-primary-700 hover:underline" @click="selectedKind = 'history'">See what NaSeRy recorded ({{ scopedHistory.length }})</button>
 					</div>
 				</Transition>
 			</section>
@@ -268,13 +300,13 @@
 </template>
 
 <script setup lang="ts">
-interface OrganizerEvent { id: number, inquiry_id: number | null, quotation_id: number | null, name: string, event_type: string, event_date: string | null, location: string | null, status: string }
+interface OrganizerEvent { readiness_percent?: number | null, id: number, inquiry_id: number | null, quotation_id: number | null, name: string, event_type: string, event_date: string | null, location: string | null, status: string }
 interface OfferInquiry { id: number, event_title: string | null, event_type: string, event_date: string | null, location: string | null }
 interface OrganizerQuotation { id: number, inquiry_id: number, organizer_id: number, quotation_status: 'pending' | 'accepted' | 'rejected' | 'withdrawn', inquiry?: OfferInquiry, event?: OrganizerEvent | null }
 interface ActivityTimelineEvent { key: string, eventId: number | null, quotationId: number | null, name: string, eventType: string, eventDate: string | null, location: string | null, status: string, hasRealEvent: boolean }
 interface ActivityEvent { id: number, name: string, event_type: string }
 type ActivityStatus = 'pending' | 'in_progress' | 'completed'
-interface EventActivity { id: number, event_id: number, title: string, description: string | null, category: string | null, tag: string | null, person: string | null, status: ActivityStatus, activity_at: string | null, created_at?: string, event?: ActivityEvent, visible_to_client?: boolean }
+interface EventActivity { id: number, event_id: number, title: string, description: string | null, category: string | null, tag: string | null, person: string | null, status: ActivityStatus, activity_at: string | null, created_at?: string, event?: ActivityEvent, visible_to_client?: boolean, source?: string, editable?: boolean }
 interface ApiErrorResponse { data?: { message?: string, errors?: Record<string, string[]> } }
 
 definePageMeta({ layout: 'dashboard', middleware: ['organizer'] })
@@ -287,6 +319,9 @@ const activities = ref<EventActivity[]>([])
 const selectedEventId = ref<number | null>(null)
 const selectedEventKey = ref<string | null>(null)
 const selectedStatus = ref<'All' | ActivityStatus>('All')
+const selectedKind = ref<'all' | 'activities' | 'history'>('activities')
+const PAGE = 50
+const limit = ref(PAGE)
 const searchQuery = ref('')
 const isLoading = ref(false)
 const errorMessage = ref('')
@@ -355,21 +390,35 @@ const canAddHere = computed(() => selectedEventData.value ? selectedEventData.va
 const hasFilters = computed(() => selectedStatus.value !== 'All' || !!searchQuery.value.trim())
 function clearFilters() { selectedStatus.value = 'All'; searchQuery.value = '' }
 
-const scopedActivities = computed(() => selectedEventKey.value
+// Entries NaSeRy records on its own (event published, ticket sold…) are history:
+// read-only, and never counted as planned work or progress (review finding #7).
+const isHistory = (a: EventActivity) => a.source === 'nasery' || a.editable === false
+const plannedActivities = computed(() => activities.value.filter(a => !isHistory(a)))
+
+const scopedAll = computed(() => selectedEventKey.value
 	? (selectedEventId.value === null ? [] : activities.value.filter(a => a.event_id === selectedEventId.value))
 	: activities.value)
+const scopedActivities = computed(() => scopedAll.value.filter(a => !isHistory(a)))
+const scopedHistory = computed(() => scopedAll.value.filter(isHistory))
+const kindOptions = computed(() => [
+	{ value: 'activities' as const, label: 'Activities', count: scopedActivities.value.length },
+	{ value: 'history' as const, label: 'History', count: scopedHistory.value.length },
+	{ value: 'all' as const, label: 'Both', count: scopedAll.value.length },
+])
 
 const filteredActivities = computed(() => {
 	const query = searchQuery.value.trim().toLowerCase()
-	return scopedActivities.value.filter((a) => {
-		if (selectedStatus.value !== 'All' && a.status !== selectedStatus.value) return false
+	const pool = selectedKind.value === 'activities' ? scopedActivities.value : selectedKind.value === 'history' ? scopedHistory.value : scopedAll.value
+	return pool.filter((a) => {
+		if (selectedStatus.value !== 'All' && (isHistory(a) || a.status !== selectedStatus.value)) return false
 		if (!query) return true
 		return [a.title, a.description, a.category, a.person, a.tag, a.event?.name].filter(Boolean).join(' ').toLowerCase().includes(query)
 	})
 })
-const listKey = computed(() => `${selectedEventKey.value ?? 'all'}|${selectedStatus.value}`)
+const listKey = computed(() => `${selectedEventKey.value ?? 'all'}|${selectedStatus.value}|${selectedKind.value}`)
+watch([listKey, searchQuery], () => { limit.value = PAGE })
 
-const totalActivities = computed(() => activities.value.length)
+const totalActivities = computed(() => plannedActivities.value.length)
 const statusCards = computed(() => {
 	const scope = scopedActivities.value
 	const total = scope.length || 1
@@ -383,15 +432,21 @@ const statusCards = computed(() => {
 })
 
 function eventProgress(event: ActivityTimelineEvent) {
-	const list = event.eventId ? activities.value.filter(a => a.event_id === event.eventId) : []
+	const list = event.eventId ? plannedActivities.value.filter(a => a.event_id === event.eventId) : []
 	const done = list.filter(a => a.status === 'completed').length
 	return { done, total: list.length, percent: list.length ? Math.round((done / list.length) * 100) : 0 }
 }
 const selectedProgress = computed(() => selectedEventData.value ? eventProgress(selectedEventData.value) : { done: 0, total: 0, percent: 0 })
+// The ring shows how ready the event is (Preparation Tracking checklist).
+const selectedReadiness = computed(() => {
+	const id = selectedEventData.value?.eventId
+	const pct = id ? organizerEvents.value.find(e => e.id === id)?.readiness_percent : null
+	return typeof pct === 'number' ? Math.round(pct) : null
+})
 
 // Group newest first by day.
 const groupedActivities = computed(() => {
-	const sorted = [...filteredActivities.value].sort((a, b) => stamp(b) - stamp(a))
+	const sorted = [...filteredActivities.value].sort((a, b) => stamp(b) - stamp(a)).slice(0, limit.value)
 	const groups: Array<{ label: string, items: EventActivity[] }> = []
 	for (const a of sorted) {
 		const label = dayLabel(a.activity_at ?? a.created_at ?? null)
@@ -401,15 +456,18 @@ const groupedActivities = computed(() => {
 	}
 	return groups
 })
+const hiddenCount = computed(() => Math.max(0, filteredActivities.value.length - limit.value))
 function stamp(a: EventActivity) { const v = a.activity_at ?? a.created_at; return v ? new Date(v).getTime() : 0 }
 
 const emptyTitle = computed(() => {
 	if (hasFilters.value) return 'Nothing matches'
+	if (selectedKind.value === 'history') return 'No history yet'
 	if (selectedEventData.value && !selectedEventData.value.hasRealEvent) return 'Event setup hasn’t started'
 	return 'No activities yet'
 })
 const emptyText = computed(() => {
 	if (hasFilters.value) return 'Try another search or status.'
+	if (selectedKind.value === 'history') return 'NaSeRy records things like publishing the event and ticket sales here automatically.'
 	if (selectedEventData.value && !selectedEventData.value.hasRealEvent) return `Set up ${selectedEventData.value.name} in Event Management, then log its milestones here.`
 	return 'Log milestones, updates and tasks as you plan, and your whole team can see progress at a glance.'
 })
@@ -568,6 +626,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 .at-node.is-progress { @apply border-2 border-amber-500 bg-white; }
 .at-node.is-progress::after { content: ''; @apply absolute inset-[-2px] rounded-full border-2 border-amber-400; animation: at-pulse 1.8s ease-out infinite; }
 .at-node.is-pending { @apply border-2 border-gray-300 bg-white; }
+.at-node.is-history { @apply bg-gray-100 text-gray-400; }
+.at-kind { @apply inline-flex min-h-9 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-600 transition hover:border-gray-300 hover:text-gray-900; }
+.at-kind.is-on { @apply border-primary-700 bg-primary-700 text-white; }
 .at-node-mini { @apply inline-block h-2 w-2 shrink-0 rounded-full; }
 .at-node-mini.is-done { @apply bg-primary-700; }
 .at-node-mini.is-progress { @apply bg-amber-500; }
