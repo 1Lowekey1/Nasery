@@ -52,9 +52,9 @@
 			<polyline points="17 6 23 6 23 12" />
 		</template>
 		<template v-else-if="name === 'cash'">
+			<!-- A peso coin (amounts are in PHP) -->
 			<circle cx="12" cy="12" r="10" />
-			<path
-				d="M12 6v12M15.5 9.5c0-1.5-1.6-2.5-3.5-2.5s-3.5 1-3.5 2.5 1.6 2 3.5 2.5 3.5 1 3.5 2.5-1.6 2.5-3.5 2.5-3.5-1-3.5-2.5" />
+			<text x="12" y="16.2" text-anchor="middle" font-size="11.5" font-weight="700" fill="currentColor" stroke="none">₱</text>
 		</template>
 		<template v-else-if="name === 'bell'">
 			<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />

@@ -373,22 +373,39 @@
 								</template>
 							</PricingPriceCalculator>
 						</div>
+						<!-- The breakdown as a receipt: items, subtotal, charges, total -->
 						<div v-if="offerLines.length && !showBuilder" class="mt-3 rounded-xl bg-white p-3 text-sm">
-							<div v-for="(line, i) in offerLines" :key="i" class="flex justify-between gap-3 py-0.5">
-								<span class="text-gray-700">{{ line.description }} <span class="text-xs text-gray-400">× {{ Number(line.quantity).toLocaleString('en-PH') }}</span></span>
-								<span class="font-semibold text-gray-800">{{ formatPeso(lineSubtotal(line.quantity, line.unit_price)) }}</span>
+							<div v-for="(line, i) in breakdown.items" :key="i" class="flex justify-between gap-3 py-1">
+								<span class="min-w-0 text-gray-700">{{ line.description }}<span v-if="Number(line.quantity) !== 1" class="text-xs text-gray-400"> × {{ Number(line.quantity).toLocaleString('en-PH') }}</span></span>
+								<span class="shrink-0 font-semibold text-gray-800">{{ formatPeso(lineSubtotal(line.quantity, line.unit_price)) }}</span>
 							</div>
-							<button type="button" class="mt-2 text-xs font-semibold text-rose-600" @click="clearLines">Remove breakdown (enter one amount instead)</button>
+							<template v-if="breakdown.charges.length">
+								<div class="mt-1 flex justify-between gap-3 border-t border-gray-100 pt-2 text-gray-500">
+									<span>Subtotal</span><span class="font-semibold text-gray-700">{{ formatPeso(breakdown.subtotal) }}</span>
+								</div>
+								<div v-for="(c, i) in breakdown.charges" :key="`c${i}`" class="flex justify-between gap-3 py-1 text-gray-500">
+									<span class="min-w-0">{{ c.label }} <span class="text-xs text-gray-400">{{ c.percent }}% of {{ formatPeso(c.base) }}</span></span>
+									<span class="shrink-0 font-semibold text-gray-700">{{ formatPeso(c.amount) }}</span>
+								</div>
+							</template>
+							<div class="mt-1 flex justify-between gap-3 border-t border-gray-200 pt-2 text-base font-extrabold text-gray-950">
+								<span>Total</span><span>{{ formatPeso(breakdown.total) }}</span>
+							</div>
+							<button type="button" class="mt-2 min-h-9 text-xs font-semibold text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline" @click="clearLines">Use one amount instead</button>
 						</div>
 					</div>
 
 					<div class="mt-4" data-field="budget">
 						<FormsLabel text="Your Quotation Amount" required />
 
-						<FormsTextField v-model="offerForm.budget" icon="cash" placeholder="e.g. ₱240,000" :disabled="offerLines.length > 0" :error="amountError" />
+						<!-- With a breakdown the total comes from the lines (change them above to change it) -->
+						<div v-if="offerLines.length" class="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm font-extrabold text-gray-950">
+							<IconBase name="peso" class="h-4 w-4 text-gray-400" />{{ formatPeso(breakdown.total) }}
+						</div>
+						<FormsTextField v-else v-model="offerForm.budget" icon="peso" placeholder="e.g. 240000" inputmode="decimal" :error="amountError" />
 
 						<p v-if="!amountError" class="mt-1 text-xs text-gray-400">
-							{{ offerLines.length ? 'The total of your itemized lines.' : 'Enter one final quotation amount, or build it from your price list above.' }}
+							{{ offerLines.length ? 'The total of your breakdown above. Change the price-list picks to change it.' : 'Enter one final quotation amount, or build it from your price list above.' }}
 						</p>
 					</div>
 
@@ -923,6 +940,21 @@ const builderOptions = ref<import('~/composables/useQuotations').PriceOption[]>(
 const builderServices = ref<{ id: string, name: string }[]>([])
 const builderSettings = ref<EstimateSettings>({})
 const offerLines = ref<import('~/composables/useQuotations').QuotationLine[]>([])
+// Service charge / VAT lines added by the price-list builder (see useEstimate).
+const chargeLine = /^(Service charge|VAT) \((\d+(?:\.\d+)?)%\)$/
+const breakdown = computed(() => {
+	const items = offerLines.value.filter(l => !chargeLine.test(l.description))
+	const subtotal = items.reduce((sum, l) => sum + lineSubtotal(l.quantity, l.unit_price), 0)
+	let base = subtotal
+	const charges = offerLines.value.filter(l => chargeLine.test(l.description)).map((l) => {
+		const [, label, percent] = l.description.match(chargeLine)!
+		const amount = lineSubtotal(l.quantity, l.unit_price)
+		const charge = { label: label!, percent: Number(percent), base, amount }
+		base += amount
+		return charge
+	})
+	return { items, subtotal, charges, total: base }
+})
 
 async function toggleBuilder() {
 	showBuilder.value = !showBuilder.value
@@ -954,7 +986,13 @@ function useEstimate(estimate: import('~/utils/priceCalc').Estimate, guests: num
 	offerLines.value = lines
 	offerForm.budget = String(estimate.total)
 	amountError.value = ''
-	if (!offerForm.inclusions.some(i => i.trim())) offerForm.inclusions = estimate.lines.map(l => `${l.label}: ${l.detail}`)
+	// Plain item names for the client (prices live in the breakdown).
+	if (!offerForm.inclusions.some(i => i.trim())) {
+		offerForm.inclusions = estimate.lines.map((l) => {
+			const o = byId.get(l.id)
+			return o && picksQuantity(o) ? `${l.label}, ${l.quantity.toLocaleString('en-PH')} ${unitName(o, l.quantity)}` : l.label
+		})
+	}
 	if (guests && !offerForm.guests) offerForm.guests = String(guests)
 	showBuilder.value = false
 }
