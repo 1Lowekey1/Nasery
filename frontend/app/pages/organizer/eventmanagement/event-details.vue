@@ -151,6 +151,31 @@
 
 							<!-- Ticket types -->
 							<div v-else-if="activeEditTab === 'Ticket Types'" key="tickets" class="space-y-4">
+								<div>
+									<p class="ed-label">How do guests get in?</p>
+									<div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="How do guests get in?">
+										<button v-for="opt in guestAccessOptions" :key="opt.value" type="button" role="radio" :aria-checked="editForm.guestAccess === opt.value"
+											class="flex items-start gap-3 rounded-2xl border px-4 py-3.5 text-left transition"
+											:class="editForm.guestAccess === opt.value ? 'border-primary-600 bg-primary-25 ring-1 ring-primary-600' : 'border-gray-200 hover:border-gray-300'"
+											@click="setGuestAccess(opt.value)">
+											<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" :class="editForm.guestAccess === opt.value ? 'bg-primary-700 text-white' : 'bg-gray-100 text-gray-500'"><IconBase :name="opt.icon" class="h-4 w-4" /></span>
+											<span class="min-w-0"><span class="block text-sm font-bold text-gray-950">{{ opt.title }}</span><span class="mt-0.5 block text-xs leading-5 text-gray-500">{{ opt.hint }}</span></span>
+										</button>
+									</div>
+								</div>
+
+								<div v-if="editForm.guestAccess === 'guests'" class="space-y-3 rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
+									<p class="font-semibold text-gray-900">No ticket setup needed.</p>
+									<ol class="list-decimal space-y-1 pl-5">
+										<li>Save the event.</li>
+										<li>Add your guests in <strong class="font-semibold text-gray-900">Ticketing &amp; Attendance → Attendees</strong> one by one or from a spreadsheet.</li>
+										<li>Each guest gets a QR invite that your team scans at the door.</li>
+									</ol>
+									<p v-if="editForm.ticketTypes.some(t => t.id && !isGuestTier(t))" class="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">Saving removes this event's ticket types. Any that already have tickets issued are kept.</p>
+									<p class="text-xs text-gray-500">Room for {{ guestListCapacity }} guests (from Expected guests under Venue). The event stays private: it isn't listed on NaSeRy.</p>
+								</div>
+
+								<template v-else>
 								<div class="grid grid-cols-3 gap-2">
 									<div class="rounded-xl bg-gray-50 px-4 py-3"><p class="text-xs text-gray-500">Ticket types</p><p class="text-lg font-extrabold tabular-nums text-gray-950">{{ ticketSummary.types }}</p></div>
 									<div class="rounded-xl bg-gray-50 px-4 py-3">
@@ -176,11 +201,12 @@
 									</div>
 								</TransitionGroup>
 								<button type="button" class="flex h-11 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-semibold text-gray-600 transition hover:border-primary-300 hover:bg-primary-25 hover:text-primary-800" @click="addTicketType"><IconBase name="plus" class="h-4 w-4" /> Add ticket type</button>
+								</template>
 							</div>
 
 							<!-- Settings -->
 							<div v-else-if="activeEditTab === 'Settings'" key="settings" class="space-y-3">
-								<button v-for="opt in settingToggles" :key="opt.key" type="button" role="switch" :aria-checked="!!editForm[opt.key]" class="group flex w-full items-center justify-between gap-4 rounded-2xl border border-gray-200 px-4 py-4 text-left transition hover:border-gray-300" @click="editForm[opt.key] = !editForm[opt.key]">
+								<button v-for="opt in visibleSettingToggles" :key="opt.key" type="button" role="switch" :aria-checked="!!editForm[opt.key]" class="group flex w-full items-center justify-between gap-4 rounded-2xl border border-gray-200 px-4 py-4 text-left transition hover:border-gray-300" @click="editForm[opt.key] = !editForm[opt.key]">
 									<span class="flex items-start gap-3">
 										<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><IconBase :name="opt.icon" class="h-4 w-4" /></span>
 										<span><span class="block text-sm font-semibold text-gray-950">{{ opt.title }}</span><span class="mt-0.5 block text-xs text-gray-500">{{ opt.hint }}</span></span>
@@ -707,6 +733,7 @@ const editForm =
 
 		publicRegistration: true,
 		waitlistEnabled: false,
+		guestAccess: 'tickets' as GuestAccess,
 
 		contactName: '',
 		contactEmail: '',
@@ -841,6 +868,12 @@ function fillEditForm() {
 
 	editForm.publicRegistration =
 		Boolean(event.value.public_registration)
+
+	// Private events without paid tickets run on a guest list (review finding #2).
+	editForm.guestAccess =
+		!event.value.public_registration && (event.value.ticket_types ?? []).every(t => isGuestTier(t))
+			? 'guests'
+			: 'tickets'
 
 	editForm.waitlistEnabled =
 		Boolean(event.value.waitlist_enabled)
@@ -1164,7 +1197,7 @@ async function saveEvent() {
 			description: editForm.description.trim() || null,
 			overall_capacity: editForm.expectedGuests ? Number(editForm.expectedGuests) : null,
 			...(locationChanged ? { venue_name: editForm.location.trim() || null, venue_address: null } : {}),
-			...(editForm.publicRegistration !== current.public_registration ? { visibility: editForm.publicRegistration ? 'public' : 'private' } : {}),
+			...(guestVisibility() !== current.public_registration ? { visibility: guestVisibility() ? 'public' : 'private' } : {}),
 			contact_name: editForm.contactName.trim() || null,
 			contact_email: editForm.contactEmail.trim() || null,
 			contact_phone: editForm.contactPhone.trim() || null,
@@ -1182,7 +1215,10 @@ async function saveEvent() {
 		// Ticket types: update, add, and remove the ones taken out (the API keeps any with tickets sold).
 		const base = `/organizations/${orgId}/events/${current.id}/ticket-types`
 		const kept = new Set<string>()
-		for (const type of editForm.ticketTypes.filter(t => t.name.trim())) {
+		const tiers = editForm.guestAccess === 'guests'
+			? [{ id: editForm.ticketTypes.find(t => isGuestTier(t))?.id, name: GUEST_TIER, price: '0', capacity: String(guestListCapacity.value) }]
+			: editForm.ticketTypes
+		for (const type of tiers.filter(t => t.name.trim())) {
 			const body = { name: type.name.trim(), price: Number(type.price || 0), capacity: Number(type.capacity || 0) || 1 }
 			if (type.id) {
 				kept.add(String(type.id))
@@ -1282,21 +1318,39 @@ const statusChoices = [
 	{ value: 'draft', label: 'Draft', hint: 'Only you and your team can see it' },
 	{ value: 'published', label: 'Published', hint: 'Open for registration and tickets' },
 ]
+type GuestAccess = 'guests' | 'tickets'
+const GUEST_TIER = 'Guest list'
+const isGuestTier = (t: { name?: string | null, price?: string | number | null }) => String(t.name ?? '').trim().toLowerCase() === GUEST_TIER.toLowerCase() && Number(t.price || 0) === 0
+const guestAccessOptions = [
+	{ value: 'guests' as const, title: 'Guest list', hint: 'Invitation only (birthdays, weddings). Each guest you add gets a QR invite.', icon: 'users' },
+	{ value: 'tickets' as const, title: 'Tickets', hint: 'Guests buy or claim tickets (concerts, fairs, fun runs).', icon: 'ticket' },
+]
+const guestListCapacity = computed(() => Math.max(1, Number(editForm.expectedGuests) || Number(editForm.ticketTypes.find(t => isGuestTier(t))?.capacity) || 100))
+// A guest-list event is private; a ticketed one follows the Public registration switch.
+const guestVisibility = () => editForm.guestAccess === 'guests' ? false : editForm.publicRegistration
+function setGuestAccess(value: GuestAccess) {
+	editForm.guestAccess = value
+	if (value === 'tickets' && !editForm.ticketTypes.some(t => !isGuestTier(t))) {
+		editForm.ticketTypes = editForm.ticketTypes.filter(t => !isGuestTier(t))
+		if (!editForm.ticketTypes.length) addTicketType()
+	}
+}
 const settingToggles = [
 	{ key: 'publicRegistration' as const, title: 'Public registration', hint: 'Anyone with the link can register for this event.', icon: 'users' },
 	{ key: 'waitlistEnabled' as const, title: 'Waitlist', hint: 'Let guests join a waitlist when tickets sell out.', icon: 'clock' },
 ]
+const visibleSettingToggles = computed(() => settingToggles.filter(t => t.key !== 'publicRegistration' || editForm.guestAccess === 'tickets'))
 const sectionMeta: Record<string, { title: string, summary: string, description: string }> = {
 	'Basic Info': { title: 'Basic info', summary: 'Name, type, date and time', description: 'The essentials guests and your team will see first.' },
 	'Venue': { title: 'Venue', summary: 'Where and how many', description: 'Where the event happens and how many people to expect.' },
-	'Ticket Types': { title: 'Ticket types', summary: 'Prices and seats', description: 'Set up the tickets guests can buy or claim.' },
+	'Ticket Types': { title: 'Guests & tickets', summary: 'How guests get in', description: 'Invite guests from a list, or sell or give away tickets.' },
 	'Settings': { title: 'Settings', summary: 'Registration options', description: 'Control how guests register.' },
 	'Contact': { title: 'Contact', summary: 'Who to reach on the day', description: 'Contact details shown to guests and suppliers.' },
 }
 const sectionDone = computed<Record<string, boolean>>(() => ({
 	'Basic Info': !!(editForm.name.trim() && editForm.eventType && editForm.eventDate && editForm.startTime && editForm.endTime),
 	'Venue': !!(String(editForm.location ?? '').trim() && Number(editForm.expectedGuests) > 0),
-	'Ticket Types': editForm.ticketTypes.length > 0 && editForm.ticketTypes.every((t: any) => String(t.name ?? '').trim() && Number(t.capacity) > 0),
+	'Ticket Types': editForm.guestAccess === 'guests' || editForm.ticketTypes.length > 0 && editForm.ticketTypes.every((t: any) => String(t.name ?? '').trim() && Number(t.capacity) > 0),
 	'Settings': true,
 	'Contact': !!(String(editForm.contactName ?? '').trim() && (String(editForm.contactEmail ?? '').trim() || String(editForm.contactPhone ?? '').trim())),
 }))
@@ -1342,7 +1396,9 @@ watch(() => [isEditMode.value, event.value?.id, isLoading.value, route.query.sec
 	if (!tab || !isEditMode.value || !event.value || isLoading.value) return
 	activeEditTab.value = tab
 	let focusIndex = -1
+	const adding = !!route.query.new
 	if (tab === 'Ticket Types') {
+		if (route.query.new || route.query.ticket) editForm.guestAccess = 'tickets'
 		const ticketId = route.query.ticket ? String(route.query.ticket) : ''
 		if (route.query.new) {
 			nextTick(() => {
@@ -1358,13 +1414,15 @@ watch(() => [isEditMode.value, event.value?.id, isLoading.value, route.query.sec
 	const { section: _s, ticket: _t, new: _n, ...rest } = route.query
 	navigateTo({ path: route.path, query: rest }, { replace: true })
 	if (focusIndex >= 0) focusTicket(focusIndex)
+	// An instant jump: a smooth scroll here gets cancelled by the section switch's own scroll.
+	else if (!adding) setTimeout(() => document.querySelector('nav[aria-label="Edit sections"]')?.scrollIntoView({ block: 'start' }), 600)
 }, { immediate: true })
 function focusTicket(index: number) {
 	// Wait for the section swap transition before scrolling to the card.
 	setTimeout(() => {
 		const card = document.querySelectorAll<HTMLElement>('[data-ticket-card]')[index]
 		if (!card) return
-		card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+		card.scrollIntoView({ block: 'center' })
 		card.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true })
 	}, 350)
 }
