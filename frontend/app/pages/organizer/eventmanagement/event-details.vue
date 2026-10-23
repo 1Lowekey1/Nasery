@@ -29,6 +29,23 @@
 				</div>
 			</section>
 
+			<!-- Event lifecycle: go live and finish (the server checks event.update / event.complete) -->
+			<section v-if="event && event.id && !isEditMode && canEditCover && ['published', 'ongoing'].includes(event.status)" class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-6 py-4">
+				<div class="min-w-0">
+					<p class="text-sm font-bold text-gray-950">{{ event.status === 'ongoing' ? 'The event is live' : 'Event day' }}</p>
+					<p class="mt-0.5 text-sm text-gray-500">{{ event.status === 'ongoing' ? 'Mark it completed when it ends. The client can then leave a review.' : 'Start it when doors open (check-in opens 3 hours before the start time either way), and mark it completed when it ends.' }}</p>
+					<p v-if="lifecycleError" class="mt-1 text-sm font-semibold text-red-600" role="alert">{{ lifecycleError }}</p>
+				</div>
+				<div class="flex shrink-0 flex-wrap gap-2">
+					<button v-if="event.status === 'published'" type="button" class="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-800 disabled:opacity-50" :disabled="lifecycleBusy" @click="runLifecycle('start')">
+						<span class="h-2 w-2 rounded-full bg-green-300" /> Start event
+					</button>
+					<button type="button" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50" :disabled="lifecycleBusy" @click="runLifecycle('complete')">
+						<IconBase name="check-circle" class="h-4 w-4" /> Mark completed
+					</button>
+				</div>
+			</section>
+
 			<section v-if="event && event.id && canEditCover" class="rounded-2xl border border-gray-200 bg-white p-6">
 				<h3 class="text-base font-bold text-gray-900">Event cover photo</h3>
 				<p class="mb-4 mt-1 text-sm text-gray-500">Shown on the Events page and the event's public page when the event is public.</p>
@@ -446,6 +463,26 @@ async function saveCover(file: File) {
 	const url = await useMedia().uploadEventCover(coverOrgId.value, String(event.value.id), file)
 	event.value = { ...event.value, cover_url: url }
 	return url
+}
+// Going live and finishing the event (no other screen does this).
+const lifecycleBusy = ref(false)
+const lifecycleError = ref('')
+async function runLifecycle(action: 'start' | 'complete') {
+	if (!event.value) return
+	const ask = action === 'start'
+		? { text: 'Start the event now? It shows as live to you and your team.', label: 'Start event' }
+		: { text: 'Mark the event completed? It can no longer be changed after this, and the client can leave a review.', label: 'Mark completed' }
+	if (!(await confirmDialog(ask.text, { confirmLabel: ask.label }))) return
+	lifecycleBusy.value = true
+	lifecycleError.value = ''
+	try {
+		await useOrganizerEvents().transition(coverOrgId.value, String(event.value.id), action)
+		event.value = await loadEvent(String(event.value.id)) as unknown as typeof event.value
+	} catch (e: unknown) {
+		lifecycleError.value = authMessage(e) || 'That didn’t work. Try again.'
+	} finally {
+		lifecycleBusy.value = false
+	}
 }
 async function removeCover() {
 	if (!event.value) return
