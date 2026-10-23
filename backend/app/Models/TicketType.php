@@ -17,6 +17,9 @@ class TicketType extends Model
 {
     use SoftDeletes;
 
+    /** A private event's invitation list (free, closed: never on sale). The event editor manages it. */
+    public const GUEST_LIST = 'Guest list';
+
     protected $attributes = [
         'description' => null,
         'zone_name' => null,

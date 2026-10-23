@@ -200,11 +200,11 @@
 		<!-- ===================================================== -->
 		<div v-else>
 
-			<header class="me-hero me-rise relative mb-6 overflow-hidden rounded-[2rem] text-white">
+			<header class="me-hero me-rise relative mb-4 overflow-hidden rounded-[1.5rem] text-white sm:mb-6 sm:rounded-[2rem]">
 				<span class="me-orb" />
 				<span class="me-dots" />
 
-				<div class="relative flex flex-col gap-6 px-6 pb-6 pt-8 sm:px-9 lg:flex-row lg:items-center lg:justify-between">
+				<div class="relative flex flex-col gap-4 px-5 pb-5 pt-6 sm:gap-6 sm:px-9 sm:pb-6 sm:pt-8 lg:flex-row lg:items-center lg:justify-between">
 					<div class="max-w-2xl">
 						<div class="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 backdrop-blur">
 							<span class="h-1.5 w-1.5 rounded-full bg-white/80"></span>
@@ -229,7 +229,7 @@
 					</div>
 				</div>
 
-				<div class="relative grid gap-3 px-6 pb-7 sm:grid-cols-3 sm:px-9">
+				<div class="relative hidden gap-3 px-6 pb-7 sm:grid sm:grid-cols-3 sm:px-9">
 					<div v-for="(step, index) in eventJourneySteps" :key="step.title"
 						class="me-step me-rise flex items-center gap-3.5 rounded-2xl bg-white/10 p-4 ring-1 ring-white/20 backdrop-blur-sm"
 						:style="{ '--d': 120 + index * 80 + 'ms' }">
@@ -244,18 +244,18 @@
 				</div>
 			</header>
 
-			<div class="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+			<div class="mb-8 grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
 				<div v-for="(stat, index) in stats" :key="stat.label"
-					class="me-card me-rise group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5"
+					class="me-card me-rise group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-5"
 					:style="{ '--d': 100 + index * 60 + 'ms' }">
 					<span class="me-line absolute inset-x-0 top-0 h-[2px] bg-[#285F6b]" />
 
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0">
-							<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">{{ stat.label }}</p>
-							<p class="mt-2 text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">{{ stat.value }}</p>
+							<p class="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400 sm:text-xs sm:tracking-[0.1em]">{{ stat.label }}</p>
+							<p class="mt-1 text-xl font-extrabold tracking-tight text-gray-950 sm:mt-2 sm:text-4xl">{{ stat.value }}</p>
 						</div>
-						<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 transition duration-200 group-hover:scale-105">
+						<div class="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 transition duration-200 group-hover:scale-105 sm:flex">
 							<IconBase :name="stat.icon" class="h-5 w-5" />
 						</div>
 					</div>
@@ -268,9 +268,9 @@
 					<p class="mt-1 text-sm text-gray-500">Choose an event to review offers or continue planning.</p>
 				</div>
 
-				<div class="flex max-w-full gap-2 overflow-x-auto pb-1">
+				<div class="chip-row flex max-w-full gap-2 overflow-x-auto sm:pb-1">
 					<button v-for="filter in eventFilters" :key="filter.value" type="button"
-						class="whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-bold transition duration-200"
+						class="inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-bold transition duration-200"
 						:class="eventFilter === filter.value ? 'bg-primary-700 text-white' : 'border border-gray-200 bg-white text-gray-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700'"
 						@click="eventFilter = filter.value">
 						{{ filter.label }}

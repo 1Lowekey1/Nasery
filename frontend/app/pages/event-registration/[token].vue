@@ -78,10 +78,10 @@
                         <div class="p-6 sm:p-8">
                             <div class="flex flex-wrap items-center gap-2">
                                 <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-white/75 ring-1 ring-white/10">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-                                    Registration open
+                                    <span class="h-1.5 w-1.5 rounded-full" :class="isPrivateEvent ? 'bg-amber-300' : 'bg-emerald-300'" />
+                                    {{ isPrivateEvent ? 'Private event' : (eventData.event_type || 'Event') }}
                                 </span>
-                                <span class="text-xs font-medium text-white/50">Official NaSeRy event form</span>
+                                <span class="hidden text-xs font-medium text-white/50 sm:inline">Official NaSeRy event form</span>
                             </div>
 
                             <h1 class="mt-4 text-2xl font-black tracking-tight text-white sm:mt-5 sm:text-4xl">
@@ -92,9 +92,9 @@
                                 {{ eventData.description }}
                             </p>
 
-                            <div class="mt-7 divide-y divide-white/10 overflow-hidden rounded-2xl bg-black/10 ring-1 ring-white/10 sm:grid sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-                                <div class="flex items-start gap-3 p-4 sm:p-5">
-                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/10">
+                            <div class="mt-5 divide-y divide-white/10 overflow-hidden rounded-2xl bg-black/10 ring-1 ring-white/10 sm:mt-7 sm:grid sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+                                <div class="flex items-center gap-3 px-3.5 py-3 sm:items-start sm:p-5">
+                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/10 sm:h-10 sm:w-10">
                                         <IconBase name="calendar" class="h-5 w-5" />
                                     </div>
                                     <div class="min-w-0">
@@ -103,8 +103,8 @@
                                     </div>
                                 </div>
 
-                                <div class="flex items-start gap-3 p-4 sm:p-5">
-                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/10">
+                                <div class="flex items-center gap-3 px-3.5 py-3 sm:items-start sm:p-5">
+                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/10 sm:h-10 sm:w-10">
                                         <IconBase name="map-pin" class="h-5 w-5" />
                                     </div>
                                     <div class="min-w-0">

@@ -495,7 +495,7 @@ class SeedDemo extends Command
         $weddingEvent = $this->eventFrom($dream, 'maria', $wedding, 'Reyes–Santos Garden Wedding', 'Pearl Farm Pavilion, Davao City', 8);
         $this->eventAt = CarbonImmutable::now('Asia/Manila')->subDays(21);
         $this->prepare($weddingEvent, 'dream');
-        $guests = $this->guests($weddingEvent, 'maria', 'Guest', 0, ['Lara Reyes', 'Jun Santos', 'Mila Cruz', 'Ramon Reyes', 'Tess Lim', 'Oscar Tan', 'Nina Uy', 'Paul Go', 'Rina Sy', 'Leo Chua']);
+        $guests = $this->guests($weddingEvent, 'maria', TicketType::GUEST_LIST, 0, ['Lara Reyes', 'Jun Santos', 'Mila Cruz', 'Ramon Reyes', 'Tess Lim', 'Oscar Tan', 'Nina Uy', 'Paul Go', 'Rina Sy', 'Leo Chua']);
         $this->happened($weddingEvent, 'maria', daysAgo: 21, hours: 6, scans: array_slice($guests, 0, 8), walkIns: ['Tita Nena Reyes'], headcount: 2);
         $this->as($this->u('maria'), fn () => app(ReportSharing::class)->share($weddingEvent->refresh(), $this->u('maria'), 'Thank you for celebrating with us!', false));
         $review = $this->as($this->u('ella'), fn () => app(ReviewManager::class)->create($this->u('ella'), $weddingEvent->refresh(), 5,
@@ -507,7 +507,7 @@ class SeedDemo extends Command
         $christeningEvent = $this->eventFrom($grand, 'carlo', $christening, 'Villanueva Christening Reception', 'Grand Regal Hotel, Lanang', 6);
         $this->eventAt = CarbonImmutable::now('Asia/Manila')->subDays(9);
         $this->prepare($christeningEvent, 'grand');
-        $cGuests = $this->guests($christeningEvent, 'carlo', 'Guest', 0, ['Ana Villanueva', 'Ben Cruz', 'Cora Diaz', 'Dino Lopez', 'Edna Sy', 'Fely Uy']);
+        $cGuests = $this->guests($christeningEvent, 'carlo', TicketType::GUEST_LIST, 0, ['Ana Villanueva', 'Ben Cruz', 'Cora Diaz', 'Dino Lopez', 'Edna Sy', 'Fely Uy']);
         $this->happened($christeningEvent, 'carlo', daysAgo: 9, hours: 4, scans: array_slice($cGuests, 0, 5), walkIns: [], headcount: 1);
         $cReview = $this->as($this->u('andrea'), fn () => app(ReviewManager::class)->create($this->u('andrea'), $christeningEvent->refresh(), 3,
             'Nice venue, but the food came out 40 minutes late and the host mispronounced our baby\'s name.'));
@@ -716,7 +716,7 @@ class SeedDemo extends Command
             $event = $this->eventFrom($winner, $this->ownerOf($winnerKey), $quotation, $title, $this->pick($venues), 8);
             $this->eventAt = CarbonImmutable::now('Asia/Manila')->subDays($eventDaysAgo);
             $this->prepare($event, $winnerKey);
-            $tokens = $this->guests($event, $this->ownerOf($winnerKey), 'Guest', 0, $this->names(mt_rand(6, 12)));
+            $tokens = $this->guests($event, $this->ownerOf($winnerKey), TicketType::GUEST_LIST, 0, $this->names(mt_rand(6, 12)));
             $this->happened($event, $this->ownerOf($winnerKey), daysAgo: $eventDaysAgo, hours: mt_rand(4, 7),
                 scans: array_slice($tokens, 0, (int) ceil(count($tokens) * mt_rand(70, 100) / 100)),
                 walkIns: $this->names(mt_rand(0, 2)), headcount: mt_rand(0, 4));
@@ -1165,9 +1165,13 @@ class SeedDemo extends Command
     private function eventFrom(Organization $org, string $ownerKey, string $quotationId, string $name, string $venue, int $capacityHint, int $inDays = 30): Event
     {
         $start = now('Asia/Manila')->addDays($inDays)->setTime(17, 0);
+        $quotation = Quotation::query()->findOrFail($quotationId);
+        // The event matches what the client asked for: same date, same guest count.
+        DB::table('inquiries')->where('id', $quotation->inquiry_id)->update(['requested_date' => $start->toDateString()]);
+        $guests = (int) DB::table('inquiries')->where('id', $quotation->inquiry_id)->value('guest_count');
 
-        return $this->as($this->u($ownerKey), fn () => app(EventManager::class)->convert($org, $this->member($org, $ownerKey), Quotation::query()->findOrFail($quotationId), [
-            'name' => $name, 'venue_name' => $venue, 'visibility' => 'private', 'overall_capacity' => $capacityHint * 20,
+        return $this->as($this->u($ownerKey), fn () => app(EventManager::class)->convert($org, $this->member($org, $ownerKey), $quotation, [
+            'name' => $name, 'venue_name' => $venue, 'visibility' => 'private', 'overall_capacity' => $guests ?: $capacityHint * 20,
             'sessions' => [['name' => 'Main program', 'starts_at' => $start->format('Y-m-d\TH:i'), 'ends_at' => $start->copy()->addHours(5)->format('Y-m-d\TH:i')]],
         ]));
     }
@@ -1176,7 +1180,8 @@ class SeedDemo extends Command
     private function guests(Event $event, string $ownerKey, string $tierName, int $price, array $names): array
     {
         return $this->as($this->u($ownerKey), function () use ($event, $ownerKey, $tierName, $price, $names) {
-            $tier = app(TierManager::class)->create($event, ['name' => $tierName, 'price' => $price, 'capacity' => max(50, count($names) + 20)]);
+            // A private event's invitations: the closed guest list the event editor manages.
+            $tier = app(TierManager::class)->create($event, ['name' => $tierName, 'price' => $price, 'capacity' => max(50, count($names) + 20), 'status' => 'closed']);
             app(EventManager::class)->transition($event->refresh(), 'publish');
             $member = $this->member(Organization::query()->find($event->organization_id), $ownerKey);
             $tokens = [];
@@ -1220,6 +1225,9 @@ class SeedDemo extends Command
         }
         $this->as($this->u($ownerKey), fn () => app(EventManager::class)->transition($event->refresh(), 'complete'));
         DB::table('events')->where('id', $event->id)->update(['created_at' => $start->copy()->subDays(30)]);
+        if ($event->inquiry_id) {
+            DB::table('inquiries')->where('id', $event->inquiry_id)->update(['requested_date' => $start->copy()->setTimezone('Asia/Manila')->toDateString()]);
+        }
     }
 
     /** Seed shortcut: the event started an hour ago; some attendees are already in. */

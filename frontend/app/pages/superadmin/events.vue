@@ -55,7 +55,7 @@
 					<FormsTextField v-model="search" icon="search" placeholder="Search events, organizers, clients..." />
 				</div>
 
-				<div class="flex flex-wrap items-center gap-2">
+				<div class="chip-row flex flex-wrap items-center gap-2">
 					<button v-for="filter in statusFilters" :key="filter.value" type="button"
 						class="inline-flex min-h-9 items-center rounded-full px-3 py-1.5 text-xs font-semibold transition" :class="statusFilter === filter.value
 							? 'bg-primary-700 text-white'

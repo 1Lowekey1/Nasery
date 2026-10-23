@@ -99,7 +99,7 @@
 					<FormsTextField v-model="search" icon="search" placeholder="Search attendees..." />
 				</div>
 
-				<div class="flex flex-wrap items-center gap-2">
+				<div class="chip-row flex flex-wrap items-center gap-2">
 					<button v-for="filter in filters" :key="filter.value" type="button"
 						class="inline-flex min-h-9 items-center rounded-full px-3.5 py-1.5 text-xs font-bold transition duration-200" :class="activeFilter ===
 							filter.value

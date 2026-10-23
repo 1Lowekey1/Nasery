@@ -2,21 +2,21 @@
 	<div>
 		<section class="overflow-hidden border-b border-primary-100 bg-primary-900 text-white">
 			<div
-				class="mx-auto grid max-w-7xl gap-10 px-5 py-14 sm:px-8 sm:py-20 lg:grid-cols-[1.35fr_.65fr] lg:items-end">
+				class="mx-auto grid max-w-7xl gap-10 px-5 py-8 sm:px-8 sm:py-20 lg:grid-cols-[1.35fr_.65fr] lg:items-end">
 				<div>
-					<p class="mb-5 text-xs font-bold uppercase tracking-[.2em] text-primary-200">
+					<p class="mb-3 text-xs font-bold uppercase tracking-[.2em] text-primary-200 sm:mb-5">
 						The event marketplace
 					</p>
 					<h1 class="max-w-3xl text-3xl font-bold leading-[1.12] tracking-tight sm:text-5xl lg:text-6xl">
 						Find events worth<br>
 						<span class="font-serif font-normal italic text-primary-100">showing up for.</span>
 					</h1>
-					<p class="mt-6 max-w-xl text-base leading-relaxed text-white/75">
+					<p class="mt-3 max-w-xl text-sm leading-relaxed text-white/75 sm:mt-6 sm:text-base">
 						Explore real events managed by NaSeRy organizers. Discover what is happening, meet the team
 						behind it, and register when tickets are open.
 					</p>
 				</div>
-				<div class="rounded-2xl border border-white/15 bg-white/10 p-6 backdrop-blur-sm">
+				<div class="hidden rounded-2xl border border-white/15 bg-white/10 p-6 backdrop-blur-sm sm:block">
 					<p class="text-sm font-semibold text-primary-100">
 						Open to everyone
 					</p>
@@ -28,7 +28,7 @@
 			</div>
 		</section>
 
-		<section aria-labelledby="marketplace-heading" class="mx-auto max-w-7xl px-5 pt-10 sm:px-8 sm:pt-14">
+		<section aria-labelledby="marketplace-heading" class="mx-auto max-w-7xl px-5 pt-6 sm:px-8 sm:pt-14">
 			<div class="mb-6">
 				<h2 id="marketplace-heading" class="text-2xl font-bold tracking-tight">
 					Explore managed events

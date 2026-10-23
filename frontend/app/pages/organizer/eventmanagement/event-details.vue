@@ -33,7 +33,7 @@
 			</section>
 
 			<!-- Event lifecycle: go live and finish (the server checks event.update / event.complete) -->
-			<section v-if="event && event.id && !isEditMode && canEditCover && ['published', 'ongoing'].includes(event.status)" class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-6 py-4">
+			<section v-if="event && event.id && !isEditMode && canEditCover && showLifecycle" class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-6 py-4">
 				<div class="min-w-0">
 					<p class="text-sm font-bold text-gray-950">{{ event.status === 'ongoing' ? 'The event is live' : 'Event day' }}</p>
 					<p class="mt-0.5 text-sm text-gray-500">{{ event.status === 'ongoing' ? 'Mark it completed when it ends. The client can then leave a review.' : 'Start it when doors open (check-in opens 3 hours before the start time either way), and mark it completed when it ends.' }}</p>
@@ -486,6 +486,15 @@ interface EventTicketType {
 
 // Event cover: anyone who may edit the event (the server checks event.update again).
 const coverOrgId = computed(() => useOrganization().organization.value?.id ?? '')
+// Event day bar: from 24 hours before the start (and while live), so Start event can't be
+// tapped weeks early by mistake.
+const showLifecycle = computed(() => {
+	const e = event.value
+	if (!e || !['published', 'ongoing'].includes(e.status)) return false
+	if (e.status === 'ongoing' || !e.event_date) return true
+	const start = new Date(`${e.event_date}T${e.start_time || '00:00'}`).getTime()
+	return Number.isNaN(start) || start - Date.now() <= 24 * 3600 * 1000
+})
 const canEditCover = computed(() => {
 	const m = useOrganization().organization.value?.my_membership
 	return Boolean(m && (m.is_owner || m.permissions?.includes('event.update') || m.event_permissions?.includes('event.update')))

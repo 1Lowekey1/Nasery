@@ -32,7 +32,7 @@
 					<FormsTextField v-model="search" icon="search" placeholder="Search clients..." />
 				</div>
 
-				<div class="flex flex-wrap items-center gap-2">
+				<div class="chip-row flex flex-wrap items-center gap-2">
 					<span class="text-xs font-semibold uppercase tracking-wide text-gray-400">Sort by</span>
 					<button v-for="option in sortOptions" :key="option.value" type="button"
 						class="inline-flex min-h-9 items-center rounded-full px-3 py-1.5 text-xs font-semibold transition" :class="sortBy === option.value
