@@ -46,6 +46,10 @@
 				</div>
 			</section>
 
+			<!-- What the client asked for (events booked through a request) -->
+			<OrganizerClientRequest v-if="event && event.id && !isEditMode && event.inquiry_id" :organization-id="coverOrgId"
+				:inquiry-id="String(event.inquiry_id)" :quotation-id="event.quotation_id ? String(event.quotation_id) : null" />
+
 			<section v-if="event && event.id && canEditCover" class="rounded-2xl border border-gray-200 bg-white p-6">
 				<h3 class="text-base font-bold text-gray-900">Event cover photo</h3>
 				<p class="mb-4 mt-1 text-sm text-gray-500">Shown on the Events page and the event's public page when the event is public.</p>

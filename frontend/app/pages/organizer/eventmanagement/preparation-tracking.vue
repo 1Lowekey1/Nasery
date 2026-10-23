@@ -37,6 +37,10 @@
 				</div>
 			</section>
 
+			<!-- The client's request, one tap away while preparing -->
+			<OrganizerClientRequest v-if="requestRef.inquiry && requestRef.org" :organization-id="requestRef.org"
+				:inquiry-id="requestRef.inquiry" :quotation-id="requestRef.quotation" collapsible />
+
 			<div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
 				<!-- Checklist -->
 				<section class="rounded-2xl border border-gray-200 bg-white">
@@ -274,6 +278,11 @@ const teamMembers = ref<TeamMember[]>([])
 const orgMembers = ref<{ id: string, name: string, role: string }[]>([])
 const availableMembers = computed(() => orgMembers.value.filter(m => !teamMembers.value.some(t => (t as unknown as { organization_member_id: string }).organization_member_id === m.id)))
 let orgId = ''
+// The request this event was booked from (for the client's-request panel).
+const requestRef = computed(() => {
+	const e = event.value as unknown as { inquiry_id?: string | null, quotation_id?: string | null } | null
+	return { org: useOrganization().organization.value?.id ?? '', inquiry: e?.inquiry_id ? String(e.inquiry_id) : null, quotation: e?.quotation_id ? String(e.quotation_id) : null }
+})
 const showMemberForm = ref(false)
 const creatingMember = ref(false)
 const memberForm = reactive({ organization_member_id: '' })
