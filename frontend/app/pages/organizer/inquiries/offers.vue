@@ -413,9 +413,7 @@ async function startEventPlanning(
 	offer: OrganizerOffer,
 ) {
 	if (offer.event) {
-		await navigateTo(
-			'/organizer/eventmanagement/all-events',
-		)
+		await navigateTo({ path: '/organizer/eventmanagement/event-details', query: { event: String(offer.event.id) } })
 
 		return
 	}

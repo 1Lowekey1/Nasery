@@ -25,7 +25,10 @@
 							<span class="flex items-center gap-1.5"><IconBase name="users" class="h-4 w-4" />{{ event.expected_guests ?? 0 }} guests</span>
 						</div>
 					</div>
-					<span class="rounded-full px-3 py-1 text-xs font-bold" :class="event.status === 'published' ? 'bg-green-400/20 text-green-100 ring-1 ring-green-300/40' : 'bg-white/10 text-white/80 ring-1 ring-white/20'">{{ formatStatus(event.status) }}</span>
+					<div class="flex flex-wrap items-center gap-2">
+						<span class="rounded-full px-3 py-1 text-xs font-bold" :class="event.status === 'published' ? 'bg-green-400/20 text-green-100 ring-1 ring-green-300/40' : 'bg-white/10 text-white/80 ring-1 ring-white/20'">{{ formatStatus(event.status) }}</span>
+						<button v-if="!isEditMode && event.id" type="button" class="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-primary-800 shadow-sm transition hover:bg-primary-25" @click="enterEditMode"><IconBase name="edit" class="h-4 w-4" /> Edit event</button>
+					</div>
 				</div>
 			</section>
 
@@ -263,9 +266,10 @@
 					<button type="button" class="ed-btn !h-9" @click="enterEditMode"><IconBase name="edit" class="h-4 w-4" /> Edit</button>
 				</div>
 				<dl class="divide-y divide-gray-100">
-					<div v-for="(row, i) in viewRows" :key="row.label" class="ed-row grid grid-cols-[150px_minmax(0,1fr)] items-start gap-4 px-6 py-4 sm:grid-cols-[190px_minmax(0,1fr)]" :style="{ '--i': i }">
-						<dt class="flex items-center gap-2.5 text-sm text-gray-500"><IconBase :name="row.icon" class="h-4 w-4 shrink-0 text-gray-400" />{{ row.label }}</dt>
-						<dd class="text-sm font-semibold leading-6" :class="row.empty ? 'font-normal text-gray-400' : 'text-gray-950'">{{ row.value }}</dd>
+					<div v-for="(row, i) in viewRows" :key="row.label" class="ed-row grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto] items-start gap-3 px-4 py-3.5 xl:grid-cols-[190px_minmax(0,1fr)_auto] sm:gap-4 sm:px-6 sm:py-4" :style="{ '--i': i }">
+						<dt class="flex min-w-0 items-start gap-2.5 text-sm leading-6 text-gray-500"><IconBase :name="row.icon" class="mt-1 h-4 w-4 shrink-0 text-gray-400" /><span class="min-w-0 break-words">{{ row.label }}</span></dt>
+						<dd class="min-w-0 break-words text-sm font-semibold leading-6" :class="row.empty ? 'font-normal text-gray-400' : 'text-gray-950'">{{ row.value }}</dd>
+						<button type="button" class="tap-target -my-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary-700 transition hover:bg-primary-25" :aria-label="`${row.empty ? 'Add' : 'Edit'} ${row.label.toLowerCase()}`" @click="openSection(row.section)">{{ row.empty ? 'Add' : 'Edit' }}</button>
 					</div>
 				</dl>
 				<div class="border-t border-gray-100 px-6 py-5">
@@ -276,7 +280,7 @@
 			</section>
 
 			<!-- Readiness + shortcuts -->
-			<aside class="space-y-4 lg:sticky lg:top-0">
+			<aside class="space-y-4 lg:sticky lg:top-0" :class="setupLeft ? 'max-lg:order-first' : ''">
 				<section class="rounded-2xl border border-gray-200 bg-white p-5">
 					<div class="flex items-center gap-4">
 						<div class="relative h-20 w-20 shrink-0">
@@ -287,17 +291,23 @@
 							<span class="absolute inset-0 flex items-center justify-center text-lg font-extrabold tabular-nums text-gray-950">{{ readiness }}%</span>
 						</div>
 						<div>
-							<p class="text-sm font-bold text-gray-950">Event readiness</p>
-							<p class="mt-0.5 text-xs text-gray-500">{{ readinessChecks.filter(c => !c.done).length ? 'A few details left to add' : 'All details are in' }}</p>
+							<p class="text-sm font-bold text-gray-950">{{ setupLeft ? 'Set up this event' : 'Event readiness' }}</p>
+							<p class="mt-0.5 text-xs text-gray-500">{{ setupLeft ? `${setupLeft} ${setupLeft === 1 ? 'step' : 'steps'} left. Tap one to do it.` : 'All set up' }}</p>
 						</div>
 					</div>
-					<ul class="mt-4 space-y-1.5">
-						<li v-for="check in readinessChecks" :key="check.label" class="flex items-center gap-2.5 text-sm" :class="check.done ? 'text-gray-500' : 'text-gray-900'">
-							<span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" :class="check.done ? 'bg-green-50 text-green-600' : 'border-2 border-gray-200'"><IconBase v-if="check.done" name="check" class="h-3 w-3" /></span>
-							<span :class="check.done ? 'line-through decoration-gray-300' : ''">{{ check.label }}</span>
+					<ul class="-mx-2 mt-4 space-y-0.5">
+						<li v-for="check in readinessChecks" :key="check.label">
+							<p v-if="check.done" class="flex items-center gap-2.5 px-2 py-1 text-sm text-gray-500">
+								<span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-600"><IconBase name="check" class="h-3 w-3" /></span>
+								<span class="line-through decoration-gray-300">{{ check.label }}</span>
+							</p>
+							<button v-else type="button" class="group flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2 py-1 text-left text-sm font-medium text-gray-900 transition hover:bg-primary-25" @click="openSection(check.section)">
+								<span class="h-5 w-5 shrink-0 rounded-full border-2 border-gray-200 group-hover:border-primary-400" />
+								<span class="min-w-0 flex-1">{{ check.label }}</span>
+								<IconBase name="arrow-right" class="h-4 w-4 shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-primary-700" />
+							</button>
 						</li>
 					</ul>
-					<button type="button" class="ed-btn ed-btn-primary mt-5 w-full justify-center" @click="enterEditMode"><IconBase name="edit" class="h-4 w-4" /> Edit event</button>
 				</section>
 
 				<nav class="overflow-hidden rounded-2xl border border-gray-200 bg-white" aria-label="More for this event">
@@ -440,34 +450,18 @@
 				</div>
 			</div>
 
-			<div class="mt-6">
-				<div class="mb-2 flex items-center justify-between">
-					<span class="text-sm font-semibold text-gray-900">
-						Event Readiness
-					</span>
-
-					<span class="text-sm text-gray-500">
-						20%
-					</span>
-				</div>
-
-				<div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
-					<div class="h-full w-[20%] rounded-full bg-[#285F6b]" />
-				</div>
+			<div class="mt-6 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
+				<p class="font-semibold text-gray-900">Ready to start preparing?</p>
+				<p class="mt-0.5">We'll create the event from what the client told you (date, venue, guests and contact). Then you confirm the rest step by step.</p>
 			</div>
 
-			<div class="mt-6">
+			<div class="mt-5">
 				<button type="button"
-					class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-60"
+					class="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#285F6b] px-5 text-sm font-bold text-white hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-60"
 					:disabled="isCreatingEvent" @click="editAwardedEvent">
-					<IconBase :name="isCreatingEvent ? 'refresh-cw' : 'edit'" class="h-4 w-4"
+					<IconBase :name="isCreatingEvent ? 'refresh-cw' : 'arrow-right'" class="h-4 w-4"
 						:class="{ 'animate-spin': isCreatingEvent }" />
-
-					{{
-						isCreatingEvent
-							? 'Preparing Event...'
-							: 'Edit Event'
-					}}
+					{{ isCreatingEvent ? 'Setting up the event…' : 'Start preparing' }}
 				</button>
 			</div>
 		</div>
@@ -1083,9 +1077,7 @@ async function editAwardedEvent() {
 		return
 	}
 
-	/*
-	 * If an event already exists, simply open edit mode.
-	 */
+	// The event exists already: open it.
 	if (quotationData.value.event) {
 		await navigateTo({
 			path:
@@ -1094,9 +1086,6 @@ async function editAwardedEvent() {
 			query: {
 				event:
 					quotationData.value.event.id,
-
-				mode:
-					'edit',
 			},
 		})
 
@@ -1127,12 +1116,10 @@ async function editAwardedEvent() {
 			path:
 				'/organizer/eventmanagement/event-details',
 
+			// The event page's "Set up this event" checklist walks through the rest.
 			query: {
 				event:
 					response.data.event.id,
-
-				mode:
-					'edit',
 			},
 		})
 
@@ -1449,28 +1436,37 @@ const viewRows = computed(() => {
 	const end = clockTime(e.end_time)
 	const time = start && end ? `${start} – ${end}` : start || end
 	const tickets = e.ticket_types ?? []
+	const guestList = tickets.length > 0 && !e.public_registration && tickets.every(t => isGuestTier(t))
 	return [
-		{ label: 'Event type', icon: 'tag', value: e.event_type || 'Not set', empty: !e.event_type },
-		{ label: 'Date', icon: 'calendar', value: e.event_date ? formatDate(e.event_date) : 'Not set', empty: !e.event_date },
-		{ label: 'Time', icon: 'clock', value: time || 'Not set', empty: !time },
-		{ label: 'Venue', icon: 'map-pin', value: e.location || 'Not set', empty: !e.location },
-		{ label: 'Expected guests', icon: 'users', value: e.expected_guests ? `${e.expected_guests} guests` : 'Not set', empty: !e.expected_guests },
-		{ label: 'Tickets', icon: 'ticket', value: tickets.length ? `${tickets.length} ${tickets.length === 1 ? 'type' : 'types'} · ${tickets.reduce((s, t) => s + (Number(t.capacity) || 0), 0)} seats` : 'No ticket types yet', empty: !tickets.length },
-		{ label: 'Registration', icon: 'shield-check', value: [e.public_registration ? 'Public' : 'Invite only', e.waitlist_enabled ? 'waitlist on' : ''].filter(Boolean).join(' · '), empty: false },
-		{ label: 'Contact', icon: 'phone', value: [e.contact_name, e.contact_phone || e.contact_email].filter(Boolean).join(' · ') || 'Not set', empty: !e.contact_name && !e.contact_phone && !e.contact_email },
+		{ label: 'Event type', icon: 'tag', section: 'basic', value: e.event_type || 'Not set', empty: !e.event_type },
+		{ label: 'Date', icon: 'calendar', section: 'basic', value: e.event_date ? formatDate(e.event_date) : 'Not set', empty: !e.event_date },
+		{ label: 'Time', icon: 'clock', section: 'basic', value: time || 'Not set', empty: !time },
+		{ label: 'Venue', icon: 'map-pin', section: 'venue', value: e.location || 'Not set', empty: !e.location },
+		{ label: 'Expected guests', icon: 'users', section: 'venue', value: e.expected_guests ? `${e.expected_guests} guests` : 'Not set', empty: !e.expected_guests },
+		{ label: 'Guests get in', icon: 'ticket', section: 'tickets', value: guestList ? 'Guest list (invitation only)' : tickets.length ? `Tickets · ${tickets.length} ${tickets.length === 1 ? 'type' : 'types'} · ${tickets.reduce((s, t) => s + (Number(t.capacity) || 0), 0)} seats` : 'Not chosen yet', empty: !tickets.length },
+		...(guestList ? [] : [{ label: 'Registration', icon: 'shield-check', section: 'settings', value: [e.public_registration ? 'Public' : 'Invite only', e.waitlist_enabled ? 'waitlist on' : ''].filter(Boolean).join(' · '), empty: false }]),
+		{ label: 'Contact', icon: 'phone', section: 'contact', value: [e.contact_name, e.contact_phone || e.contact_email].filter(Boolean).join(' · ') || 'Not set', empty: !e.contact_name && !e.contact_phone && !e.contact_email },
 	]
 })
 const readinessChecks = computed(() => {
 	const e = event.value
 	if (!e) return []
+	// The setup steps after "Start event planning" (review findings #4/#6), in order.
 	return [
-		{ label: 'Date', done: !!e.event_date },
-		{ label: 'Venue', done: !!e.location },
-		{ label: 'Expected guests', done: !!e.expected_guests },
-		{ label: 'Start and end time', done: !!(e.start_time && e.end_time) },
-		{ label: 'Description', done: !!e.description },
+		{ label: 'Confirm the date and time', section: 'basic', done: !!(e.event_date && e.start_time && e.end_time) },
+		{ label: 'Confirm the venue and guests', section: 'venue', done: !!(e.location && e.expected_guests) },
+		{ label: 'Choose how guests get in', section: 'tickets', done: !!e.ticket_types?.length },
+		{ label: 'Add a contact for the day', section: 'contact', done: !!(e.contact_name && (e.contact_phone || e.contact_email)) },
+		{ label: 'Describe the event', section: 'basic', done: !!e.description },
+		{ label: 'Publish it', section: 'basic', done: e.status !== 'draft' },
 	]
 })
+const setupLeft = computed(() => readinessChecks.value.filter(c => !c.done).length)
+async function openSection(section: string) {
+	if (!event.value) return
+	fillEditForm()
+	await navigateTo({ path: '/organizer/eventmanagement/event-details', query: { event: event.value.id, mode: 'edit', section } })
+}
 const viewLinks = [
 	{ to: '/organizer/eventmanagement/ticket-tiers', label: 'Ticket tiers', hint: 'Prices, seats and sales', icon: 'ticket' },
 	{ to: '/organizer/eventmanagement/preparation-tracking', label: 'Preparation tracking', hint: 'Tasks and assignments', icon: 'clipboard-list' },
