@@ -489,6 +489,7 @@
 				</div>
 			</div>
 		</FormsConfirmationModal>
+
 	</div>
 </template>
 
@@ -850,7 +851,6 @@ function closeOfferForm() {
 	showOfferConfirmation.value = false
 
 	selectedInquiryId.value = null
-
 	offerError.value = ''
 	offerSuccess.value = ''
 

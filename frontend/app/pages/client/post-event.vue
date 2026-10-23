@@ -1,27 +1,41 @@
 <template>
-	<div class="mx-auto max-w-6xl pb-12">
+	<div class="w-full pb-6">
 		<NuxtLink to="/client/my-events"
-			class="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-primary-700 hover:text-primary-900">
+			class="pe-rise mb-4 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition hover:text-primary-700">
 			<IconBase name="arrow-right" class="h-4 w-4 rotate-180" />
 			Back to dashboard
 		</NuxtLink>
 
-		<section
-			class="relative overflow-hidden rounded-3xl bg-primary-900 px-6 py-8 text-white shadow-sm sm:px-10 sm:py-10">
-			<div aria-hidden="true" class="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-white/10" />
-			<div aria-hidden="true"
-				class="absolute -bottom-32 right-36 h-60 w-60 rounded-full border border-white/10" />
-			<div class="relative max-w-2xl">
-				<p class="text-xs font-bold uppercase tracking-[.2em] text-primary-200">
-					Plan your next occasion
-				</p>
-				<h1 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
-					Tell us about your event.
-				</h1>
-				<p class="mt-3 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
-					Share the essentials once. Qualified organizers can review your vision and send offers that fit your
-					plans.
-				</p>
+		<section class="pe-hero pe-rise relative overflow-hidden rounded-[2rem] text-white" style="--d: 40ms">
+			<span class="pe-orb" />
+			<span class="pe-dots" />
+
+			<div class="relative flex flex-col gap-8 px-6 py-8 sm:px-10 sm:py-10 lg:flex-row lg:items-center lg:justify-between">
+				<div class="max-w-2xl">
+					<div class="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 backdrop-blur">
+						<IconBase name="sparkles" class="h-3.5 w-3.5" />
+						Plan your next occasion
+					</div>
+					<h1 class="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
+						Tell us about your event.
+					</h1>
+					<p class="mt-3 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
+						Share the essentials once. Qualified organizers can review your vision and send offers that fit your plans.
+					</p>
+				</div>
+
+				<div class="w-full max-w-sm rounded-2xl bg-white/10 p-5 ring-1 ring-white/20 backdrop-blur-sm lg:w-80">
+					<div class="flex items-end justify-between">
+						<p class="text-xs font-bold uppercase tracking-[0.12em] text-white/70">Inquiry progress</p>
+						<p class="text-2xl font-extrabold leading-none">{{ completion.percent }}%</p>
+					</div>
+					<div class="mt-3 h-2 overflow-hidden rounded-full bg-white/20">
+						<div class="h-full rounded-full bg-white transition-all duration-500 ease-out" :style="{ width: completion.percent + '%' }" />
+					</div>
+					<p class="mt-3 text-xs text-white/70">
+						{{ completion.done === completion.total ? 'All set. You can submit your inquiry.' : `${completion.done} of ${completion.total} details completed` }}
+					</p>
+				</div>
 			</div>
 		</section>
 
@@ -35,14 +49,14 @@
 			<NuxtLink to="/client/post-event" class="text-xs font-bold text-primary-700 hover:text-primary-900">Send to nearby organizers instead</NuxtLink>
 		</div>
 
-		<div class="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
-			<form class="space-y-5" novalidate @submit.prevent="requestInquirySubmission">
+		<div class="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
+			<form class="space-y-6" novalidate @submit.prevent="requestInquirySubmission">
 				<FormsDraftNotice :draft="draft" />
-				<section class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+				<section class="pe-rise overflow-hidden rounded-3xl border border-gray-200 bg-white" style="--d: 100ms">
 					<div
-						class="flex flex-col justify-between gap-4 border-b border-gray-100 bg-gradient-to-r from-primary-50/80 to-white px-5 py-5 sm:flex-row sm:items-center sm:px-7">
+						class="flex flex-col justify-between gap-4 border-b border-gray-100 px-6 py-5 sm:flex-row sm:items-center sm:px-8">
 						<div class="flex items-center gap-3"><span
-								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-700 text-sm font-extrabold text-white shadow-sm">1</span>
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-700 text-sm font-extrabold text-white">1</span>
 							<div>
 								<p class="text-[10px] font-extrabold uppercase tracking-[.16em] text-primary-600">
 									Getting started</p>
@@ -57,7 +71,7 @@
 						</span>
 					</div>
 
-					<div class="p-5 sm:p-7">
+					<div class="p-6 sm:p-8">
 						<div class="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
 							<FormsLabel text="Give your event a name" hint="(optional)" />
 							<FormsTextField v-model="form.title" size="lg" placeholder="e.g. Marlo & Rena Wedding"
@@ -70,10 +84,10 @@
 								<p class="mt-1 text-xs text-gray-400">Select one event type. Click it again to clear
 									your choice.</p>
 							</div><span v-if="form.eventType"
-								class="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">{{
+								class="shrink-0 rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-bold text-primary-700">{{
 									form.eventType }} selected</span>
 						</div>
-						<div class="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+						<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
 							<button v-for="type in eventTypes" :key="type.value" type="button"
 								:aria-pressed="form.eventType === type.value"
 								class="group relative z-0 flex min-h-[5.25rem] cursor-pointer flex-col items-start justify-between overflow-hidden rounded-xl border p-3 text-left transition"
@@ -163,10 +177,10 @@
 					</div>
 				</section>
 
-				<section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+				<section class="pe-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8" style="--d: 160ms">
 					<div class="mb-6 flex items-start gap-3">
 						<span
-							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-sm font-extrabold text-primary-700">2</span>
+							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-700 text-sm font-extrabold text-white">2</span>
 						<div>
 							<h2 class="text-lg font-bold text-gray-900">Place and budget</h2>
 							<p class="mt-1 text-sm text-gray-500">Choose the venue area and a comfortable spending
@@ -232,12 +246,12 @@
 										your plans.</p>
 								</div>
 								<span v-if="form.budget"
-									class="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+									class="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700">
 									<IconBase name="check-circle" class="h-3.5 w-3.5" /> Budget selected
 								</span>
 							</div>
 							<p v-if="showMissing('budget')" class="-mt-2 mb-3 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">Choose a budget range.</p>
-							<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" role="radiogroup"
+							<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" role="radiogroup"
 								aria-label="Budget range">
 								<button v-for="option in budgetOptions" :key="option.value" type="button" role="radio"
 									:aria-checked="form.budget === option.value"
@@ -281,7 +295,7 @@
 								<div class="flex flex-wrap items-center gap-2">
 									<p class="font-semibold text-gray-900">{{ form.venueName || 'Selected location' }}
 									</p><span
-										class="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">Location
+										class="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-bold text-primary-700">Location
 										confirmed</span>
 								</div>
 								<p class="mt-1 text-sm text-gray-500">{{ form.venueAddress }}</p>
@@ -303,9 +317,9 @@
 					</div>
 				</section>
 
-				<section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+				<section class="pe-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8" style="--d: 220ms">
 					<div class="mb-6 flex items-start gap-3"><span
-							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-sm font-extrabold text-primary-700">3</span>
+							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-700 text-sm font-extrabold text-white">3</span>
 						<div>
 							<h2 class="text-lg font-bold text-gray-900">Your vision</h2>
 							<p class="mt-1 text-sm text-gray-500">A little context helps organizers prepare a more
@@ -320,7 +334,7 @@
 				</section>
 
 				<section v-if="hasSelectedLocation"
-					class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+					class="pe-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8">
 					<div class="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
 						<div>
 							<h2 class="text-lg font-bold text-gray-900">Organizers near your event</h2>
@@ -396,7 +410,7 @@
 				</div>
 				<!-- Stays clickable while incomplete: pressing it lists what's missing and jumps there. -->
 				<button type="submit"
-					class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-900 disabled:cursor-not-allowed disabled:opacity-50"
+					class="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-700 py-4 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-primary-800 hover:shadow-md active:translate-y-0 active:scale-[0.99] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
 					:class="{ 'opacity-75': !isValid }"
 					:disabled="isSubmitting">
 					<template v-if="isSubmitting">Submitting inquiry…</template><template v-else>
@@ -405,8 +419,8 @@
 				</button>
 			</form>
 
-			<aside class="space-y-4 lg:sticky lg:top-6">
-				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+			<aside class="space-y-4 xl:sticky xl:top-6">
+				<div class="pe-rise rounded-3xl border border-gray-200 bg-white p-6" style="--d: 160ms">
 					<p class="text-xs font-bold uppercase tracking-widest text-primary-700">Inquiry preview</p>
 					<h2 class="mt-3 text-lg font-bold text-gray-900">{{ form.title || form.eventType || 'Your event' }}
 					</h2>
@@ -446,7 +460,20 @@
 						</div>
 					</dl>
 				</div>
-				<div class="rounded-2xl border border-primary-100 bg-primary-50 p-5">
+				<div class="pe-rise rounded-3xl border border-gray-200 bg-white p-6" style="--d: 220ms">
+					<p class="text-xs font-bold uppercase tracking-widest text-primary-700">Checklist</p>
+					<ul class="mt-4 space-y-3">
+						<li v-for="item in completion.items" :key="item.label" class="flex items-center gap-3 text-sm">
+							<span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition duration-300"
+								:class="item.done ? 'border-primary-700 bg-primary-700 text-white' : 'border-gray-300 bg-white text-transparent'">
+								<svg viewBox="0 0 20 20" class="h-3 w-3" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.8 3.8 6.8-6.8a1 1 0 0 1 1.4 0Z" clip-rule="evenodd" /></svg>
+							</span>
+							<span :class="item.done ? 'font-semibold text-gray-900' : 'text-gray-500'">{{ item.label }}</span>
+						</li>
+					</ul>
+				</div>
+
+				<div class="pe-rise rounded-3xl border border-primary-100 bg-primary-50/60 p-6" style="--d: 280ms">
 					<div class="flex gap-3"><span
 							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-primary-700">
 							<IconBase name="check-circle" class="h-4 w-4" />
@@ -758,6 +785,21 @@ const missing = computed(() => {
 })
 const showMissing = (key: string) => attempted.value && missing.value.some(m => m.key === key)
 const isValid = computed(() => missing.value.length === 0)
+
+// The side checklist: the same rules as `missing`.
+const completion = computed(() => {
+	const keys = new Set(missing.value.map(m => m.key))
+	const items = [
+		{ label: 'Event type', done: !keys.has('eventType') },
+		...(servicesRequired.value ? [{ label: 'Services needed', done: !keys.has('services') }] : []),
+		{ label: 'Date and time', done: !keys.has('schedule') },
+		{ label: 'Expected guests', done: !keys.has('guests') },
+		{ label: 'Location', done: !keys.has('location') },
+		{ label: 'Budget', done: !keys.has('budget') },
+	]
+	const done = items.filter(item => item.done).length
+	return { items, done, total: items.length, percent: Math.round((done / items.length) * 100) }
+})
 
 function pointToFirstMissing() {
 	attempted.value = true
@@ -1801,3 +1843,52 @@ Estimate from ${target.value.display_name}${/s$/i.test(target.value.display_name
 	}
 }
 </script>
+
+<style scoped>
+.pe-hero {
+	background: #285f6b;
+}
+
+.pe-orb {
+	position: absolute;
+	top: -120px;
+	right: 6%;
+	height: 320px;
+	width: 320px;
+	border-radius: 9999px;
+	background: rgba(255, 255, 255, 0.1);
+	filter: blur(60px);
+	pointer-events: none;
+	animation: pe-drift 16s ease-in-out infinite;
+}
+
+.pe-dots {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+	background-size: 22px 22px;
+	mask-image: linear-gradient(115deg, transparent 25%, #000 90%);
+	-webkit-mask-image: linear-gradient(115deg, transparent 25%, #000 90%);
+}
+
+.pe-rise {
+	/* `backwards` (not `both`) so no transform lingers afterwards and open dropdowns can overlap later sections */
+	animation: pe-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+	animation-delay: var(--d, 0ms);
+}
+
+@keyframes pe-rise {
+	from { opacity: 0; transform: translateY(14px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pe-drift {
+	0%, 100% { transform: translate(0, 0) scale(1); }
+	50% { transform: translate(-22px, 16px) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pe-orb, .pe-rise { animation: none; }
+}
+</style>

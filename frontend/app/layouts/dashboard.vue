@@ -78,7 +78,7 @@
 
 				<div class="flex items-center gap-2">
 					<NotificationsDropdown />
-					<button type="button" class="flex max-w-52 items-center gap-2 rounded-xl border border-gray-200 bg-white p-1.5 pr-3 text-left transition hover:border-primary-200 hover:bg-primary-50" @click="openProfilePanel">
+					<button type="button" class="flex max-w-52 items-center gap-2 rounded-xl border border-gray-200 bg-white p-1.5 pr-3 text-left transition hover:border-primary-200 hover:bg-primary-50" @click="navigateTo('/organizer/business-profile')">
 						<span class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary-700 text-xs font-bold text-white">
 							<img v-if="user?.avatar_url" :src="user.avatar_url" alt="" class="h-full w-full object-cover" /><span v-else>{{ sidebarInitials }}</span>
 						</span>
@@ -459,6 +459,9 @@
 </template>
 
 <script setup lang="ts">
+onBeforeUnmount(() => {
+	window.removeEventListener('organizer-profile:updated', onOrganizerProfileUpdated)
+})
 
 const route = useRoute()
 
@@ -504,6 +507,11 @@ const navItems = [
 		label: 'Home',
 		to: '/organizer/home',
 		icon: 'home',
+	},
+	{
+		label: 'Business Profile',
+		to: '/organizer/business-profile',
+		icon: 'briefcase',
 	},
 	{
 		label: 'Analytics Dashboard',
@@ -577,6 +585,7 @@ const analyticsRoutes = [
 const inquiryRoutes = [
 	'/organizer/inquiries/match-inquiries',
 	'/organizer/inquiries/offers',
+	'/organizer/inquiries/price-list',
 ]
 
 const eventManagementRoutes = [
@@ -1010,7 +1019,12 @@ watch(
 	}
 )
 
+function onOrganizerProfileUpdated() {
+	loadOrganizerProfile()
+}
+
 onMounted(() => {
+	window.addEventListener('organizer-profile:updated', onOrganizerProfileUpdated)
 	loadOrganizerProfile()
 })
 

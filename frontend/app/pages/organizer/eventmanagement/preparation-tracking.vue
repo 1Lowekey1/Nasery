@@ -1,230 +1,155 @@
 <template>
 	<div class="space-y-6">
-		<div v-if="isLoading" class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
-			Loading preparation checklist...
+		<div v-if="isLoading" class="space-y-4">
+			<div class="h-40 animate-pulse rounded-3xl bg-white ring-1 ring-gray-200" />
+			<div class="h-64 animate-pulse rounded-2xl bg-white ring-1 ring-gray-200" />
 		</div>
 
-		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-			{{ errorMessage }}
-		</div>
+		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">{{ errorMessage }}</div>
 
 		<template v-else-if="event">
-			<section class="relative overflow-hidden rounded-3xl bg-primary-700 px-6 py-7 text-white shadow-sm sm:px-8">
-				<div class="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-				<div class="relative">
-					<p class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/60">
-						<span class="h-1.5 w-1.5 rounded-full bg-white/60" />
-						Preparation tracking
-					</p>
-					<h2 class="mt-2 text-2xl font-black tracking-tight sm:text-3xl">{{ event.name }}</h2>
-					<p class="mt-1 text-sm text-white/70">Track tasks, assignments, and readiness before the big day.</p>
+			<!-- Banner with readiness -->
+			<section class="relative overflow-hidden rounded-3xl bg-primary-700 px-6 py-7 text-white sm:px-8">
+				<div class="pt-dots" aria-hidden="true" />
+				<div class="pt-glow" aria-hidden="true" />
+				<div class="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+					<div class="min-w-0">
+						<p class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/60"><span class="h-1.5 w-1.5 rounded-full bg-white/60" />Preparation tracking</p>
+						<h2 class="mt-2 truncate text-2xl font-black tracking-tight sm:text-3xl">{{ event.name }}</h2>
+						<p class="mt-1 text-sm text-white/70">Track tasks, assignments, and readiness before the big day.</p>
+						<Transition name="pt-fade">
+							<p v-if="checklist.length && readinessPercent === 100" class="mt-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/20"><IconBase name="sparkles" class="h-3.5 w-3.5" /> All set. Every task is done.</p>
+						</Transition>
+					</div>
+					<div class="flex items-center gap-4">
+						<div class="relative h-24 w-24 shrink-0">
+							<svg viewBox="0 0 96 96" class="h-full w-full -rotate-90" aria-hidden="true">
+								<circle cx="48" cy="48" r="40" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8" />
+								<circle cx="48" cy="48" r="40" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" :stroke-dasharray="PT_RING" :stroke-dashoffset="PT_RING * (1 - (ringReady ? readinessPercent : 0) / 100)" class="transition-[stroke-dashoffset] duration-700 ease-out" />
+							</svg>
+							<span class="absolute inset-0 flex flex-col items-center justify-center"><span class="text-xl font-extrabold tabular-nums">{{ readinessPercent }}%</span><span class="text-[10px] text-white/60">ready</span></span>
+						</div>
+						<div class="text-sm">
+							<p><strong class="text-lg font-extrabold tabular-nums">{{ completedCount }}</strong><span class="text-white/60"> / {{ checklist.length }} done</span></p>
+							<p class="text-xs text-white/60">{{ reviewCount }} waiting for your review</p>
+						</div>
+					</div>
 				</div>
 			</section>
 
-			<div class="rounded-2xl border border-gray-200 bg-white p-6">
-			<div class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#285F6b]/5 p-4">
-				<div>
-					<p class="text-sm font-bold text-[#285F6b]">Event Team</p>
-					<p class="text-xs text-gray-500">
-						{{ teamMembers.length }} active member{{ teamMembers.length === 1 ?
-							'' : 's' }} available for assignment
-					</p>
-				</div>
-				<button
-					class="rounded-xl border border-[#285F6b]/20 bg-white px-4 py-2 text-sm font-bold text-[#285F6b]"
-					@click="showMemberForm = !showMemberForm">
-					{{ showMemberForm ? 'Close' : '+ Add Team Member' }}
-				</button>
-			</div>
-			<div v-if="showMemberForm"
-				class="mb-6 grid gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:grid-cols-[1fr_auto]">
-				<select v-model="memberForm.organization_member_id"
-					class="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm">
-					<option value="">Choose someone from your team…</option>
-					<option v-for="m in availableMembers" :key="m.id" :value="m.id">{{ m.name }} — {{ m.role }}</option>
-				</select>
-				<button class="rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
-					:disabled="creatingMember || !memberForm.organization_member_id" @click="createTeamMember">
-					{{ creatingMember ? 'Adding...' : 'Add to this event' }}
-				</button>
-				<p class="text-xs text-gray-500 sm:col-span-2">
-					Only people on this event's team can be assigned tasks.
-					<template v-if="!availableMembers.length">Everyone on your team is already here.</template>
-					New person? <NuxtLink to="/organizer/team" class="font-semibold text-[#285F6b]">Invite them from Team</NuxtLink>;
-					they choose their own password.
-				</p>
-			</div>
-			<div class="mb-1 flex items-center justify-between">
-				<span class="text-base font-bold text-gray-900">
-					Overall Event Readiness
-				</span>
+			<div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+				<!-- Checklist -->
+				<section class="rounded-2xl border border-gray-200 bg-white">
+					<div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
+						<h3 class="text-base font-bold text-gray-950">Checklist</h3>
+						<div class="pt-seg" role="tablist" aria-label="Filter tasks">
+							<span class="pt-seg-thumb" aria-hidden="true" :style="{ transform: `translateX(${filterIndex * 100}%)` }" />
+							<button v-for="f in taskFilters" :key="f.value" type="button" role="tab" :aria-selected="taskFilter === f.value" :class="taskFilter === f.value ? 'is-on' : ''" @click="taskFilter = f.value">{{ f.label }} <span class="tabular-nums opacity-50">{{ f.count }}</span></button>
+						</div>
+					</div>
 
-				<span class="text-2xl font-extrabold text-gray-900">
-					{{ readinessPercent }}%
-				</span>
-			</div>
+					<!-- Quick add -->
+					<form class="flex flex-col gap-2 border-b border-gray-100 bg-gray-50/60 px-5 py-4 sm:flex-row" @submit.prevent="quickAdd">
+						<div class="relative min-w-0 flex-1">
+							<IconBase name="plus" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+							<input ref="quickInput" v-model="newItemLabel" type="text" maxlength="255" class="pt-field !pl-10" placeholder="Add a task, e.g. Confirm sound system with supplier" :disabled="isAddingItem" aria-label="New task" />
+						</div>
+						<div class="sm:w-56"><FormsSelect v-model="newItemAssignee" :options="assigneeOptions" placeholder="Assign to" /></div>
+						<button type="submit" class="pt-btn-primary shrink-0" :disabled="isAddingItem || !newItemLabel.trim()">
+							<IconBase :name="isAddingItem ? 'refresh-cw' : 'plus'" class="h-4 w-4" :class="isAddingItem ? 'animate-spin' : ''" />{{ isAddingItem ? 'Adding…' : 'Add' }}
+						</button>
+					</form>
 
-			<div class="relative mb-6 h-8 w-full overflow-hidden rounded-full bg-gray-100">
-				<div class="h-full rounded-full bg-primary-700 transition-all duration-200" :style="{
-					width:
-						readinessPercent +
-						'%',
-				}" />
-
-				<span class="absolute inset-0 flex items-center justify-center text-sm font-semibold" :class="readinessPercent >= 45
-					? 'text-white'
-					: 'text-gray-700'
-					">
-					{{ completedCount }}/{{ checklist.length }}
-					completed
-				</span>
-			</div>
-
-			<div v-if="checklist.length" class="space-y-3">
-				<template v-for="item in checklist" :key="item.id">
-				<div
-					class="flex w-full items-start gap-3 rounded-xl border border-gray-200 px-4 py-3.5 transition hover:bg-gray-50">
-					<button type="button" class="flex flex-1 items-center gap-3 text-left" :disabled="updatingItemId === item.id
-						" @click="toggleItem(item)">
-						<IconBase v-if="item.is_completed" name="check-circle"
-							class="h-5 w-5 shrink-0 text-green-600" />
-
-						<span v-else class="h-5 w-5 shrink-0 rounded-full border-2 border-gray-300" />
-
-						<span class="flex-1 text-sm font-medium" :class="item.is_completed
-							? 'text-gray-400 line-through'
-							: 'text-gray-900'
-							">
-							{{ item.label }}
-							<span v-if="item.assigned_team_member"
-								class="mt-1 block text-xs font-semibold text-[#285F6b]">
-								Assigned to {{ memberName(item.assigned_team_member) }}
-							</span>
-							<!-- e.g. the assignee left or was removed from the team -->
-							<span v-else-if="!item.is_completed" class="mt-1 block text-xs font-semibold text-amber-700">
-								Needs an assignee
-							</span>
-							<span v-if="item.completed_by" class="mt-1 block text-xs text-gray-500">
-								Completed by {{ userName(item.completed_by) }}
-								<template v-if="item.completion_note"> —
-									{{
-										item.completion_note
-									}}
+					<TransitionGroup v-if="visibleTasks.length" tag="ul" name="pt-item" class="relative divide-y divide-gray-100">
+						<li v-for="item in visibleTasks" :key="item.id" class="group flex items-start gap-3 px-5 py-4 transition-colors hover:bg-gray-50/70">
+							<button type="button" class="pt-check" :class="item.is_completed ? 'is-done' : ''" :disabled="updatingItemId === item.id" :aria-label="item.is_completed ? `Mark ${item.label} as not done` : `Mark ${item.label} as done`" @click="toggleItem(item)">
+								<IconBase v-if="updatingItemId === item.id" name="refresh-cw" class="h-3 w-3 animate-spin" />
+								<svg v-else-if="item.is_completed" viewBox="0 0 20 20" class="h-3.5 w-3.5" aria-hidden="true"><path class="pt-tick" d="M5 10.5 8.5 14 15 6.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
+							</button>
+							<div class="min-w-0 flex-1">
+								<p class="text-sm font-medium transition" :class="item.is_completed ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-950'">{{ item.label }}</p>
+								<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+									<label class="pt-chip cursor-pointer" :class="item.assigned_team_member ? '' : (item.is_completed ? 'text-gray-400' : 'border-amber-200 bg-amber-50 text-amber-800')">
+										<span v-if="item.assigned_team_member" class="pt-avatar h-4 w-4 text-[8px]">{{ initials(memberName(item.assigned_team_member)) }}</span>
+										<select class="cursor-pointer appearance-none bg-transparent pr-1 outline-none" :value="item.assigned_team_member_id ?? ''"
+											:disabled="updatingItemId === item.id || !teamMembers.length" :aria-label="`Assign ${item.label}`"
+											@change="assignItem(item, ($event.target as HTMLSelectElement).value)">
+											<option value="">{{ item.is_completed ? 'Unassigned' : 'Needs an assignee' }}</option>
+											<option v-for="member in teamMembers" :key="member.id" :value="member.id">{{ memberName(member) }}</option>
+										</select>
+									</label>
+									<span v-if="item.completed_by" class="text-xs text-gray-500">Done by {{ userName(item.completed_by) }}<template v-if="item.completion_note"> · “{{ item.completion_note }}”</template></span>
+								</div>
+								<form v-if="changesFor === item.id" class="mt-2.5 flex flex-wrap items-center gap-2 rounded-xl bg-red-50/60 px-3 py-2.5"
+									@submit.prevent="reviewItem(item, 'changes_requested')">
+									<input v-model="changesNote" required minlength="3" maxlength="1000" placeholder="What should be changed? (sent to the assignee)"
+										class="pt-field !h-9 min-w-60 flex-1 !border-red-200">
+									<button type="submit" class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50" :disabled="changesNote.trim().length < 3">Send back</button>
+									<button type="button" class="text-xs font-semibold text-gray-500" @click="changesFor = null">Cancel</button>
+								</form>
+							</div>
+							<div class="flex shrink-0 items-center gap-1.5">
+								<template v-if="item.is_completed && item.review_status === 'pending' && item.completed_by">
+									<button type="button" class="pt-review is-ok" @click="reviewItem(item, 'verified')"><IconBase name="check" class="h-3.5 w-3.5" /> Verify</button>
+									<button type="button" class="pt-review" @click="startChanges(item)">Request changes</button>
 								</template>
-							</span>
-						</span>
-
-						<IconBase v-if="
-							updatingItemId ===
-							item.id
-						" name="refresh-cw" class="h-4 w-4 animate-spin text-gray-400" />
-					</button>
-					<div v-if="item.is_completed && item.review_status === 'pending'" class="flex gap-1">
-						<button class="rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700"
-							@click="reviewItem(item, 'verified')">
-							Verify
-						</button>
-						<button class="rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700"
-							@click="startChanges(item)">
-							Request changes
-						</button>
+								<span v-else-if="item.is_completed && item.review_status !== 'pending'" class="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700">
+									<span class="h-1.5 w-1.5 rounded-full" :class="item.review_status === 'verified' ? 'bg-green-600' : 'bg-red-500'" />{{ item.review_status === 'verified' ? 'Verified' : 'Changes requested' }}
+								</span>
+								<button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 opacity-100 transition hover:bg-red-50 hover:text-red-600 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100" :disabled="deletingItemId === item.id" :aria-label="`Delete ${item.label}`" @click="confirmRemove(item)">
+									<IconBase :name="deletingItemId === item.id ? 'refresh-cw' : 'trash'" class="h-4 w-4" :class="{ 'animate-spin': deletingItemId === item.id }" />
+								</button>
+							</div>
+						</li>
+					</TransitionGroup>
+					<div v-else class="px-6 py-12 text-center">
+						<p class="text-sm font-semibold text-gray-800">{{ checklist.length ? 'Nothing here' : 'No tasks yet' }}</p>
+						<p class="mt-1 text-sm text-gray-500">{{ checklist.length ? 'Try another filter.' : 'Add the first task above. Assign it to a teammate and they’ll see it in their Team portal.' }}</p>
 					</div>
-					<span v-else-if="item.is_completed || item.review_status === 'changes_requested'" class="rounded-full px-2.5 py-1 text-xs font-bold"
-						:class="item.review_status === 'verified' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'">
-						{{
-							item.review_status === 'verified' ? 'Verified' : 'Changes requested'
-						}}
-					</span>
+				</section>
 
-					<select v-if="teamMembers.length" :value="item.assigned_team_member_id ?? ''"
-						class="max-w-40 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
-						:disabled="updatingItemId === item.id" :aria-label="`Assign ${item.label}`"
-						@change="assignItem(item, ($event.target as HTMLSelectElement).value)">
-						<option value="">Unassigned</option>
-						<option v-for="member in teamMembers" :key="member.id" :value="member.id">{{ memberName(member) }}</option>
-					</select>
+				<!-- Team -->
+				<aside class="space-y-4 xl:sticky xl:top-0">
+					<section class="rounded-2xl border border-gray-200 bg-white">
+						<div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+							<div>
+								<h3 class="text-base font-bold text-gray-950">Event team</h3>
+								<p class="text-xs text-gray-500">{{ teamMembers.length }} {{ teamMembers.length === 1 ? 'person' : 'people' }} you can assign</p>
+							</div>
+							<NuxtLink to="/organizer/team" class="text-xs font-semibold text-primary-700 hover:underline">Manage</NuxtLink>
+						</div>
+						<ul v-if="teamMembers.length" class="divide-y divide-gray-100">
+							<li v-for="member in teamMembers" :key="member.id" class="flex items-center gap-3 px-5 py-3">
+								<span class="pt-avatar h-9 w-9 text-xs">{{ initials(memberName(member)) }}</span>
+								<div class="min-w-0 flex-1">
+									<p class="truncate text-sm font-semibold text-gray-950">{{ memberName(member) }}</p>
+									<p class="truncate text-xs text-gray-500">{{ member.position || 'Team member' }}</p>
+								</div>
+								<span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-gray-600" :title="`${openFor(member)} open tasks`">{{ openFor(member) }} open</span>
+							</li>
+						</ul>
+						<p v-else class="px-5 py-6 text-sm text-gray-500">No teammates yet. Add one to start assigning tasks.</p>
 
-					<template v-if="confirmDeleteId === item.id">
-						<button type="button" class="rounded-lg bg-red-600 px-2.5 py-1.5 text-xs font-bold text-white disabled:opacity-50"
-							:disabled="deletingItemId === item.id" @click="removeChecklistItem(item)">
-							{{ deletingItemId === item.id ? 'Removing…' : 'Remove' }}
-						</button>
-						<button type="button" class="px-1 text-xs font-semibold text-gray-500" @click="confirmDeleteId = null">Cancel</button>
-					</template>
-					<button v-else type="button"
-						class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
-						:aria-label="`Remove ${item.label}`" @click="confirmDeleteId = item.id">
-						<IconBase name="trash" class="h-4 w-4" />
-					</button>
-				</div>
-				<form v-if="changesFor === item.id" class="-mt-1 mb-2 flex flex-wrap items-center gap-2 rounded-xl bg-red-50/60 px-3 py-2.5"
-					@submit.prevent="reviewItem(item, 'changes_requested')">
-					<input v-model="changesNote" required minlength="3" maxlength="1000" placeholder="What should be changed? (sent to the assignee)"
-						class="min-w-60 flex-1 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm">
-					<button type="submit" class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50" :disabled="changesNote.trim().length < 3">Send back</button>
-					<button type="button" class="text-xs font-semibold text-gray-500" @click="changesFor = null">Cancel</button>
-				</form>
-				</template>
-			</div>
-
-			<div v-else class="rounded-xl border border-dashed border-gray-300 p-8 text-center">
-				<p class="text-sm text-gray-500">
-					No preparation items yet.
-				</p>
-			</div>
-
-			<div class="mt-5">
-				<button v-if="!showAddForm" type="button"
-					class="flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-800"
-					@click="
-						showAddForm =
-						true
-						">
-					<IconBase name="plus" class="h-4 w-4" />
-
-					Add Checklist Item
-				</button>
-
-				<div v-else class="rounded-xl border border-gray-200 bg-gray-50 p-4">
-					<label class="mb-1.5 block text-sm font-semibold text-gray-700">
-						Checklist Item
-					</label>
-
-					<input v-model="newItemLabel" type="text" placeholder="e.g. Final supplier confirmation"
-						class="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15"
-						:disabled="isAddingItem" @keyup.enter="
-							addChecklistItem
-						" />
-
-					<FormsSelect v-model="newItemAssignee" class="mt-3"
-						:options="[{ value: null, label: 'Unassigned' }, ...teamMembers.map(member => ({ value: member.id, label: `${memberName(member)} — ${member.position || 'Team member'}` }))]"
-						placeholder="Select assignee" />
-
-					<div class="mt-3 flex justify-end gap-2">
-						<button type="button"
-							class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-							:disabled="isAddingItem" @click="cancelAddItem">
-							Cancel
-						</button>
-
-						<button type="button"
-							class="flex items-center gap-2 rounded-lg bg-[#285F6b] px-3 py-2 text-sm font-semibold text-white hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-60"
-							:disabled="isAddingItem ||
-								!newItemLabel.trim()
-								" @click="
-									addChecklistItem
-								">
-							<IconBase v-if="isAddingItem" name="refresh-cw" class="h-4 w-4 animate-spin" />
-
-							{{
-								isAddingItem
-									? 'Adding...'
-									: 'Add Item'
-							}}
-						</button>
-					</div>
-				</div>
-			</div>
+						<div class="border-t border-gray-100 p-4">
+							<button v-if="!showMemberForm" type="button" class="flex h-10 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 text-sm font-semibold text-gray-600 transition hover:border-primary-300 hover:bg-primary-25 hover:text-primary-800" @click="showMemberForm = true"><IconBase name="user-plus" class="h-4 w-4" /> Add team member</button>
+							<Transition name="pt-fade">
+								<form v-if="showMemberForm" class="space-y-2.5" @submit.prevent="createTeamMember">
+									<FormsSelect v-model="memberForm.organization_member_id"
+										:options="availableMembers.map(m => ({ value: m.id, label: `${m.name} · ${m.role}` }))"
+										placeholder="Choose someone from your team" />
+									<p class="text-xs leading-5 text-gray-500">
+										<template v-if="!availableMembers.length">Everyone on your team is already here. </template>
+										New person? <NuxtLink to="/organizer/team" class="font-semibold text-primary-700">Invite them from Team</NuxtLink>; they choose their own password.
+									</p>
+									<div class="grid grid-cols-[auto_1fr] gap-2 pt-1">
+										<button type="button" class="pt-btn" @click="showMemberForm = false">Cancel</button>
+										<button type="submit" class="pt-btn-primary justify-center" :disabled="creatingMember || !memberForm.organization_member_id">{{ creatingMember ? 'Adding…' : 'Add to this event' }}</button>
+									</div>
+								</form>
+							</Transition>
+						</div>
+					</section>
+				</aside>
 			</div>
 		</template>
 	</div>
@@ -616,4 +541,78 @@ watch(
 onMounted(() => {
 	loadPreparation()
 })
+// ---------- Redesign helpers ----------
+const PT_RING = 2 * Math.PI * 40
+const ringReady = ref(false)
+watch(() => isLoading.value, (loading) => { if (!loading) setTimeout(() => { ringReady.value = true }, 120) }, { immediate: true })
+type TaskFilter = 'all' | 'todo' | 'done' | 'review'
+const taskFilter = ref<TaskFilter>('all')
+const quickInput = ref<HTMLInputElement | null>(null)
+function needsReview(item: PreparationItem) { return item.is_completed && item.review_status === 'pending' && !!item.completed_by }
+const reviewCount = computed(() => checklist.value.filter(needsReview).length)
+const taskFilters = computed(() => [
+	{ value: 'all' as const, label: 'All', count: checklist.value.length },
+	{ value: 'todo' as const, label: 'To do', count: checklist.value.filter(i => !i.is_completed).length },
+	{ value: 'done' as const, label: 'Done', count: checklist.value.filter(i => i.is_completed).length },
+	{ value: 'review' as const, label: 'Review', count: reviewCount.value },
+])
+const filterIndex = computed(() => Math.max(0, taskFilters.value.findIndex(f => f.value === taskFilter.value)))
+const visibleTasks = computed(() => checklist.value.filter((i) => {
+	if (taskFilter.value === 'todo') return !i.is_completed
+	if (taskFilter.value === 'done') return i.is_completed
+	if (taskFilter.value === 'review') return needsReview(i)
+	return true
+}))
+const assigneeOptions = computed(() => [{ value: null, label: 'Unassigned' }, ...teamMembers.value.map(m => ({ value: m.id, label: `${memberName(m)}${m.position ? ` · ${m.position}` : ''}` }))])
+function openFor(member: TeamMember) { return checklist.value.filter(i => !i.is_completed && i.assigned_team_member_id === member.id).length }
+function initials(name: string) { const w = name.split(/\s+/).filter(Boolean); return ((w[0]?.[0] ?? '') + (w.length > 1 ? w[w.length - 1]?.[0] ?? '' : '')).toUpperCase() || '?' }
+async function quickAdd() {
+	if (!newItemLabel.value.trim() || isAddingItem.value) return
+	showAddForm.value = true
+	await addChecklistItem()
+	nextTick(() => quickInput.value?.focus())
+}
+
+async function confirmRemove(item: PreparationItem) {
+	if (await confirmDialog(`Remove "${item.label}" from the checklist?`, { confirmLabel: 'Remove' })) await removeChecklistItem(item)
+}
 </script>
+
+<style scoped>
+.pt-field { @apply h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 hover:border-gray-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10; }
+.pt-btn { @apply inline-flex h-11 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50; }
+.pt-btn-primary { @apply inline-flex h-11 items-center gap-2 rounded-xl bg-primary-700 px-4 text-sm font-semibold text-white transition hover:bg-primary-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50; }
+.pt-chip { @apply inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white py-0.5 pl-0.5 pr-2.5 text-xs font-medium text-gray-700; }
+.pt-avatar { @apply inline-flex shrink-0 items-center justify-center rounded-full bg-primary-700 font-bold text-white; }
+.pt-review { @apply inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50; }
+.pt-review.is-ok { @apply border-primary-700 bg-primary-700 text-white hover:bg-primary-800; }
+
+/* Check circle */
+.pt-check { @apply mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-gray-300 text-white transition hover:border-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600; }
+.pt-check.is-done { @apply border-primary-700 bg-primary-700; animation: pt-pop 0.35s cubic-bezier(0.3, 1.6, 0.5, 1); }
+.pt-tick { stroke-dasharray: 16; stroke-dashoffset: 16; animation: pt-draw 0.3s 0.05s ease-out forwards; }
+@keyframes pt-pop { 0% { transform: scale(0.7); } 100% { transform: scale(1); } }
+@keyframes pt-draw { to { stroke-dashoffset: 0; } }
+
+/* Segmented filter */
+.pt-seg { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-radius: 0.75rem; background: #f3f4f6; padding: 0.25rem; }
+.pt-seg > button { position: relative; z-index: 1; height: 2rem; padding: 0 0.7rem; border-radius: 0.5rem; font-size: 0.8rem; font-weight: 600; color: #6b7280; white-space: nowrap; transition: color 0.2s; }
+.pt-seg > button.is-on { color: #1c4f5c; }
+.pt-seg-thumb { position: absolute; top: 0.25rem; bottom: 0.25rem; left: 0.25rem; width: calc((100% - 0.5rem) / 4); border-radius: 0.5rem; background: white; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08); transition: transform 0.3s cubic-bezier(0.3, 1.3, 0.5, 1); }
+
+.pt-dots { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1.3px); background-size: 16px 16px; mask-image: linear-gradient(105deg, transparent 25%, black 80%); }
+.pt-glow { position: absolute; right: -4rem; top: -5rem; width: 14rem; height: 14rem; border-radius: 9999px; background: rgba(255, 255, 255, 0.1); filter: blur(48px); pointer-events: none; animation: pt-drift 9s ease-in-out infinite; }
+@keyframes pt-drift { 50% { transform: translate(-24px, 18px); } }
+
+.pt-item-enter-active, .pt-item-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.pt-item-enter-from { opacity: 0; transform: translateY(-6px); }
+.pt-item-leave-to { opacity: 0; transform: translateX(12px); }
+.pt-item-leave-active { position: absolute; left: 0; right: 0; }
+.pt-item-move { transition: transform 0.3s ease; }
+.pt-fade-enter-active, .pt-fade-leave-active { transition: opacity 0.2s ease; }
+.pt-fade-enter-from, .pt-fade-leave-to { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+	.pt-check.is-done, .pt-tick, .pt-glow { animation: none; stroke-dashoffset: 0; }
+	.pt-item-enter-active, .pt-item-leave-active, .pt-item-move, .pt-seg-thumb { transition: none; }
+}
+</style>

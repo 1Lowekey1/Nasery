@@ -1,245 +1,266 @@
 <template>
-    <div class="rounded-2xl border border-gray-200 bg-white p-6">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <h2 class="text-lg font-bold text-gray-900">
-                    QR Code Check-in Scanner
-                </h2>
-
-                <p class="mt-1 text-sm text-gray-500">
-                    <span v-if="selectedEvent">
-                        Scan attendee QR tickets for
-                        <span class="font-semibold text-gray-700">
-                            {{ selectedEvent.name }}
-                        </span>
-                    </span>
-
-                    <span v-else>
-                        Scan attendee QR tickets for entry
-                    </span>
-                </p>
-            </div>
-
-            <span v-if="selectedEvent"
-                class="rounded-full bg-[#285F6b]/10 px-3 py-1 text-xs font-semibold text-[#285F6b]">
-                {{ selectedEvent.name }}
-            </span>
-        </div>
-
-        <div v-if="!eventId"
-            class="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+    <div class="space-y-6">
+        <div v-if="!eventId" class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
             Select an event from the event selector above before starting QR check-in.
         </div>
 
-        <div v-if="scannerMessage" class="mt-5 rounded-xl border px-4 py-3" :class="scannerMessageClass">
-            <div class="flex items-start gap-3">
-                <IconBase :name="scannerResultType === 'success'
-                    ? 'check-circle'
-                    : scannerResultType === 'warning'
-                        ? 'alert-circle'
-                        : 'x-circle'
-                    " class="mt-0.5 h-5 w-5 shrink-0" />
+        <Transition name="toast">
+            <div v-if="scannerMessage" class="rounded-2xl border px-4 py-3.5" :class="scannerMessageClass">
+                <div class="flex items-start gap-3">
+                    <IconBase :name="scannerResultType === 'success'
+                        ? 'check-circle'
+                        : scannerResultType === 'warning'
+                            ? 'alert-circle'
+                            : 'x-circle'
+                        " class="mt-0.5 h-5 w-5 shrink-0" />
 
-                <div>
-                    <p class="text-sm font-semibold">
-                        {{ scannerMessage }}
-                    </p>
+                    <div>
+                        <p class="text-sm font-bold">
+                            {{ scannerMessage }}
+                        </p>
 
-                    <p v-if="lastScannedTicket" class="mt-1 text-xs opacity-80">
-                        {{
-                            lastScannedTicket.ticket_type?.name ||
-                            'General Admission'
-                        }}
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div class="my-8 flex flex-col items-center">
-            <div
-                class="relative h-64 w-64 overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-gray-950">
-                <video ref="scannerVideo" class="h-full w-full object-cover" autoplay muted playsinline />
-
-                <div v-if="!isScanning"
-                    class="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 px-6 text-center">
-                    <IconBase name="qr-code" class="h-14 w-14 text-gray-400" />
-
-                    <div class="mt-4 text-base font-bold text-gray-900">
-                        QR Scanner Ready
-                    </div>
-
-                    <p class="mt-1 text-sm text-gray-500">
-                        Start the camera and position the
-                        attendee QR code within the frame.
-                    </p>
-                </div>
-
-                <div v-if="isScanning" class="pointer-events-none absolute inset-7">
-                    <div class="absolute left-0 top-0 h-8 w-8 border-l-4 border-t-4 border-white" />
-
-                    <div class="absolute right-0 top-0 h-8 w-8 border-r-4 border-t-4 border-white" />
-
-                    <div class="absolute bottom-0 left-0 h-8 w-8 border-b-4 border-l-4 border-white" />
-
-                    <div class="absolute bottom-0 right-0 h-8 w-8 border-b-4 border-r-4 border-white" />
-
-                    <div class="absolute left-2 right-2 top-1/2 h-0.5 bg-green-400 shadow-lg" />
-                </div>
-
-                <div v-if="isProcessingScan" class="absolute inset-0 flex items-center justify-center bg-gray-950/50">
-                    <div class="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-lg">
-                        <div class="flex items-center gap-2">
-                            <IconBase name="refresh-cw" class="h-4 w-4 animate-spin" />
-
-                            Checking ticket...
-                        </div>
+                        <p v-if="lastScannedTicket" class="mt-1 text-xs opacity-80">
+                            {{ lastScannedTicket.attendee_name }} ·
+                            {{
+                                lastScannedTicket.ticket_type?.name ||
+                                'General Admission'
+                            }}
+                        </p>
                     </div>
                 </div>
             </div>
+        </Transition>
 
-            <div class="mt-6 flex gap-3">
-                <button type="button"
-                    class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="!eventId ||
-                        isProcessingScan
-                        " @click="
-                            isScanning
-                                ? stopScanner()
-                                : startScanner()
-                            ">
-                    <IconBase :name="isScanning
-                        ? 'x'
-                        : 'qr-code'
-                        " class="h-4 w-4" />
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-5">
+            <!-- Scanner -->
+            <section class="qr-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8 xl:col-span-3">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <h2 class="text-xl font-extrabold tracking-tight text-gray-950">
+                            QR Code Check-in Scanner
+                        </h2>
 
-                    {{
-                        isScanning
-                            ? 'Stop Scanning'
-                            : 'Start Scanning'
-                    }}
-                </button>
+                        <p class="mt-1 text-sm text-gray-500">
+                            <span v-if="selectedEvent">
+                                Scan attendee QR tickets for
+                                <span class="font-semibold text-gray-700">{{ selectedEvent.name }}</span>
+                            </span>
 
-                <button type="button"
-                    class="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="!eventId" @click="openManualEntry">
-                    Manual Entry
-                </button>
-            </div>
-        </div>
+                            <span v-else>Scan attendee QR tickets for entry</span>
+                        </p>
+                    </div>
 
-        <div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div class="rounded-xl bg-gray-50 p-4">
-                <p class="text-xs text-gray-500">
-                    Registered Tickets
-                </p>
-
-                <p class="mt-1 text-2xl font-extrabold text-gray-900">
-                    {{ checkInSummary.registered }}
-                </p>
-            </div>
-
-            <div class="rounded-xl bg-gray-50 p-4">
-                <p class="text-xs text-gray-500">
-                    QR Checked In
-                </p>
-
-                <p class="mt-1 text-2xl font-extrabold text-gray-900">
-                    {{ checkInSummary.checked_in }}
-                </p>
-            </div>
-        </div>
-
-        <div class="border-t border-gray-100 pt-6">
-            <div class="mb-4 flex items-center justify-between">
-                <div>
-                    <h3 class="text-base font-bold text-gray-900">
-                        Recent QR Check-ins
-                    </h3>
-
-                    <p class="mt-0.5 text-xs text-gray-500">
-                        Attendees checked in using the QR scanner
-                    </p>
+                    <span class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold transition-colors"
+                        :class="isScanning ? 'bg-primary-50 text-primary-700' : 'bg-gray-100 text-gray-500'">
+                        <span class="relative flex h-2 w-2">
+                            <span v-if="isScanning" class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-700 opacity-60" />
+                            <span class="relative inline-flex h-2 w-2 rounded-full" :class="isScanning ? 'bg-primary-700' : 'bg-gray-400'" />
+                        </span>
+                        {{ isScanning ? 'Camera live' : 'Camera off' }}
+                    </span>
                 </div>
 
-                <button v-if="eventId" type="button" class="text-xs font-semibold text-primary-700 hover:underline"
-                    @click="loadCheckInSummary">
-                    Refresh
-                </button>
-            </div>
+                <div class="mt-7 flex flex-col items-center">
+                    <div class="qr-frame relative aspect-square w-full max-w-sm overflow-hidden rounded-3xl"
+                        :class="isScanning ? 'bg-gray-950' : 'bg-gray-50 ring-1 ring-gray-200'">
+                        <video ref="scannerVideo" class="h-full w-full object-cover" autoplay muted playsinline />
 
-            <div v-if="isLoadingSummary" class="py-6 text-center text-sm text-gray-500">
-                Loading QR check-ins...
-            </div>
-
-            <div v-else-if="
-                checkInSummary.recent_check_ins.length
-            " class="divide-y divide-gray-100">
-                <div v-for="entry in checkInSummary.recent_check_ins" :key="entry.id"
-                    class="flex flex-wrap items-center justify-between gap-3 py-3.5">
-                    <div class="flex min-w-0 items-center gap-3">
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-50">
-                            <IconBase name="check-circle" class="h-5 w-5 text-green-600" />
-                        </div>
-
-                        <div class="min-w-0">
-                            <div class="truncate text-sm font-bold text-gray-900">
-                                {{
-                                    entry.ticket.attendee_name
-                                }}
+                        <div v-if="!isScanning"
+                            class="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
+                            <div class="qr-idle flex h-20 w-20 items-center justify-center rounded-2xl bg-white text-primary-700 shadow-sm ring-1 ring-gray-200">
+                                <IconBase name="qr-code" class="h-10 w-10" />
                             </div>
 
-                            <div class="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-gray-500">
-                                <span>
-                                    {{
-                                        entry.ticket.ticket_type
-                                            ?.name ||
-                                        'General Admission'
-                                    }}
-                                </span>
+                            <div class="mt-5 text-base font-extrabold text-gray-950">
+                                QR Scanner Ready
+                            </div>
 
-                                <span v-if="entry.ticket.source"
-                                    class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                            <p class="mt-1 text-sm leading-6 text-gray-500">
+                                Start the camera and position the attendee QR code within the frame.
+                            </p>
+                        </div>
+
+                        <div class="pointer-events-none absolute inset-6">
+                            <span class="qr-corner left-0 top-0 rounded-tl-xl border-l-4 border-t-4" :class="isScanning ? 'border-white' : 'border-primary-700/40'" />
+                            <span class="qr-corner right-0 top-0 rounded-tr-xl border-r-4 border-t-4" :class="isScanning ? 'border-white' : 'border-primary-700/40'" />
+                            <span class="qr-corner bottom-0 left-0 rounded-bl-xl border-b-4 border-l-4" :class="isScanning ? 'border-white' : 'border-primary-700/40'" />
+                            <span class="qr-corner bottom-0 right-0 rounded-br-xl border-b-4 border-r-4" :class="isScanning ? 'border-white' : 'border-primary-700/40'" />
+
+                            <span v-if="isScanning" class="qr-scanline absolute inset-x-3 h-0.5 rounded-full bg-white" />
+                        </div>
+
+                        <div v-if="isProcessingScan" class="absolute inset-0 flex items-center justify-center bg-gray-950/55 backdrop-blur-[2px]">
+                            <div class="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-lg">
+                                <div class="flex items-center gap-2">
+                                    <IconBase name="refresh-cw" class="h-4 w-4 animate-spin" />
+
+                                    Checking ticket...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-7 flex w-full max-w-sm gap-3">
+                        <button type="button"
+                            class="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-5 py-3 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#1f4a54] hover:shadow-md active:translate-y-0 active:scale-[0.98] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="!eventId ||
+                                isProcessingScan
+                                " @click="
+                                    isScanning
+                                        ? stopScanner()
+                                        : startScanner()
+                                    ">
+                            <IconBase :name="isScanning
+                                ? 'x'
+                                : 'qr-code'
+                                " class="h-4 w-4" />
+
+                            {{
+                                isScanning
+                                    ? 'Stop Scanning'
+                                    : 'Start Scanning'
+                            }}
+                        </button>
+
+                        <button type="button"
+                            class="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-700 transition duration-200 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="!eventId" @click="openManualEntry">
+                            Manual Entry
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Progress + recent -->
+            <div class="space-y-6 xl:col-span-2">
+                <section class="qr-rise rounded-3xl border border-gray-200 bg-white p-6" style="--d: 80ms">
+                    <div class="flex items-end justify-between">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">QR check-in progress</p>
+                            <p class="mt-2 text-4xl font-extrabold tracking-tight text-gray-950">
+                                {{ checkInSummary.checked_in }}<span class="text-xl font-bold text-gray-400"> / {{ checkInSummary.registered }}</span>
+                            </p>
+                        </div>
+                        <span class="rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700">{{ qrProgress }}%</span>
+                    </div>
+
+                    <div class="mt-4 h-2 overflow-hidden rounded-full bg-gray-100">
+                        <div class="h-full rounded-full bg-[#285F6b] transition-all duration-700 ease-out" :style="{ width: qrProgress + '%' }" />
+                    </div>
+
+                    <div class="mt-5 grid grid-cols-3 gap-3 text-center">
+                        <div class="rounded-2xl bg-gray-50 px-2 py-3">
+                            <p class="text-xl font-extrabold text-gray-950">{{ checkInSummary.registered }}</p>
+                            <p class="mt-0.5 text-[11px] font-semibold text-gray-500">Registered</p>
+                        </div>
+                        <div class="rounded-2xl bg-gray-50 px-2 py-3">
+                            <p class="text-xl font-extrabold text-primary-700">{{ checkInSummary.checked_in }}</p>
+                            <p class="mt-0.5 text-[11px] font-semibold text-gray-500">Checked in</p>
+                        </div>
+                        <div class="rounded-2xl bg-gray-50 px-2 py-3">
+                            <p class="text-xl font-extrabold text-gray-950">{{ remainingToCheckIn }}</p>
+                            <p class="mt-0.5 text-[11px] font-semibold text-gray-500">Remaining</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="qr-rise rounded-3xl border border-gray-200 bg-white p-6" style="--d: 160ms">
+                    <div class="mb-4 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-extrabold text-gray-950">
+                                Recent QR Check-ins
+                            </h3>
+
+                            <p class="mt-0.5 text-xs text-gray-500">
+                                Attendees checked in using the QR scanner
+                            </p>
+                        </div>
+
+                        <button v-if="eventId" type="button"
+                            class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-primary-700 transition hover:bg-primary-50"
+                            @click="loadCheckInSummary">
+                            <IconBase name="refresh-cw" class="h-3.5 w-3.5" :class="{ 'animate-spin': isLoadingSummary }" />
+                            Refresh
+                        </button>
+                    </div>
+
+                    <div v-if="isLoadingSummary && !checkInSummary.recent_check_ins.length" class="py-8 text-center text-sm text-gray-500">
+                        Loading QR check-ins...
+                    </div>
+
+                    <div v-else-if="
+                        checkInSummary.recent_check_ins.length
+                    " class="max-h-[420px] space-y-1 overflow-y-auto pr-1">
+                        <div v-for="(entry, index) in checkInSummary.recent_check_ins" :key="entry.id"
+                            class="qr-row flex items-center justify-between gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-gray-50"
+                            :style="{ '--d': index * 45 + 'ms' }">
+                            <div class="flex min-w-0 items-center gap-3">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
+                                    {{ getInitials(entry.ticket.attendee_name) }}
+                                </div>
+
+                                <div class="min-w-0">
+                                    <div class="truncate text-sm font-bold text-gray-900">
+                                        {{
+                                            entry.ticket.attendee_name
+                                        }}
+                                    </div>
+
+                                    <div class="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                        <span>
+                                            {{
+                                                entry.ticket.ticket_type
+                                                    ?.name ||
+                                                'General Admission'
+                                            }}
+                                        </span>
+
+                                        <span v-if="entry.ticket.source"
+                                            class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600">
+                                            {{
+                                                formatTicketSource(
+                                                    entry.ticket.source,
+                                                )
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex shrink-0 flex-col items-end">
+                                <span class="text-sm font-semibold text-gray-700">
                                     {{
-                                        formatTicketSource(
-                                            entry.ticket.source,
+                                        formatCheckInTime(
+                                            entry.checked_in_at,
                                         )
                                     }}
                                 </span>
+
+                                <span class="mt-0.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-primary-700">
+                                    <IconBase name="check-circle" class="h-3 w-3" />
+                                    QR Scan
+                                </span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="flex shrink-0 flex-col items-end">
-                        <span class="text-sm text-gray-400">
-                            {{
-                                formatCheckInTime(
-                                    entry.checked_in_at,
-                                )
-                            }}
-                        </span>
+                    <div v-else class="rounded-2xl border border-dashed border-gray-300 px-5 py-10 text-center">
+                        <IconBase name="qr-code" class="mx-auto h-7 w-7 text-gray-400" />
 
-                        <span class="mt-1 text-[10px] font-semibold uppercase tracking-wide text-green-600">
-                            QR Scan
-                        </span>
+                        <p class="mt-2 text-sm font-semibold text-gray-700">
+                            No QR check-ins yet
+                        </p>
+
+                        <p class="mt-1 text-xs text-gray-500">
+                            Successful QR scans for this event will appear here.
+                        </p>
                     </div>
-                </div>
-            </div>
-
-            <div v-else class="rounded-xl border border-dashed border-gray-300 px-5 py-8 text-center">
-                <IconBase name="qr-code" class="mx-auto h-7 w-7 text-gray-400" />
-
-                <p class="mt-2 text-sm font-semibold text-gray-700">
-                    No QR check-ins yet
-                </p>
-
-                <p class="mt-1 text-xs text-gray-500">
-                    Successful QR scans for this event will appear here.
-                </p>
+                </section>
             </div>
         </div>
 
         <Transition name="fade">
-            <div v-if="showManualEntry" class="fixed inset-0 z-40 bg-gray-900/40" @click="closeManualEntry" />
+            <div v-if="showManualEntry" class="fixed inset-0 z-40 bg-gray-900/40 backdrop-blur-[2px]" @click="closeManualEntry" />
         </Transition>
 
         <Transition name="slide">
@@ -247,7 +268,7 @@
                 class="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl">
                 <div class="flex items-start justify-between border-b border-gray-200 px-6 py-5">
                     <div>
-                        <h2 class="text-lg font-bold text-gray-900">
+                        <h2 class="text-lg font-extrabold text-gray-950">
                             Manual Check-in
                         </h2>
 
@@ -263,7 +284,7 @@
                         </p>
                     </div>
 
-                    <button type="button" class="text-gray-400 hover:text-gray-600" @click="closeManualEntry">
+                    <button type="button" class="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600" @click="closeManualEntry">
                         <IconBase name="x" class="h-5 w-5" />
                     </button>
                 </div>
@@ -282,13 +303,13 @@
                 <div class="border-t border-gray-200 px-6 py-4">
                     <div class="flex justify-end gap-3">
                         <button type="button"
-                            class="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                            class="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-50"
                             :disabled="isManualCheckingIn" @click="closeManualEntry">
                             Cancel
                         </button>
 
                         <button type="button"
-                            class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1f4a54] disabled:opacity-50"
+                            class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#1f4a54] disabled:opacity-50"
                             :disabled="isManualCheckingIn ||
                                 !manualTicketId
                                 " @click="submitManualCheckIn">
@@ -487,6 +508,40 @@ const checkInSummary =
         checked_in: 0,
         recent_check_ins: [],
     })
+
+const qrProgress =
+    computed(() =>
+        checkInSummary.value.registered > 0
+            ? Math.min(
+                Math.round(
+                    (checkInSummary.value.checked_in /
+                        checkInSummary.value.registered) *
+                    100,
+                ),
+                100,
+            )
+            : 0,
+    )
+
+const remainingToCheckIn =
+    computed(() =>
+        Math.max(
+            checkInSummary.value.registered -
+            checkInSummary.value.checked_in,
+            0,
+        ),
+    )
+
+function getInitials(name: string): string {
+    return (
+        name
+            .split(' ')
+            .filter(Boolean)
+            .slice(0, 2)
+            .map(part => part[0]?.toUpperCase())
+            .join('') || 'A'
+    )
+}
 
 const showManualEntry =
     ref(false)
@@ -997,5 +1052,64 @@ onBeforeUnmount(() => {
 .fade-enter-from,
 .fade-leave-to {
     opacity: 0;
+}
+
+.toast-enter-active,
+.toast-leave-active {
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.toast-enter-from,
+.toast-leave-to {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+.qr-rise {
+    animation: qr-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--d, 0ms);
+}
+
+.qr-row {
+    animation: qr-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--d, 0ms);
+}
+
+.qr-corner {
+    position: absolute;
+    height: 2rem;
+    width: 2rem;
+    transition: border-color 0.3s ease;
+}
+
+.qr-idle {
+    animation: qr-float 3.2s ease-in-out infinite;
+}
+
+.qr-scanline {
+    top: 0;
+    box-shadow: 0 0 14px 2px rgba(255, 255, 255, 0.55);
+    animation: qr-scan 2.2s ease-in-out infinite;
+}
+
+@keyframes qr-rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes qr-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+@keyframes qr-scan {
+    0% { top: 4%; opacity: 0; }
+    12% { opacity: 1; }
+    88% { opacity: 1; }
+    100% { top: 96%; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .qr-rise, .qr-row, .qr-idle, .qr-scanline { animation: none; }
 }
 </style>

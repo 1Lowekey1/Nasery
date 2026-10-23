@@ -78,118 +78,141 @@
 		</div>
 
 		<Transition name="fade">
-			<div v-if="showProfilePanel" class="fixed inset-0 z-[90] bg-gray-900/40" @click="closeProfilePanel" />
+			<div v-if="showProfilePanel" class="fixed inset-0 z-[90] bg-gray-900/40 backdrop-blur-[2px]" @click="closeProfilePanel" />
 		</Transition>
 
 		<Transition name="slide">
 			<div v-if="showProfilePanel"
-				class="fixed inset-y-0 right-0 z-[100] flex w-full max-w-2xl flex-col overflow-hidden bg-white shadow-2xl"
+				class="fixed inset-y-0 right-0 z-[100] flex w-full max-w-3xl flex-col overflow-hidden bg-white shadow-2xl"
 				role="dialog" aria-modal="true" aria-labelledby="client-profile-title">
-				<div class="relative shrink-0 pb-11">
-					<div class="h-28 bg-gradient-to-br from-primary-700 to-primary-900" />
-					<div aria-hidden="true" class="absolute right-20 top-5 h-20 w-20 rounded-full border border-white/10" />
-					<button type="button" aria-label="Close profile" class="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-gray-900/20 text-white backdrop-blur-sm transition hover:bg-gray-900/35"
+				<!-- Header -->
+				<div class="relative shrink-0">
+					<div class="relative h-32 overflow-hidden bg-primary-700">
+						<span class="cp-dots" />
+						<span class="pointer-events-none absolute -right-12 -top-16 h-52 w-52 rounded-full bg-white/10 blur-2xl" />
+					</div>
+
+					<button type="button" aria-label="Close profile"
+						class="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-black/20 text-white backdrop-blur-sm transition hover:bg-black/35"
 						@click="closeProfilePanel">
 						<IconBase name="x" class="h-5 w-5" />
 					</button>
-					<div class="absolute -bottom-1 left-6 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-primary-50 text-xl font-extrabold text-primary-700 shadow-md">
-						<img v-if="user?.avatar_url" :src="user.avatar_url" alt="" class="h-full w-full object-cover" />
-						<span v-else>{{ panelInitials }}</span>
+
+					<div class="flex items-end gap-5 px-6 md:px-8">
+						<div class="-mt-12 flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-primary-50 text-2xl font-extrabold text-primary-700 shadow-lg ring-4 ring-white">
+							<img v-if="user?.avatar_url" :src="user.avatar_url" alt="" class="h-full w-full object-cover" />
+							<span v-else>{{ panelInitials }}</span>
+						</div>
+
+						<div class="min-w-0 flex-1 pb-1 pt-4">
+							<p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary-700">Client profile</p>
+							<h2 id="client-profile-title" class="mt-0.5 truncate text-2xl font-extrabold tracking-tight text-gray-950">{{ draftName || 'Your profile' }}</h2>
+							<p class="mt-0.5 truncate text-sm text-gray-500">{{ user?.email }}</p>
+						</div>
 					</div>
 				</div>
 
-				<div class="shrink-0 px-6 pb-5">
-					<p class="mb-1 text-[10px] font-extrabold uppercase tracking-[.18em] text-primary-700">Client profile</p>
-					<h2 id="client-profile-title" class="truncate text-xl font-extrabold text-gray-900">{{ draftName || 'Your profile' }}</h2>
-					<p class="mt-0.5 text-sm text-gray-500">Your name, contact number and photo on NaSeRy.</p>
-				</div>
-
-				<div class="flex shrink-0 scroll-px-6 scroll-smooth gap-2 overflow-x-auto overscroll-x-contain border-y border-gray-100 bg-gray-50/80 px-6 py-3">
-					<button v-for="tab in profileTabs" :key="tab.label"
-						type="button" class="flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold transition"
-						:class="activeProfileTab === tab.label ? 'border-primary-200 bg-white text-primary-700 shadow-sm' : 'border-transparent text-gray-400 hover:bg-white hover:text-gray-600'"
+				<!-- Mobile section chips -->
+				<div class="mt-5 flex shrink-0 gap-2 overflow-x-auto border-b border-gray-100 px-6 pb-3 md:hidden">
+					<button v-for="tab in profileTabs" :key="tab.label" type="button"
+						class="flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition"
+						:class="activeProfileTab === tab.label ? 'bg-primary-700 text-white' : 'bg-gray-100 text-gray-600'"
 						@click="activeProfileTab = tab.label">
-						<IconBase :name="tab.icon" class="h-4 w-4" />
+						<IconBase :name="tab.icon" class="h-3.5 w-3.5" />
 						{{ tab.label }}
 					</button>
 				</div>
 
-				<div class="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white px-6 py-6">
-					<div v-if="activeProfileTab === 'Identity'">
-						<div class="mb-5 flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="user" class="h-4 w-4" />
-							</div>
-							<div>
-								<div class="text-sm font-bold text-gray-900">Identity</div>
-								<div class="text-xs text-gray-500">The name organizers see on your requests</div>
-							</div>
-						</div>
+				<div class="flex min-h-0 flex-1 border-t border-gray-100 md:mt-6">
+					<!-- Section rail -->
+					<nav class="hidden w-64 shrink-0 space-y-1 overflow-y-auto border-r border-gray-100 bg-gray-50/60 p-4 md:block" aria-label="Profile sections">
+						<button v-for="tab in profileTabs" :key="tab.label" type="button"
+							class="group relative flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition duration-200"
+							:class="activeProfileTab === tab.label ? 'bg-white shadow-sm ring-1 ring-gray-200' : 'hover:bg-white/70'"
+							@click="activeProfileTab = tab.label">
+							<span v-if="activeProfileTab === tab.label" class="absolute inset-y-3 left-0 w-[3px] rounded-r-full bg-primary-700" />
+							<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition"
+								:class="activeProfileTab === tab.label ? 'bg-primary-700 text-white' : 'bg-white text-gray-400 ring-1 ring-gray-200 group-hover:text-primary-700'">
+								<IconBase :name="tab.icon" class="h-4 w-4" />
+							</span>
+							<span class="min-w-0">
+								<span class="block truncate text-sm font-bold" :class="activeProfileTab === tab.label ? 'text-gray-950' : 'text-gray-600'">{{ tab.label }}</span>
+								<span class="block truncate text-[11px] text-gray-400">{{ tab.hint }}</span>
+							</span>
+						</button>
+					</nav>
 
-						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-							<div>
-								<FormsLabel text="First name" required />
-								<FormsTextField v-model="draft.first_name" autocomplete="given-name" />
-								<p v-if="fields.first_name" class="mt-1 text-xs text-rose-600">{{ fields.first_name }}</p>
+					<!-- Section content -->
+					<div class="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-8 md:px-9">
+						<div :key="activeProfileTab" class="cp-fade mx-auto max-w-xl">
+							<div class="mb-8 flex items-center gap-4">
+								<span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+									<IconBase :name="activeTabMeta.icon" class="h-5 w-5" />
+								</span>
+								<div>
+									<h3 class="text-lg font-extrabold tracking-tight text-gray-950">{{ activeTabMeta.label }}</h3>
+									<p class="mt-0.5 text-sm text-gray-500">{{ activeTabMeta.description }}</p>
+								</div>
 							</div>
-							<div>
-								<FormsLabel text="Last name" required />
-								<FormsTextField v-model="draft.last_name" autocomplete="family-name" />
-								<p v-if="fields.last_name" class="mt-1 text-xs text-rose-600">{{ fields.last_name }}</p>
+
+							<!-- Identity -->
+							<div v-if="activeProfileTab === 'Identity'" class="space-y-6">
+								<div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+									<div class="space-y-2">
+										<FormsLabel text="First name" required />
+										<FormsTextField v-model="draft.first_name" size="lg" autocomplete="given-name" />
+										<p v-if="fields.first_name" class="text-xs text-rose-600">{{ fields.first_name }}</p>
+									</div>
+									<div class="space-y-2">
+										<FormsLabel text="Last name" required />
+										<FormsTextField v-model="draft.last_name" size="lg" autocomplete="family-name" />
+										<p v-if="fields.last_name" class="text-xs text-rose-600">{{ fields.last_name }}</p>
+									</div>
+								</div>
+								<div class="space-y-2">
+									<FormsLabel text="Middle name (optional)" />
+									<FormsTextField v-model="draft.middle_name" size="lg" autocomplete="additional-name" />
+								</div>
 							</div>
-						</div>
-						<div class="mt-4">
-							<FormsLabel text="Middle name (optional)" />
-							<FormsTextField v-model="draft.middle_name" autocomplete="additional-name" />
+
+							<!-- Contact -->
+							<div v-else-if="activeProfileTab === 'Contact'" class="space-y-6">
+								<div class="space-y-2">
+									<FormsLabel text="Email address" />
+									<div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">{{ user?.email }}</div>
+									<p class="text-xs text-gray-400">This is your sign-in e-mail, so it can't be changed here.</p>
+								</div>
+								<div class="space-y-2">
+									<FormsLabel text="Mobile number" />
+									<FormsTextField v-model="draft.phone" type="tel" size="lg" autocomplete="tel" placeholder="0917 123 4567" />
+									<p v-if="fields.phone" class="text-xs text-rose-600">{{ fields.phone }}</p>
+									<p v-else class="text-xs text-gray-400">A Philippine mobile number. Leave it empty to remove it.</p>
+								</div>
+							</div>
+
+							<!-- Appearance -->
+							<div v-else-if="activeProfileTab === 'Appearance'">
+								<MediaBatchScope :batch="mediaBatch"><MediaAvatarUploader /></MediaBatchScope>
+							</div>
+
+							<p v-if="saveError" class="mt-6 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{{ saveError }}</p>
 						</div>
 					</div>
-
-					<div v-else-if="activeProfileTab === 'Contact'">
-						<div class="mb-5 flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="phone" class="h-4 w-4" />
-							</div>
-							<div>
-								<div class="text-sm font-bold text-gray-900">Contact</div>
-								<div class="text-xs text-gray-500">How organizers can reach you</div>
-							</div>
-						</div>
-
-						<FormsLabel text="Email address" />
-						<div class="rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-600">{{ user?.email }}</div>
-						<p class="mt-1.5 text-xs text-gray-400">This is your sign-in e-mail, so it can't be changed here.</p>
-
-						<div class="mt-4">
-							<FormsLabel text="Mobile number" />
-							<FormsTextField v-model="draft.phone" type="tel" autocomplete="tel" placeholder="0917 123 4567" />
-							<p v-if="fields.phone" class="mt-1 text-xs text-rose-600">{{ fields.phone }}</p>
-							<p v-else class="mt-1.5 text-xs text-gray-400">A Philippine mobile number. Leave it empty to remove it.</p>
-						</div>
-					</div>
-
-					<div v-else-if="activeProfileTab === 'Appearance'">
-						<div class="mb-5 flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="camera" class="h-4 w-4" />
-							</div>
-							<div>
-								<div class="text-sm font-bold text-gray-900">Appearance</div>
-								<div class="text-xs text-gray-500">Your profile photo</div>
-							</div>
-						</div>
-						<MediaBatchScope :batch="mediaBatch"><MediaAvatarUploader /></MediaBatchScope>
-					</div>
-
-					<p v-if="saveError" class="mt-6 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{{ saveError }}</p>
 				</div>
 
-				<div class="flex shrink-0 gap-3 border-t border-gray-200 bg-white px-6 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.04)]">
-					<FormsButton variant="secondary" class="flex-1" @click="closeProfilePanel">
-						Cancel
-					</FormsButton>
-					<FormsButton class="flex-1" :disabled="saving" @click="saveProfile">
-						{{ saving ? 'Saving...' : 'Save Profile' }}
-					</FormsButton>
+				<!-- Footer -->
+				<div class="flex shrink-0 items-center justify-between gap-4 border-t border-gray-200 bg-white px-6 py-4 md:px-9">
+					<p class="hidden text-xs text-gray-400 sm:block">Review your changes, then save.</p>
+					<div class="flex w-full gap-3 sm:w-auto">
+						<button type="button" class="flex-1 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] sm:flex-none"
+							@click="closeProfilePanel">
+							Cancel
+						</button>
+						<button type="button" class="flex-1 rounded-xl bg-primary-700 px-7 py-3 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-primary-900 hover:shadow-md active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+							:disabled="saving" @click="saveProfile">
+							{{ saving ? 'Saving…' : 'Save Profile' }}
+						</button>
+					</div>
 				</div>
 			</div>
 		</Transition>
@@ -285,9 +308,9 @@ const sidebarInitials = computed(() => {
 // The client profile is their account: name, mobile number and photo
 // (PATCH auth/me + the photo upload). E-mail is the sign-in and stays read-only.
 const profileTabs = [
-	{ label: 'Identity', icon: 'user' },
-	{ label: 'Contact', icon: 'phone' },
-	{ label: 'Appearance', icon: 'camera' },
+	{ label: 'Identity', icon: 'user', hint: 'Your name', description: 'The name organizers see on your requests.' },
+	{ label: 'Contact', icon: 'phone', hint: 'How to reach you', description: 'How organizers can reach you.' },
+	{ label: 'Appearance', icon: 'camera', hint: 'Profile photo', description: 'The photo shown with your name.' },
 ]
 
 const draft = reactive({ first_name: '', middle_name: '', last_name: '', phone: '' })
@@ -295,6 +318,7 @@ const draftName = computed(() => [draft.first_name, draft.middle_name, draft.las
 
 const showProfilePanel = ref(false)
 const activeProfileTab = ref('Identity')
+const activeTabMeta = computed(() => profileTabs.find(tab => tab.label === activeProfileTab.value) ?? profileTabs[0]!)
 const saving = ref(false)
 const saveError = ref('')
 const fields = ref<Record<string, string>>({})
@@ -380,3 +404,28 @@ async function handleLogout() {
 	await navigateTo('/login')
 }
 </script>
+
+<style scoped>
+.cp-dots {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px);
+	background-size: 22px 22px;
+	mask-image: linear-gradient(115deg, transparent 20%, #000 95%);
+	-webkit-mask-image: linear-gradient(115deg, transparent 20%, #000 95%);
+}
+
+.cp-fade {
+	animation: cp-fade 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes cp-fade {
+	from { opacity: 0; transform: translateY(8px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.cp-fade { animation: none; }
+}
+</style>

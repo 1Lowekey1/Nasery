@@ -69,5 +69,10 @@ const tabs = [
 		to: '/organizer/inquiries/offers',
 		icon: 'file-text',
 	},
+	{
+		label: 'Price List',
+		to: '/organizer/price-list',
+		icon: 'tag',
+	},
 ]
 </script>

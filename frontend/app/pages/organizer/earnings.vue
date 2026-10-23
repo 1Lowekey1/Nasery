@@ -1,204 +1,371 @@
 <template>
-	<div class="mx-auto max-w-6xl">
-		<div class="mb-6">
-			<h1 class="text-2xl font-extrabold tracking-tight text-gray-950">Earnings</h1>
-			<p class="mt-1 text-gray-500">Where your online ticket money goes, and what NaSeRy has paid out to you.</p>
+	<div class="space-y-6">
+		<header class="overflow-hidden rounded-3xl border border-primary-100 bg-white shadow-sm">
+			<div class="flex flex-col gap-4 px-5 py-6 sm:px-7 lg:flex-row lg:items-center lg:justify-between">
+				<div class="max-w-2xl">
+					<div class="mb-3 inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-primary-700">
+						<IconBase name="cash" class="h-3.5 w-3.5" />
+						Earnings
+					</div>
+					<h1 class="text-2xl font-extrabold tracking-tight text-gray-950 sm:text-3xl">Where your ticket money goes</h1>
+					<p class="mt-2 text-sm leading-6 text-gray-500 sm:text-base">
+						Track your online ticket sales, what NaSeRy keeps, and what has been paid out to you.
+					</p>
+				</div>
+
+				<button v-if="earnings?.csv_exports" type="button"
+					class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+					:disabled="exporting" @click="downloadCsv">
+					<IconBase name="download" class="h-4 w-4" />
+					{{ exporting ? 'Preparing…' : 'Download CSV' }}
+				</button>
+			</div>
+		</header>
+
+		<div v-if="isLoading" class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
+			Loading your earnings...
 		</div>
 
-		<div v-if="error" class="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ error }}</div>
-		<div v-if="!data && !error" class="rounded-2xl border border-gray-100 bg-white p-10 text-center text-sm text-gray-500">Loading your earnings…</div>
+		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+			{{ errorMessage }}
+		</div>
 
-		<template v-if="data">
-			<!-- At a glance: where every peso of ticket sales went. -->
-			<section class="mb-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-				<div class="flex flex-wrap items-baseline justify-between gap-2">
-					<h2 class="text-base font-bold text-gray-900">Where your ticket money goes</h2>
-					<p class="text-sm text-gray-500">All events, all time</p>
+		<template v-else-if="earnings">
+			<div class="grid grid-cols-1 gap-5 lg:grid-cols-5">
+				<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
+					<h2 class="text-base font-bold text-gray-900">Money flow</h2>
+					<p class="text-sm text-gray-500">How each peso of ticket sales is split, all events, all time</p>
+
+					<template v-if="earnings.totals.ticket_sales > 0">
+						<ClientOnly>
+							<apexchart type="donut" height="300" :options="flowOptions" :series="flowSeries" />
+						</ClientOnly>
+					</template>
+					<p v-else class="py-16 text-center text-sm text-gray-400">No online ticket sales yet.</p>
 				</div>
 
-				<div v-if="data.gross > 0" class="mt-5 flex h-4 w-full overflow-hidden rounded-full bg-gray-100" aria-hidden="true">
-					<div class="h-full bg-emerald-600" :style="{ width: pct(data.share) }" />
-					<div class="h-full bg-slate-400" :style="{ width: pct(data.platform_fee) }" />
-					<div class="h-full bg-rose-400" :style="{ width: pct(data.refunded) }" />
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-3">
+					<div v-for="card in statCards" :key="card.label"
+						class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+						<div class="flex items-start justify-between gap-3">
+							<span class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">{{ card.label }}</span>
+							<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" :class="card.iconBg">
+								<IconBase :name="card.icon" class="h-5 w-5" :class="card.iconColor" />
+							</span>
+						</div>
+						<div class="mt-3 text-3xl font-extrabold tracking-tight" :class="card.valueClass">{{ card.value }}</div>
+						<p class="mt-2 text-xs leading-5 text-gray-500">{{ card.hint }}</p>
+					</div>
 				</div>
+			</div>
 
-				<dl class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-					<div class="rounded-xl bg-gray-50 p-4">
-						<dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Ticket sales</dt>
-						<dd class="mt-1 text-xl font-extrabold text-gray-900">{{ pesoExact(data.gross) }}</dd>
-						<p class="mt-1 text-xs text-gray-500">What buyers paid online for your tickets.</p>
-					</div>
-					<div class="rounded-xl bg-rose-50 p-4">
-						<dt class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-rose-700"><span class="h-2.5 w-2.5 rounded-full bg-rose-400" />Refunded to buyers</dt>
-						<dd class="mt-1 text-xl font-extrabold text-rose-700">−{{ pesoExact(data.refunded) }}</dd>
-						<p class="mt-1 text-xs text-rose-700/80">Already sent back to the buyers' cards or e-wallets. Nobody holds it.</p>
-					</div>
-					<div class="rounded-xl bg-slate-50 p-4">
-						<dt class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-600"><span class="h-2.5 w-2.5 rounded-full bg-slate-400" />NaSeRy fee</dt>
-						<dd class="mt-1 text-xl font-extrabold text-slate-700">−{{ pesoExact(data.platform_fee) }}</dd>
-						<p class="mt-1 text-xs text-slate-500">The platform fee on each sale (buyers never pay extra).</p>
-					</div>
-					<div class="rounded-xl bg-emerald-50 p-4">
-						<dt class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-700"><span class="h-2.5 w-2.5 rounded-full bg-emerald-600" />Your share</dt>
-						<dd class="mt-1 text-xl font-extrabold text-emerald-700">{{ pesoExact(data.share) }}</dd>
-						<p class="mt-1 text-xs text-emerald-700/80">Yours. NaSeRy pays it out to you (see below).</p>
-					</div>
-				</dl>
-				<p class="mt-4 text-xs text-gray-400">Money paid outside NaSeRy (like a client paying you for a booked event) isn't here: NaSeRy only handles online ticket sales.</p>
-			</section>
+			<p class="px-1 text-xs text-gray-400">
+				Money paid outside NaSeRy (like a client paying you for a booked event) isn't here — NaSeRy only handles online ticket sales.
+			</p>
 
-			<!-- Payout status -->
-			<section class="mb-6 grid gap-5 md:grid-cols-2">
-				<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+			<div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+				<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
 					<p class="text-sm font-semibold text-gray-500">Paid out to you</p>
-					<p class="mt-1 text-3xl font-extrabold text-gray-900">{{ pesoExact(data.paid_out) }}</p>
-					<p class="mt-2 text-xs text-gray-500">{{ lastPayout ? `Last payout ${dateLabel(lastPayout.paid_at)} by ${lastPayout.method_label}.` : 'No payouts yet.' }}</p>
-				</div>
-				<div class="rounded-2xl border p-6 shadow-sm" :class="data.owed < 0 ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'">
-					<p class="text-sm font-semibold" :class="data.owed < 0 ? 'text-amber-800' : 'text-emerald-800'">
-						{{ data.owed < 0 ? 'To be taken off your next payout' : 'Still to be paid to you' }}
-					</p>
-					<p class="mt-1 text-3xl font-extrabold" :class="data.owed < 0 ? 'text-amber-800' : 'text-emerald-800'">{{ pesoExact(Math.abs(data.owed)) }}</p>
-					<p class="mt-2 text-xs" :class="data.owed < 0 ? 'text-amber-800/80' : 'text-emerald-800/80'">
-						{{ data.owed < 0
-							? 'A refund came after we paid you out; NaSeRy deducts it from your next payout.'
-							: 'NaSeRy transfers your share by bank, GCash or Maya. You get a notification with the reference number.' }}
+					<p class="mt-2 text-3xl font-extrabold tracking-tight text-gray-950">{{ formatMoney(earnings.paid_out) }}</p>
+					<p class="mt-2 text-xs text-gray-500">
+						<template v-if="earnings.last_payout">
+							Last payout {{ formatDate(earnings.last_payout.paid_at) }} by {{ earnings.last_payout.method }}.
+						</template>
+						<template v-else>No payouts yet.</template>
 					</p>
 				</div>
-			</section>
 
-			<section class="mb-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-				<h2 class="text-base font-bold text-gray-900">Payout history</h2>
-				<p v-if="!data.payouts.length" class="mt-3 text-sm text-gray-400">No payouts yet.</p>
-				<div v-else class="mt-4 overflow-x-auto">
-					<table class="w-full text-left text-sm">
-						<thead>
-							<tr class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">
-								<th class="pb-3 pr-4">Date</th><th class="pb-3 pr-4">Method</th><th class="pb-3 pr-4">Reference</th><th class="pb-3 pr-4">Amount</th><th class="pb-3">Note</th>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-gray-100">
-							<tr v-for="p in data.payouts" :key="p.id" :class="p.voided ? 'text-gray-400' : ''">
-								<td class="py-3 pr-4">{{ dateLabel(p.paid_at) }}</td>
-								<td class="py-3 pr-4">{{ p.method_label }}</td>
-								<td class="py-3 pr-4 font-mono text-xs">{{ p.reference }}</td>
-								<td class="py-3 pr-4 font-semibold" :class="p.voided ? 'line-through' : 'text-gray-900'">{{ pesoExact(p.amount) }}</td>
-								<td class="py-3 text-xs">
-									<span v-if="p.voided" class="rounded-full bg-gray-100 px-2 py-0.5 font-semibold text-gray-600">Voided: {{ p.void_reason }}</span>
-									<span v-else>{{ p.note || '—' }}</span>
-								</td>
-							</tr>
-						</tbody>
-					</table>
+				<div class="rounded-2xl border border-primary-100 bg-primary-50/60 p-6 shadow-sm">
+					<p class="text-sm font-semibold text-primary-700">Still to be paid to you</p>
+					<p class="mt-2 text-3xl font-extrabold tracking-tight text-primary-700">{{ formatMoney(earnings.outstanding) }}</p>
+					<p class="mt-2 text-xs leading-5 text-primary-700/80">
+						NaSeRy transfers your share by bank, GCash or Maya. You get a notification with the reference number.
+					</p>
 				</div>
-			</section>
+			</div>
 
-			<!-- Paid plans: the detailed view. -->
-			<section class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-				<div class="flex flex-wrap items-center justify-between gap-3">
-					<div>
-						<h2 class="text-base font-bold text-gray-900">Detailed breakdown</h2>
-						<p class="mt-1 text-sm text-gray-500">Per event and per month, with a CSV of every payment.</p>
-					</div>
-					<button v-if="data.plan.details" type="button" :disabled="exporting"
-						class="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50" @click="exportCsv">
-						{{ exporting ? 'Preparing…' : 'Download CSV' }}
-					</button>
-				</div>
+			<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+				<h2 class="text-base font-bold text-gray-900">Your share by month</h2>
+				<p class="mb-2 text-sm text-gray-500">Ticket sales vs. what you keep, last 6 months</p>
 
-				<div v-if="!data.plan.details" class="mt-5 rounded-xl border border-dashed border-primary-200 bg-primary-50/40 p-5 text-sm">
+				<div v-if="!earnings.csv_exports" class="rounded-xl border border-dashed border-primary-200 bg-primary-50/40 p-5 text-sm">
 					<p class="font-semibold text-gray-900">Available on Starter and Pro</p>
 					<p class="mt-1 text-gray-600">See the split for each event, month by month, and download every payment with its fee and refunds.</p>
 					<NuxtLink to="/organizer/billing" class="mt-3 inline-flex rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white">See plans</NuxtLink>
 				</div>
-
-				<template v-else-if="details">
-					<div class="mt-5 overflow-x-auto">
-						<table class="w-full text-left text-sm">
-							<thead>
-								<tr class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">
-									<th class="pb-3 pr-4">Event</th><th class="pb-3 pr-4">Ticket sales</th><th class="pb-3 pr-4">Refunded</th><th class="pb-3 pr-4">NaSeRy fee</th><th class="pb-3">Your share</th>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-gray-100">
-								<tr v-for="e in details.events" :key="e.id">
-									<td class="py-3 pr-4 font-semibold text-gray-900">{{ e.name }} <span class="text-xs font-normal text-gray-400">· {{ e.payments }} payments</span></td>
-									<td class="py-3 pr-4">{{ pesoExact(e.gross) }}</td>
-									<td class="py-3 pr-4 text-rose-700">−{{ pesoExact(e.refunded) }}</td>
-									<td class="py-3 pr-4 text-slate-600">−{{ pesoExact(e.platform_fee) }}</td>
-									<td class="py-3 font-semibold text-emerald-700">{{ pesoExact(e.share) }}</td>
-								</tr>
-								<tr v-if="!details.events.length"><td colspan="5" class="py-4 text-center text-gray-400">No ticket sales yet.</td></tr>
-							</tbody>
-						</table>
-					</div>
-
-					<h3 class="mt-8 text-sm font-bold text-gray-900">Your share by month</h3>
-					<div class="mt-4 flex h-44 items-end gap-3">
-						<div v-for="m in details.months" :key="m.month" class="flex flex-1 flex-col items-center gap-2">
-							<span class="text-[11px] font-semibold text-gray-600">{{ m.share ? pesoShort(m.share) : '' }}</span>
-							<div class="w-full rounded-t-md bg-emerald-500" :style="{ height: `${barHeight(m.share)}px` }" :title="`${monthLabel(m.month)}: ${pesoExact(m.share)}`" />
-							<span class="text-[11px] text-gray-400">{{ monthLabel(m.month) }}</span>
-						</div>
-					</div>
+				<template v-else-if="hasMonthlyActivity">
+					<ClientOnly>
+						<apexchart type="bar" height="300" :options="monthlyOptions" :series="monthlySeries" />
+					</ClientOnly>
 				</template>
-			</section>
+				<p v-else class="py-14 text-center text-sm text-gray-400">No sales in the last 6 months yet.</p>
+			</div>
+
+			<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+				<h2 class="text-base font-bold text-gray-900">Payout history</h2>
+				<p class="mb-4 text-sm text-gray-500">Every transfer NaSeRy has sent you</p>
+
+				<div v-if="earnings.payouts.length" class="overflow-x-auto">
+					<table class="w-full text-left text-sm">
+						<thead>
+							<tr class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">
+								<th class="pb-3 pr-4">Date</th>
+								<th class="pb-3 pr-4">Method</th>
+								<th class="pb-3 pr-4">Reference</th>
+								<th class="pb-3 pr-4 text-right">Amount</th>
+								<th class="pb-3 pl-4">Note</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-100">
+							<tr v-for="payout in earnings.payouts" :key="payout.id">
+								<td class="py-3.5 pr-4 text-gray-900">{{ formatDate(payout.paid_at) }}</td>
+								<td class="py-3.5 pr-4 text-gray-700">{{ payout.method }}</td>
+								<td class="py-3.5 pr-4 font-mono text-xs text-gray-500">{{ payout.reference || '—' }}</td>
+								<td class="py-3.5 pr-4 text-right font-bold text-gray-900">{{ formatMoney(payout.amount) }}</td>
+								<td class="py-3.5 pl-4 text-gray-500">{{ payout.note || '—' }}</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<p v-else class="rounded-xl border border-dashed border-gray-300 py-10 text-center text-sm text-gray-400">
+					No payouts yet. Your first one will appear here.
+				</p>
+			</div>
+
+			<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+				<h2 class="text-base font-bold text-gray-900">Detailed breakdown</h2>
+				<p class="mb-4 text-sm text-gray-500">
+					Per event. NaSeRy keeps {{ earnings.fee_percent }}% of each sale after refunds; buyers never pay extra.
+				</p>
+
+				<div v-if="!earnings.csv_exports" class="rounded-xl border border-dashed border-primary-200 bg-primary-50/40 p-5 text-sm">
+					<p class="font-semibold text-gray-900">Available on Starter and Pro</p>
+					<p class="mt-1 text-gray-600">See the split for each event, month by month, and download every payment with its fee and refunds.</p>
+					<NuxtLink to="/organizer/billing" class="mt-3 inline-flex rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white">See plans</NuxtLink>
+				</div>
+				<div v-else-if="earnings.events.length" class="overflow-x-auto">
+					<table class="w-full text-left text-sm">
+						<thead>
+							<tr class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">
+								<th class="pb-3 pr-4">Event</th>
+								<th class="pb-3 pr-4 text-right">Ticket sales</th>
+								<th class="pb-3 pr-4 text-right">Refunded</th>
+								<th class="pb-3 pr-4 text-right">NaSeRy fee</th>
+								<th class="pb-3 text-right">Your share</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-gray-100">
+							<tr v-for="event in earnings.events" :key="event.event_id">
+								<td class="py-3.5 pr-4">
+									<div class="font-semibold text-gray-900">{{ event.name }}</div>
+									<div class="text-xs text-gray-400">{{ event.payments_count }} payment{{ event.payments_count === 1 ? '' : 's' }}</div>
+								</td>
+								<td class="py-3.5 pr-4 text-right text-gray-700">{{ formatMoney(event.ticket_sales) }}</td>
+								<td class="py-3.5 pr-4 text-right text-gray-500">−{{ formatMoney(event.refunded) }}</td>
+								<td class="py-3.5 pr-4 text-right text-amber-600">−{{ formatMoney(event.fee) }}</td>
+								<td class="py-3.5 text-right font-bold text-primary-700">{{ formatMoney(event.share) }}</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<p v-else class="rounded-xl border border-dashed border-gray-300 py-10 text-center text-sm text-gray-400">
+					No online ticket payments yet.
+				</p>
+			</div>
 		</template>
 	</div>
 </template>
 
 <script setup lang="ts">
-import type { EarningsDetails, EarningsSummary } from '~/composables/useEarnings'
-import { pesoExact } from '~/composables/useEarnings'
+import type { ApexOptions } from 'apexcharts'
 
-definePageMeta({ layout: 'dashboard' })
-useSeoMeta({ title: 'Earnings | NaSeRy' })
+definePageMeta({ layout: 'dashboard', middleware: ['organizer'] })
 
-const earnings = useEarnings()
-const { fetchOrganization } = useOrganization()
-const data = ref<EarningsSummary | null>(null)
-const details = ref<EarningsDetails | null>(null)
-const error = ref('')
+// Our earnings (0043) mapped onto the redesign's shape. The monthly chart and
+// per-event table come from the details endpoint (Starter / Pro plans).
+const earningsApi = useEarnings()
 const exporting = ref(false)
 let orgId = ''
 
-const lastPayout = computed(() => data.value?.payouts.find(p => !p.voided) ?? null)
-const pct = (n: number) => `${data.value?.gross ? Math.max(0, (n / data.value.gross) * 100) : 0}%`
-const dateLabel = (at: string) => new Date(at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
-const monthLabel = (ym: string) => new Date(`${ym}-01T00:00:00`).toLocaleDateString('en-PH', { month: 'short' })
-const pesoShort = (n: number) => (Math.abs(n) >= 1000 ? `₱${(n / 1000).toFixed(1)}K` : `₱${Math.round(n)}`)
-const barHeight = (n: number) => {
-	const max = Math.max(1, ...(details.value?.months.map(m => m.share) ?? [1]))
-	return Math.max(2, Math.round((Math.max(0, n) / max) * 120))
+interface EarningsPayment {
+	date: string
+	reference: string
+	event: string
+	ticket_sales: number
+	refunded: number
+	fee: number
+	share: number
 }
 
-async function load() {
-	error.value = ''
-	try {
-		const org = await fetchOrganization()
-		if (!org) return
-		orgId = org.id
-		data.value = await earnings.summary(orgId)
-		if (data.value.plan.details) details.value = await earnings.details(orgId, 6)
-	} catch (e) {
-		error.value = authMessage(e)
+interface EarningsResponse {
+	data: {
+		fee_percent: number
+		csv_exports: boolean
+		totals: { ticket_sales: number, refunded: number, fee: number, share: number }
+		paid_out: number
+		outstanding: number
+		last_payout: { paid_at: string, method: string } | null
+		payouts: Array<{ id: number, paid_at: string, method: string, reference: string | null, amount: number, note: string | null }>
+		events: Array<{ event_id: number, name: string, payments_count: number, ticket_sales: number, refunded: number, fee: number, share: number }>
+		monthly: Array<{ label: string, ticket_sales: number, share: number }>
+		payments: EarningsPayment[]
 	}
 }
 
-async function exportCsv() {
+type Earnings = EarningsResponse['data']
+
+const earnings = ref<Earnings | null>(null)
+const isLoading = ref(false)
+const errorMessage = ref('')
+
+const COLORS = { share: '#285F6b', fee: '#d97706', refunded: '#9ca3af', sales: '#a9c9cd' }
+
+function formatMoney(value: number) {
+	return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 2 }).format(value)
+}
+
+function formatDate(value: string) {
+	return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+const statCards = computed(() => {
+	const totals = earnings.value?.totals
+	if (!totals) return []
+
+	return [
+		{
+			label: 'Ticket sales', value: formatMoney(totals.ticket_sales), icon: 'cash',
+			iconBg: 'bg-primary-50', iconColor: 'text-primary-700', valueClass: 'text-gray-950',
+			hint: 'What buyers paid online for your tickets.',
+		},
+		{
+			label: 'Refunded to buyers', value: `−${formatMoney(totals.refunded)}`, icon: 'refresh-cw',
+			iconBg: 'bg-gray-100', iconColor: 'text-gray-600', valueClass: 'text-gray-700',
+			hint: 'Already sent back to buyers. Nobody holds it.',
+		},
+		{
+			label: 'NaSeRy fee', value: `−${formatMoney(totals.fee)}`, icon: 'tag',
+			iconBg: 'bg-amber-50', iconColor: 'text-amber-600', valueClass: 'text-amber-600',
+			hint: `The platform fee on each sale (${earnings.value?.fee_percent ?? 0}% after refunds).`,
+		},
+		{
+			label: 'Your share', value: formatMoney(totals.share), icon: 'check-circle',
+			iconBg: 'bg-primary-50', iconColor: 'text-primary-700', valueClass: 'text-primary-700',
+			hint: 'Yours. NaSeRy pays it out to you (see below).',
+		},
+	]
+})
+
+const flowSeries = computed(() => {
+	const totals = earnings.value?.totals
+	return totals ? [totals.share, totals.fee, totals.refunded] : []
+})
+
+const flowOptions = computed<ApexOptions>(() => ({
+	chart: { type: 'donut', fontFamily: 'inherit' },
+	labels: ['Your share', 'NaSeRy fee', 'Refunded'],
+	colors: [COLORS.share, COLORS.fee, COLORS.refunded],
+	dataLabels: { enabled: false },
+	stroke: { width: 2, colors: ['#fff'] },
+	legend: { position: 'bottom', fontSize: '13px', fontWeight: 600, markers: { size: 8 } },
+	plotOptions: {
+		pie: {
+			donut: {
+				size: '70%',
+				labels: {
+					show: true,
+					name: { fontSize: '12px', fontWeight: 700, color: '#6b7280' },
+					value: { fontSize: '20px', fontWeight: 800, color: '#111827', formatter: (value: string) => formatMoney(Number(value)) },
+					total: {
+						show: true,
+						label: 'Ticket sales',
+						color: '#6b7280',
+						fontSize: '12px',
+						fontWeight: 700,
+						formatter: () => formatMoney(earnings.value?.totals.ticket_sales ?? 0),
+					},
+				},
+			},
+		},
+	},
+	tooltip: { y: { formatter: (value: number) => formatMoney(value) } },
+}))
+
+const hasMonthlyActivity = computed(() => (earnings.value?.monthly ?? []).some(row => row.ticket_sales > 0))
+
+const monthlySeries = computed(() => [
+	{ name: 'Ticket sales', data: (earnings.value?.monthly ?? []).map(row => row.ticket_sales) },
+	{ name: 'Your share', data: (earnings.value?.monthly ?? []).map(row => row.share) },
+])
+
+const monthlyOptions = computed<ApexOptions>(() => ({
+	chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
+	colors: [COLORS.sales, COLORS.share],
+	plotOptions: { bar: { columnWidth: '50%', borderRadius: 4, borderRadiusApplication: 'end' } },
+	dataLabels: { enabled: false },
+	grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+	legend: { position: 'bottom', fontSize: '13px', fontWeight: 600, markers: { size: 8 } },
+	xaxis: {
+		categories: (earnings.value?.monthly ?? []).map(row => row.label),
+		axisBorder: { show: false },
+		axisTicks: { show: false },
+		labels: { style: { colors: '#6b7280', fontSize: '13px', fontWeight: 600 } },
+	},
+	yaxis: {
+		labels: {
+			style: { colors: '#9ca3af', fontSize: '11px' },
+			formatter: (value: number) => (value >= 1000 ? `₱${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}K` : `₱${Math.round(value)}`),
+		},
+	},
+	tooltip: { shared: true, intersect: false, y: { formatter: (value: number) => formatMoney(value) } },
+}))
+
+async function downloadCsv() {
 	exporting.value = true
 	try {
-		const blob = await earnings.exportCsv(orgId)
+		const blob = await earningsApi.exportCsv(orgId)
 		const url = URL.createObjectURL(blob)
 		const a = Object.assign(document.createElement('a'), { href: url, download: `earnings-${new Date().toISOString().slice(0, 10)}.csv` })
 		a.click()
 		URL.revokeObjectURL(url)
-	} catch (e) {
-		error.value = authMessage(e)
+	} catch (error: unknown) {
+		errorMessage.value = authMessage(error)
 	} finally {
 		exporting.value = false
 	}
 }
 
-onMounted(load)
+async function loadEarnings() {
+	isLoading.value = true
+	errorMessage.value = ''
+	try {
+		const org = await useOrganization().fetchOrganization()
+		if (!org) throw new Error('Set up your organizer workspace first.')
+		orgId = org.id
+		const summary = await earningsApi.summary(orgId)
+		const details = summary.plan.details ? await earningsApi.details(orgId, 6) : null
+		const payouts = summary.payouts.filter(p => !p.voided)
+		const net = summary.gross - summary.refunded
+		earnings.value = {
+			fee_percent: net > 0 ? Math.round((summary.platform_fee / net) * 10000) / 100 : 1,
+			csv_exports: summary.plan.details,
+			totals: { ticket_sales: summary.gross, refunded: summary.refunded, fee: summary.platform_fee, share: summary.share },
+			paid_out: summary.paid_out,
+			outstanding: summary.owed,
+			last_payout: payouts[0] ? { paid_at: payouts[0].paid_at, method: payouts[0].method_label } : null,
+			payouts: payouts.map(p => ({ id: p.id as unknown as number, paid_at: p.paid_at, method: p.method_label, reference: p.reference, amount: p.amount, note: p.note })),
+			events: (details?.events ?? []).map(e => ({ event_id: e.id as unknown as number, name: e.name, payments_count: e.payments, ticket_sales: e.gross, refunded: e.refunded, fee: e.platform_fee, share: e.share })),
+			monthly: (details?.months ?? []).map(m => ({ label: new Date(`${m.month}-01T00:00:00`).toLocaleDateString('en-PH', { month: 'short' }), ticket_sales: m.gross, share: m.share })),
+			payments: [],
+		}
+	} catch (error: unknown) {
+		errorMessage.value = authMessage(error) || 'Unable to load your earnings.'
+	} finally {
+		isLoading.value = false
+	}
+}
+
+onMounted(() => {
+	loadEarnings()
+})
 </script>

@@ -1,181 +1,225 @@
 <template>
-    <div class="rounded-2xl border border-gray-200 bg-white p-6">
-        <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <h2 class="text-lg font-bold text-gray-900">
-                    Walk-in Registration Counter
-                </h2>
+    <div class="space-y-6">
+        <section class="wk-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-extrabold tracking-tight text-gray-950">
+                        Walk-in Registration Counter
+                    </h2>
 
-                <p class="mt-1 text-sm text-gray-500">
-                    <span v-if="selectedEvent">
-                        Process on-site ticket purchases for
-                        <span class="font-semibold text-gray-700">
-                            {{ selectedEvent.name }}
+                    <p class="mt-1 text-sm text-gray-500">
+                        <span v-if="selectedEvent">
+                            Process on-site ticket purchases for
+                            <span class="font-semibold text-gray-700">{{ selectedEvent.name }}</span>
                         </span>
-                    </span>
 
-                    <span v-else>
-                        Process on-site ticket purchases
-                    </span>
-                </p>
-            </div>
-
-            <button type="button"
-                class="flex shrink-0 items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-50"
-                :disabled="!selectedEventId" @click="openWalkInForm">
-                <IconBase name="user-plus" class="h-4 w-4" />
-
-                New Walk-in
-            </button>
-        </div>
-
-        <div v-if="errorMessage" class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {{ errorMessage }}
-        </div>
-
-        <div v-if="!selectedEventId" class="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <div class="flex items-start gap-3">
-                <IconBase name="calendar" class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-
-                <div>
-                    <div class="text-sm font-bold text-gray-900">
-                        Select an Event
-                    </div>
-
-                    <p class="mt-0.5 text-sm text-gray-600">
-                        Choose an event from the event selector above before adding walk-in attendees.
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <template v-else>
-            <div class="mb-3 flex items-center justify-between">
-                <div>
-                    <h3 class="text-base font-bold text-gray-900">
-                        Walk-in Queue
-                    </h3>
-
-                    <p class="mt-0.5 text-xs text-gray-500">
-                        Pending walk-in registrations waiting for payment
+                        <span v-else>Process on-site ticket purchases</span>
                     </p>
                 </div>
 
-                <span class="rounded-full bg-gray-900 px-3 py-1 text-xs font-semibold text-white">
-                    {{ pendingQueue.length }}
-                    pending
-                </span>
+                <button type="button"
+                    class="flex shrink-0 items-center gap-2 rounded-xl bg-[#285F6b] px-5 py-3 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#1f4a54] hover:shadow-md active:translate-y-0 active:scale-[0.98] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="!selectedEventId" @click="openWalkInForm">
+                    <IconBase name="user-plus" class="h-4 w-4" />
+
+                    New Walk-in
+                </button>
             </div>
 
-            <div v-if="isLoadingWalkIns" class="py-8 text-center text-sm text-gray-500">
-                <IconBase name="refresh-cw" class="mx-auto mb-2 h-5 w-5 animate-spin text-gray-400" />
-
-                Loading walk-in queue...
+            <div v-if="errorMessage" class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {{ errorMessage }}
             </div>
 
-            <div v-else-if="pendingQueue.length" class="divide-y divide-gray-100">
-                <div v-for="entry in pendingQueue" :key="entry.id"
-                    class="flex flex-wrap items-center justify-between gap-4 py-3.5">
-                    <div class="flex items-center gap-3">
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#285F6b]/10">
-                            <IconBase name="user-plus" class="h-5 w-5 text-[#285F6b]" />
+            <div v-if="!selectedEventId" class="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div class="flex items-start gap-3">
+                    <IconBase name="calendar" class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+
+                    <div>
+                        <div class="text-sm font-bold text-gray-900">
+                            Select an Event
                         </div>
 
-                        <div>
-                            <div class="text-sm font-bold text-gray-900">
-                                {{ entry.name }}
-                            </div>
+                        <p class="mt-0.5 text-sm text-gray-600">
+                            Choose an event from the event selector above before adding walk-in attendees.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
-                            <div class="mt-0.5 text-sm text-gray-500">
-                                {{
-                                    entry.ticket_type
-                                        ?.name ||
-                                    'Ticket type'
-                                }}
+            <div v-else class="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <div v-for="tile in summaryTiles" :key="tile.label" class="wk-tile rounded-2xl bg-gray-50 p-4">
+                    <div class="flex items-center justify-between">
+                        <p class="text-xs font-bold uppercase tracking-[0.08em] text-gray-400">{{ tile.label }}</p>
+                        <IconBase :name="tile.icon" class="h-4 w-4 text-primary-700" />
+                    </div>
+                    <p class="mt-2 text-3xl font-extrabold tracking-tight text-gray-950">{{ tile.value }}</p>
+                </div>
+            </div>
+        </section>
 
-                                <span v-if="entry.amount">
-                                    •
-                                    {{
-                                        formatCurrency(
-                                            entry.amount,
-                                        )
-                                    }}
-                                </span>
-                            </div>
+        <div v-if="selectedEventId" class="grid grid-cols-1 gap-6 xl:grid-cols-5">
+            <!-- Queue -->
+            <section class="wk-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8 xl:col-span-3" style="--d: 80ms">
+                <div class="mb-5 flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-lg font-extrabold tracking-tight text-gray-950">
+                            Walk-in Queue
+                        </h3>
 
-                            <div v-if="
-                                entry.email ||
-                                entry.phone
-                            " class="mt-1 text-xs text-gray-400">
-                                <span v-if="entry.email">
-                                    {{ entry.email }}
-                                </span>
-
-                                <span v-if="
-                                    entry.email &&
-                                    entry.phone
-                                ">
-                                    •
-                                </span>
-
-                                <span v-if="entry.phone">
-                                    {{ entry.phone }}
-                                </span>
-                            </div>
-                        </div>
+                        <p class="mt-0.5 text-sm text-gray-500">
+                            Pending walk-in registrations waiting for payment
+                        </p>
                     </div>
 
-                    <div class="flex items-center gap-4">
-                        <span class="text-sm text-gray-400">
-                            {{
-                                formatTime(
-                                    entry.created_at,
-                                )
-                            }}
+                    <span class="inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1.5 text-xs font-bold text-primary-700">
+                        <span class="relative flex h-2 w-2">
+                            <span v-if="pendingQueue.length" class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-700 opacity-60" />
+                            <span class="relative inline-flex h-2 w-2 rounded-full bg-primary-700" />
                         </span>
+                        {{ pendingQueue.length }} pending
+                    </span>
+                </div>
 
-                        <button type="button"
-                            class="flex items-center gap-2 rounded-lg bg-gray-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-                            :disabled="processingPaymentId ===
-                                entry.id
-                                " @click="
-                                    processPayment(
-                                        entry,
-                                    )
-                                    ">
-                            <IconBase v-if="
-                                processingPaymentId ===
-                                entry.id
-                            " name="refresh-cw" class="h-3.5 w-3.5 animate-spin" />
+                <div v-if="isLoadingWalkIns" class="py-10 text-center text-sm text-gray-500">
+                    <IconBase name="refresh-cw" class="mx-auto mb-2 h-5 w-5 animate-spin text-gray-400" />
 
-                            <IconBase v-else name="credit-card" class="h-3.5 w-3.5" />
+                    Loading walk-in queue...
+                </div>
 
-                            {{
-                                processingPaymentId ===
+                <div v-else-if="pendingQueue.length" class="space-y-3">
+                    <div v-for="(entry, index) in pendingQueue" :key="entry.id"
+                        class="wk-row flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200 p-4 transition duration-200 hover:border-primary-200 hover:bg-gray-50/60"
+                        :style="{ '--d': index * 50 + 'ms' }">
+                        <div class="flex min-w-0 items-center gap-3.5">
+                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
+                                {{ getInitials(entry.name) }}
+                            </div>
+
+                            <div class="min-w-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="truncate text-sm font-bold text-gray-950">{{ entry.name }}</span>
+                                    <span v-if="entry.amount" class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-700">
+                                        {{ formatCurrency(entry.amount) }}
+                                    </span>
+                                </div>
+
+                                <div class="mt-0.5 text-xs text-gray-500">
+                                    {{ entry.ticket_type?.name || 'Ticket type' }}
+                                    <span v-if="entry.email || entry.phone" class="text-gray-300"> · </span>
+                                    <span v-if="entry.email">{{ entry.email }}</span>
+                                    <span v-if="entry.email && entry.phone" class="text-gray-300"> · </span>
+                                    <span v-if="entry.phone">{{ entry.phone }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-4">
+                            <span class="text-xs font-semibold text-gray-400">{{ formatTime(entry.created_at) }}</span>
+
+                            <button type="button"
+                                class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition duration-200 hover:bg-[#1f4a54] hover:shadow-md active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                                :disabled="processingPaymentId ===
                                     entry.id
-                                    ? 'Processing...'
-                                    : 'Process Payment'
-                            }}
-                        </button>
+                                    " @click="
+                                        processPayment(
+                                            entry,
+                                        )
+                                        ">
+                                <IconBase v-if="
+                                    processingPaymentId ===
+                                    entry.id
+                                " name="refresh-cw" class="h-3.5 w-3.5 animate-spin" />
+
+                                <IconBase v-else name="credit-card" class="h-3.5 w-3.5" />
+
+                                {{
+                                    processingPaymentId ===
+                                        entry.id
+                                        ? 'Processing...'
+                                        : 'Process Payment'
+                                }}
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div v-else class="rounded-xl border border-dashed border-gray-300 px-5 py-10 text-center">
-                <IconBase name="user-plus" class="mx-auto h-7 w-7 text-gray-400" />
+                <div v-else class="rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center">
+                    <div class="wk-float mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+                        <IconBase name="user-plus" class="h-7 w-7" />
+                    </div>
 
-                <p class="mt-2 text-sm font-semibold text-gray-700">
-                    No walk-ins in queue
-                </p>
+                    <p class="mt-4 text-sm font-bold text-gray-900">
+                        No walk-ins in queue
+                    </p>
 
-                <p class="mt-1 text-xs text-gray-500">
-                    New walk-in registrations for this event will appear here.
-                </p>
-            </div>
-        </template>
+                    <p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-gray-500">
+                        New walk-in registrations for this event will appear here.
+                    </p>
+
+                    <button type="button" class="mt-5 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700" @click="openWalkInForm">
+                        <IconBase name="plus" class="h-3.5 w-3.5" />
+                        Add a walk-in
+                    </button>
+                </div>
+            </section>
+
+            <!-- Paid -->
+            <section class="wk-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8 xl:col-span-2" style="--d: 160ms">
+                <div class="mb-5 flex items-start justify-between gap-3">
+                    <div>
+                        <h3 class="text-lg font-extrabold tracking-tight text-gray-950">
+                            Paid at the counter
+                        </h3>
+
+                        <p class="mt-0.5 text-sm text-gray-500">
+                            Latest completed walk-in payments
+                        </p>
+                    </div>
+
+                    <div v-if="paidEntries.length" class="text-right">
+                        <p class="text-xl font-extrabold tracking-tight text-gray-950">{{ formatCurrency(paidTotal) }}</p>
+                        <p class="text-[11px] font-semibold text-gray-400">collected</p>
+                    </div>
+                </div>
+
+                <div v-if="paidEntries.length" class="max-h-[420px] space-y-1 overflow-y-auto pr-1">
+                    <div v-for="(entry, index) in paidEntries" :key="entry.id"
+                        class="wk-row flex items-center justify-between gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-gray-50"
+                        :style="{ '--d': index * 40 + 'ms' }">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
+                                <IconBase name="check-circle" class="h-5 w-5" />
+                            </div>
+
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-bold text-gray-900">{{ entry.name }}</p>
+                                <p class="text-xs text-gray-500">{{ entry.ticket_type?.name || 'Ticket' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="shrink-0 text-right">
+                            <p class="text-sm font-bold text-gray-900">{{ formatCurrency(entry.amount) }}</p>
+                            <p class="text-[11px] font-semibold text-gray-400">{{ formatTime(entry.paid_at) }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else class="rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center">
+                    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50 text-gray-400">
+                        <IconBase name="credit-card" class="h-7 w-7" />
+                    </div>
+
+                    <p class="mt-4 text-sm font-bold text-gray-900">No payments yet</p>
+
+                    <p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-gray-500">
+                        Paid walk-ins show up here once you process their payment.
+                    </p>
+                </div>
+            </section>
+        </div>
 
         <Transition name="fade">
-            <div v-if="showWalkInForm" class="fixed inset-0 z-40 bg-gray-900/40" @click="closeWalkInForm" />
+            <div v-if="showWalkInForm" class="fixed inset-0 z-40 bg-gray-900/40 backdrop-blur-[2px]" @click="closeWalkInForm" />
         </Transition>
 
         <Transition name="slide">
@@ -184,12 +228,12 @@
                 <div class="flex shrink-0 items-start justify-between border-b border-gray-200 px-6 py-5">
                     <div class="flex items-start gap-3">
                         <div
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-white">
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#285F6b] text-white">
                             <IconBase name="user-plus" class="h-5 w-5" />
                         </div>
 
                         <div>
-                            <h2 class="text-base font-bold text-gray-900">
+                            <h2 class="text-base font-extrabold text-gray-950">
                                 New Walk-in
                             </h2>
 
@@ -202,7 +246,7 @@
                         </div>
                     </div>
 
-                    <button type="button" class="text-gray-400 hover:text-gray-600" @click="closeWalkInForm">
+                    <button type="button" class="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600" @click="closeWalkInForm">
                         <IconBase name="x" class="h-5 w-5" />
                     </button>
                 </div>
@@ -286,6 +330,7 @@
                 </div>
             </div>
         </Transition>
+    
     </div>
 </template>
 
@@ -479,6 +524,42 @@ const pendingQueue =
                 'pending',
         ),
     )
+
+const paidEntries =
+    computed(() =>
+        walkIns.value
+            .filter(entry => entry.payment_status === 'paid')
+            .sort((a, b) =>
+                (b.paid_at ?? b.created_at).localeCompare(a.paid_at ?? a.created_at),
+            )
+            .slice(0, 12),
+    )
+
+const paidTotal =
+    computed(() =>
+        walkIns.value
+            .filter(entry => entry.payment_status === 'paid')
+            .reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
+    )
+
+const summaryTiles =
+    computed(() => [
+        { label: 'Pending', value: walkInSummary.value.pending, icon: 'clock' },
+        { label: 'Paid walk-ins', value: walkInSummary.value.paid, icon: 'check-circle' },
+        { label: 'Registered', value: walkInSummary.value.registered, icon: 'users' },
+        { label: 'Spots left', value: walkInSummary.value.remaining, icon: 'ticket' },
+    ])
+
+function getInitials(name: string): string {
+    return (
+        name
+            .split(' ')
+            .filter(Boolean)
+            .slice(0, 2)
+            .map(part => part[0]?.toUpperCase())
+            .join('') || 'W'
+    )
+}
 
 function emptyWalkInForm() {
     return {
@@ -818,5 +899,43 @@ watch(
 .fade-enter-from,
 .fade-leave-to {
     opacity: 0;
+}
+
+.wk-rise {
+    animation: wk-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--d, 0ms);
+}
+
+.wk-row {
+    animation: wk-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--d, 0ms);
+}
+
+.wk-tile {
+    transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.wk-tile:hover {
+    transform: translateY(-2px);
+    background-color: #f3f6f7;
+}
+
+.wk-float {
+    animation: wk-float 3.2s ease-in-out infinite;
+}
+
+@keyframes wk-rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes wk-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wk-rise, .wk-row, .wk-float { animation: none; }
+    .wk-tile { transition: none; }
 }
 </style>

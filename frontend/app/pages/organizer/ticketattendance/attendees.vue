@@ -1,8 +1,8 @@
 <template>
-	<div class="rounded-2xl border border-gray-200 bg-white p-6">
+	<div class="rounded-3xl border border-gray-200 bg-white p-6 sm:p-8">
 		<div class="mb-5 flex flex-wrap items-start justify-between gap-3">
 			<div>
-				<h2 class="text-lg font-bold text-gray-900">
+				<h2 class="text-xl font-extrabold tracking-tight text-gray-950">
 					Attendee Management
 				</h2>
 
@@ -22,7 +22,7 @@
 
 			<div v-if="selectedEventId" class="flex shrink-0 flex-wrap gap-3">
 				<button type="button"
-					class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1f4a54]"
+					class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#1f4a54] hover:shadow-md active:translate-y-0 active:scale-[0.98]"
 					@click="openRegisterAttendee">
 					<IconBase name="user-plus" class="h-4 w-4" />
 
@@ -30,7 +30,7 @@
 				</button>
 
 				<button type="button"
-					class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+					class="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
 					@click="openImport">
 					<IconBase name="upload" class="h-4 w-4" />
 
@@ -38,7 +38,7 @@
 				</button>
 
 				<button type="button"
-					class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+					class="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
 					:disabled="!attendees.length" @click="exportAttendees">
 					<IconBase name="download" class="h-4 w-4" />
 
@@ -100,10 +100,10 @@
 
 				<div class="flex flex-wrap items-center gap-2">
 					<button v-for="filter in filters" :key="filter.value" type="button"
-						class="rounded-full px-3 py-1.5 text-xs font-semibold transition" :class="activeFilter ===
+						class="rounded-full px-3.5 py-1.5 text-xs font-bold transition duration-200" :class="activeFilter ===
 							filter.value
-							? 'bg-gray-900 text-white'
-							: 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+							? 'bg-primary-700 text-white'
+							: 'border border-gray-200 bg-white text-gray-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700'
 							" @click="
 								activeFilter =
 								filter.value
@@ -136,53 +136,53 @@
 			<div v-else-if="
 				filteredAttendees.length
 			" class="overflow-x-auto">
-				<table class="w-full text-left text-sm">
+				<table class="w-full whitespace-nowrap text-left text-sm">
 					<thead>
 						<tr
-							class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">
-							<th class="pb-3 pr-4">
+							class="bg-gray-50/80 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400 [&>th]:py-3 [&>th:first-child]:rounded-l-xl [&>th:first-child]:pl-3 [&>th:last-child]:rounded-r-xl [&>th:last-child]:pr-3">
+							<th class="pr-4">
 								Name
 							</th>
 
-							<th class="pb-3 pr-4">
+							<th class="pr-4">
 								Email
 							</th>
 
-							<th class="pb-3 pr-4">
+							<th class="pr-4">
 								Ticket Type
 							</th>
 
-							<th class="pb-3 pr-4">
+							<th class="pr-4">
 								Ticket ID
 							</th>
 
-							<th class="pb-3 pr-4">
+							<th class="pr-4">
 								Category
 							</th>
 
-							<th class="pb-3 pr-4">
+							<th class="pr-4">
 								Source
 							</th>
 
-							<th class="pb-3 pr-4">
+							<th class="pr-4">
 								Status
 							</th>
 
-							<th class="pb-3">
+							<th>
 								Payment
 							</th>
 
-							<th class="pb-3 pl-4 text-right">Actions</th>
+							<th class="pl-4 text-right">Actions</th>
 						</tr>
 					</thead>
 
 					<tbody class="divide-y divide-gray-100">
 						<tr v-for="attendee in filteredAttendees" :key="attendee.id"
-							class="transition hover:bg-gray-50/70">
-							<td class="py-3.5 pr-4">
+							class="row-in group transition-colors hover:bg-gray-50">
+							<td class="py-3.5 pl-3 pr-4">
 								<div class="flex items-center gap-3">
 									<div
-										class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-sm font-bold text-[#285F6b]">
+										class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
 										{{
 											getInitials(
 												attendee.name,
@@ -227,7 +227,7 @@
 							</td>
 
 							<td class="py-3.5 pr-4">
-								<span class="font-mono text-xs font-semibold text-gray-500">
+								<span class="rounded-md bg-gray-100 px-2 py-1 font-mono text-[11px] font-semibold tracking-tight text-gray-600">
 									{{
 										attendee.ticket_id
 									}}
@@ -284,15 +284,15 @@
 								</span>
 							</td>
 
-							<td class="py-3.5 pl-4 text-right">
+							<td class="py-3.5 pl-4 pr-3 text-right">
 								<div v-if="attendee.qr_token" class="flex justify-end gap-2">
 									<button type="button" title="Download ticket"
-										class="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+										class="rounded-lg border border-gray-200 bg-white p-2 text-gray-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
 										@click="downloadAttendeeTicket(attendee)">
 										<IconBase name="download" class="h-4 w-4" />
 									</button>
 									<button type="button" :title="attendee.email ? 'Email ticket' : 'No email on file'"
-										class="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+										class="rounded-lg border border-gray-200 bg-white p-2 text-gray-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
 										:disabled="!attendee.email || emailingAttendeeId === attendee.id"
 										@click="emailAttendeeTicket(attendee)">
 										<IconBase :name="emailingAttendeeId === attendee.id ? 'refresh-cw' : (emailedAttendeeIds.has(attendee.id) ? 'check-circle' : 'send')"
@@ -333,7 +333,7 @@
 					!search &&
 					activeFilter ===
 					'all'
-				" type="button" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1f4a54]"
+				" type="button" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#1f4a54]"
 					@click="openRegisterAttendee">
 					<IconBase name="user-plus" class="h-4 w-4" />
 
@@ -347,179 +347,148 @@
 		</Transition>
 
 		<Transition name="slide">
-			<div v-if="showRegisterForm"
-				class="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl">
-				<div class="flex shrink-0 items-start justify-between border-b border-gray-200 px-6 py-5">
-					<div class="flex items-start gap-3">
-						<div
-							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#285F6b] text-white">
-							<IconBase name="user-plus" class="h-5 w-5" />
+			<aside v-if="showRegisterForm" class="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl" role="dialog" aria-label="Register attendee">
+				<header class="flex shrink-0 items-center gap-3.5 border-b border-gray-200 px-6 py-5">
+					<span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#285F6b] text-white">
+						<IconBase name="user-plus" class="h-5 w-5" />
+					</span>
+
+					<div class="min-w-0 flex-1">
+						<h2 class="text-base font-extrabold tracking-tight text-gray-950">Register Attendee</h2>
+						<p class="mt-0.5 truncate text-sm text-gray-500">{{ selectedEvent?.name || 'Selected event' }}</p>
+					</div>
+
+					<button type="button" class="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600" aria-label="Close" @click="closeRegisterAttendee">
+						<IconBase name="x" class="h-5 w-5" />
+					</button>
+				</header>
+
+				<div ref="registerBody" class="flex-1 space-y-7 overflow-y-auto px-6 py-6">
+					<p v-if="registerError" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+						{{ registerError }}
+					</p>
+
+					<!-- Attendee -->
+					<section class="reg-step">
+						<h3 class="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-gray-400">
+							<span class="flex h-5 w-5 items-center justify-center rounded-full bg-primary-50 text-[11px] text-primary-700">1</span>
+							Attendee details
+						</h3>
+
+						<FormsLabel text="Full Name" required />
+						<FormsTextField v-model="registerForm.attendeeName" icon="user" placeholder="e.g. Juan Dela Cruz" required />
+
+						<div class="mt-4">
+							<FormsLabel text="Email Address (optional)" />
+							<FormsTextField v-model="registerForm.attendeeEmail" type="email" icon="send" placeholder="attendee@example.com" />
+							<p class="mt-1.5 text-xs text-gray-500">The QR ticket is e-mailed here.</p>
+						</div>
+					</section>
+
+					<!-- Ticket -->
+					<section class="reg-step" style="--d: 60ms">
+						<h3 class="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-gray-400">
+							<span class="flex h-5 w-5 items-center justify-center rounded-full bg-primary-50 text-[11px] text-primary-700">2</span>
+							Ticket type <span class="text-red-500">*</span>
+						</h3>
+
+						<div v-if="isLoadingTicketTypes" class="space-y-2">
+							<div v-for="n in 2" :key="n" class="h-[62px] animate-pulse rounded-2xl bg-gray-100" />
 						</div>
 
-						<div>
-							<h2 class="text-base font-bold text-gray-900">
-								Register Attendee
-							</h2>
+						<p v-else-if="!ticketTypes.length" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-700">
+							No ticket types are configured for this event. Configure ticket types in Event Management first.
+						</p>
 
-							<p class="mt-0.5 text-sm text-gray-500">
-								{{
-									selectedEvent?.name ||
-									'Selected event'
-								}}
+						<div v-else class="space-y-2" role="group" aria-label="Ticket type">
+							<button v-for="ticketType in ticketTypes" :key="ticketType.id" type="button"
+								:aria-pressed="registerForm.ticketTypeId === ticketType.id"
+								class="reg-option flex w-full items-center gap-3.5 rounded-2xl border bg-white px-4 py-3.5 text-left"
+								:class="registerForm.ticketTypeId === ticketType.id ? 'border-[#285F6b] bg-primary-50/50 ring-1 ring-[#285F6b]' : 'border-gray-200 hover:border-primary-200 hover:bg-gray-50'"
+								@click="registerForm.ticketTypeId = registerForm.ticketTypeId === ticketType.id ? null : ticketType.id">
+								<span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors"
+									:class="registerForm.ticketTypeId === ticketType.id ? 'border-[#285F6b] bg-[#285F6b] text-white' : 'border-gray-300'">
+									<IconBase v-if="registerForm.ticketTypeId === ticketType.id" name="check" class="h-3 w-3" />
+								</span>
+
+								<span class="min-w-0 flex-1">
+									<span class="block truncate text-sm font-bold text-gray-950">{{ ticketType.name }}</span>
+									<span class="mt-0.5 block text-xs text-gray-500">
+										{{ ticketType.capacity ? `${ticketType.capacity} spots` : 'Unlimited capacity' }}
+									</span>
+								</span>
+
+								<span class="shrink-0 text-sm font-extrabold text-gray-950">
+									{{ Number(ticketType.price ?? 0) > 0 ? formatCurrency(ticketType.price ?? 0) : 'Free' }}
+								</span>
+							</button>
+						</div>
+					</section>
+
+					<!-- Category -->
+					<section class="reg-step" style="--d: 120ms">
+						<h3 class="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-gray-400">
+							<span class="flex h-5 w-5 items-center justify-center rounded-full bg-primary-50 text-[11px] text-primary-700">3</span>
+							Attendee category <span class="text-red-500">*</span>
+						</h3>
+
+						<div class="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1" role="radiogroup" aria-label="Attendee category">
+							<button v-for="option in categoryOptions" :key="option.value" type="button" role="radio"
+								:aria-checked="registerForm.attendeeCategory === option.value"
+								class="rounded-lg py-2 text-sm font-bold transition duration-200"
+								:class="registerForm.attendeeCategory === option.value ? 'bg-white text-[#285F6b] shadow-sm' : 'text-gray-500 hover:text-gray-800'"
+								@click="registerForm.attendeeCategory = option.value">
+								{{ option.label }}
+							</button>
+						</div>
+
+						<p class="mt-2 px-1 text-xs leading-5 text-gray-500">
+							{{ categoryOptions.find(option => option.value === registerForm.attendeeCategory)?.hint }}
+						</p>
+
+					</section>
+
+					<div class="flex items-start gap-3 rounded-2xl bg-gray-50 px-4 py-3.5">
+						<span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-primary-700 ring-1 ring-gray-200">
+							<IconBase name="qr-code" class="h-4 w-4" />
+						</span>
+
+						<div>
+							<p class="text-sm font-bold text-gray-900">QR ticket will be generated</p>
+							<p class="mt-0.5 text-xs leading-5 text-gray-500">
+								The attendee gets a unique ticket ID and QR token to scan at check-in.
 							</p>
 						</div>
 					</div>
-
-					<button type="button" class="text-gray-400 transition hover:text-gray-600"
-						@click="closeRegisterAttendee">
-						<IconBase name="x" class="h-5 w-5" />
-					</button>
 				</div>
 
-				<div class="flex-1 overflow-y-auto px-6 py-5">
-					<div v-if="registerError"
-						class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-						{{ registerError }}
+				<footer class="shrink-0 border-t border-gray-200 bg-white px-6 py-4">
+					<div class="mb-3 flex items-center justify-between gap-3 text-sm">
+						<p class="min-w-0 truncate text-gray-500">
+							<template v-if="selectedTicketType">{{ selectedTicketType.name }}</template>
+							<template v-else>No ticket selected</template>
+						</p>
+
+						<p class="shrink-0 font-extrabold text-gray-950">
+							{{ registerAmount > 0 ? formatCurrency(registerAmount) : 'No charge' }}
+						</p>
 					</div>
 
-					<div v-if="isLoadingTicketTypes"
-						class="mb-5 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-						<div class="flex items-center gap-2 text-sm text-gray-500">
-							<IconBase name="refresh-cw" class="h-4 w-4 animate-spin" />
+					<p v-if="registerBlocker" class="mb-3 rounded-lg bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500">{{ registerBlocker }}</p>
 
-							Loading ticket types...
-						</div>
+					<div class="flex gap-3">
+						<FormsButton variant="secondary" class="flex-1" :disabled="isRegistering" @click="closeRegisterAttendee">
+							Cancel
+						</FormsButton>
+
+						<FormsButton class="flex-1" :disabled="isRegistering || Boolean(registerBlocker)" @click="submitRegisterAttendee">
+							<IconBase v-if="isRegistering" name="refresh-cw" class="h-4 w-4 animate-spin" />
+							<IconBase v-else name="user-plus" class="h-4 w-4" />
+							{{ isRegistering ? 'Registering...' : 'Register Attendee' }}
+						</FormsButton>
 					</div>
-
-					<FormsLabel text="Full Name" required />
-
-					<FormsTextField v-model="registerForm.attendeeName" icon="user" placeholder="e.g. Juan Dela Cruz"
-						required />
-
-					<div class="mt-4">
-						<FormsLabel text="Email Address (optional)" />
-						<FormsTextField v-model="registerForm.attendeeEmail" type="email" placeholder="attendee@example.com" />
-						<p class="mt-1.5 text-xs text-gray-500">The QR ticket is e-mailed here.</p>
-					</div>
-
-					<div class="mt-4">
-						<FormsLabel text="Ticket Type" required />
-
-						<FormsSelect v-model="registerForm.ticketTypeId"
-							:options="ticketTypes.map(ticketType => ({ value: ticketType.id, label: ticketType.price !== undefined ? `${ticketType.name} — ${formatCurrency(ticketType.price)}` : ticketType.name }))"
-							placeholder="Select ticket type" :can-clear="false"
-							:disabled="isLoadingTicketTypes || !ticketTypes.length" />
-
-						<div v-if="
-							!isLoadingTicketTypes &&
-							!ticketTypes.length
-						" class="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-							No ticket types are configured for this event. Configure ticket types in Event Management
-							first.
-						</div>
-					</div>
-
-					<div class="mt-4">
-						<FormsLabel text="Attendee Category" required />
-
-						<FormsSelect v-model="registerForm.attendeeCategory"
-							:options="[{ value: 'invited', label: 'Invited' }, { value: 'free', label: 'Free (complimentary)' }]"
-							:can-clear="false" :searchable="false" />
-						<p class="mt-1.5 text-xs text-gray-500">Paying guests buy online, or you sell at the door in the
-							Walk-in Counter (so the cash is recorded).</p>
-					</div>
-
-					<div v-if="selectedTicketType" class="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-						<div class="mb-3 flex items-center gap-3">
-							<div
-								class="flex h-9 w-9 items-center justify-center rounded-xl bg-[#285F6b]/10 text-[#285F6b]">
-								<IconBase name="ticket" class="h-4 w-4" />
-							</div>
-
-							<div>
-								<p class="text-sm font-bold text-gray-900">
-									{{ selectedTicketType.name }}
-								</p>
-
-								<p class="text-xs text-gray-500">
-									Selected ticket type
-								</p>
-							</div>
-						</div>
-
-						<div class="grid grid-cols-2 gap-3">
-							<div>
-								<p class="text-xs text-gray-400">
-									Price
-								</p>
-
-								<p class="mt-1 text-sm font-semibold text-gray-900">
-									{{
-										formatCurrency(
-											selectedTicketType.price ??
-											0,
-										)
-									}}
-								</p>
-							</div>
-
-							<div>
-								<p class="text-xs text-gray-400">
-									Capacity
-								</p>
-
-								<p class="mt-1 text-sm font-semibold text-gray-900">
-									{{
-										selectedTicketType.capacity ??
-										'—'
-									}}
-								</p>
-							</div>
-						</div>
-					</div>
-
-					<div class="mt-5 rounded-xl border border-primary-100 bg-primary-50/50 px-4 py-3">
-						<div class="flex items-start gap-3">
-							<IconBase name="qr-code" class="mt-0.5 h-5 w-5 shrink-0 text-primary-700" />
-
-							<div>
-								<p class="text-sm font-semibold text-primary-900">
-									QR ticket will be generated
-								</p>
-
-								<p class="mt-1 text-xs leading-5 text-primary-700">
-									After registration, the attendee receives a unique ticket ID and QR token that can
-									be
-									scanned during event check-in.
-								</p>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<div class="flex shrink-0 gap-3 border-t border-gray-200 px-6 py-4">
-					<FormsButton variant="secondary" class="flex-1" :disabled="isRegistering"
-						@click="closeRegisterAttendee">
-						Cancel
-					</FormsButton>
-
-					<FormsButton class="flex-1" :disabled="isRegistering ||
-						!registerForm.attendeeName.trim() ||
-						!registerForm.ticketTypeId ||
-						registerEmailUnverified
-						" @click="submitRegisterAttendee">
-						<IconBase v-if="isRegistering" name="refresh-cw" class="h-4 w-4 animate-spin" />
-
-						<IconBase v-else name="user-plus" class="h-4 w-4" />
-
-						{{
-							isRegistering
-								? 'Registering...'
-								: 'Register Attendee'
-						}}
-					</FormsButton>
-				</div>
-			</div>
+				</footer>
+			</aside>
 		</Transition>
 
 		<Transition name="fade">
@@ -532,7 +501,7 @@
 				registeredTicket
 			" class="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col overflow-hidden bg-[#f4f8f8] shadow-2xl">
 				<div
-					class="relative overflow-hidden bg-gradient-to-br from-[#285F6b] via-[#2f6f7c] to-[#3d8796] px-6 py-5 text-white">
+					class="relative overflow-hidden bg-[#285F6b] px-6 py-5 text-white">
 					<div class="pointer-events-none absolute -right-12 -top-16 h-36 w-36 rounded-full bg-white/10" />
 					<div class="relative flex items-start justify-between gap-4">
 						<div>
@@ -687,7 +656,7 @@
 							:disabled="!registeredTicket.qr_token" @click="downloadRegisteredTicket">Download
 							Ticket</button>
 						<button type="button"
-							class="rounded-2xl bg-gradient-to-br from-[#285F6b] to-[#347887] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-50"
+							class="rounded-2xl bg-[#285F6b] px-4 py-3 text-sm font-extrabold text-white transition hover:bg-[#1f4a54] disabled:opacity-50"
 							:disabled="!registeredTicket.email || !registeredTicket.qr_token || isEmailingTicket"
 							@click="emailRegisteredTicket">{{ isEmailingTicket ? 'Sending...' : 'Email Ticket'
 							}}</button>
@@ -1047,6 +1016,15 @@ async function openPdf(ticketId: string) {
 	window.open(URL.createObjectURL(blob), '_blank')
 }
 
+// Added here: invited or complimentary guests only. Paying guests buy online, or
+// you sell at the door in the Walk-in Counter (so the cash is recorded).
+const categoryOptions = [
+	{ value: 'invited', label: 'Invited', hint: 'A guest you invited. No payment. Paying guests buy online or at the Walk-in Counter.' },
+	{ value: 'free', label: 'Free', hint: 'Complimentary entry. No payment. Paying guests buy online or at the Walk-in Counter.' },
+] as const
+
+const registerBody = ref<HTMLElement | null>(null)
+
 const selectedTicketType =
 	computed<TicketType | null>(
 		() => {
@@ -1271,6 +1249,39 @@ async function emailAttendeeTicket(attendee: Attendee) {
 		emailingAttendeeId.value = null
 	}
 }
+
+const registerAmount = computed(() =>
+	registerForm.attendeeCategory === 'paid' ? Number(selectedTicketType.value?.price ?? 0) : 0,
+)
+
+// Why the submit button is disabled, so the organizer is never left guessing.
+const registerBlocker = computed(() => {
+	if (!registerForm.attendeeName.trim()) return 'Enter the attendee\'s full name to continue.'
+	if (!registerForm.ticketTypeId) return 'Select a ticket type to continue.'
+	if (registerEmailUnverified.value) return 'Verify the email address, or clear it, to continue.'
+	return ''
+})
+
+function onRegisterKeydown(event: KeyboardEvent) {
+	if (event.key === 'Escape') closeRegisterAttendee()
+}
+
+watch(showRegisterForm, async (open) => {
+	if (!import.meta.client) return
+
+	if (!open) {
+		window.removeEventListener('keydown', onRegisterKeydown)
+		return
+	}
+
+	window.addEventListener('keydown', onRegisterKeydown)
+	await nextTick()
+	setTimeout(() => registerBody.value?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true }), 320)
+})
+
+onBeforeUnmount(() => {
+	if (import.meta.client) window.removeEventListener('keydown', onRegisterKeydown)
+})
 
 async function loadTicketTypes() {
 	if (!selectedEventId.value) {
@@ -1545,10 +1556,10 @@ function formatStatus(
 }
 
 function statusClass(status: Attendee['status']): string {
-	if (status === 'checked_in') return 'bg-gray-900 text-white'
+	if (status === 'checked_in') return 'bg-[#285F6b] text-white'
 	if (status === 'pending_approval') return 'border border-amber-200 bg-amber-50 text-amber-700'
 	if (status === 'rejected') return 'border border-red-200 bg-red-50 text-red-600'
-	return 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+	return 'border border-primary-100 bg-primary-50 text-primary-700'
 }
 
 function formatSource(
@@ -1586,21 +1597,21 @@ function sourceClass(
 		source ===
 		'walk_in'
 	) {
-		return 'bg-amber-50 text-amber-700'
+		return 'bg-gray-100 text-gray-700'
 	}
 
 	if (
 		source ===
 		'online'
 	) {
-		return 'bg-blue-50 text-blue-700'
+		return 'bg-primary-50 text-primary-700'
 	}
 
 	if (
 		source ===
 		'organizer'
 	) {
-		return 'bg-violet-50 text-violet-700'
+		return 'bg-gray-100 text-gray-600'
 	}
 
 	return 'bg-gray-100 text-gray-600'
@@ -1624,7 +1635,7 @@ function paymentClass(
 ): string {
 	switch (status) {
 		case 'paid':
-			return 'bg-green-50 text-green-700'
+			return 'bg-primary-50 text-primary-700'
 
 		case 'pending':
 			return 'bg-amber-50 text-amber-700'
@@ -1644,11 +1655,11 @@ function formatCategory(category: AttendeeCategory): string {
 function categoryClass(category: AttendeeCategory): string {
 	switch (category) {
 		case 'invited':
-			return 'bg-violet-50 text-violet-700'
+			return 'bg-gray-100 text-gray-600'
 		case 'free':
-			return 'bg-blue-50 text-blue-700'
+			return 'bg-gray-100 text-gray-600'
 		case 'paid':
-			return 'bg-green-50 text-green-700'
+			return 'bg-primary-50 text-primary-700'
 	}
 }
 
@@ -1865,6 +1876,44 @@ watch(
 </script>
 
 <style scoped>
+.row-in {
+	animation: row-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.row-in:nth-child(2) { animation-delay: 50ms; }
+.row-in:nth-child(3) { animation-delay: 100ms; }
+.row-in:nth-child(4) { animation-delay: 150ms; }
+.row-in:nth-child(5) { animation-delay: 200ms; }
+.row-in:nth-child(n + 6) { animation-delay: 250ms; }
+
+@keyframes row-in {
+	from { opacity: 0; transform: translateY(6px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+
+.reg-step {
+	animation: reg-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+	animation-delay: calc(var(--d, 0ms) + 120ms);
+}
+
+.reg-option {
+	transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.reg-option:active {
+	transform: scale(0.99);
+}
+
+@keyframes reg-rise {
+	from { opacity: 0; transform: translateY(10px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+	.row-in, .reg-step { animation: none; }
+	.reg-option { transition: none; }
+}
+
 .slide-enter-active,
 .slide-leave-active {
 	transition: transform 0.25s ease;

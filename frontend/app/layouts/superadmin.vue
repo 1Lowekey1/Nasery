@@ -22,8 +22,8 @@
 
 				<div class="px-5 pb-3">
 					<span
-						class="inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">
-						<span class="h-1.5 w-1.5 rounded-full bg-red-500" />
+						class="inline-flex items-center gap-1.5 rounded-md bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700">
+						<span class="h-1.5 w-1.5 rounded-full bg-primary-600" />
 						Super Admin
 					</span>
 				</div>

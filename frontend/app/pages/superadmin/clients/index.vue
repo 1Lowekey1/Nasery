@@ -1,26 +1,26 @@
 <template>
 	<div>
-		<SuperadminPageHeader />
+		<SuperadminPageHeader title="Clients" description="Every client on the platform, with their inquiries, confirmed events and spend." icon="user" />
 
 		<div v-if="errorMessage" class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
 			{{ errorMessage }}
 		</div>
 
 		<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-			<SuperadminStatCard label="Total Clients" :value="clients.length" icon="user" tone="blue"
+			<SuperadminStatCard label="Total Clients" :value="clients.length" icon="user"
 				:hint="`${clientsWithEvents} with a confirmed event`" />
-			<SuperadminStatCard label="Inquiries (as clients)" :value="totalInquiries" icon="file-text" tone="violet"
+			<SuperadminStatCard label="Inquiries (as clients)" :value="totalInquiries" icon="file-text"
 				hint="Posted across all clients" />
-			<SuperadminStatCard label="Booked Events (as clients)" :value="totalEvents" icon="calendar" tone="primary"
+			<SuperadminStatCard label="Booked Events (as clients)" :value="totalEvents" icon="calendar"
 				:hint="`${conversionRate}% of inquiries converted`" />
-			<SuperadminStatCard label="Ticket Purchases (as attendees)" :value="formatCurrency(totalSpend)" icon="ticket" tone="green"
-				value-class="text-green-600" hint="Public-event tickets, after refunds" />
+			<SuperadminStatCard label="Ticket Purchases (as attendees)" :value="formatCurrency(totalSpend)" icon="ticket"
+				hint="Public-event tickets, after refunds" />
 		</div>
 
-		<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+		<div class="sa-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8" style="--d: 200ms">
 			<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
 				<div>
-					<h2 class="text-lg font-bold text-gray-900">Client Directory</h2>
+					<h2 class="text-xl font-extrabold tracking-tight text-gray-950">Client Directory</h2>
 					<p class="mt-1 text-sm text-gray-500">
 						All clients and their booking activity. Click a row for full details.
 					</p>
@@ -37,7 +37,7 @@
 					<button v-for="option in sortOptions" :key="option.value" type="button"
 						class="rounded-full px-3 py-1.5 text-xs font-semibold transition" :class="sortBy === option.value
 							? 'bg-primary-700 text-white'
-							: 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+							: 'border border-gray-200 bg-white text-gray-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700'
 							" @click="sortBy = option.value">
 						{{ option.label }}
 					</button>
@@ -56,21 +56,21 @@
 				<table class="w-full text-left text-sm">
 					<thead>
 						<tr
-							class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">
-							<th class="pb-3 pr-4">Rank</th>
-							<th class="pb-3 pr-4">Client</th>
-							<th class="pb-3 pr-4">Email</th>
-							<th class="pb-3 pr-4">Inquiries <span class="ml-1 rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-violet-700">Client</span></th>
-							<th class="pb-3 pr-4">Booked <span class="ml-1 rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-violet-700">Client</span></th>
-							<th class="pb-3 pr-4">Ticket purchases <span class="ml-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-emerald-700">Attendee</span></th>
-							<th class="pb-3">Joined</th>
+							class="bg-gray-50/80 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400 [&>th]:py-3 [&>th:first-child]:rounded-l-xl [&>th:first-child]:pl-3 [&>th:last-child]:rounded-r-xl [&>th:last-child]:pr-3">
+							<th class="pr-4">Rank</th>
+							<th class="pr-4">Client</th>
+							<th class="pr-4">Email</th>
+							<th class="pr-4">Inquiries <span class="ml-1 rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-primary-700">Client</span></th>
+							<th class="pr-4">Booked <span class="ml-1 rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-primary-700">Client</span></th>
+							<th class="pr-4">Ticket purchases <span class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-gray-600">Attendee</span></th>
+							<th>Joined</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-100">
 						<tr v-for="(client, index) in sortedClients" :key="client.id"
-							class="group cursor-pointer transition hover:bg-gray-50"
+							class="sa-row group cursor-pointer transition-colors hover:bg-primary-50/40"
 							@click="navigateTo(`/superadmin/clients/${client.id}`)">
-							<td class="py-3.5 pr-4">
+							<td class="py-3.5 pl-3 pr-4">
 								<span class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold"
 									:class="rankStyle(index)">
 									{{ index + 1 }}
@@ -78,7 +78,7 @@
 							</td>
 							<td class="py-3.5 pr-4">
 								<div class="flex items-center gap-3">
-									<SuperadminAvatar :name="client.name" tone="blue" size="sm" />
+									<SuperadminAvatar :name="client.name" size="sm" />
 									<div class="min-w-0">
 										<div class="font-semibold text-gray-900 transition group-hover:text-primary-700">{{ client.name }}</div>
 										<div v-if="client.phone" class="truncate text-xs text-gray-400">{{ client.phone }}</div>
@@ -162,16 +162,16 @@ const sortedClients = computed(() => {
 })
 
 function rankStyle(index: number) {
-	if (index === 0) return 'bg-amber-100 text-amber-700'
-	if (index === 1) return 'bg-gray-200 text-gray-600'
-	if (index === 2) return 'bg-orange-100 text-orange-700'
+	if (index === 0) return 'bg-primary-700 text-white'
+	if (index === 1) return 'bg-primary-100 text-primary-700'
+	if (index === 2) return 'bg-primary-50 text-primary-700'
 	return 'bg-gray-100 text-gray-400'
 }
 
 function conversionClass(client: AdminClientSummary) {
 	const rate = client.events_count / client.inquiries_count
-	if (rate >= 1) return 'bg-green-50 text-green-700'
-	if (rate > 0) return 'bg-amber-50 text-amber-700'
+	if (rate >= 1) return 'bg-primary-700 text-white'
+	if (rate > 0) return 'bg-primary-50 text-primary-700'
 	return 'bg-gray-100 text-gray-500'
 }
 
@@ -217,3 +217,29 @@ onMounted(() => {
 	loadClients()
 })
 </script>
+
+<style scoped>
+.sa-rise {
+	animation: sa-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+	animation-delay: var(--d, 0ms);
+}
+
+.sa-row {
+	animation: sa-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.sa-row:nth-child(2) { animation-delay: 40ms; }
+.sa-row:nth-child(3) { animation-delay: 80ms; }
+.sa-row:nth-child(4) { animation-delay: 120ms; }
+.sa-row:nth-child(5) { animation-delay: 160ms; }
+.sa-row:nth-child(n + 6) { animation-delay: 200ms; }
+
+@keyframes sa-rise {
+	from { opacity: 0; transform: translateY(12px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sa-rise, .sa-row { animation: none; }
+}
+</style>

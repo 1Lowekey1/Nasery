@@ -239,7 +239,7 @@ async function load() {
 			}
 			// Opened from a message notification: bring the conversation into view.
 			// Once: later reloads (after accepting, declining…) must not jump back to the messages.
-			if (route.query.thread) {
+			if (route.query.thread || route.hash === '#messages') {
 				nextTick(() => document.getElementById('messages')?.scrollIntoView({ behavior: 'smooth' }))
 				navigateTo({ query: { ...route.query, thread: undefined }, hash: route.hash }, { replace: true })
 			}

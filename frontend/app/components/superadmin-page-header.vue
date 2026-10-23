@@ -1,22 +1,71 @@
 <template>
-	<div
-		class="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-br from-[#0e2a30] via-[#1f4a54] to-[#2f6f7c] px-6 py-6 text-white shadow-lg shadow-primary-900/10 sm:px-8 sm:py-7">
-		<div class="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-cyan-300/10 blur-[90px]" />
-		<div class="pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full bg-emerald-400/10 blur-[90px]" />
+	<div class="sa-hero relative mb-6 overflow-hidden rounded-[2rem] px-6 py-7 text-white sm:px-9 sm:py-8">
+		<span class="sa-orb" />
+		<span class="sa-dots" />
 
-		<div class="relative flex items-center gap-3.5">
-			<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10">
-				<IconBase name="grid" class="h-5 w-5" />
+		<div class="relative flex items-center gap-4">
+			<div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/12 ring-1 ring-white/20 backdrop-blur">
+				<IconBase :name="icon" class="h-5 w-5" />
 			</div>
 
-			<div>
-				<p class="text-xs font-bold uppercase tracking-[0.18em] text-white/50">Super Admin</p>
-				<h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">Platform Control Center</h1>
+			<div class="min-w-0">
+				<p class="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Super Admin</p>
+				<h1 class="text-2xl font-extrabold tracking-tight sm:text-3xl">{{ title }}</h1>
 			</div>
 		</div>
 
-		<p class="relative mt-3 max-w-2xl text-sm leading-6 text-white/60">
-			Manage organizers, clients, and events across the NaSeRy platform.
+		<p class="relative mt-4 max-w-2xl text-sm leading-6 text-white/70">
+			{{ description }}
 		</p>
 	</div>
 </template>
+
+<script setup lang="ts">
+withDefaults(defineProps<{
+	title?: string
+	description?: string
+	icon?: string
+}>(), {
+	title: 'Platform Control Center',
+	description: 'Manage organizers, clients, and events across the NaSeRy platform.',
+	icon: 'grid',
+})
+</script>
+
+<style scoped>
+.sa-hero {
+	background: #285f6b;
+}
+
+.sa-orb {
+	position: absolute;
+	top: -110px;
+	right: 6%;
+	height: 300px;
+	width: 300px;
+	border-radius: 9999px;
+	background: rgba(255, 255, 255, 0.1);
+	filter: blur(60px);
+	pointer-events: none;
+	animation: sa-drift 16s ease-in-out infinite;
+}
+
+.sa-dots {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+	background-size: 22px 22px;
+	mask-image: linear-gradient(115deg, transparent 25%, #000 90%);
+	-webkit-mask-image: linear-gradient(115deg, transparent 25%, #000 90%);
+}
+
+@keyframes sa-drift {
+	0%, 100% { transform: translate(0, 0) scale(1); }
+	50% { transform: translate(-22px, 16px) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sa-orb { animation: none; }
+}
+</style>

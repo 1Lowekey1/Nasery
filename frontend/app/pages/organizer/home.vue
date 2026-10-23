@@ -1,216 +1,244 @@
 <template>
-	<div>
-		<header class="mb-6 overflow-hidden rounded-3xl border border-primary-100 bg-white shadow-sm">
-			<div class="flex flex-col gap-6 px-5 py-6 sm:px-7 lg:flex-row lg:items-center lg:justify-between">
+	<div class="space-y-6">
+		<!-- Hero -->
+		<header class="hm-hero hm-rise relative overflow-hidden rounded-[2rem] text-white">
+			<span class="hm-orb hm-orb-a" />
+			<span class="hm-orb hm-orb-b" />
+			<span class="hm-dots" />
+
+			<div class="relative flex flex-col gap-6 px-6 pb-6 pt-8 sm:px-9 lg:flex-row lg:items-center lg:justify-between">
 				<div class="max-w-2xl">
-					<div
-						class="mb-3 inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-primary-700">
-						<span class="h-1.5 w-1.5 rounded-full bg-primary-600"></span>
+					<div class="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 backdrop-blur">
+						<span class="h-1.5 w-1.5 rounded-full bg-white/80"></span>
 						Organizer workspace
 					</div>
-					<h1 class="text-2xl font-extrabold tracking-tight text-gray-950 sm:text-3xl">
+					<h1 class="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
 						{{ greeting }}, {{ organizerFirstName }}
 					</h1>
-					<p class="mt-2 max-w-xl text-sm leading-6 text-gray-500 sm:text-base">
+					<p class="mt-2 max-w-xl text-sm leading-6 text-white/70 sm:text-base">
 						Here's what's happening with your events today.
 					</p>
 				</div>
 
 				<button type="button"
-					class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-primary-800 focus:outline-none focus:ring-4 focus:ring-primary-100 sm:w-auto"
+					class="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-primary-800 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.98] sm:w-auto"
 					@click="navigateTo('/organizer/inquiries/match-inquiries')">
 					<IconBase name="bell" class="h-4 w-4" />
 					Review new inquiries
+					<IconBase name="arrow-right" class="h-4 w-4 transition group-hover:translate-x-0.5" />
 				</button>
 			</div>
 
-			<div class="grid border-t border-gray-100 bg-gray-50/70 sm:grid-cols-3">
+			<div class="relative grid gap-3 px-6 pb-7 sm:grid-cols-3 sm:px-9">
 				<div v-for="(step, index) in workflowSteps" :key="step.title"
-					class="flex items-center gap-3 border-b border-gray-100 px-5 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 sm:px-7">
-					<span
-						class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-xs font-extrabold text-primary-700 shadow-sm ring-1 ring-gray-200">
+					class="hm-step hm-rise flex items-center gap-3.5 rounded-2xl bg-white/10 p-4 ring-1 ring-white/20 backdrop-blur-sm"
+					:style="{ '--d': 120 + index * 80 + 'ms' }">
+					<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-extrabold text-primary-700">
 						{{ index + 1 }}
 					</span>
-					<div>
-						<p class="text-sm font-bold text-gray-900">{{ step.title }}</p>
-						<p class="mt-0.5 text-xs text-gray-500">{{ step.description }}</p>
+					<div class="min-w-0">
+						<p class="text-sm font-bold">{{ step.title }}</p>
+						<p class="mt-0.5 text-xs text-white/70">{{ step.description }}</p>
 					</div>
 				</div>
 			</div>
 		</header>
 
-		<div v-if="isLoading"
-			class="mb-7 rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
+		<div v-if="isLoading" class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
 			Loading your dashboard...
 		</div>
 
-		<div v-else-if="errorMessage" class="mb-7 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
 			{{ errorMessage }}
 		</div>
 
 		<template v-else>
-			<div class="mb-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
-				<div v-for="stat in stats" :key="stat.label"
-					class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
-					<div class="flex items-center justify-between gap-3">
-						<div>
-							<p class="text-xs font-semibold text-gray-500 sm:text-sm">
+			<!-- Stats -->
+			<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+				<div v-for="(stat, index) in stats" :key="stat.label"
+					class="hm-card hm-rise group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5"
+					:style="{ '--d': 80 + index * 60 + 'ms' }">
+					<span class="hm-line absolute inset-x-0 top-0 h-[2px] bg-primary-700" />
+
+					<div class="flex items-start justify-between gap-3">
+						<div class="min-w-0">
+							<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">
 								{{ stat.label }}
 							</p>
-							<p class="mt-2 text-2xl font-extrabold tracking-tight text-gray-950 sm:text-3xl">
+							<p class="mt-2 text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">
 								{{ stat.value }}
 							</p>
 						</div>
-						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-							:class="stat.iconBg">
-							<IconBase :name="stat.icon" class="h-5 w-5" :class="stat.iconColor" />
+						<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 transition duration-200 group-hover:scale-105">
+							<IconBase :name="stat.icon" class="h-5 w-5" />
 						</div>
 					</div>
 
-					<div class="mt-3 flex items-center gap-1 text-xs font-semibold"
-						:class="stat.hasTrendIcon ? 'text-green-600' : 'text-gray-400'">
+					<div class="mt-3 flex items-center gap-1.5 text-xs font-semibold"
+						:class="stat.hasTrendIcon ? 'text-primary-700' : 'text-gray-400'">
 						<IconBase v-if="stat.hasTrendIcon" name="trending-up" class="h-3.5 w-3.5" />
 						<span>{{ stat.trend }}</span>
 					</div>
 				</div>
 			</div>
 
-			<div class="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-5">
-				<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-3">
+			<div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
+				<!-- Recent activity -->
+				<section class="hm-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-7 lg:col-span-3" style="--d: 200ms">
 					<div class="mb-5 flex items-start justify-between">
 						<div>
-							<h2 class="text-base font-bold text-gray-900">
+							<h2 class="text-lg font-extrabold tracking-tight text-gray-950">
 								Recent Activity
 							</h2>
 
-							<p class="text-sm text-gray-500">
+							<p class="mt-0.5 text-sm text-gray-500">
 								Your latest updates and notifications
 							</p>
 						</div>
 
-						<IconBase name="bell" class="h-5 w-5 text-gray-400" />
+						<span class="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-400">
+							<IconBase name="bell" class="h-4 w-4" />
+						</span>
 					</div>
 
-					<div v-if="recentActivity.length" class="space-y-3">
-						<div v-for="item in recentActivity" :key="item.title"
-							class="flex items-center justify-between gap-4 rounded-xl border border-gray-200 p-4 transition hover:border-primary-200 hover:bg-primary-50/30">
-							<div class="min-w-0">
-								<div class="truncate text-sm font-semibold text-gray-900">
-									{{ item.title }}
-								</div>
+					<div v-if="recentActivity.length" class="space-y-2">
+						<button v-for="(item, index) in recentActivity" :key="item.title" type="button"
+							class="hm-row group flex w-full items-center justify-between gap-4 rounded-2xl border border-transparent px-3 py-3 text-left transition duration-200 hover:border-gray-200 hover:bg-gray-50"
+							:style="{ '--d': 260 + index * 50 + 'ms' }" @click="navigateTo(item.route)">
+							<div class="flex min-w-0 items-center gap-3.5">
+								<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700">
+									<IconBase :name="activityIcon(item.title)" class="h-[18px] w-[18px]" />
+								</span>
 
-								<div class="mt-1 text-xs text-gray-400">
-									{{ formatRelativeTime(item.time) }}
+								<div class="min-w-0">
+									<div class="truncate text-sm font-bold text-gray-900">
+										{{ item.title }}
+									</div>
+
+									<div class="mt-0.5 text-xs text-gray-400">
+										{{ formatRelativeTime(item.time) }}
+									</div>
 								</div>
 							</div>
 
-							<button type="button"
-								class="flex shrink-0 items-center gap-1 text-sm font-bold text-primary-700 hover:text-primary-900"
-								@click="navigateTo(item.route)">
+							<span class="flex shrink-0 items-center gap-1 text-sm font-bold text-primary-700">
 								{{ item.action }}
 
-								<IconBase name="arrow-right" class="h-4 w-4" />
-							</button>
-						</div>
+								<IconBase name="arrow-right" class="h-4 w-4 transition duration-200 group-hover:translate-x-1" />
+							</span>
+						</button>
 					</div>
-					<p v-else class="py-6 text-center text-sm text-gray-400">No recent activity yet.</p>
-				</div>
+					<p v-else class="rounded-2xl border border-dashed border-gray-300 py-10 text-center text-sm text-gray-400">No recent activity yet.</p>
+				</section>
 
-				<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
+				<!-- Upcoming events -->
+				<section class="hm-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-7 lg:col-span-2" style="--d: 280ms">
 					<div class="mb-5">
-						<h2 class="text-base font-bold text-gray-900">
+						<h2 class="text-lg font-extrabold tracking-tight text-gray-950">
 							Upcoming Events
 						</h2>
 
-						<p class="text-sm text-gray-500">
+						<p class="mt-0.5 text-sm text-gray-500">
 							Your scheduled events and preparation status
 						</p>
 					</div>
 
-					<div v-if="upcomingEvents.length" class="space-y-5">
-						<div v-for="event in upcomingEvents" :key="event.name">
-							<div class="mb-1.5 flex items-start justify-between gap-3">
-								<div class="min-w-0 truncate text-sm font-semibold text-gray-900">
-									{{ event.name }}
+					<div v-if="upcomingEvents.length" class="space-y-3">
+						<div v-for="event in upcomingEvents" :key="event.name"
+							class="rounded-2xl border border-gray-200 p-4 transition duration-200 hover:border-primary-200">
+							<div class="flex items-start justify-between gap-3">
+								<div class="min-w-0">
+									<div class="truncate text-sm font-bold text-gray-900">
+										{{ event.name }}
+									</div>
+
+									<div class="mt-1 flex items-center gap-1.5 text-xs text-gray-400">
+										<IconBase name="calendar" class="h-3.5 w-3.5" />
+										{{ event.date }}
+										&bull;
+										{{ event.guests }} guests
+									</div>
 								</div>
 
-								<span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold" :class="event.progress >= 80
+								<span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-bold" :class="event.progress >= 80
 									? 'bg-primary-700 text-white'
-									: 'bg-gray-100 text-gray-700'
+									: 'bg-primary-50 text-primary-700'
 									">
 									{{ event.progress }}%
 								</span>
 							</div>
 
-							<div class="mb-2 text-xs text-gray-400">
-								{{ event.date }}
-								&bull;
-								{{ event.guests }} guests
+							<div class="mt-4 flex items-center justify-between text-[11px] font-semibold text-gray-400">
+								<span>Preparation progress</span>
 							</div>
 
-							<div class="mb-1 flex items-center justify-between text-xs text-gray-400">
-								<span>
-									Preparation Progress
-								</span>
-
-								<span>
-									{{ event.progress }}%
-								</span>
-							</div>
-
-							<div class="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-								<div class="h-full rounded-full bg-primary-700" :style="{
+							<div class="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-gray-100">
+								<div class="hm-bar h-full rounded-full bg-primary-700" :style="{
 									width: event.progress + '%',
 								}" />
 							</div>
 						</div>
 					</div>
-					<p v-else class="py-6 text-center text-sm text-gray-400">No upcoming events yet.</p>
-				</div>
+
+					<div v-else class="rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center">
+						<span class="hm-float mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+							<IconBase name="calendar" class="h-7 w-7" />
+						</span>
+						<p class="mt-4 text-sm font-bold text-gray-900">No upcoming events yet</p>
+						<p class="mx-auto mt-1 max-w-xs text-xs leading-5 text-gray-500">
+							Events you plan with a confirmed date will show up here with their preparation progress.
+						</p>
+						<button type="button" class="mt-5 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+							@click="navigateTo('/organizer/eventmanagement/all-events')">
+							Open event management
+							<IconBase name="arrow-right" class="h-3.5 w-3.5" />
+						</button>
+					</div>
+				</section>
 			</div>
 		</template>
 
-		<div class="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-			<h2 class="text-base font-bold text-gray-900">
+		<!-- Quick actions -->
+		<section class="hm-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-7" style="--d: 320ms">
+			<h2 class="text-lg font-extrabold tracking-tight text-gray-950">
 				Quick Actions
 			</h2>
 
-			<p class="mb-5 text-sm text-gray-500">
+			<p class="mb-5 mt-0.5 text-sm text-gray-500">
 				Common tasks to help you get started
 			</p>
 
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 				<button v-for="action in quickActions" :key="action.label" type="button"
-					class="group rounded-xl border border-gray-200 p-5 text-left transition hover:-translate-y-0.5 hover:border-primary-300 hover:bg-primary-50/40 hover:shadow-sm"
+					class="hm-action group relative rounded-2xl border border-gray-200 p-5 text-left"
 					@click="navigateTo(action.route)">
-					<span
-						class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition group-hover:bg-primary-100 group-hover:text-primary-700">
+					<span class="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 transition duration-200 group-hover:bg-primary-700 group-hover:text-white">
 						<IconBase :name="action.icon" class="h-5 w-5" />
 					</span>
 
-					<div class="text-sm font-semibold text-gray-900">
+					<div class="text-sm font-extrabold text-gray-950">
 						{{ action.label }}
 					</div>
 
-					<div class="text-xs text-gray-400">
+					<div class="mt-0.5 text-xs text-gray-400">
 						{{ action.sub }}
 					</div>
+
+					<IconBase name="arrow-right" class="absolute right-5 top-5 h-4 w-4 -translate-x-1 text-primary-700 opacity-0 transition duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
 				</button>
 			</div>
-		</div>
+		</section>
 
-		<div class="rounded-2xl border border-primary-100 bg-primary-50/40 p-6 shadow-sm">
-			<div class="mb-2 flex items-center gap-2">
-				<IconBase name="check-circle" class="h-5 w-5 text-primary-700" />
-
-				<h2 class="text-base font-bold text-gray-900">
-					Platform Status
-				</h2>
-			</div>
+		<!-- Platform status -->
+		<div class="hm-rise flex items-start gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4" style="--d: 380ms">
+			<span class="relative mt-1.5 flex h-2.5 w-2.5 shrink-0">
+				<span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+				<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+			</span>
 
 			<p class="text-sm text-gray-600">
-				All systems operational. You're receiving real-time
-				notifications for matching inquiries based on your service
+				<span class="font-bold text-gray-900">All systems operational.</span>
+				You're receiving real-time notifications for matching inquiries based on your service
 				tags and location preferences.
 			</p>
 		</div>
@@ -281,6 +309,10 @@ const errorMessage = ref('')
 const dashboardStats = ref<DashboardStats | null>(null)
 const recentActivity = ref<DashboardActivity[]>([])
 const upcomingEvents = ref<DashboardUpcomingEvent[]>([])
+
+function activityIcon(title: string): string {
+	return /^congratulations/i.test(title) ? 'award' : 'file-text'
+}
 
 const stats = computed(() => {
 	const data = dashboardStats.value
@@ -458,3 +490,127 @@ async function loadDashboard() {
 
 onMounted(loadDashboard)
 </script>
+
+<style scoped>
+.hm-hero {
+	background: #285f6b;
+}
+
+.hm-orb {
+	position: absolute;
+	border-radius: 9999px;
+	filter: blur(60px);
+	pointer-events: none;
+}
+
+.hm-orb-a {
+	top: -120px;
+	right: 6%;
+	height: 320px;
+	width: 320px;
+	background: rgba(255, 255, 255, 0.1);
+	animation: hm-drift 16s ease-in-out infinite;
+}
+
+.hm-orb-b {
+	bottom: -140px;
+	left: -50px;
+	height: 280px;
+	width: 280px;
+	background: rgba(255, 255, 255, 0.06);
+	animation: hm-drift 20s ease-in-out infinite reverse;
+}
+
+.hm-dots {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+	background-size: 22px 22px;
+	mask-image: linear-gradient(115deg, transparent 25%, #000 90%);
+	-webkit-mask-image: linear-gradient(115deg, transparent 25%, #000 90%);
+}
+
+.hm-rise {
+	animation: hm-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+	animation-delay: var(--d, 0ms);
+}
+
+.hm-row {
+	animation: hm-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+	animation-delay: var(--d, 0ms);
+}
+
+.hm-step {
+	transition: background-color 0.25s ease, transform 0.25s ease;
+}
+
+.hm-step:hover {
+	background-color: rgba(255, 255, 255, 0.16);
+	transform: translateY(-2px);
+}
+
+.hm-card {
+	transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.hm-card:hover {
+	transform: translateY(-3px);
+	border-color: rgba(40, 95, 107, 0.28);
+	box-shadow: 0 16px 32px -22px rgba(17, 24, 39, 0.35);
+}
+
+.hm-line {
+	transform: scaleX(0);
+	transform-origin: left;
+	transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hm-card:hover .hm-line {
+	transform: scaleX(1);
+}
+
+.hm-action {
+	transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.hm-action:hover {
+	transform: translateY(-3px);
+	border-color: rgba(40, 95, 107, 0.3);
+	box-shadow: 0 16px 32px -22px rgba(17, 24, 39, 0.35);
+}
+
+.hm-bar {
+	animation: hm-grow 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+	transform-origin: left;
+}
+
+.hm-float {
+	animation: hm-float 3.2s ease-in-out infinite;
+}
+
+@keyframes hm-rise {
+	from { opacity: 0; transform: translateY(14px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes hm-drift {
+	0%, 100% { transform: translate(0, 0) scale(1); }
+	50% { transform: translate(-22px, 16px) scale(1.08); }
+}
+
+@keyframes hm-grow {
+	from { transform: scaleX(0); }
+	to { transform: scaleX(1); }
+}
+
+@keyframes hm-float {
+	0%, 100% { transform: translateY(0); }
+	50% { transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.hm-orb, .hm-rise, .hm-row, .hm-bar, .hm-float { animation: none; }
+	.hm-card, .hm-line, .hm-action, .hm-step { transition: none; }
+}
+</style>

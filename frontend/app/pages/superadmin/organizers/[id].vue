@@ -36,15 +36,14 @@
 			</div>
 
 			<div class="mb-6 grid grid-cols-2 gap-5 sm:grid-cols-3 xl:grid-cols-5">
-				<SuperadminStatCard label="Total Events" :value="organizer.events_count" icon="calendar" tone="primary" />
-				<SuperadminStatCard label="Ticket Sales" :value="formatCurrency(organizer.revenue)" icon="cash" tone="green"
-					:hint="`${formatCurrency(organizer.refunded ?? 0)} already returned to buyers · NaSeRy fee ${formatCurrency(organizer.platform_fee ?? 0)} · organizer keeps ${formatCurrency(organizer.organizer_net ?? 0)}`"
-					value-class="text-green-600" />
-				<SuperadminStatCard label="Team Members" :value="organizer.members ?? 0" icon="users" tone="blue" />
-				<SuperadminStatCard label="Completed Events" :value="organizer.completed_events ?? 0" icon="award" tone="violet"
+				<SuperadminStatCard label="Total Events" :value="organizer.events_count" icon="calendar" />
+				<SuperadminStatCard label="Ticket Sales" :value="formatCurrency(organizer.revenue)" icon="cash"
+					:hint="`${formatCurrency(organizer.refunded ?? 0)} already returned to buyers · NaSeRy fee ${formatCurrency(organizer.platform_fee ?? 0)} · organizer keeps ${formatCurrency(organizer.organizer_net ?? 0)}`" />
+				<SuperadminStatCard label="Team Members" :value="organizer.members ?? 0" icon="users" />
+				<SuperadminStatCard label="Completed Events" :value="organizer.completed_events ?? 0" icon="award"
 					:hint="`${organizer.tickets_sold ?? 0} tickets sold`" />
 				<SuperadminStatCard :label="`Rating (${organizer.reviews_count})`"
-					:value="organizer.rating ? organizer.rating.toFixed(1) : '—'" icon="star" tone="amber" />
+					:value="organizer.rating ? organizer.rating.toFixed(1) : '—'" icon="star" />
 			</div>
 
 			<div class="mb-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">

@@ -50,3 +50,14 @@ const emit = defineEmits(['update:modelValue'])
     overflow-y: auto !important;
 }
 </style>
+
+<style>
+/* Brand teal for the dropdown's selected / hovered options, tags and focus ring. */
+.multiselect {
+    --ms-option-bg-selected: #285F6b;
+    --ms-option-bg-selected-pointed: #1c4f5c;
+    --ms-option-bg-pointed: #eef4f5;
+    --ms-tag-bg: #285F6b;
+    --ms-ring-color: rgba(40, 95, 107, 0.18);
+}
+</style>

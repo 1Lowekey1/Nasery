@@ -1,33 +1,39 @@
 <template>
 	<div>
-		<div class="mb-6 overflow-hidden rounded-3xl border border-primary-100 bg-white shadow-sm">
-			<div class="flex flex-col gap-4 px-5 py-6 sm:px-7 lg:flex-row lg:items-center lg:justify-between">
+		<!-- Hero -->
+		<div class="tk-hero tk-rise relative mb-6 overflow-hidden rounded-[2rem] px-6 py-7 text-white shadow-sm sm:px-9 sm:py-8">
+			<span class="tk-orb tk-orb-a" />
+			<span class="tk-orb tk-orb-b" />
+			<span class="tk-dots" />
+
+			<div class="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
 				<div class="max-w-2xl">
-					<div
-						class="mb-3 inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-primary-700">
+					<div class="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 backdrop-blur">
 						<IconBase name="ticket" class="h-3.5 w-3.5" />
 						Ticketing &amp; Attendance
 					</div>
 
-					<h1 class="text-2xl font-extrabold tracking-tight text-gray-950 sm:text-3xl">
+					<h1 class="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
 						Registration, Ticketing &amp; Attendance
 					</h1>
 
-					<p class="mt-2 text-sm leading-6 text-gray-500 sm:text-base">
+					<p class="mt-2 text-sm leading-6 text-white/70 sm:text-base">
 						Manage tickets, payments, and attendee check-in
 					</p>
 				</div>
 
 				<div v-if="selectedEvent" class="flex shrink-0 items-center gap-2">
-					<div
-						class="flex items-center gap-2 rounded-full bg-primary-50 px-3.5 py-2 text-xs font-semibold text-primary-700">
-						<span class="h-2 w-2 rounded-full bg-primary-600" />
-
-						{{ selectedEvent.name }}
+					<div class="flex max-w-xs items-center gap-2.5 rounded-full bg-white/12 py-2 pl-3.5 pr-4 text-sm font-semibold ring-1 ring-white/25 backdrop-blur-md">
+						<span class="relative flex h-2.5 w-2.5 shrink-0">
+							<span v-if="selectedEvent.status === 'ongoing'" class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-75" />
+							<span class="relative inline-flex h-2.5 w-2.5 rounded-full" :class="selectedEvent.status === 'ongoing' ? 'bg-emerald-300' : 'bg-white/70'" />
+						</span>
+						<span class="truncate">{{ selectedEvent.name }}</span>
+						<span v-if="selectedEvent.status === 'ongoing'" class="rounded-full bg-emerald-300/25 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-100">Live</span>
 					</div>
 
 					<button type="button"
-						class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+						class="flex h-10 w-10 items-center justify-center rounded-full bg-white/12 text-white/80 ring-1 ring-white/25 backdrop-blur-md transition hover:bg-white/25 hover:text-white"
 						title="Clear selected event" aria-label="Clear selected event" @click="clearSelectedEvent">
 						<IconBase name="x" class="h-4 w-4" />
 					</button>
@@ -35,9 +41,10 @@
 			</div>
 		</div>
 
-		<div class="mb-6">
+		<!-- Event selector -->
+		<div class="tk-rise relative z-30 mb-6" style="--d: 80ms">
 			<div class="mb-2 flex items-center justify-between gap-3">
-				<label class="block text-sm font-semibold text-gray-700">
+				<label class="block text-xs font-bold uppercase tracking-[0.12em] text-gray-400">
 					Select Event
 				</label>
 
@@ -52,14 +59,10 @@
 
 			<div ref="eventSelectorRef" class="relative">
 				<button type="button"
-					class="flex w-full items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-[#285F6b]/40 hover:shadow-md focus:border-[#285F6b] focus:outline-none focus:ring-4 focus:ring-[#285F6b]/10"
-					@click="
-						showEventSelector =
-						!showEventSelector
-						">
+					class="group flex w-full items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-[#285F6b]/40 hover:shadow-md focus:border-[#285F6b] focus:outline-none focus:ring-4 focus:ring-[#285F6b]/10"
+					@click="showEventSelector = !showEventSelector">
 					<div v-if="selectedEvent" class="flex min-w-0 items-center gap-3">
-						<div
-							class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#285F6b]/10 text-[#285F6b]">
+						<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#285F6b] text-white">
 							<IconBase name="calendar" class="h-5 w-5" />
 						</div>
 
@@ -71,30 +74,19 @@
 							<div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
 								<span class="flex items-center gap-1">
 									<IconBase name="calendar" class="h-3.5 w-3.5" />
-
-									{{
-										formatEventDate(
-											selectedEvent.event_date,
-										)
-									}}
+									{{ formatEventDate(selectedEvent.event_date) }}
 								</span>
 
-								<span v-if="
-									selectedEvent.location
-								" class="flex items-center gap-1">
+								<span v-if="selectedEvent.location" class="flex items-center gap-1">
 									<IconBase name="map-pin" class="h-3.5 w-3.5" />
-
-									{{
-										selectedEvent.location
-									}}
+									{{ selectedEvent.location }}
 								</span>
 							</div>
 						</div>
 					</div>
 
 					<div v-else class="flex items-center gap-3">
-						<div
-							class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+						<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
 							<IconBase name="calendar" class="h-5 w-5" />
 						</div>
 
@@ -109,10 +101,7 @@
 						</div>
 					</div>
 
-					<IconBase name="chevron-down" class="h-5 w-5 shrink-0 text-gray-400 transition-transform" :class="{
-						'rotate-180':
-							showEventSelector,
-					}" />
+					<IconBase name="chevron-down" class="h-5 w-5 shrink-0 text-gray-400 transition-transform" :class="{ 'rotate-180': showEventSelector }" />
 				</button>
 
 				<Transition name="dropdown">
@@ -204,115 +193,52 @@
 		</div>
 
 		<template v-if="selectedEventId">
-		<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-			<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-				<div class="flex items-start justify-between gap-3">
-					<div>
-						<span class="text-sm text-gray-500">
-							Total Registered
-						</span>
+			<!-- Stats -->
+			<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+				<div v-for="(card, index) in statCards" :key="card.key" class="tk-card tk-rise group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5" :style="{ '--d': 120 + index * 70 + 'ms' }">
+					<span class="tk-line absolute inset-x-0 top-0 h-[2px] bg-[#285F6b]" />
 
-						<div class="mt-2 text-3xl font-extrabold text-gray-900">
-							{{ summary.total_registered }}
-						</div>
+					<div class="flex items-start justify-between gap-3">
+						<div class="min-w-0">
+							<span class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">{{ card.label }}</span>
 
-						<div class="mt-2 text-sm text-gray-500">
-							Issued attendee tickets
-						</div>
-					</div>
-
-					<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-						<IconBase name="users" class="h-5 w-5" />
-					</div>
-				</div>
-			</div>
-
-			<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-				<div class="flex items-start justify-between gap-3">
-					<div>
-						<span class="text-sm text-gray-500">
-							Checked In
-						</span>
-
-						<div class="mt-2 text-3xl font-extrabold text-gray-900">
-							{{ summary.checked_in }}
-						</div>
-
-						<div class="mt-2 text-sm text-gray-500">
-							Attendees admitted
-						</div>
-					</div>
-
-					<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 text-green-600">
-						<IconBase name="check-circle" class="h-5 w-5" />
-					</div>
-				</div>
-			</div>
-
-			<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-				<div class="flex items-start justify-between gap-3">
-					<div>
-						<span class="text-sm text-gray-500">
-							Walk-ins
-						</span>
-
-						<div class="mt-2 text-3xl font-extrabold text-gray-900">
-							{{ summary.walk_ins }}
-						</div>
-
-						<div class="mt-2 text-sm text-gray-500">
-							Paid on-site registrations
-						</div>
-					</div>
-
-					<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-						<IconBase name="user-plus" class="h-5 w-5" />
-					</div>
-				</div>
-			</div>
-
-			<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-				<div class="flex items-start justify-between gap-3">
-					<div>
-						<span class="text-sm text-gray-500">
-							Capacity Status
-						</span>
-
-						<div class="mt-2 flex items-end gap-2">
-							<div class="text-3xl font-extrabold text-gray-900">
-								{{ summary.capacity_percent }}%
+							<div class="mt-2 text-4xl font-extrabold tracking-tight text-gray-950">
+								{{ card.value }}<span v-if="card.suffix" class="text-2xl text-gray-400">{{ card.suffix }}</span>
 							</div>
+
+							<div class="mt-2 text-xs font-medium text-gray-500">{{ card.hint }}</div>
 						</div>
 
-						<div class="mt-2 text-sm text-gray-500">
-							{{ summary.total_registered }}/{{ summary.capacity }}
+						<div v-if="card.ring !== null" class="relative h-14 w-14 shrink-0">
+							<svg viewBox="0 0 52 52" class="h-full w-full -rotate-90">
+								<circle cx="26" cy="26" r="22" fill="none" stroke="#eef2f3" stroke-width="5" />
+								<circle cx="26" cy="26" r="22" fill="none" :stroke="card.stroke" stroke-width="5" stroke-linecap="round"
+									:stroke-dasharray="RING" :stroke-dashoffset="RING * (1 - Math.min(card.ring, 100) / 100)" class="tk-ring" />
+							</svg>
+							<span class="absolute inset-0 flex items-center justify-center rounded-full" :class="card.iconColor">
+								<IconBase :name="card.icon" class="h-[18px] w-[18px]" />
+							</span>
+						</div>
+
+						<div v-else class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition group-hover:scale-105" :class="[card.iconBg, card.iconColor]">
+							<IconBase :name="card.icon" class="h-5 w-5" />
 						</div>
 					</div>
-
-					<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-						<IconBase name="chart-bar" class="h-5 w-5" />
-					</div>
-				</div>
-
-				<div v-if="summary.capacity > 0" class="mt-4 h-1.5 overflow-hidden rounded-full bg-gray-100">
-					<div class="h-full rounded-full bg-[#285F6b] transition-all" :style="{
-						width: `${summary.capacity_percent}%`,
-					}" />
 				</div>
 			</div>
-		</div>
 
-		<div class="mb-6 inline-flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1">
-			<NuxtLink v-for="tab in tabs" :key="tab.label" :to="tab.to"
-				class="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold" :class="route.path === tab.path
-					? 'bg-white text-gray-900 shadow-sm'
-					: 'text-gray-500 hover:text-gray-700'
-					">
-				<IconBase :name="tab.icon" class="h-4 w-4" />
+			<!-- Tabs -->
+			<div class="mb-6 inline-flex max-w-full flex-wrap gap-1 rounded-2xl border border-gray-200 bg-white p-1.5">
+				<NuxtLink v-for="tab in tabs" :key="tab.label" :to="tab.to"
+					class="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition duration-200 active:scale-[0.97]"
+					:class="route.path === tab.path
+						? 'bg-[#285F6b] text-white shadow-sm'
+						: 'text-gray-500 hover:bg-primary-50 hover:text-primary-700'">
+					<IconBase :name="tab.icon" class="h-4 w-4" />
 
-				{{ tab.label }}
-			</NuxtLink>
-		</div>
+					{{ tab.label }}
+				</NuxtLink>
+			</div>
 		</template>
 	</div>
 </template>
@@ -345,28 +271,13 @@ interface AttendeeSummaryResponse {
 	data: AttendeeSummary
 }
 
-interface ApiErrorResponse {
-	data?: {
-		message?: string
-		errors?: Record<
-			string,
-			string[]
-		>
-	}
-}
+
 
 const route =
 	useRoute()
 
 const router =
 	useRouter()
-
-const config =
-	useRuntimeConfig()
-
-const {
-	token,
-} = useAuth()
 
 const organizerEvents =
 	useState<OrganizerEvent[]>(
@@ -528,6 +439,104 @@ const tabs =
 		]
 	})
 
+const RING = 2 * Math.PI * 22
+
+// Numbers count up to their real value when the summary loads or changes.
+const shown = reactive({ total_registered: 0, checked_in: 0, walk_ins: 0, capacity_percent: 0 })
+let countFrame = 0
+
+function animateCounters(target: AttendeeSummary) {
+	// animation frames are paused in a hidden tab, so show the real numbers straight away
+	if (document.visibilityState === 'hidden') {
+		Object.assign(shown, {
+			total_registered: target.total_registered,
+			checked_in: target.checked_in,
+			walk_ins: target.walk_ins,
+			capacity_percent: target.capacity_percent,
+		})
+		return
+	}
+
+	cancelAnimationFrame(countFrame)
+
+	const from = { ...shown }
+	const start = performance.now()
+	const duration = 700
+
+	const step = (now: number) => {
+		const t = Math.min((now - start) / duration, 1)
+		const ease = 1 - Math.pow(1 - t, 3)
+
+		shown.total_registered = Math.round(from.total_registered + (target.total_registered - from.total_registered) * ease)
+		shown.checked_in = Math.round(from.checked_in + (target.checked_in - from.checked_in) * ease)
+		shown.walk_ins = Math.round(from.walk_ins + (target.walk_ins - from.walk_ins) * ease)
+		shown.capacity_percent = Math.round(from.capacity_percent + (target.capacity_percent - from.capacity_percent) * ease)
+
+		if (t < 1) countFrame = requestAnimationFrame(step)
+	}
+
+	countFrame = requestAnimationFrame(step)
+}
+
+watch(summary, value => animateCounters(value), { deep: true })
+
+const checkInRate = computed(() =>
+	summary.value.total_registered > 0
+		? Math.round((summary.value.checked_in / summary.value.total_registered) * 100)
+		: 0,
+)
+
+const statCards = computed(() => [
+	{
+		key: 'registered',
+		label: 'Total Registered',
+		value: shown.total_registered,
+		suffix: '',
+		hint: 'Issued attendee tickets',
+		icon: 'users',
+		ring: null as number | null,
+		iconBg: 'bg-primary-50',
+		iconColor: 'text-primary-700',
+		stroke: '#285F6b',
+	},
+	{
+		key: 'checked',
+		label: 'Checked In',
+		value: shown.checked_in,
+		suffix: '',
+		hint: `${checkInRate.value}% of registered attendees`,
+		icon: 'check-circle',
+		ring: checkInRate.value,
+		iconBg: 'bg-primary-50',
+		iconColor: 'text-primary-700',
+		stroke: '#285F6b',
+	},
+	{
+		key: 'walkins',
+		label: 'Walk-ins',
+		value: shown.walk_ins,
+		suffix: '',
+		hint: 'Paid on-site registrations',
+		icon: 'user-plus',
+		ring: null as number | null,
+		iconBg: 'bg-primary-50',
+		iconColor: 'text-primary-700',
+		stroke: '#285F6b',
+	},
+	{
+		key: 'capacity',
+		label: 'Capacity Status',
+		value: shown.capacity_percent,
+		suffix: '%',
+		hint: `${summary.value.total_registered} of ${summary.value.capacity} spots`,
+		icon: 'chart-bar',
+		ring: summary.value.capacity_percent,
+		iconBg: 'bg-primary-50',
+		iconColor: 'text-primary-700',
+		stroke: '#285F6b',
+	},
+])
+
 function resetSummary() {
 	summary.value = {
 		total_registered: 0,
@@ -538,25 +547,7 @@ function resetSummary() {
 	}
 }
 
-function getApiErrorMessage(
-	error: unknown,
-	fallback: string,
-): string {
-	const apiError =
-		error as ApiErrorResponse
 
-	const validationMessage =
-		Object.values(
-			apiError.data?.errors ??
-			{},
-		)[0]?.[0]
-
-	return (
-		validationMessage ??
-		apiError.data?.message ??
-		fallback
-	)
-}
 
 let orgId = ''
 
@@ -773,9 +764,12 @@ onMounted(async () => {
 	) {
 		await loadSummary()
 	}
+
+	animateCounters(summary.value)
 })
 
 onBeforeUnmount(() => {
+	cancelAnimationFrame(countFrame)
 	document.removeEventListener('click', handleClickOutsideEventSelector)
 })
 </script>
@@ -792,5 +786,88 @@ onBeforeUnmount(() => {
 .dropdown-leave-to {
 	opacity: 0;
 	transform: translateY(-6px);
+}
+
+.tk-hero {
+	background: #285f6b;
+}
+
+.tk-orb {
+	position: absolute;
+	border-radius: 9999px;
+	filter: blur(60px);
+	pointer-events: none;
+}
+
+.tk-orb-a {
+	top: -110px;
+	right: 6%;
+	height: 300px;
+	width: 300px;
+	background: rgba(255, 255, 255, 0.1);
+	animation: tk-drift 16s ease-in-out infinite;
+}
+
+.tk-orb-b {
+	bottom: -130px;
+	left: -50px;
+	height: 280px;
+	width: 280px;
+	background: rgba(255, 255, 255, 0.06);
+	animation: tk-drift 20s ease-in-out infinite reverse;
+}
+
+.tk-dots {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+	background-size: 22px 22px;
+	mask-image: linear-gradient(115deg, transparent 25%, #000 90%);
+	-webkit-mask-image: linear-gradient(115deg, transparent 25%, #000 90%);
+}
+
+.tk-rise {
+	animation: tk-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+	animation-delay: var(--d, 0ms);
+}
+
+.tk-card {
+	transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.tk-card:hover {
+	transform: translateY(-3px);
+	border-color: rgba(40, 95, 107, 0.28);
+	box-shadow: 0 16px 32px -22px rgba(17, 24, 39, 0.35);
+}
+
+.tk-line {
+	transform: scaleX(0);
+	transform-origin: left;
+	transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tk-card:hover .tk-line {
+	transform: scaleX(1);
+}
+
+.tk-ring {
+	transition: stroke-dashoffset 1s cubic-bezier(0.22, 1, 0.36, 1) 0.15s;
+}
+
+@keyframes tk-rise {
+	from { opacity: 0; transform: translateY(16px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tk-drift {
+	0%, 100% { transform: translate(0, 0) scale(1); }
+	50% { transform: translate(-22px, 16px) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tk-orb, .tk-rise { animation: none; }
+	.tk-card, .tk-ring, .tk-line { transition: none; }
 }
 </style>

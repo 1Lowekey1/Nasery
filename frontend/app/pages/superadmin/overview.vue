@@ -13,30 +13,26 @@
 
 		<template v-else-if="overview">
 			<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-				<SuperadminStatCard label="Total Organizers" :value="overview.organizer_count" icon="users" tone="gray"
+				<SuperadminStatCard label="Total Organizers" :value="overview.organizer_count" icon="users"
 					:hint="monthHint(overview.new_organizers_this_month, 'organizer')" />
-				<SuperadminStatCard label="Total Clients" :value="overview.client_count" icon="user" tone="blue"
+				<SuperadminStatCard label="Total Clients" :value="overview.client_count" icon="user"
 					:hint="monthHint(overview.new_clients_this_month, 'client')" />
 				<SuperadminStatCard label="Active Events" :value="overview.active_event_count" icon="calendar"
-					tone="primary"
 					:hint="`${overview.event_count} total, ${overview.new_events_this_month} new this month`" />
-				<SuperadminStatCard label="Pending Quotations" :value="overview.pending_quotations_count" icon="clock"
-					tone="amber" value-class="text-amber-600" hint="Bids awaiting a client decision" />
+				<SuperadminStatCard label="Pending Quotations" :value="overview.pending_quotations_count" icon="clock" hint="Bids awaiting a client decision" />
 				<SuperadminStatCard label="NaSeRy Revenue" :value="formatCurrency(overview.total_revenue)" icon="cash"
-					tone="green" value-class="text-green-600"
 					:hint="`${formatCurrency(overview.nasery_fees ?? 0)} ticket fees + ${formatCurrency(overview.nasery_plans ?? 0)} plans · all-time`" />
-				<SuperadminStatCard label="Bids This Month" :value="overview.bids_this_month" icon="file-text"
-					tone="violet" :hint="`${overview.avg_organizer_rating || '—'} avg. organizer rating`" />
+				<SuperadminStatCard label="Bids This Month" :value="overview.bids_this_month" icon="file-text" :hint="`${overview.avg_organizer_rating || '—'} avg. organizer rating`" />
 			</div>
 
 			<div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
-				<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm xl:col-span-2">
-					<h2 class="text-base font-bold text-gray-900">Recent Activity</h2>
+				<div class="sa-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8 xl:col-span-2" style="--d: 120ms">
+					<h2 class="text-lg font-extrabold tracking-tight text-gray-950">Recent Activity</h2>
 					<p class="mt-1 text-sm text-gray-500">Latest actions across all organizers and clients</p>
 
 					<div v-if="overview.recent_activity.length" class="mt-5 space-y-1">
 						<div v-for="(item, index) in overview.recent_activity" :key="index"
-							class="flex items-start gap-3 rounded-xl px-1 py-2.5 transition hover:bg-gray-50">
+							class="sa-row flex items-start gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-gray-50">
 							<span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
 								:class="activityStyle(item.type).bg">
 								<IconBase :name="activityStyle(item.type).icon" class="h-3.5 w-3.5"
@@ -60,7 +56,7 @@
 				</div>
 
 				<div class="space-y-5">
-					<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+					<div class="sa-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-7" style="--d: 180ms">
 						<h2 class="text-base font-bold text-gray-900">Top Organizers</h2>
 						<p class="mt-1 text-sm text-gray-500">Ranked by ticket sales (the organizers' money)</p>
 
@@ -82,15 +78,15 @@
 						<p v-else class="mt-4 text-sm text-gray-400">No ticket sales yet.</p>
 					</div>
 
-					<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+					<div class="sa-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-7" style="--d: 240ms">
 						<h2 class="text-base font-bold text-gray-900">Pending Quotations</h2>
 						<p class="mt-1 text-sm text-gray-500">Bids awaiting a client decision, oldest first</p>
 
 						<div v-if="overview.pending_quotations.length" class="mt-4 space-y-2.5">
 							<div v-for="quotation in overview.pending_quotations" :key="quotation.id"
-								class="flex items-center justify-between gap-3 rounded-xl border border-gray-100 p-3 transition hover:border-amber-200 hover:bg-amber-50/30">
+								class="flex items-center justify-between gap-3 rounded-xl border border-gray-100 p-3 transition hover:border-primary-200 hover:bg-primary-50/40">
 								<div class="flex min-w-0 items-center gap-3">
-									<SuperadminAvatar :name="quotation.organizer" tone="amber" size="sm" />
+									<SuperadminAvatar :name="quotation.organizer" size="sm" />
 									<div class="min-w-0">
 										<div class="truncate text-sm font-semibold text-gray-900">{{ quotation.organizer
 											}}</div>
@@ -169,19 +165,47 @@ function formatRelativeTime(dateString: string) {
 	return `${days}d ago`
 }
 
+const TONE = { bg: 'bg-primary-50', text: 'text-primary-700' }
+
 const activityStyles: Record<string, { icon: string, bg: string, text: string, label: string }> = {
-	organizer_joined: { icon: 'briefcase', bg: 'bg-primary-50', text: 'text-primary-700', label: 'Organizer' },
-	client_joined: { icon: 'user', bg: 'bg-blue-50', text: 'text-blue-600', label: 'Client' },
-	quotation_accepted: { icon: 'award', bg: 'bg-green-50', text: 'text-green-600', label: 'Bid won' },
-	event_created: { icon: 'calendar', bg: 'bg-gray-100', text: 'text-gray-500', label: 'Event' },
-	review_received: { icon: 'star', bg: 'bg-amber-50', text: 'text-amber-600', label: 'Review' },
+	organizer_joined: { icon: 'briefcase', ...TONE, label: 'Organizer' },
+	client_joined: { icon: 'user', ...TONE, label: 'Client' },
+	quotation_accepted: { icon: 'award', ...TONE, label: 'Bid won' },
+	event_created: { icon: 'calendar', ...TONE, label: 'Event' },
+	review_received: { icon: 'star', ...TONE, label: 'Review' },
 }
 
 function activityStyle(type: string) {
-	return activityStyles[type] ?? { icon: 'activity', bg: 'bg-gray-100', text: 'text-gray-500', label: 'Activity' }
+	return activityStyles[type] ?? { icon: 'activity', ...TONE, label: 'Activity' }
 }
 
 onMounted(() => {
 	loadOverview()
 })
 </script>
+
+<style scoped>
+.sa-rise {
+	animation: sa-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+	animation-delay: var(--d, 0ms);
+}
+
+.sa-row {
+	animation: sa-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.sa-row:nth-child(2) { animation-delay: 40ms; }
+.sa-row:nth-child(3) { animation-delay: 80ms; }
+.sa-row:nth-child(4) { animation-delay: 120ms; }
+.sa-row:nth-child(5) { animation-delay: 160ms; }
+.sa-row:nth-child(n + 6) { animation-delay: 200ms; }
+
+@keyframes sa-rise {
+	from { opacity: 0; transform: translateY(12px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sa-rise, .sa-row { animation: none; }
+}
+</style>

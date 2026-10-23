@@ -1,152 +1,89 @@
 <template>
-	<div class="space-y-6">
-		<div v-if="isLoading" class="rounded-3xl border border-gray-200 bg-white px-6 py-16 text-center shadow-sm">
-			<IconBase name="refresh-cw" class="mx-auto h-6 w-6 animate-spin text-[#285F6b]" />
-			<p class="mt-3 text-sm font-semibold text-gray-500">Loading ticket tiers...</p>
+	<div class="space-y-5">
+		<div v-if="isLoading" class="space-y-4">
+			<div class="h-44 animate-pulse rounded-2xl bg-white ring-1 ring-gray-200" />
+			<div class="h-48 animate-pulse rounded-2xl bg-white ring-1 ring-gray-200" />
 		</div>
 
-		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">
-			{{ errorMessage }}
-		</div>
+		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">{{ errorMessage }}</div>
 
 		<template v-else-if="event">
-			<section class="relative overflow-hidden rounded-3xl bg-primary-700 px-6 py-7 text-white shadow-sm sm:px-8">
-				<div class="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
+			<!-- Banner -->
+			<section class="relative overflow-hidden rounded-3xl bg-primary-700 px-6 py-7 text-white sm:px-8">
+				<div class="tt-dots" aria-hidden="true" />
+				<div class="tt-glow" aria-hidden="true" />
 				<div class="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-					<div>
-						<p class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/60">
-							<span class="h-1.5 w-1.5 rounded-full bg-white/60" />
-							Ticket inventory
-						</p>
-						<h2 class="mt-2 text-2xl font-black tracking-tight sm:text-3xl">{{ event.name }}</h2>
+					<div class="min-w-0">
+						<p class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/60"><span class="h-1.5 w-1.5 rounded-full bg-white/60" />Ticket inventory</p>
+						<h2 class="mt-2 truncate text-2xl font-black tracking-tight sm:text-3xl">{{ event.name }}</h2>
 						<p class="mt-1 text-sm text-white/70">Track sales, remaining capacity, and pricing for every admission type.</p>
 					</div>
-
-					<button type="button"
-						class="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-primary-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-gray-50 hover:shadow-md"
-						@click="addTicketType">
-						<IconBase name="plus" class="h-4 w-4" />
-						Add ticket type
-					</button>
+					<button type="button" class="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-primary-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0" @click="addTicketType"><IconBase name="plus" class="h-4 w-4" /> Add ticket type</button>
 				</div>
 			</section>
 
-			<div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-					<div class="flex items-start justify-between gap-3">
+			<!-- Summary -->
+			<section v-if="event.ticket_types?.length" class="rounded-2xl border border-gray-200 bg-white p-6">
+
+					<div>
+						<div class="mb-2 flex items-baseline justify-between text-sm">
+							<span class="font-medium text-gray-700">{{ overallPercent }}% issued</span>
+							<span class="tabular-nums text-gray-500">{{ totalSold }} of {{ totalCapacity }}</span>
+						</div>
+						<div class="flex h-2 w-full overflow-hidden rounded-full bg-gray-100">
+							<div class="tt-bar h-full rounded-full bg-primary-700 transition-[width] duration-1000 ease-out" :style="{ width: (ready ? overallPercent : 0) + '%' }" />
+						</div>
+					</div>
+
+					<dl class="mt-6 grid grid-cols-2 divide-gray-100 border-t border-gray-100 pt-5 sm:grid-cols-5 sm:divide-x">
+						<div v-for="stat in summaryStats" :key="stat.label" class="py-1 sm:px-5 sm:first:pl-0">
+							<dt class="text-xs text-gray-500">{{ stat.label }}</dt>
+							<dd class="mt-1 text-xl font-bold tabular-nums" :class="stat.accent ? 'text-primary-700' : 'text-gray-950'">{{ stat.value }}</dd>
+						</div>
+					</dl>
+			</section>
+
+			<!-- Empty -->
+			<section v-if="!event.ticket_types?.length" class="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center">
+				<span class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-500"><IconBase name="ticket" class="h-6 w-6" /></span>
+				<h3 class="mt-4 font-semibold text-gray-950">No ticket types yet</h3>
+				<p class="mx-auto mt-1 max-w-sm text-sm text-gray-500">Add options like VIP, Regular or Early bird so guests can pick their admission.</p>
+				<button type="button" class="tt-btn-primary mx-auto mt-5" @click="addTicketType"><IconBase name="plus" class="h-4 w-4" /> Add ticket type</button>
+			</section>
+
+			<!-- Tiers -->
+			<section v-else class="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+				<div class="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)_minmax(0,0.8fr)_80px] gap-6 border-b border-gray-100 px-6 py-3 text-xs font-medium text-gray-500 md:grid">
+					<span>Ticket type</span><span>Issued</span><span class="text-right">Available</span><span />
+				</div>
+				<ul class="divide-y divide-gray-100">
+					<li v-for="(ticket, i) in event.ticket_types" :key="ticket.id" class="tt-row group grid grid-cols-1 items-center gap-4 px-6 py-5 transition hover:bg-gray-50/70 md:grid-cols-[minmax(0,1.4fr)_minmax(0,2fr)_minmax(0,0.8fr)_80px] md:gap-6" :style="{ '--i': i }">
+						<div class="min-w-0">
+							<p class="truncate text-sm font-semibold text-gray-950">{{ ticket.name }}</p>
+							<p class="mt-0.5 text-sm tabular-nums text-gray-500">{{ formatCurrency(ticket.price) }}</p>
+						</div>
 						<div>
-							<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Ticket Types</p>
-							<p class="mt-2 text-2xl font-black text-gray-900">{{ event.ticket_types?.length ?? 0 }}</p>
-						</div>
-						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
-							<IconBase name="tag" class="h-5 w-5" />
-						</span>
-					</div>
-				</div>
-				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-					<div class="flex items-start justify-between gap-3">
-						<div>
-							<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Issued</p>
-							<p class="mt-2 text-2xl font-black text-gray-900">{{ totalSold }}</p>
-						</div>
-						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
-							<IconBase name="ticket" class="h-5 w-5" />
-						</span>
-					</div>
-				</div>
-				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-					<div class="flex items-start justify-between gap-3">
-						<div>
-							<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Capacity</p>
-							<p class="mt-2 text-2xl font-black text-gray-900">{{ totalCapacity }}</p>
-						</div>
-						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
-							<IconBase name="users" class="h-5 w-5" />
-						</span>
-					</div>
-				</div>
-				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-					<div class="flex items-start justify-between gap-3">
-						<div>
-							<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Available</p>
-							<p class="mt-2 text-2xl font-black text-emerald-700">{{ totalAvailable }}</p>
-						</div>
-						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-							<IconBase name="check-circle" class="h-5 w-5" />
-						</span>
-					</div>
-				</div>
-			</div>
-
-			<div v-if="!event.ticket_types?.length"
-				class="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
-				<div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
-					<IconBase name="tag" class="h-6 w-6" />
-				</div>
-				<h3 class="mt-5 text-lg font-extrabold text-gray-900">Create your first ticket type</h3>
-				<p class="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">Add options such as VIP, Regular, Early Bird, or Student so attendees can choose the right admission.</p>
-				<button type="button" class="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-800" @click="addTicketType">
-					<IconBase name="plus" class="h-4 w-4" /> Add ticket type
-				</button>
-			</div>
-
-			<div v-else class="grid gap-5 xl:grid-cols-2">
-				<article v-for="ticket in event.ticket_types" :key="ticket.id"
-					class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md">
-					<div class="h-1 bg-primary-700" />
-					<div class="p-5 sm:p-6">
-						<div class="flex items-start justify-between gap-4">
-							<div class="flex min-w-0 items-center gap-3">
-								<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
-									<IconBase name="tag" class="h-5 w-5" />
-								</div>
-								<div class="min-w-0">
-									<h3 class="truncate text-lg font-extrabold text-gray-900">{{ ticket.name }}</h3>
-									<p class="mt-0.5 text-sm font-semibold text-primary-700">{{ formatCurrency(ticket.price) }}</p>
-								</div>
+							<div class="mb-1.5 flex items-baseline justify-between text-xs">
+								<span class="text-gray-500">{{ getSoldPercentage(ticket) }}%</span>
+								<span class="tabular-nums text-gray-700"><strong class="font-semibold text-gray-950">{{ ticket.sold ?? 0 }}</strong> / {{ ticket.capacity }}</span>
 							</div>
-
-							<div class="flex shrink-0 gap-2">
-								<button type="button" :aria-label="`Edit ${ticket.name}`"
-									class="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
-									@click="editTicketType(ticket)">
-									<IconBase name="edit" class="h-4 w-4" />
-								</button>
-								<button type="button" :aria-label="`Remove ${ticket.name}`"
-									class="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-									@click="deleteTicketType(ticket)">
-									<IconBase name="trash" class="h-4 w-4" />
-								</button>
+							<div class="h-1.5 overflow-hidden rounded-full bg-gray-100">
+								<div class="tt-bar h-full rounded-full transition-[width] duration-1000 ease-out" :class="getSoldPercentage(ticket) >= 90 ? 'bg-amber-500' : 'bg-primary-700'" :style="{ width: (ready ? getSoldPercentage(ticket) : 0) + '%' }" />
 							</div>
 						</div>
-
-						<div class="mt-6 grid grid-cols-3 gap-3">
-							<div class="rounded-2xl bg-gray-50 p-4">
-								<p class="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400">Issued</p>
-								<p class="mt-1.5 text-xl font-black text-gray-900">{{ ticket.sold ?? 0 }}</p>
-							</div>
-							<div class="rounded-2xl bg-gray-50 p-4">
-								<p class="text-[10px] font-bold uppercase tracking-[0.1em] text-gray-400">Capacity</p>
-								<p class="mt-1.5 text-xl font-black text-gray-900">{{ ticket.capacity }}</p>
-							</div>
-							<div class="rounded-2xl bg-emerald-50 p-4">
-								<p class="text-[10px] font-bold uppercase tracking-[0.1em] text-emerald-600">Available</p>
-								<p class="mt-1.5 text-xl font-black text-emerald-800">{{ getAvailability(ticket) }}</p>
-							</div>
+						<p class="text-sm md:text-right">
+							<span class="font-semibold tabular-nums text-gray-950">{{ getAvailability(ticket) }}</span>
+							<span class="ml-1 text-gray-500">left</span>
+							<span v-if="getAvailability(ticket) === 0" class="ml-2 rounded-full bg-gray-900 px-2 py-0.5 text-[10px] font-bold text-white">Sold out</span>
+						</p>
+						<div class="flex justify-end gap-1 opacity-100 transition md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+							<button type="button" class="tt-icon" :aria-label="`Edit ${ticket.name}`" title="Edit" @click="editTicketType(ticket)"><IconBase name="edit" class="h-4 w-4" /></button>
+							<button type="button" class="tt-icon hover:!bg-red-50 hover:!text-red-600" :aria-label="`Remove ${ticket.name}`" title="Remove" @click="deleteTicketType(ticket)"><IconBase name="trash" class="h-4 w-4" /></button>
 						</div>
-
-						<div class="mt-6">
-							<div class="mb-2 flex items-center justify-between text-xs font-semibold">
-								<span class="text-gray-500">{{ getSoldPercentage(ticket) }}% of inventory issued</span>
-								<span class="text-gray-700">{{ ticket.sold ?? 0 }} / {{ ticket.capacity }}</span>
-							</div>
-							<div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
-								<div class="h-full rounded-full bg-primary-700 transition-all duration-300" :style="{ width: `${getSoldPercentage(ticket)}%` }" />
-							</div>
-						</div>
-					</div>
-				</article>
-			</div>
+					</li>
+				</ul>
+				<button type="button" class="flex w-full items-center justify-center gap-2 border-t border-gray-100 py-3.5 text-sm font-medium text-gray-500 transition hover:bg-gray-50 hover:text-primary-700" @click="addTicketType"><IconBase name="plus" class="h-4 w-4" /> Add another ticket type</button>
+			</section>
 		</template>
 	</div>
 </template>
@@ -447,4 +384,59 @@ watch(
 onMounted(() => {
 	loadTicketTypes()
 })
+
+// ---------- Minimal view helpers ----------
+const ready = ref(false)
+const overallPercent = computed(() => totalCapacity.value ? Math.round((totalSold.value / totalCapacity.value) * 100) : 0)
+const revenueSoFar = computed(() => (event.value?.ticket_types ?? []).reduce((sum: number, t: any) => sum + (Number(t.price) || 0) * (Number(t.sold) || 0), 0))
+// Numbers count up once when the page loads.
+const tick = ref(0)
+function eased(target: number) { return Math.round(target * tick.value) }
+const summaryStats = computed(() => [
+	{ label: 'Ticket types', value: eased(event.value?.ticket_types?.length ?? 0) },
+	{ label: 'Issued', value: eased(totalSold.value) },
+	{ label: 'Capacity', value: eased(totalCapacity.value) },
+	{ label: 'Available', value: eased(totalAvailable.value) },
+	{ label: 'Revenue so far', value: formatCurrency(eased(revenueSoFar.value)), accent: true },
+])
+function runCountUp() {
+	if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { tick.value = 1; return }
+	const start = performance.now()
+	const step = (now: number) => {
+		const t = Math.min(1, (now - start) / 900)
+		tick.value = 1 - Math.pow(1 - t, 3)
+		if (t < 1) requestAnimationFrame(step)
+	}
+	requestAnimationFrame(step)
+}
+watch(() => isLoading.value, (loading) => {
+	if (loading || !import.meta.client) return
+	setTimeout(() => { ready.value = true; runCountUp() }, 120)
+}, { immediate: true })
 </script>
+
+<style scoped>
+.tt-btn-primary { @apply inline-flex h-10 items-center gap-2 rounded-xl bg-primary-700 px-4 text-sm font-semibold text-white transition hover:bg-primary-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 active:scale-[0.98]; }
+.tt-icon { @apply flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600; }
+.tt-dots { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1.3px); background-size: 16px 16px; mask-image: linear-gradient(105deg, transparent 25%, black 80%); }
+.tt-glow { position: absolute; right: -4rem; top: -5rem; width: 14rem; height: 14rem; border-radius: 9999px; background: rgba(255, 255, 255, 0.1); filter: blur(48px); pointer-events: none; animation: tt-drift 9s ease-in-out infinite; }
+@keyframes tt-drift { 50% { transform: translate(-24px, 18px); } }
+/* A soft shine sweeps across the bars once they fill. */
+.tt-bar { position: relative; overflow: hidden; }
+.tt-bar::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent); transform: translateX(-100%); animation: tt-shine 2.4s ease-in-out 1.1s 2; }
+@keyframes tt-shine { to { transform: translateX(100%); } }
+.tt-row { position: relative; }
+.tt-row:hover { box-shadow: inset 3px 0 0 #285F6b; }
+.tt-row { animation: tt-rise 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 50ms); }
+@keyframes tt-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tt-dots { position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1.3px); background-size: 16px 16px; mask-image: linear-gradient(105deg, transparent 25%, black 80%); }
+.tt-glow { position: absolute; right: -4rem; top: -5rem; width: 14rem; height: 14rem; border-radius: 9999px; background: rgba(255, 255, 255, 0.1); filter: blur(48px); pointer-events: none; animation: tt-drift 9s ease-in-out infinite; }
+@keyframes tt-drift { 50% { transform: translate(-24px, 18px); } }
+/* A soft shine sweeps across the bars once they fill. */
+.tt-bar { position: relative; overflow: hidden; }
+.tt-bar::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent); transform: translateX(-100%); animation: tt-shine 2.4s ease-in-out 1.1s 2; }
+@keyframes tt-shine { to { transform: translateX(100%); } }
+.tt-row { position: relative; }
+.tt-row:hover { box-shadow: inset 3px 0 0 #285F6b; }
+.tt-row { animation: none; } }
+</style>

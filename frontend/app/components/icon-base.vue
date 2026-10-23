@@ -72,6 +72,9 @@
 			<circle cx="12" cy="8" r="6" />
 			<polyline points="8.5 13.5 7 22 12 19 17 22 15.5 13.5" />
 		</template>
+		<template v-else-if="name === 'check'">
+			<polyline points="20 6 9 17 4 12" stroke-width="3" />
+		</template>
 		<template v-else-if="name === 'check-circle'">
 			<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
 			<polyline points="22 4 12 14.01 9 11.01" />

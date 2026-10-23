@@ -1,6 +1,6 @@
 <template>
-	<div>
-		<div v-if="isLoading" class="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
+	<div class="space-y-6">
+		<div v-if="isLoading" class="rounded-3xl border border-gray-200 bg-white p-12 text-center text-sm text-gray-500">
 			Loading live events...
 		</div>
 
@@ -8,118 +8,142 @@
 			{{ errorMessage }}
 		</div>
 
-		<div v-else-if="!events.length" class="rounded-2xl border border-dashed border-gray-300 bg-white px-5 py-14 text-center">
-			<IconBase name="calendar" class="mx-auto h-7 w-7 text-gray-400" />
-			<p class="mt-3 text-sm font-semibold text-gray-700">No events yet</p>
-			<p class="mx-auto mt-1 max-w-sm text-xs text-gray-500">
+		<div v-else-if="!events.length" class="rounded-3xl border border-dashed border-gray-300 bg-white px-5 py-16 text-center">
+			<span class="le-float mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+				<IconBase name="calendar" class="h-7 w-7" />
+			</span>
+			<p class="mt-4 text-sm font-bold text-gray-900">No events yet</p>
+			<p class="mx-auto mt-1 max-w-sm text-xs leading-5 text-gray-500">
 				Create an event in Event Management to see its live check-in activity here.
 			</p>
 			<NuxtLink to="/organizer/eventmanagement/all-events" class="mt-3 inline-block text-sm font-semibold text-primary-700 hover:underline">Go to Event Management</NuxtLink>
 		</div>
 
 		<template v-else>
-			<div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+			<!-- Selector -->
+			<div class="le-rise relative z-30 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<div class="w-full sm:max-w-sm">
 					<FormsSelect v-model="selectedEventId" :options="eventOptions" :can-clear="false"
 						placeholder="Select an event" />
 				</div>
-				<span v-if="selectedEvent" class="inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+
+				<span v-if="selectedEvent" class="inline-flex w-fit items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold"
 					:class="eventStatusClass(selectedEvent.status)">
-					<span v-if="selectedEvent.status === 'ongoing'" class="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
+					<span class="relative flex h-2 w-2">
+						<span v-if="selectedEvent.status === 'ongoing'" class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-700 opacity-60" />
+						<span class="relative inline-flex h-2 w-2 rounded-full bg-current opacity-80" />
+					</span>
 					{{ formatEventStatus(selectedEvent.status) }}
 				</span>
 			</div>
 
-			<div v-if="selectedEvent && selectedEvent.status !== 'ongoing'" class="mb-5 flex items-start gap-3 rounded-2xl border border-amber-100 bg-amber-50 p-4">
-				<IconBase name="clock" class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-				<p class="text-sm leading-6 text-amber-800">
-					This event is marked <strong>{{ formatEventStatus(selectedEvent.status) }}</strong>, not "Ongoing" yet — the numbers below are still real, but check-in activity typically only starts once you mark the event Ongoing in Event Management.
+			<div v-if="selectedEvent && selectedEvent.status !== 'ongoing'" class="le-rise flex items-start gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3.5" style="--d: 60ms">
+				<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+					<IconBase name="clock" class="h-4 w-4" />
+				</span>
+				<p class="pt-1 text-sm leading-6 text-gray-600">
+					This event is marked <strong class="text-gray-900">{{ formatEventStatus(selectedEvent.status) }}</strong>, not "Ongoing" yet. The numbers below are real, but check-in activity usually starts once you mark the event Ongoing in Event Management.
 				</p>
 			</div>
 
-			<div class="mb-5 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-				<h2 class="text-base font-bold text-gray-900">{{ selectedEvent?.name }}</h2>
-				<p class="mb-6 text-sm text-gray-500">Real-time event analytics</p>
-
-				<div class="mb-8 grid grid-cols-2 gap-5 sm:grid-cols-4">
+			<!-- Analytics -->
+			<section v-if="selectedEvent" class="le-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8" style="--d: 100ms">
+				<div class="flex flex-wrap items-start justify-between gap-3">
 					<div>
-						<span class="text-sm text-gray-500">Checked In</span>
-						<div class="mt-1 text-3xl font-extrabold text-gray-900">
-							{{ summary.checked_in }}
-						</div>
-					</div>
-					<div>
-						<span class="text-sm text-gray-500">Registered</span>
-						<div class="mt-1 text-3xl font-extrabold text-gray-900">
-							{{ summary.total_registered }}</div>
-					</div>
-					<div>
-						<span class="text-sm text-gray-500">Walk-ins</span>
-						<div class="mt-1 text-3xl font-extrabold text-gray-900">
-							{{ summary.walk_ins }}
-						</div>
-					</div>
-					<div>
-						<span class="text-sm text-gray-500">Capacity Fill</span>
-						<div class="mt-1 text-3xl font-extrabold text-gray-900">
-							{{ summary.capacity_percent }}%
-						</div>
+						<h2 class="text-xl font-extrabold tracking-tight text-gray-950">{{ selectedEvent.name }}</h2>
+						<p class="mt-0.5 text-sm text-gray-500">Real-time event analytics</p>
 					</div>
 				</div>
 
-				<div class="grid grid-cols-1 items-center gap-6 sm:grid-cols-2">
+				<div class="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+					<div v-for="tile in tiles" :key="tile.label" class="le-tile rounded-2xl bg-gray-50 p-4">
+						<div class="flex items-center justify-between">
+							<span class="text-xs font-bold uppercase tracking-[0.08em] text-gray-400">{{ tile.label }}</span>
+							<IconBase :name="tile.icon" class="h-4 w-4 text-primary-700" />
+						</div>
+						<div class="mt-2 text-3xl font-extrabold tracking-tight text-gray-950">{{ tile.value }}</div>
+					</div>
+				</div>
+
+				<div class="mt-8 grid grid-cols-1 items-center gap-8 lg:grid-cols-2">
 					<ClientOnly>
-						<apexchart type="radialBar" height="260" :options="gaugeOptions" :series="gaugeSeries" />
+						<apexchart type="radialBar" height="290" :options="gaugeOptions" :series="gaugeSeries" />
 					</ClientOnly>
 
-					<div class="space-y-5">
+					<div class="space-y-7">
 						<div>
-							<div class="mb-1 flex items-center justify-between text-sm">
-								<span class="font-semibold text-gray-900">Check-in Progress</span>
-								<span class="text-gray-500">{{ summary.checked_in }} / {{ summary.total_registered }}</span>
+							<div class="mb-2 flex items-center justify-between text-sm">
+								<span class="font-bold text-gray-900">Check-in progress</span>
+								<span class="font-semibold text-gray-500">{{ summary.checked_in }} / {{ summary.total_registered }}</span>
 							</div>
-							<div class="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-								<div class="h-full rounded-full bg-[#16a34a]" :style="{ width: checkinProgress + '%' }" />
+							<div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+								<div class="le-bar h-full rounded-full bg-[#285F6b]" :style="{ width: checkinProgress + '%' }" />
 							</div>
 						</div>
+
 						<div>
-							<div class="mb-1 flex items-center justify-between text-sm">
-								<span class="font-semibold text-gray-900">Overall Capacity</span>
-								<span class="text-gray-500">{{ summary.total_registered }} / {{ summary.capacity }}</span>
+							<div class="mb-2 flex items-center justify-between text-sm">
+								<span class="font-bold text-gray-900">Overall capacity</span>
+								<span class="font-semibold text-gray-500">{{ summary.total_registered }} / {{ summary.capacity }}</span>
 							</div>
-							<div class="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-								<div class="h-full rounded-full bg-[#285F6b]" :style="{ width: summary.capacity_percent + '%' }" />
+							<div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+								<div class="le-bar h-full rounded-full bg-[#9dbfc6]" :style="{ width: Math.max(summary.capacity_percent, summary.total_registered ? 1.5 : 0) + '%' }" />
 							</div>
 						</div>
+
+						<p class="text-xs leading-5 text-gray-400">
+							Check-in progress is out of registered attendees. Capacity is out of all available spots.
+						</p>
 					</div>
 				</div>
-			</div>
+			</section>
 
-			<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-				<h2 class="text-base font-bold text-gray-900">
-					Live Check-in Activity
-				</h2>
-				<p class="mb-5 text-sm text-gray-500">
-					Recent attendee check-ins
-				</p>
-				<div v-if="checkinActivity.length" class="divide-y divide-gray-100">
-					<div v-for="person in checkinActivity" :key="person.id"
-						class="flex items-center gap-3 py-4 first:pt-0 last:pb-0">
-						<IconBase name="user" class="h-5 w-5 shrink-0 text-gray-400" />
+			<!-- Activity -->
+			<section v-if="selectedEvent" class="le-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8" style="--d: 160ms">
+				<div class="flex items-start justify-between gap-3">
+					<div>
+						<h2 class="text-xl font-extrabold tracking-tight text-gray-950">
+							Live Check-in Activity
+						</h2>
+						<p class="mb-5 mt-0.5 text-sm text-gray-500">
+							Recent attendee check-ins
+						</p>
+					</div>
+
+					<span v-if="checkinActivity.length" class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600">{{ checkinActivity.length }}</span>
+				</div>
+
+				<div v-if="checkinActivity.length" class="space-y-1">
+					<div v-for="(person, index) in checkinActivity" :key="person.id"
+						class="le-row flex items-center gap-3.5 rounded-2xl px-3 py-3 transition-colors hover:bg-gray-50"
+						:style="{ '--d': index * 45 + 'ms' }">
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
+							{{ getInitials(person.name) }}
+						</span>
+
 						<div class="min-w-0 flex-1">
-							<div class="truncate text-sm font-semibold text-gray-900">
+							<div class="truncate text-sm font-bold text-gray-900">
 								{{ person.name }}
 							</div>
 							<div class="text-xs text-gray-400">
-								{{ formatRelativeTime(person.checked_in_at) }}</div>
+								{{ formatRelativeTime(person.checked_in_at) }}
+							</div>
 						</div>
-						<span class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold" :class="badgeClass(person.badge)">
+
+						<span class="shrink-0 rounded-full px-3 py-1 text-xs font-bold" :class="badgeClass(person.badge)">
 							{{ person.badge }}
 						</span>
 					</div>
 				</div>
-				<p v-else class="py-8 text-center text-sm text-gray-400">No check-ins yet.</p>
-			</div>
+
+				<div v-else class="rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center">
+					<span class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-gray-400">
+						<IconBase name="check-circle" class="h-6 w-6" />
+					</span>
+					<p class="mt-3 text-sm font-bold text-gray-900">No check-ins yet</p>
+					<p class="mt-1 text-xs text-gray-500">Attendees will appear here as they check in.</p>
+				</div>
+			</section>
 		</template>
 	</div>
 </template>
@@ -179,12 +203,12 @@ const gaugeSeries = computed(() => [checkinProgress.value, summary.value.capacit
 const gaugeOptions = computed<ApexOptions>(() => ({
 	chart: { type: 'radialBar', fontFamily: 'inherit' },
 	labels: ['Check-in', 'Capacity'],
-	colors: ['#16a34a', '#285F6b'],
+	colors: ['#285F6b', '#9dbfc6'],
 	stroke: { lineCap: 'round' },
 	plotOptions: {
 		radialBar: {
-			hollow: { size: '42%' },
-			track: { background: '#f1f5f9', strokeWidth: '100%' },
+			hollow: { size: '44%' },
+			track: { background: '#eef2f3', strokeWidth: '100%', margin: 6 },
 			dataLabels: {
 				name: { fontSize: '12px', fontWeight: 700, color: '#6b7280' },
 				value: { fontSize: '20px', fontWeight: 800, color: '#111827', formatter: (value: number) => `${value}%` },
@@ -202,6 +226,17 @@ const gaugeOptions = computed<ApexOptions>(() => ({
 	legend: { show: true, position: 'bottom', fontSize: '13px', fontWeight: 600, markers: { size: 8 } },
 }))
 
+const tiles = computed(() => [
+	{ label: 'Checked in', value: summary.value.checked_in, icon: 'check-circle' },
+	{ label: 'Registered', value: summary.value.total_registered, icon: 'users' },
+	{ label: 'Walk-ins', value: summary.value.walk_ins, icon: 'user-plus' },
+	{ label: 'Capacity fill', value: `${summary.value.capacity_percent}%`, icon: 'chart-bar' },
+])
+
+function getInitials(name: string): string {
+	return name.split(' ').filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join('') || 'A'
+}
+
 function getApiErrorMessage(error: unknown, fallback: string): string {
 	const apiError = error as { data?: { message?: string } }
 	return apiError?.data?.message || fallback
@@ -212,7 +247,7 @@ function authHeaders() {
 }
 
 function badgeClass(badge: string) {
-	if (badge === 'Walk-in') return 'bg-amber-50 text-amber-700'
+	if (badge === 'Walk-in') return 'bg-gray-100 text-gray-700'
 	if (badge.toLowerCase().includes('vip')) return 'bg-primary-50 text-primary-700'
 	return 'bg-gray-100 text-gray-600'
 }
@@ -226,9 +261,8 @@ function eventStatusClass(status: string): string {
 	switch (status) {
 		case 'published':
 		case 'confirmed':
-			return 'bg-green-50 text-green-700'
 		case 'ongoing':
-			return 'bg-green-50 text-green-700'
+			return 'bg-primary-50 text-primary-700'
 		case 'completed':
 			return 'bg-gray-100 text-gray-600'
 		case 'cancelled':
@@ -312,3 +346,53 @@ onMounted(() => {
 	loadEvents()
 })
 </script>
+
+<style scoped>
+.le-rise {
+	animation: le-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+	animation-delay: var(--d, 0ms);
+}
+
+.le-row {
+	animation: le-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+	animation-delay: var(--d, 0ms);
+}
+
+.le-tile {
+	transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.le-tile:hover {
+	transform: translateY(-2px);
+	background-color: #f3f6f7;
+}
+
+.le-bar {
+	animation: le-grow 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+	transform-origin: left;
+}
+
+.le-float {
+	animation: le-float 3.2s ease-in-out infinite;
+}
+
+@keyframes le-rise {
+	from { opacity: 0; transform: translateY(14px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes le-grow {
+	from { transform: scaleX(0); }
+	to { transform: scaleX(1); }
+}
+
+@keyframes le-float {
+	0%, 100% { transform: translateY(0); }
+	50% { transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.le-rise, .le-row, .le-bar, .le-float { animation: none; }
+	.le-tile { transition: none; }
+}
+</style>

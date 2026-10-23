@@ -186,6 +186,8 @@ export interface AdminEventTag {
     description?: string | null
     events?: number
     inquiries?: number
+    /** Organizers who list this type on their profile. */
+    organizers?: number
 }
 
 type Totals = PlatformTotals & {

@@ -13,7 +13,7 @@
 				<NuxtLink :to="`/client/inquiries/${selectedEvent.id}`"
 					class="ml-2 inline-flex items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-700 transition hover:bg-primary-100">
 					<IconBase name="edit" class="h-4 w-4" />
-					{{ ['submitted', 'receiving_bids'].includes(selectedEvent.status) ? 'Edit or cancel request' : 'View request' }}
+					{{ ['open', 'receiving_quotations'].includes(selectedEvent.status) ? 'Edit or cancel request' : 'View request' }}
 				</NuxtLink>
 			</div>
 
@@ -121,15 +121,15 @@
 						</p>
 					</div>
 
-					<div class="mt-6 flex flex-wrap justify-end gap-2">
+					<div class="mt-6 flex flex-wrap items-center justify-end gap-3">
 						<button v-if="quotation.quotation_status !== 'rejected' && quotation.quotation_status !== 'withdrawn'" type="button"
-							class="relative flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+							class="relative inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
 							@click="openThread(quotation)">
 							<IconBase name="message" class="h-4 w-4" />
 							Message
-							<span v-if="threadUnread[String(quotation.organizer?.id)]"
-								class="rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{{ threadUnread[String(quotation.organizer?.id)] }}</span>
+							<span v-if="threadUnread[String(quotation.organizer?.id)]" class="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#285F6b] px-1.5 text-[11px] font-bold text-white">{{ threadUnread[String(quotation.organizer?.id)] }}</span>
 						</button>
+
 						<button v-if="quotation.quotation_status === 'pending'" type="button"
 							class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-60"
 							:disabled="acceptingQuotationId === quotation.id" @click="requestQuotationAcceptance(quotation)">
@@ -171,7 +171,7 @@
 					No offers yet
 				</h2>
 
-				<template v-if="['submitted', 'receiving_bids'].includes(selectedEvent.status)">
+				<template v-if="['open', 'receiving_quotations'].includes(selectedEvent.status)">
 					<p class="mx-auto mt-1 max-w-md text-sm text-gray-500">
 						Your request is open. Organizers you invite, and those near your event, send their quotations here.
 					</p>
@@ -200,78 +200,88 @@
 		<!-- ===================================================== -->
 		<div v-else>
 
-			<header class="mb-6 overflow-hidden rounded-3xl border border-primary-100 bg-white shadow-sm">
-				<div class="flex flex-col gap-6 px-5 py-6 sm:px-7 lg:flex-row lg:items-center lg:justify-between">
+			<header class="me-hero me-rise relative mb-6 overflow-hidden rounded-[2rem] text-white">
+				<span class="me-orb" />
+				<span class="me-dots" />
+
+				<div class="relative flex flex-col gap-6 px-6 pb-6 pt-8 sm:px-9 lg:flex-row lg:items-center lg:justify-between">
 					<div class="max-w-2xl">
-						<div class="mb-3 inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-primary-700">
-							<span class="h-1.5 w-1.5 rounded-full bg-primary-600"></span>
+						<div class="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 backdrop-blur">
+							<span class="h-1.5 w-1.5 rounded-full bg-white/80"></span>
 							Your event workspace
 						</div>
-						<h1 class="text-2xl font-extrabold tracking-tight text-gray-950 sm:text-3xl">
+						<h1 class="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
 							Welcome back, {{ clientName }}
 						</h1>
-						<p class="mt-2 max-w-xl text-sm leading-6 text-gray-500 sm:text-base">
+						<p class="mt-2 max-w-xl text-sm leading-6 text-white/70 sm:text-base">
 							Track every inquiry, compare organizer offers, and move your event forward from one place.
 						</p>
 					</div>
 
-					<button type="button"
-						class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#1f4a54] focus:outline-none focus:ring-4 focus:ring-primary-100 sm:w-auto"
-						@click="navigateTo('/client/post-event')">
-						<IconBase name="plus" class="h-4 w-4" />
-						Post a new inquiry
-					</button>
+					<div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+						<button type="button"
+							class="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-primary-800 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.98] sm:w-auto"
+							@click="navigateTo('/client/post-event')">
+							<IconBase name="plus" class="h-4 w-4" />
+							Post a new inquiry
+							<IconBase name="arrow-right" class="h-4 w-4 transition group-hover:translate-x-0.5" />
+						</button>
+					</div>
 				</div>
 
-				<div class="grid border-t border-gray-100 bg-gray-50/70 sm:grid-cols-3">
+				<div class="relative grid gap-3 px-6 pb-7 sm:grid-cols-3 sm:px-9">
 					<div v-for="(step, index) in eventJourneySteps" :key="step.title"
-						class="flex items-center gap-3 border-b border-gray-100 px-5 py-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 sm:px-7">
-						<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-xs font-extrabold text-primary-700 shadow-sm ring-1 ring-gray-200">
+						class="me-step me-rise flex items-center gap-3.5 rounded-2xl bg-white/10 p-4 ring-1 ring-white/20 backdrop-blur-sm"
+						:style="{ '--d': 120 + index * 80 + 'ms' }">
+						<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-extrabold text-primary-700">
 							{{ index + 1 }}
 						</span>
-						<div>
-							<p class="text-sm font-bold text-gray-900">{{ step.title }}</p>
-							<p class="mt-0.5 text-xs text-gray-500">{{ step.description }}</p>
+						<div class="min-w-0">
+							<p class="text-sm font-bold">{{ step.title }}</p>
+							<p class="mt-0.5 text-xs text-white/70">{{ step.description }}</p>
 						</div>
 					</div>
 				</div>
 			</header>
 
-			<div class="mb-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
-				<div v-for="stat in stats" :key="stat.label"
-					class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
-					<div class="flex items-center justify-between gap-3">
-						<div>
-							<p class="text-xs font-semibold text-gray-500 sm:text-sm">{{ stat.label }}</p>
-							<p class="mt-2 text-2xl font-extrabold tracking-tight text-gray-950 sm:text-3xl">{{ stat.value }}</p>
+			<div class="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+				<div v-for="(stat, index) in stats" :key="stat.label"
+					class="me-card me-rise group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5"
+					:style="{ '--d': 100 + index * 60 + 'ms' }">
+					<span class="me-line absolute inset-x-0 top-0 h-[2px] bg-[#285F6b]" />
+
+					<div class="flex items-start justify-between gap-3">
+						<div class="min-w-0">
+							<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">{{ stat.label }}</p>
+							<p class="mt-2 text-3xl font-extrabold tracking-tight text-gray-950 sm:text-4xl">{{ stat.value }}</p>
 						</div>
-						<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" :class="stat.iconBg">
-							<IconBase :name="stat.icon" class="h-5 w-5" :class="stat.iconColor" />
+						<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 transition duration-200 group-hover:scale-105">
+							<IconBase :name="stat.icon" class="h-5 w-5" />
 						</div>
 					</div>
 				</div>
 			</div>
 
-			<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+			<div class="me-rise mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between" style="--d: 300ms">
 				<div>
-					<h2 class="text-xl font-extrabold text-gray-950">Your events</h2>
+					<h2 class="text-xl font-extrabold tracking-tight text-gray-950">Your events</h2>
 					<p class="mt-1 text-sm text-gray-500">Choose an event to review offers or continue planning.</p>
 				</div>
 
-				<div class="flex max-w-full gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1">
+				<div class="flex max-w-full gap-2 overflow-x-auto pb-1">
 					<button v-for="filter in eventFilters" :key="filter.value" type="button"
-						class="whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold transition"
-						:class="eventFilter === filter.value ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500 hover:text-gray-800'"
+						class="whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-bold transition duration-200"
+						:class="eventFilter === filter.value ? 'bg-primary-700 text-white' : 'border border-gray-200 bg-white text-gray-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700'"
 						@click="eventFilter = filter.value">
 						{{ filter.label }}
-						<span class="ml-1 text-[11px] text-gray-400">{{ eventFilterCount(filter.value) }}</span>
+						<span class="ml-1 opacity-60">{{ eventFilterCount(filter.value) }}</span>
 					</button>
 				</div>
 			</div>
 
 			<!-- Loading -->
 			<div v-if="isLoading"
-				class="rounded-2xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
+				class="rounded-3xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
 				Loading your inquiries...
 			</div>
 
@@ -281,23 +291,24 @@
 			</div>
 
 			<!-- Events -->
-			<div v-else-if="filteredEvents.length" class="grid gap-4 xl:grid-cols-2">
-				<article v-for="event in filteredEvents" :key="event.id"
-					class="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md">
-					<div class="flex items-stretch">
-						<div class="flex w-20 shrink-0 flex-col items-center justify-center border-r border-gray-100 bg-primary-50/70 px-2 py-5 text-center sm:w-24">
+			<div v-else-if="filteredEvents.length" class="grid gap-5 xl:grid-cols-2">
+				<article v-for="(event, index) in filteredEvents" :key="event.id"
+					class="me-event me-rise group flex flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white"
+					:style="{ '--d': 340 + Math.min(index, 8) * 50 + 'ms' }">
+					<div class="flex flex-1 items-stretch">
+						<div class="flex w-20 shrink-0 flex-col items-center justify-center border-r border-gray-100 bg-primary-50/60 px-2 py-5 text-center sm:w-24">
 							<span class="text-[11px] font-extrabold uppercase tracking-[0.15em] text-primary-700">{{ eventMonth(event.event_date) }}</span>
 							<span class="mt-1 text-3xl font-black leading-none text-gray-950">{{ eventDay(event.event_date) }}</span>
 							<span class="mt-2 text-[11px] font-semibold text-gray-500">{{ event.event_type }}</span>
 						</div>
 
-						<div class="min-w-0 flex-1 p-4 sm:p-5">
+						<div class="flex min-w-0 flex-1 flex-col p-5">
 							<div class="flex items-start justify-between gap-3">
 								<div class="min-w-0">
-									<h3 class="truncate text-base font-extrabold text-gray-950 sm:text-lg">{{ event.event_title || `${event.event_type} Inquiry` }}</h3>
-									<p class="mt-1 flex items-start gap-1.5 text-xs leading-5 text-gray-500 sm:text-sm">
+									<h3 class="truncate text-lg font-extrabold tracking-tight text-gray-950">{{ event.event_title || `${event.event_type} Inquiry` }}</h3>
+									<p class="mt-1 flex items-start gap-1.5 text-xs leading-5 text-gray-500">
 										<IconBase name="map-pin" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-600" />
-										<span class="line-clamp-2">{{ event.location }}</span>
+										<span class="line-clamp-1">{{ event.location }}</span>
 									</p>
 								</div>
 
@@ -306,22 +317,19 @@
 								</span>
 							</div>
 
-							<div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-								<div class="rounded-xl bg-gray-50 px-3 py-2.5">
-									<p class="text-[11px] font-semibold text-gray-400">Guests</p>
-									<p class="mt-0.5 text-sm font-bold text-gray-900">{{ event.expected_guests }}</p>
-								</div>
-								<div class="rounded-xl bg-gray-50 px-3 py-2.5">
-									<p class="text-[11px] font-semibold text-gray-400">Budget</p>
-									<p class="mt-0.5 truncate text-sm font-bold text-gray-900">{{ event.budget_range }}</p>
-								</div>
-								<div class="col-span-2 rounded-xl bg-gray-50 px-3 py-2.5 sm:col-span-1">
-									<p class="text-[11px] font-semibold text-gray-400">Offers</p>
-									<p class="mt-0.5 text-sm font-bold text-gray-900">{{ event.quotations_count }} received</p>
-								</div>
+							<div class="mb-5 mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+								<span class="flex items-center gap-1.5 font-semibold text-gray-800">
+									<IconBase name="users" class="h-4 w-4 text-primary-600" />{{ event.expected_guests }} guests
+								</span>
+								<span class="flex min-w-0 items-center gap-1.5 font-semibold text-gray-800">
+									<IconBase name="cash" class="h-4 w-4 shrink-0 text-primary-600" /><span class="truncate">{{ event.budget_range }}</span>
+								</span>
+								<span class="flex items-center gap-1.5 font-semibold text-gray-800">
+									<IconBase name="file-text" class="h-4 w-4 text-primary-600" />{{ event.quotations_count }} offer{{ event.quotations_count === 1 ? '' : 's' }}
+								</span>
 							</div>
 
-							<div class="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+							<div class="mt-auto flex flex-col gap-3 border-t border-gray-100 pt-4">
 								<div class="flex min-w-0 items-center gap-2 text-xs text-gray-500">
 									<span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
 										<IconBase :name="event.status === 'awarded' ? 'check-circle' : event.quotations_count ? 'file-text' : 'clock'" class="h-3.5 w-3.5" />
@@ -329,12 +337,27 @@
 									<span class="truncate">{{ eventProgressCopy(event) }}</span>
 								</div>
 
-								<button type="button"
-									class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[#1f4a54]"
-									@click="viewQuotations(event)">
-									{{ eventActionLabel(event) }}
-									<IconBase name="arrow-right" class="h-3.5 w-3.5" />
-								</button>
+								<div class="flex flex-wrap items-center justify-end gap-2">
+									<NuxtLink :to="`/client/inquiries/${event.id}#messages`"
+										class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-xs font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700">
+										<IconBase name="message" class="h-3.5 w-3.5" />
+										Messages
+									</NuxtLink>
+
+									<button v-if="canRateOrganizer(event)" type="button"
+										class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-xs font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+										@click="rateOrganizer(event)">
+										<IconBase name="star" class="h-3.5 w-3.5" />
+										Rate
+									</button>
+
+									<button type="button"
+										class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#1f4a54] hover:shadow-md active:translate-y-0 active:scale-[0.98]"
+										@click="viewQuotations(event)">
+										{{ eventActionLabel(event) }}
+										<IconBase name="arrow-right" class="h-3.5 w-3.5" />
+									</button>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -379,7 +402,7 @@
 				<div v-if="confirmationQuotation" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
 					role="dialog" aria-modal="true" aria-labelledby="accept-quotation-title" @click.self="closeQuotationConfirmation">
 					<div class="w-full max-w-md overflow-hidden rounded-3xl border border-white/70 bg-white shadow-2xl">
-						<div class="relative bg-gradient-to-br from-[#285F6b] to-[#173d45] px-6 pb-7 pt-6 text-white">
+						<div class="relative bg-[#285F6b] px-6 pb-7 pt-6 text-white">
 							<button type="button" aria-label="Close confirmation"
 								class="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
 								:disabled="acceptingQuotationId !== null" @click="closeQuotationConfirmation">
@@ -435,12 +458,15 @@
 				</div>
 			</div>
 		</FormsConfirmationModal>
+
+
 	</div>
 </template>
 
 <script setup lang="ts">
 interface ClientInquiry {
 	id: number
+	awarded_quotation?: { organizer_id: number } | null
 	client_id: number
 	event_title: string | null
 	event_type: string
@@ -655,10 +681,10 @@ function eventStatusLabel(event: ClientInquiry): string {
 }
 
 function eventStatusClass(event: ClientInquiry): string {
-	if (event.status === 'awarded') return 'border-green-200 bg-green-50 text-green-700'
+	if (event.status === 'awarded') return 'border-transparent bg-[#285F6b] text-white'
 	if (event.status === 'cancelled') return 'border-red-200 bg-red-50 text-red-600'
-	if (event.quotations_count > 0) return 'border-blue-200 bg-blue-50 text-blue-700'
-	return 'border-amber-200 bg-amber-50 text-amber-700'
+	if (event.quotations_count > 0) return 'border-primary-100 bg-primary-50 text-primary-700'
+	return 'border-gray-200 bg-gray-50 text-gray-600'
 }
 
 function eventProgressCopy(event: ClientInquiry): string {
@@ -1060,6 +1086,24 @@ async function loadQuotations() {
 	}
 }
 
+// Reviews open once an awarded event's date has passed.
+function canRateOrganizer(event: ClientInquiry): boolean {
+	if (event.status !== 'awarded' || !event.event_date) return false
+
+	const day = new Date(event.event_date.includes('T') ? event.event_date : `${event.event_date}T00:00:00`)
+	const today = new Date()
+	today.setHours(0, 0, 0, 0)
+
+	return day.getTime() < today.getTime()
+}
+
+async function rateOrganizer(event: ClientInquiry) {
+	await navigateTo({
+		path: '/client/event-details',
+		query: { inquiry: event.id, review: '1' },
+	})
+}
+
 async function viewQuotations(
 	event: ClientInquiry,
 ) {
@@ -1237,3 +1281,87 @@ onMounted(() => {
 	loadNotifications()
 })
 </script>
+
+<style scoped>
+.me-hero {
+	background: #285f6b;
+}
+
+.me-orb {
+	position: absolute;
+	top: -120px;
+	right: 6%;
+	height: 320px;
+	width: 320px;
+	border-radius: 9999px;
+	background: rgba(255, 255, 255, 0.1);
+	filter: blur(60px);
+	pointer-events: none;
+	animation: me-drift 16s ease-in-out infinite;
+}
+
+.me-dots {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+	background-size: 22px 22px;
+	mask-image: linear-gradient(115deg, transparent 25%, #000 90%);
+	-webkit-mask-image: linear-gradient(115deg, transparent 25%, #000 90%);
+}
+
+.me-rise {
+	animation: me-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+	animation-delay: var(--d, 0ms);
+}
+
+.me-step {
+	transition: background-color 0.25s ease, transform 0.25s ease;
+}
+
+.me-step:hover {
+	background-color: rgba(255, 255, 255, 0.16);
+	transform: translateY(-2px);
+}
+
+.me-card, .me-event {
+	transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.me-card:hover {
+	transform: translateY(-3px);
+	border-color: rgba(40, 95, 107, 0.28);
+	box-shadow: 0 16px 32px -22px rgba(17, 24, 39, 0.35);
+}
+
+.me-event:hover {
+	transform: translateY(-3px);
+	border-color: rgba(40, 95, 107, 0.28);
+	box-shadow: 0 20px 38px -26px rgba(17, 24, 39, 0.4);
+}
+
+.me-line {
+	transform: scaleX(0);
+	transform-origin: left;
+	transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.me-card:hover .me-line {
+	transform: scaleX(1);
+}
+
+@keyframes me-rise {
+	from { opacity: 0; transform: translateY(14px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes me-drift {
+	0%, 100% { transform: translate(0, 0) scale(1); }
+	50% { transform: translate(-22px, 16px) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.me-orb, .me-rise { animation: none; }
+	.me-step, .me-card, .me-event, .me-line { transition: none; }
+}
+</style>

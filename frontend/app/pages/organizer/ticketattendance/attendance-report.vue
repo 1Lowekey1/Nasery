@@ -1,54 +1,54 @@
 <template>
-    <div class="rounded-2xl border border-gray-200 bg-white p-6">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <h2 class="text-lg font-bold text-gray-900">
-                    Attendance Report
-                </h2>
-
-                <p class="mt-1 text-sm text-gray-500">
-                    <span v-if="selectedEvent">
-                        Attendance analytics for
-                        <span class="font-semibold text-gray-700">
-                            {{ selectedEvent.name }}
-                        </span>
-                    </span>
-
-                    <span v-else>
-                        Comprehensive event attendance analytics
-                    </span>
-                </p>
-            </div>
-
-            <span v-if="selectedEvent"
-                class="rounded-full bg-[#285F6b]/10 px-3 py-1 text-xs font-semibold text-[#285F6b]">
-                {{ selectedEvent.name }}
-            </span>
-        </div>
-
-        <div v-if="!selectedEventId" class="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <div class="flex items-start gap-3">
-                <IconBase name="calendar" class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-
+    <div class="space-y-6">
+        <section class="ar-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8">
+            <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <p class="text-sm font-bold text-gray-900">
-                        Select an Event
-                    </p>
+                    <h2 class="text-xl font-extrabold tracking-tight text-gray-950">
+                        Attendance Report
+                    </h2>
 
-                    <p class="mt-0.5 text-sm text-gray-600">
-                        Choose an event from the event selector above to view its attendance report.
+                    <p class="mt-1 text-sm text-gray-500">
+                        <span v-if="selectedEvent">
+                            Attendance analytics for
+                            <span class="font-semibold text-gray-700">{{ selectedEvent.name }}</span>
+                        </span>
+
+                        <span v-else>Comprehensive event attendance analytics</span>
                     </p>
                 </div>
-            </div>
-        </div>
 
-        <template v-else>
-            <div v-if="errorMessage"
-                class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <button v-if="selectedEventId" type="button"
+                    class="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition duration-200 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="!attendees.length" @click="exportCsv">
+                    <IconBase name="download" class="h-4 w-4" />
+
+                    Export CSV
+                </button>
+            </div>
+
+            <div v-if="!selectedEventId" class="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <div class="flex items-start gap-3">
+                    <IconBase name="calendar" class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+
+                    <div>
+                        <p class="text-sm font-bold text-gray-900">
+                            Select an Event
+                        </p>
+
+                        <p class="mt-0.5 text-sm text-gray-600">
+                            Choose an event from the event selector above to view its attendance report.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="errorMessage" class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {{ errorMessage }}
             </div>
+        </section>
 
-            <div v-if="isLoading" class="py-16 text-center">
+        <template v-if="selectedEventId">
+            <div v-if="isLoading" class="rounded-3xl border border-gray-200 bg-white py-20 text-center">
                 <IconBase name="refresh-cw" class="mx-auto h-6 w-6 animate-spin text-gray-400" />
 
                 <p class="mt-3 text-sm text-gray-500">
@@ -57,175 +57,63 @@
             </div>
 
             <template v-else>
-                <div class="mb-6 mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                    <div class="rounded-xl border border-gray-200 p-5">
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <span class="text-sm text-gray-500">
-                                    Total Registered
-                                </span>
+                <!-- Gauge + stats -->
+                <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                    <section class="ar-rise rounded-3xl border border-gray-200 bg-white p-6 xl:col-span-4" style="--d: 60ms">
+                        <p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Overall attendance</p>
 
-                                <div class="mt-2 text-3xl font-extrabold text-gray-900">
-                                    {{ totalRegistered }}
-                                </div>
+                        <ClientOnly>
+                            <DeferredChart type="radialBar" :height="250" :options="gaugeOptions" :series="[attendanceRate]" />
+                        </ClientOnly>
 
-                                <div class="mt-2 text-sm text-gray-500">
-                                    Issued attendee tickets
-                                </div>
-                            </div>
+                        <p class="-mt-2 text-center text-sm text-gray-500">
+                            <span class="font-bold text-gray-900">{{ totalAttended }}</span> of
+                            <span class="font-bold text-gray-900">{{ totalRegistered }}</span>
+                            registered attendees have checked in
+                        </p>
+                    </section>
 
-                            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                                <IconBase name="users" class="h-5 w-5" />
-                            </div>
-                        </div>
-                    </div>
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:col-span-8">
+                        <div v-for="(card, index) in statCards" :key="card.label"
+                            class="ar-rise ar-card group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5"
+                            :style="{ '--d': 100 + index * 60 + 'ms' }">
+                            <span class="ar-line absolute inset-x-0 top-0 h-[2px] bg-[#285F6b]" />
 
-                    <div class="rounded-xl border border-gray-200 p-5">
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <span class="text-sm text-gray-500">
-                                    Total Attended
-                                </span>
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <span class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">{{ card.label }}</span>
 
-                                <div class="mt-2 text-3xl font-extrabold text-gray-900">
-                                    {{ totalAttended }}
-                                </div>
-
-                                <div class="mt-2 text-sm text-gray-500">
-                                    Check-ins completed
-                                </div>
-                            </div>
-
-                            <div
-                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-green-50 text-green-600">
-                                <IconBase name="check-circle" class="h-5 w-5" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="rounded-xl border border-gray-200 p-5">
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <span class="text-sm text-gray-500">
-                                    Attendance Rate
-                                </span>
-
-                                <div class="mt-2 text-3xl font-extrabold text-gray-900">
-                                    {{ attendanceRate }}%
-                                </div>
-
-                                <div class="mt-2 text-sm text-gray-500">
-                                    Registered vs attended
-                                </div>
-                            </div>
-
-                            <div
-                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                                <IconBase name="bar-chart" class="h-5 w-5" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="rounded-xl border border-gray-200 p-5">
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <span class="text-sm text-gray-500">
-                                    Not Yet Attended
-                                </span>
-
-                                <div class="mt-2 text-3xl font-extrabold text-gray-900">
-                                    {{ notAttended }}
-                                </div>
-
-                                <div class="mt-2 text-sm text-gray-500">
-                                    Registered attendees remaining
-                                </div>
-                            </div>
-
-                            <div
-                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                                <IconBase name="clock" class="h-5 w-5" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mb-7 rounded-2xl border border-gray-200 p-5">
-                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <h3 class="text-base font-bold text-gray-900">
-                                Overall Attendance
-                            </h3>
-
-                            <p class="mt-1 text-sm text-gray-500">
-                                {{ totalAttended }} of
-                                {{ totalRegistered }}
-                                registered attendees have checked in
-                            </p>
-                        </div>
-
-                        <div class="text-right">
-                            <div class="text-2xl font-extrabold text-[#285F6b]">
-                                {{ attendanceRate }}%
-                            </div>
-
-                            <div class="text-xs text-gray-400">
-                                attendance rate
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="h-3 w-full overflow-hidden rounded-full bg-gray-100">
-                        <div class="h-full rounded-full bg-[#285F6b] transition-all duration-300" :style="{
-                            width: `${attendanceRate}%`,
-                        }" />
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
-                    <div class="xl:col-span-2">
-                        <div class="mb-4 flex items-center justify-between">
-                            <div>
-                                <h3 class="text-base font-bold text-gray-900">
-                                    Attendance by Ticket Type
-                                </h3>
-
-                                <p class="mt-1 text-sm text-gray-500">
-                                    Check-in percentage for each ticket type
-                                </p>
-                            </div>
-                        </div>
-
-                        <div v-if="byTicketType.length" class="space-y-5">
-                            <div v-for="row in byTicketType" :key="row.id">
-                                <div class="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
-                                    <div>
-                                        <span class="font-semibold text-gray-800">
-                                            {{ row.type }}
-                                        </span>
-
-                                        <span class="ml-2 text-xs text-gray-400">
-                                            {{ row.total }} tickets
-                                        </span>
+                                    <div class="mt-2 text-4xl font-extrabold tracking-tight text-gray-950">
+                                        {{ card.value }}
                                     </div>
 
-                                    <span class="font-medium text-gray-500">
-                                        {{ row.attended }}
-                                        /
-                                        {{ row.total }}
-                                        ({{ row.percent }}%)
-                                    </span>
+                                    <div class="mt-2 text-xs font-medium text-gray-500">{{ card.hint }}</div>
                                 </div>
 
-                                <div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
-                                    <div class="h-full rounded-full bg-[#285F6b] transition-all duration-300" :style="{
-                                        width: `${row.percent}%`,
-                                    }" />
+                                <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 transition group-hover:scale-105">
+                                    <IconBase :name="card.icon" class="h-5 w-5" />
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <div v-else class="rounded-xl border border-dashed border-gray-300 px-5 py-10 text-center">
+                <!-- Charts -->
+                <div class="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                    <section class="ar-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8 xl:col-span-8" style="--d: 120ms">
+                        <h3 class="text-lg font-extrabold tracking-tight text-gray-950">
+                            Attendance by Ticket Type
+                        </h3>
+
+                        <p class="mt-0.5 text-sm text-gray-500">
+                            Checked-in vs not yet attended, for each ticket type
+                        </p>
+
+                        <ClientOnly v-if="byTicketType.length">
+                            <DeferredChart type="bar" :height="typeChartHeight" :options="typeOptions" :series="typeSeries" />
+                        </ClientOnly>
+
+                        <div v-else class="mt-5 rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center">
                             <IconBase name="ticket" class="mx-auto h-7 w-7 text-gray-400" />
 
                             <p class="mt-2 text-sm font-semibold text-gray-700">
@@ -236,225 +124,175 @@
                                 Attendance by ticket type will appear when tickets are issued.
                             </p>
                         </div>
-                    </div>
+                    </section>
 
-                    <div class="rounded-2xl border border-gray-200 p-5">
-                        <h3 class="text-base font-bold text-gray-900">
+                    <section class="ar-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8 xl:col-span-4" style="--d: 180ms">
+                        <h3 class="text-lg font-extrabold tracking-tight text-gray-950">
                             Registration Source
                         </h3>
 
-                        <p class="mt-1 text-sm text-gray-500">
+                        <p class="mt-0.5 text-sm text-gray-500">
                             How attendees registered
                         </p>
 
-                        <div class="mt-5 space-y-4">
-                            <div class="flex items-center justify-between rounded-xl bg-blue-50/70 p-4">
-                                <div class="flex items-center gap-3">
-                                    <div
-                                        class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                                        <IconBase name="ticket" class="h-4 w-4" />
-                                    </div>
+                        <ClientOnly v-if="onlineCount + walkInCount > 0">
+                            <DeferredChart type="donut" :height="250" :options="sourceOptions" :series="[onlineCount, walkInCount]" />
+                        </ClientOnly>
 
-                                    <div>
-                                        <p class="text-sm font-semibold text-gray-900">
-                                            Online
-                                        </p>
+                        <p v-else class="py-16 text-center text-sm text-gray-400">No registrations yet.</p>
 
-                                        <p class="text-xs text-gray-500">
-                                            Online registrations
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div class="text-right">
-                                    <p class="text-xl font-extrabold text-gray-900">
-                                        {{ onlineCount }}
-                                    </p>
-
-                                    <p class="text-xs text-gray-400">
-                                        {{ onlinePercent }}%
-                                    </p>
-                                </div>
+                        <div class="mt-2 grid grid-cols-2 gap-3">
+                            <div class="rounded-2xl bg-gray-50 p-3">
+                                <p class="flex items-center gap-2 text-xs font-bold text-gray-500"><span class="h-2 w-2 rounded-full bg-[#285F6b]" />Online</p>
+                                <p class="mt-1 text-xl font-extrabold text-gray-950">{{ onlineCount }} <span class="text-xs font-semibold text-gray-400">{{ onlinePercent }}%</span></p>
                             </div>
-
-                            <div class="flex items-center justify-between rounded-xl bg-amber-50/70 p-4">
-                                <div class="flex items-center gap-3">
-                                    <div
-                                        class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                                        <IconBase name="user-plus" class="h-4 w-4" />
-                                    </div>
-
-                                    <div>
-                                        <p class="text-sm font-semibold text-gray-900">
-                                            Walk-ins
-                                        </p>
-
-                                        <p class="text-xs text-gray-500">
-                                            On-site registrations
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div class="text-right">
-                                    <p class="text-xl font-extrabold text-gray-900">
-                                        {{ walkInCount }}
-                                    </p>
-
-                                    <p class="text-xs text-gray-400">
-                                        {{ walkInPercent }}%
-                                    </p>
-                                </div>
+                            <div class="rounded-2xl bg-gray-50 p-3">
+                                <p class="flex items-center gap-2 text-xs font-bold text-gray-500"><span class="h-2 w-2 rounded-full bg-[#9dbfc6]" />Walk-ins</p>
+                                <p class="mt-1 text-xl font-extrabold text-gray-950">{{ walkInCount }} <span class="text-xs font-semibold text-gray-400">{{ walkInPercent }}%</span></p>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
-                <div class="mt-7 overflow-x-auto rounded-2xl border border-gray-200">
-                    <div class="border-b border-gray-200 px-5 py-4">
-                        <h3 class="text-base font-bold text-gray-900">
-                            Attendee Attendance Details
-                        </h3>
+                <!-- Details -->
+                <section class="ar-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8" style="--d: 200ms">
+                    <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h3 class="text-lg font-extrabold tracking-tight text-gray-950">
+                                Attendee Attendance Details
+                            </h3>
 
-                        <p class="mt-1 text-sm text-gray-500">
-                            Complete attendee status for the selected event
-                        </p>
+                            <p class="mt-0.5 text-sm text-gray-500">
+                                Complete attendee status for the selected event
+                            </p>
+                        </div>
+
+                        <div class="flex rounded-xl bg-gray-100 p-1 text-xs font-bold">
+                            <button v-for="option in statusOptions" :key="option.value" type="button" class="rounded-lg px-3.5 py-1.5 transition"
+                                :class="statusFilter === option.value ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                                @click="statusFilter = option.value">
+                                {{ option.label }} <span class="opacity-60">{{ option.count }}</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <div v-if="attendees.length" class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead>
-                            <tr
-                                class="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                                <th class="px-5 py-3">
-                                    Attendee
-                                </th>
+                    <div v-if="filteredAttendees.length" class="overflow-x-auto">
+                        <table class="w-full whitespace-nowrap text-left text-sm">
+                            <thead>
+                                <tr class="bg-gray-50/80 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400 [&>th]:py-3 [&>th:first-child]:rounded-l-xl [&>th:first-child]:pl-3 [&>th:last-child]:rounded-r-xl [&>th:last-child]:pr-3">
+                                    <th class="pr-4">Attendee</th>
+                                    <th class="pr-4">Ticket Type</th>
+                                    <th class="pr-4">Category</th>
+                                    <th class="pr-4">Source</th>
+                                    <th class="pr-4">Attendance</th>
+                                    <th>Check-in Time</th>
+                                </tr>
+                            </thead>
 
-                                <th class="px-5 py-3">
-                                    Ticket Type
-                                </th>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr v-for="attendee in filteredAttendees" :key="attendee.id" class="ar-row transition-colors hover:bg-gray-50">
+                                    <td class="py-3.5 pl-3 pr-4">
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
+                                                {{ getInitials(attendee.name) }}
+                                            </div>
 
-                                <th class="px-5 py-3">
-                                    Category
-                                </th>
+                                            <div>
+                                                <p class="font-semibold text-gray-900">
+                                                    {{ attendee.name }}
+                                                </p>
 
-                                <th class="px-5 py-3">
-                                    Source
-                                </th>
+                                                <p class="mt-0.5 font-mono text-[11px] text-gray-400">
+                                                    {{ attendee.ticket_id }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </td>
 
-                                <th class="px-5 py-3">
-                                    Attendance
-                                </th>
-
-                                <th class="px-5 py-3">
-                                    Check-in Time
-                                </th>
-                            </tr>
-                        </thead>
-
-                        <tbody class="divide-y divide-gray-100">
-                            <tr v-for="attendee in attendees" :key="attendee.id" class="hover:bg-gray-50/70">
-                                <td class="px-5 py-3.5">
-                                    <p class="font-semibold text-gray-900">
-                                        {{ attendee.name }}
-                                    </p>
-
-                                    <p class="mt-0.5 text-xs text-gray-400">
-                                        {{ attendee.ticket_id }}
-                                    </p>
-                                </td>
-
-                                <td class="px-5 py-3.5 text-gray-600">
-                                    {{
-                                        attendee.ticket_type?.name ||
-                                        'General Admission'
-                                    }}
-                                </td>
-
-                                <td class="px-5 py-3.5">
-                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-                                        :class="categoryClass(attendee.attendee_category)">
-                                        {{ formatCategory(attendee.attendee_category) }}
-                                    </span>
-                                </td>
-
-                                <td class="px-5 py-3.5">
-                                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="attendee.source ===
-                                        'walk_in'
-                                        ? 'bg-amber-50 text-amber-700'
-                                        : 'bg-blue-50 text-blue-700'
-                                        ">
+                                    <td class="py-3.5 pr-4 text-gray-600">
                                         {{
-                                            formatSource(
-                                                attendee.source,
-                                            )
+                                            attendee.ticket_type?.name ||
+                                            'General Admission'
                                         }}
-                                    </span>
-                                </td>
+                                    </td>
 
-                                <td class="px-5 py-3.5">
-                                    <span
-                                        class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-                                        :class="attendee.status ===
-                                            'checked_in'
-                                            ? 'bg-green-50 text-green-700'
-                                            : 'bg-gray-100 text-gray-600'
+                                    <td class="py-3.5 pr-4">
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
+                                            :class="categoryClass(attendee.attendee_category)">
+                                            {{ formatCategory(attendee.attendee_category) }}
+                                        </span>
+                                    </td>
+
+                                    <td class="py-3.5 pr-4">
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="attendee.source ===
+                                            'walk_in'
+                                            ? 'bg-gray-100 text-gray-700'
+                                            : 'bg-primary-50 text-primary-700'
                                             ">
-                                        <IconBase v-if="
-                                            attendee.status ===
-                                            'checked_in'
-                                        " name="check-circle" class="h-3 w-3" />
+                                            {{
+                                                formatSource(
+                                                    attendee.source,
+                                                )
+                                            }}
+                                        </span>
+                                    </td>
 
-                                        {{
-                                            attendee.status ===
+                                    <td class="py-3.5 pr-4">
+                                        <span
+                                            class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+                                            :class="attendee.status ===
                                                 'checked_in'
-                                                ? 'Checked-in'
-                                                : 'Registered'
-                                        }}
-                                    </span>
-                                </td>
+                                                ? 'bg-[#285F6b] text-white'
+                                                : 'bg-gray-100 text-gray-600'
+                                                ">
+                                            <IconBase v-if="
+                                                attendee.status ===
+                                                'checked_in'
+                                            " name="check-circle" class="h-3 w-3" />
 
-                                <td class="px-5 py-3.5 text-gray-500">
-                                    {{
-                                        attendee.checked_in_at
-                                            ? formatCheckInDateTime(
-                                                attendee.checked_in_at,
-                                            )
-                                            : '—'
-                                    }}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                            {{
+                                                attendee.status ===
+                                                    'checked_in'
+                                                    ? 'Checked-in'
+                                                    : 'Registered'
+                                            }}
+                                        </span>
+                                    </td>
+
+                                    <td class="py-3.5 pr-3 text-gray-500">
+                                        {{
+                                            attendee.checked_in_at
+                                                ? formatCheckInDateTime(
+                                                    attendee.checked_in_at,
+                                                )
+                                                : '—'
+                                        }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
 
-                    <div v-else class="px-5 py-12 text-center">
+                    <div v-else class="rounded-2xl border border-dashed border-gray-300 px-5 py-12 text-center">
                         <IconBase name="users" class="mx-auto h-7 w-7 text-gray-400" />
 
                         <p class="mt-2 text-sm font-semibold text-gray-700">
-                            No attendees yet
+                            {{ attendees.length ? 'No attendees match this filter' : 'No attendees yet' }}
                         </p>
 
                         <p class="mt-1 text-xs text-gray-500">
-                            Registered attendees will appear here.
+                            {{ attendees.length ? 'Try a different status.' : 'Registered attendees will appear here.' }}
                         </p>
                     </div>
-                </div>
-
-                <div class="mt-6 flex flex-wrap gap-3">
-                    <button type="button"
-                        class="flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                        :disabled="!attendees.length" @click="exportCsv">
-                        <IconBase name="download" class="h-4 w-4" />
-
-                        Export CSV
-                    </button>
-                </div>
+                </section>
             </template>
         </template>
     </div>
 </template>
 
 <script setup lang="ts">
+import type { ApexOptions } from 'apexcharts'
+
 interface OrganizerEvent {
     id: number
     name: string
@@ -781,6 +619,107 @@ const byTicketType =
         },
     )
 
+const COLORS = { primary: '#285F6b', soft: '#9dbfc6', track: '#e5eaec' }
+
+const statCards = computed(() => [
+    { label: 'Total Registered', value: totalRegistered.value, hint: 'Issued attendee tickets', icon: 'users' },
+    { label: 'Total Attended', value: totalAttended.value, hint: 'Check-ins completed', icon: 'check-circle' },
+    { label: 'Attendance Rate', value: `${attendanceRate.value}%`, hint: 'Registered vs attended', icon: 'chart-bar' },
+    { label: 'Not Yet Attended', value: notAttended.value, hint: 'Registered attendees remaining', icon: 'clock' },
+])
+
+const gaugeOptions = computed<ApexOptions>(() => ({
+    chart: { type: 'radialBar', fontFamily: 'inherit', animations: { speed: 900 } },
+    colors: [COLORS.primary],
+    plotOptions: {
+        radialBar: {
+            startAngle: -135,
+            endAngle: 135,
+            hollow: { size: '66%' },
+            track: { background: COLORS.track, strokeWidth: '100%' },
+            dataLabels: {
+                name: { show: true, offsetY: 24, color: '#6b7280', fontSize: '12px', fontWeight: 700 },
+                value: { offsetY: -16, color: '#111827', fontSize: '38px', fontWeight: 800, formatter: (value: number) => `${value}%` },
+            },
+        },
+    },
+    stroke: { lineCap: 'round' },
+    labels: ['attendance rate'],
+}))
+
+const typeSeries = computed(() => [
+    { name: 'Checked in', data: byTicketType.value.map(row => row.attended) },
+    { name: 'Not yet attended', data: byTicketType.value.map(row => Math.max(row.total - row.attended, 0)) },
+])
+
+const typeChartHeight = computed(() => Math.max(150, byTicketType.value.length * 64 + 70))
+
+const typeOptions = computed<ApexOptions>(() => ({
+    chart: { type: 'bar', stacked: true, toolbar: { show: false }, fontFamily: 'inherit', animations: { speed: 700 } },
+    colors: [COLORS.primary, COLORS.track],
+    plotOptions: { bar: { horizontal: true, barHeight: '46%', borderRadius: 6, borderRadiusApplication: 'around' } },
+    dataLabels: { enabled: false },
+    stroke: { width: 2, colors: ['#fff'] },
+    grid: { borderColor: '#f1f5f9', strokeDashArray: 4, xaxis: { lines: { show: true } }, yaxis: { lines: { show: false } } },
+    xaxis: {
+        categories: byTicketType.value.map(row => row.type),
+        labels: { style: { colors: '#9ca3af', fontSize: '11px' }, formatter: (value: string) => String(Math.round(Number(value))) },
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+    },
+    yaxis: { labels: { style: { colors: '#374151', fontSize: '13px', fontWeight: 700 } } },
+    legend: { position: 'bottom', fontSize: '13px', fontWeight: 600, markers: { size: 8 } },
+    tooltip: { shared: true, intersect: false, y: { formatter: (value: number) => `${value} attendee${value === 1 ? '' : 's'}` } },
+}))
+
+const sourceOptions = computed<ApexOptions>(() => ({
+    chart: { type: 'donut', fontFamily: 'inherit' },
+    labels: ['Online', 'Walk-ins'],
+    colors: [COLORS.primary, COLORS.soft],
+    dataLabels: { enabled: false },
+    stroke: { width: 3, colors: ['#fff'] },
+    legend: { show: false },
+    plotOptions: {
+        pie: {
+            donut: {
+                size: '72%',
+                labels: {
+                    show: true,
+                    name: { fontSize: '12px', fontWeight: 700, color: '#6b7280' },
+                    value: { fontSize: '26px', fontWeight: 800, color: '#111827' },
+                    total: { show: true, label: 'Registered', color: '#6b7280', fontSize: '12px', fontWeight: 700, formatter: () => String(onlineCount.value + walkInCount.value) },
+                },
+            },
+        },
+    },
+    tooltip: { y: { formatter: (value: number) => `${value} attendee${value === 1 ? '' : 's'}` } },
+}))
+
+const statusFilter = ref<'all' | 'checked_in' | 'registered'>('all')
+
+const statusOptions = computed(() => [
+    { label: 'All', value: 'all' as const, count: attendees.value.length },
+    { label: 'Checked-in', value: 'checked_in' as const, count: attendees.value.filter(a => a.status === 'checked_in').length },
+    { label: 'Registered', value: 'registered' as const, count: attendees.value.filter(a => a.status !== 'checked_in').length },
+])
+
+const filteredAttendees = computed(() => {
+    if (statusFilter.value === 'checked_in') return attendees.value.filter(a => a.status === 'checked_in')
+    if (statusFilter.value === 'registered') return attendees.value.filter(a => a.status !== 'checked_in')
+    return attendees.value
+})
+
+function getInitials(name: string): string {
+    return (
+        name
+            .split(' ')
+            .filter(Boolean)
+            .slice(0, 2)
+            .map(part => part[0]?.toUpperCase())
+            .join('') || 'A'
+    )
+}
+
 function getApiErrorMessage(
     error: unknown,
     fallback: string,
@@ -867,11 +806,11 @@ function categoryClass(
 ): string {
     switch (category) {
         case 'invited':
-            return 'bg-violet-50 text-violet-700'
+            return 'bg-gray-100 text-gray-600'
         case 'free':
-            return 'bg-blue-50 text-blue-700'
+            return 'bg-gray-100 text-gray-600'
         case 'paid':
-            return 'bg-green-50 text-green-700'
+            return 'bg-primary-50 text-primary-700'
     }
 }
 
@@ -1059,3 +998,49 @@ watch(
     },
 )
 </script>
+
+<style scoped>
+.ar-rise {
+    animation: ar-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    animation-delay: var(--d, 0ms);
+}
+
+.ar-row {
+    animation: ar-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.ar-row:nth-child(2) { animation-delay: 50ms; }
+.ar-row:nth-child(3) { animation-delay: 100ms; }
+.ar-row:nth-child(4) { animation-delay: 150ms; }
+.ar-row:nth-child(n + 5) { animation-delay: 200ms; }
+
+.ar-card {
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.ar-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(40, 95, 107, 0.28);
+    box-shadow: 0 16px 32px -22px rgba(17, 24, 39, 0.35);
+}
+
+.ar-line {
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ar-card:hover .ar-line {
+    transform: scaleX(1);
+}
+
+@keyframes ar-rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ar-rise, .ar-row { animation: none; }
+    .ar-card, .ar-line { transition: none; }
+}
+</style>

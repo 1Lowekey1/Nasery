@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<SuperadminPageHeader />
+		<SuperadminPageHeader title="Analytics" description="Revenue, signups and how events and quotations are progressing across the platform." icon="chart-bar" />
 
 		<div v-if="isLoading" class="rounded-2xl border border-gray-100 bg-white p-10 text-center text-sm text-gray-500">
 			Loading analytics...
@@ -12,19 +12,18 @@
 
 		<template v-else-if="analytics">
 			<div class="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-				<SuperadminStatCard label="NaSeRy Revenue (12 months)" :value="formatCompactCurrency(sixMonthRevenue)" icon="cash"
-					tone="green" value-class="text-green-600" hint="Ticket fees + plan subscriptions" />
-				<SuperadminStatCard label="New Signups" :value="sixMonthSignups" icon="users" tone="primary"
+				<SuperadminStatCard label="NaSeRy Revenue (12 months)" :value="formatCompactCurrency(sixMonthRevenue)" icon="cash" hint="Ticket fees + plan subscriptions" />
+				<SuperadminStatCard label="New Signups" :value="sixMonthSignups" icon="users"
 					hint="Organizers + clients, last 12 months" />
-				<SuperadminStatCard label="Total Events" :value="totalEvents" icon="calendar" tone="blue"
+				<SuperadminStatCard label="Total Events" :value="totalEvents" icon="calendar"
 					:hint="`${percentOf(publishedOrOngoingEvents, totalEvents)}% live or published`" />
 				<SuperadminStatCard label="Quotation Win Rate" :value="`${percentOf(acceptedQuotations, totalQuotations)}%`"
-					icon="award" tone="amber" hint="Accepted vs. all quotations" />
+					icon="award" hint="Accepted vs. all quotations" />
 			</div>
 
 			<div class="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-				<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-					<h2 class="text-base font-bold text-gray-900">NaSeRy Revenue Trend</h2>
+				<div class="sa-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8" style="--d: 140ms">
+					<h2 class="text-lg font-extrabold tracking-tight text-gray-950">NaSeRy Revenue Trend</h2>
 					<p class="mt-1 text-sm text-gray-500">Ticket fees + plan subscriptions per month (ticket money itself goes to organizers)</p>
 
 					<div v-if="maxRevenue > 0" class="mt-4">
@@ -35,16 +34,16 @@
 					<p v-else class="mt-8 py-10 text-center text-sm text-gray-400">No accepted quotations yet.</p>
 				</div>
 
-				<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+				<div class="sa-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8" style="--d: 200ms">
 					<div class="mb-1 flex items-center justify-between">
-						<h2 class="text-base font-bold text-gray-900">Platform Growth</h2>
+						<h2 class="text-lg font-extrabold tracking-tight text-gray-950">Platform Growth</h2>
 						<div class="flex items-center gap-3 text-xs font-semibold text-gray-500">
 							<span class="flex items-center gap-1.5">
-								<span class="h-2.5 w-2.5 rounded-full" style="background-color: #0d9488" />
+								<span class="h-2.5 w-2.5 rounded-full" style="background-color: #285F6b" />
 								Organizers
 							</span>
 							<span class="flex items-center gap-1.5">
-								<span class="h-2.5 w-2.5 rounded-full" style="background-color: #7c3aed" />
+								<span class="h-2.5 w-2.5 rounded-full" style="background-color: #7bacb2" />
 								Clients
 							</span>
 						</div>
@@ -61,8 +60,8 @@
 			</div>
 
 			<div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
-				<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-					<h2 class="text-base font-bold text-gray-900">Events by Status</h2>
+				<div class="sa-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8" style="--d: 260ms">
+					<h2 class="text-lg font-extrabold tracking-tight text-gray-950">Events by Status</h2>
 					<p class="mt-1 text-sm text-gray-500">How events are distributed across their lifecycle</p>
 
 					<div v-if="analytics.events_by_status.length" class="mt-2 flex flex-col items-center gap-4 sm:flex-row">
@@ -83,8 +82,8 @@
 					<p v-else class="mt-6 text-sm text-gray-400">No events yet.</p>
 				</div>
 
-				<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-					<h2 class="text-base font-bold text-gray-900">Quotations by Status</h2>
+				<div class="sa-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8" style="--d: 320ms">
+					<h2 class="text-lg font-extrabold tracking-tight text-gray-950">Quotations by Status</h2>
 					<p class="mt-1 text-sm text-gray-500">Win rate across every bid submitted platform-wide</p>
 
 					<div v-if="analytics.quotations_by_status.length" class="mt-2 flex flex-col items-center gap-4 sm:flex-row">
@@ -142,6 +141,10 @@ const acceptedQuotations = computed(() =>
 	(analytics.value?.quotations_by_status ?? []).find(row => row.status === 'accepted')?.total ?? 0,
 )
 
+// One teal palette for every chart. Same meaning everywhere:
+// strong = active / positive, deep = finished, soft = in progress, muted = inactive / lost.
+const CHART_COLORS = { strong: '#285F6b', deep: '#103f4d', soft: '#7bacb2', muted: '#cdd9dc' }
+
 const chartLabelStyle = { colors: '#9ca3af', fontSize: '12px', fontWeight: 600 }
 
 const revenueChartSeries = computed(() => [{
@@ -151,7 +154,7 @@ const revenueChartSeries = computed(() => [{
 
 const revenueChartOptions = computed<ApexOptions>(() => ({
 	chart: { type: 'area', toolbar: { show: false }, fontFamily: 'inherit', zoom: { enabled: false } },
-	colors: ['#0d9488'],
+	colors: [CHART_COLORS.strong],
 	dataLabels: { enabled: false },
 	stroke: { curve: 'smooth', width: 2.5 },
 	fill: {
@@ -179,7 +182,7 @@ const growthChartSeries = computed(() => [
 
 const growthChartOptions = computed<ApexOptions>(() => ({
 	chart: { type: 'line', toolbar: { show: false }, fontFamily: 'inherit', zoom: { enabled: false } },
-	colors: ['#0d9488', '#7c3aed'],
+	colors: [CHART_COLORS.strong, CHART_COLORS.soft],
 	dataLabels: { enabled: false },
 	stroke: { curve: 'smooth', width: [2.5, 2.5], dashArray: [0, 5] },
 	legend: { show: false },
@@ -287,28 +290,27 @@ function formatCompactCurrency(amount: number) {
 
 function eventStatusColor(status: string) {
 	switch (status) {
-		case 'completed':
-			return '#9ca3af'
 		case 'published':
 		case 'ongoing':
-			return '#285F6b'
+			return CHART_COLORS.strong
+		case 'completed':
+			return CHART_COLORS.deep
 		case 'cancelled':
-			return '#ef4444'
+			return CHART_COLORS.muted
 		default:
-			return '#f59e0b'
+			return CHART_COLORS.soft
 	}
 }
 
 function quotationStatusColor(status: string) {
 	switch (status) {
 		case 'accepted':
-			return '#22c55e'
+			return CHART_COLORS.strong
 		case 'rejected':
-			return '#ef4444'
 		case 'withdrawn':
-			return '#9ca3af'
+			return CHART_COLORS.muted
 		default:
-			return '#f59e0b'
+			return CHART_COLORS.soft
 	}
 }
 
@@ -316,3 +318,19 @@ onMounted(() => {
 	loadAnalytics()
 })
 </script>
+
+<style scoped>
+.sa-rise {
+	animation: sa-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+	animation-delay: var(--d, 0ms);
+}
+
+@keyframes sa-rise {
+	from { opacity: 0; transform: translateY(12px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sa-rise { animation: none; }
+}
+</style>

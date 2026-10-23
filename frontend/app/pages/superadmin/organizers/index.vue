@@ -1,26 +1,26 @@
 <template>
 	<div>
-		<SuperadminPageHeader />
+		<SuperadminPageHeader title="Organizers" description="Every organizer on the platform, with their events, revenue and ratings." icon="briefcase" />
 
 		<div v-if="errorMessage" class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
 			{{ errorMessage }}
 		</div>
 
 		<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-			<SuperadminStatCard label="Total Organizers" :value="organizers.length" icon="briefcase" tone="primary"
+			<SuperadminStatCard label="Total Organizers" :value="organizers.length" icon="briefcase"
 				:hint="`${organizersWithEvents} with at least one event`" />
-			<SuperadminStatCard label="Events Managed" :value="totalEvents" icon="calendar" tone="blue"
+			<SuperadminStatCard label="Events Managed" :value="totalEvents" icon="calendar"
 				hint="Across every organizer" />
-			<SuperadminStatCard label="Ticket Sales" :value="formatCurrency(totalRevenue)" icon="cash" tone="green"
-				value-class="text-green-600" :hint="`The organizers' money · NaSeRy's fee: ${formatCurrency(totalFees)}`" />
-			<SuperadminStatCard label="Avg. Rating" :value="avgRating || '—'" icon="star" tone="amber"
+			<SuperadminStatCard label="Ticket Sales" :value="formatCurrency(totalRevenue)" icon="cash"
+				:hint="`The organizers' money · NaSeRy's fee: ${formatCurrency(totalFees)}`" />
+			<SuperadminStatCard label="Avg. Rating" :value="avgRating || '—'" icon="star"
 				:hint="ratedOrganizersCount ? `From ${ratedOrganizersCount} rated organizer${ratedOrganizersCount === 1 ? '' : 's'}` : 'No reviews yet'" />
 		</div>
 
-		<div class="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+		<div class="sa-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8" style="--d: 200ms">
 			<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
 				<div>
-					<h2 class="text-lg font-bold text-gray-900">Organizer Directory</h2>
+					<h2 class="text-xl font-extrabold tracking-tight text-gray-950">Organizer Directory</h2>
 					<p class="mt-1 text-sm text-gray-500">
 						All organizers and their platform activity. Click a row for full details.
 					</p>
@@ -37,7 +37,7 @@
 					<button v-for="option in sortOptions" :key="option.value" type="button"
 						class="rounded-full px-3 py-1.5 text-xs font-semibold transition" :class="sortBy === option.value
 							? 'bg-primary-700 text-white'
-							: 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+							: 'border border-gray-200 bg-white text-gray-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700'
 							" @click="sortBy = option.value">
 						{{ option.label }}
 					</button>
@@ -56,21 +56,21 @@
 				<table class="w-full text-left text-sm">
 					<thead>
 						<tr
-							class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">
-							<th class="pb-3 pr-4">Rank</th>
-							<th class="pb-3 pr-4">Organizer</th>
-							<th class="pb-3 pr-4">Email</th>
-							<th class="pb-3 pr-4">Events</th>
-							<th class="pb-3 pr-4">Ticket sales</th>
-							<th class="pb-3 pr-4">Rating</th>
-							<th class="pb-3">Joined</th>
+							class="bg-gray-50/80 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400 [&>th]:py-3 [&>th:first-child]:rounded-l-xl [&>th:first-child]:pl-3 [&>th:last-child]:rounded-r-xl [&>th:last-child]:pr-3">
+							<th class="pr-4">Rank</th>
+							<th class="pr-4">Organizer</th>
+							<th class="pr-4">Email</th>
+							<th class="pr-4">Events</th>
+							<th class="pr-4">Ticket sales</th>
+							<th class="pr-4">Rating</th>
+							<th>Joined</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-100">
 						<tr v-for="(org, index) in sortedOrganizers" :key="org.id"
-							class="group cursor-pointer transition hover:bg-gray-50"
+							class="sa-row group cursor-pointer transition-colors hover:bg-primary-50/40"
 							@click="navigateTo(`/superadmin/organizers/${org.id}`)">
-							<td class="py-3.5 pr-4">
+							<td class="py-3.5 pl-3 pr-4">
 								<span class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold"
 									:class="rankStyle(index)">
 									{{ index + 1 }}
@@ -162,9 +162,9 @@ const sortedOrganizers = computed(() => {
 })
 
 function rankStyle(index: number) {
-	if (index === 0) return 'bg-amber-100 text-amber-700'
-	if (index === 1) return 'bg-gray-200 text-gray-600'
-	if (index === 2) return 'bg-orange-100 text-orange-700'
+	if (index === 0) return 'bg-primary-700 text-white'
+	if (index === 1) return 'bg-primary-100 text-primary-700'
+	if (index === 2) return 'bg-primary-50 text-primary-700'
 	return 'bg-gray-100 text-gray-400'
 }
 
@@ -210,3 +210,29 @@ onMounted(() => {
 	loadOrganizers()
 })
 </script>
+
+<style scoped>
+.sa-rise {
+	animation: sa-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+	animation-delay: var(--d, 0ms);
+}
+
+.sa-row {
+	animation: sa-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.sa-row:nth-child(2) { animation-delay: 40ms; }
+.sa-row:nth-child(3) { animation-delay: 80ms; }
+.sa-row:nth-child(4) { animation-delay: 120ms; }
+.sa-row:nth-child(5) { animation-delay: 160ms; }
+.sa-row:nth-child(n + 6) { animation-delay: 200ms; }
+
+@keyframes sa-rise {
+	from { opacity: 0; transform: translateY(12px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sa-rise, .sa-row { animation: none; }
+}
+</style>

@@ -1,22 +1,33 @@
 <template>
-	<div class="mx-auto max-w-7xl">
-		<div class="mb-6 flex flex-wrap items-end justify-between gap-3">
-			<div>
-				<h1 class="text-2xl font-extrabold tracking-tight text-gray-950">Price List &amp; Calculator</h1>
-				<p class="mt-1 max-w-2xl text-gray-500">The prices behind the quotation calculator on your public page. Clients use it to get an instant estimate and send you a request with their picks; you can also build offers from it.</p>
+	<div class="mx-auto max-w-7xl space-y-6">
+		<!-- Header -->
+		<section class="pl-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8">
+			<div class="flex flex-wrap items-start justify-between gap-5">
+				<div class="max-w-2xl">
+					<h1 class="text-2xl font-extrabold tracking-tight text-gray-950">Price List &amp; Calculator</h1>
+					<p class="mt-1 text-sm leading-6 text-gray-500">The prices behind the quotation calculator on your public page. Clients use it to get an instant estimate and send you a request with their picks; you can also build offers from it.</p>
+				</div>
+				<div class="flex items-center gap-4">
+					<div class="hidden text-right sm:block">
+						<p class="text-2xl font-extrabold tabular-nums text-gray-950">{{ options.length }}</p>
+						<p class="text-xs font-semibold text-gray-400">{{ visibleOptions.length }} shown to clients</p>
+					</div>
+					<button type="button" class="flex shrink-0 items-center gap-2 rounded-xl bg-[#285F6b] px-5 py-3 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#1f4a54] hover:shadow-md active:translate-y-0 active:scale-[0.98]" @click="startNew()">
+						<IconBase name="plus" class="h-4 w-4" /> Add a price option
+					</button>
+				</div>
 			</div>
-			<button type="button" class="rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-primary-900" @click="startNew()">+ Add a price option</button>
-		</div>
+			<p v-if="error" class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{{ error }}</p>
+			<p v-if="notice" class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">{{ notice }}</p>
+		</section>
 
-		<div v-if="error" class="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">{{ error }}</div>
-		<div v-if="notice" class="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800" role="status">{{ notice }}</div>
-		<div v-if="loading" class="rounded-2xl border border-gray-100 bg-white p-10 text-center text-sm text-gray-500">Loading your price list…</div>
+		<div v-if="loading" class="rounded-3xl border border-gray-200 bg-white py-16 text-center text-sm text-gray-500">Loading your price list…</div>
 
 		<div v-else class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
 			<div class="space-y-6">
 				<!-- Add / edit -->
-				<section v-if="editing" ref="editorEl" class="rounded-2xl border border-primary-200 bg-white p-5 shadow-sm sm:p-6">
-					<h2 class="text-base font-bold text-gray-900">{{ editing.id ? 'Edit price option' : 'New price option' }}</h2>
+				<section v-if="editing" ref="editorEl" class="pl-rise rounded-3xl border-2 border-primary-200 bg-white p-6 sm:p-7">
+					<div class="flex items-center gap-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#285F6b] text-white"><IconBase name="tag" class="h-5 w-5" /></span><div><h2 class="text-base font-extrabold text-gray-950">{{ editing.id ? 'Edit price option' : 'New price option' }}</h2><p class="text-sm text-gray-500">Used by your calculator and your offers</p></div></div>
 					<form class="mt-4 space-y-4" novalidate @submit.prevent="save">
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div data-field="name">
@@ -82,47 +93,61 @@
 
 						<p v-if="check.summary.value" class="text-sm font-semibold text-rose-600" role="alert">{{ check.summary.value }}</p>
 						<div class="flex gap-2">
-							<button type="submit" :disabled="saving" class="rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">{{ saving ? 'Saving…' : editing.id ? 'Save changes' : 'Add option' }}</button>
+							<button type="submit" :disabled="saving" class="rounded-xl bg-[#285F6b] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#1f4a54] disabled:opacity-60">{{ saving ? 'Saving…' : editing.id ? 'Save changes' : 'Add option' }}</button>
 							<button type="button" class="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600" @click="cancelEdit">Cancel</button>
 						</div>
 					</form>
 				</section>
 
 				<!-- The list -->
-				<section class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-					<h2 class="text-base font-bold text-gray-900">Your options</h2>
-					<p class="mt-1 text-sm text-gray-500">Options in a service group are alternatives (clients pick one). Add-ons can be combined.</p>
-					<p v-if="!options.length" class="mt-5 rounded-xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">No price options yet. Add your first one to turn on the calculator.</p>
+				<p class="px-1 text-sm text-gray-500">Options in a service group are alternatives (clients pick one). Add-ons can be combined.</p>
+				<section v-if="!options.length" class="pl-rise rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center">
+					<span class="pl-float mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-primary-700"><IconBase name="tag" class="h-7 w-7" /></span>
+					<h3 class="mt-4 text-lg font-bold text-gray-900">No price options yet</h3>
+					<p class="mx-auto mt-1 max-w-md text-sm text-gray-500">Add your first one to turn on the calculator on your public page.</p>
+					<button type="button" class="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#285F6b] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#1f4a54]" @click="startNew()"><IconBase name="plus" class="h-4 w-4" /> Add your first option</button>
+				</section>
 
-					<div v-for="group in groups" :key="group.key" class="mt-5">
-						<h3 class="text-xs font-bold uppercase tracking-wide text-gray-500">{{ group.label }} <span class="font-normal normal-case">· {{ group.single ? 'clients pick one' : 'clients pick any' }}</span></h3>
-						<ul class="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-100">
-							<li v-for="(o, i) in group.options" :key="o.id" class="flex flex-wrap items-center gap-3 px-4 py-3" :class="o.is_active ? '' : 'bg-gray-50'">
-								<div class="min-w-0 flex-1">
-									<div class="flex flex-wrap items-center gap-2">
-										<span class="font-semibold text-gray-900">{{ o.name }}</span>
-										<span v-if="!o.is_active" class="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-semibold text-gray-600">Hidden</span>
-									</div>
-									<div class="text-sm text-gray-600">{{ formatPeso(o.price) }}{{ priceSuffix(o) }}
-										<span v-if="o.pricing_unit === 'per_guest' && o.min_guests" class="text-gray-400">· min {{ o.min_guests }} guests</span>
-										<span v-else-if="picksQuantity(o) && (o.min_quantity || o.max_quantity)" class="text-gray-400">· {{ quantityBounds(o).min }}{{ quantityBounds(o).max ? `–${quantityBounds(o).max}` : '+' }} {{ unitName(o, 2) }}</span>
-									</div>
-								</div>
-								<div class="flex items-center gap-1">
-									<button type="button" class="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30" :disabled="i === 0 || busy" :aria-label="`Move ${o.name} up`" @click="move(group.options, i, -1)">▲</button>
-									<button type="button" class="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30" :disabled="i === group.options.length - 1 || busy" :aria-label="`Move ${o.name} down`" @click="move(group.options, i, 1)">▼</button>
-									<button type="button" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100" :disabled="busy" @click="toggleActive(o)">{{ o.is_active ? 'Hide' : 'Show' }}</button>
-									<button type="button" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50" @click="startEdit(o)">Edit</button>
-									<button type="button" class="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50" :disabled="busy" @click="remove(o)">Delete</button>
-								</div>
-							</li>
-						</ul>
+				<section v-for="(group, gIndex) in groups" :key="group.key" class="pl-rise pl-group overflow-hidden rounded-3xl border border-gray-200 bg-white" :style="{ '--d': 60 + gIndex * 60 + 'ms' }">
+					<div class="flex items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
+						<div class="flex min-w-0 items-center gap-3">
+							<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><IconBase :name="group.single ? 'tag' : 'grid'" class="h-[18px] w-[18px]" /></span>
+							<div class="min-w-0">
+								<h3 class="truncate text-sm font-extrabold text-gray-950">{{ group.label }}</h3>
+								<p class="truncate text-xs text-gray-400">{{ group.single ? 'Clients pick one' : 'Clients pick any' }}</p>
+							</div>
+						</div>
+						<span class="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600">{{ group.options.length }}</span>
 					</div>
+					<ul class="divide-y divide-gray-100">
+						<li v-for="(o, i) in group.options" :key="o.id" class="pl-row group flex flex-wrap items-center gap-3 px-6 py-4 transition-colors hover:bg-gray-50/70" :class="o.is_active ? '' : 'bg-gray-50/80'">
+							<div class="min-w-0 flex-1">
+								<p class="flex flex-wrap items-center gap-2 text-sm font-bold" :class="o.is_active ? 'text-gray-900' : 'text-gray-400'">
+									{{ o.name }}
+									<span v-if="!o.is_active" class="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-bold text-gray-600">Hidden</span>
+								</p>
+								<p v-if="o.description" class="mt-0.5 truncate text-xs text-gray-500">{{ o.description }}</p>
+								<p v-if="o.pricing_unit === 'per_guest' && o.min_guests" class="mt-0.5 text-xs text-gray-400">min {{ o.min_guests }} guests</p>
+								<p v-else-if="picksQuantity(o) && (o.min_quantity || o.max_quantity)" class="mt-0.5 text-xs text-gray-400">{{ quantityBounds(o).min }}{{ quantityBounds(o).max ? `–${quantityBounds(o).max}` : '+' }} {{ unitName(o, 2) }}</p>
+							</div>
+							<div class="shrink-0 text-right">
+								<p class="text-sm font-extrabold tabular-nums text-gray-950">{{ formatPeso(o.price) }}</p>
+								<span class="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold" :class="o.pricing_unit === 'flat' ? 'bg-gray-100 text-gray-500' : 'bg-primary-50 text-primary-700'">{{ o.pricing_unit === 'flat' ? 'flat' : `per ${unitName(o)}` }}</span>
+							</div>
+							<div class="flex shrink-0 items-center gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+								<button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 disabled:opacity-30" :disabled="i === 0 || busy" :aria-label="`Move ${o.name} up`" @click="move(group.options, i, -1)"><IconBase name="chevron-down" class="h-4 w-4 rotate-180" /></button>
+								<button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 disabled:opacity-30" :disabled="i === group.options.length - 1 || busy" :aria-label="`Move ${o.name} down`" @click="move(group.options, i, 1)"><IconBase name="chevron-down" class="h-4 w-4" /></button>
+								<button type="button" class="rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-500 transition hover:bg-gray-100" :disabled="busy" @click="toggleActive(o)">{{ o.is_active ? 'Hide' : 'Show' }}</button>
+								<button type="button" :aria-label="`Edit ${o.name}`" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-primary-50 hover:text-primary-700" @click="startEdit(o)"><IconBase name="edit" class="h-4 w-4" /></button>
+								<button type="button" :aria-label="`Delete ${o.name}`" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600" :disabled="busy" @click="remove(o)"><IconBase name="trash" class="h-4 w-4" /></button>
+							</div>
+						</li>
+					</ul>
 				</section>
 
 				<!-- Estimate settings -->
-				<section class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-					<h2 class="text-base font-bold text-gray-900">Estimate settings</h2>
+				<section class="pl-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-7">
+					<h2 class="text-base font-extrabold text-gray-950">Estimate settings</h2>
 					<p class="mt-1 text-sm text-gray-500">Added to every estimate's breakdown. Leave blank if you don't charge them.</p>
 					<form class="mt-4 grid gap-4 sm:grid-cols-2" novalidate @submit.prevent="saveSettings">
 						<div data-field="service_charge">
@@ -138,14 +163,14 @@
 							<FormsTextField v-model="settings.note" maxlength="500" placeholder="e.g. Final price confirmed after a site visit." />
 						</div>
 						<div class="sm:col-span-2">
-							<button type="submit" :disabled="savingSettings" class="rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">{{ savingSettings ? 'Saving…' : 'Save settings' }}</button>
+							<button type="submit" :disabled="savingSettings" class="rounded-xl bg-[#285F6b] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#1f4a54] disabled:opacity-60">{{ savingSettings ? 'Saving…' : 'Save settings' }}</button>
 						</div>
 					</form>
 				</section>
 			</div>
 
 			<!-- Live preview -->
-			<aside class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm xl:sticky xl:top-6">
+			<aside class="pl-rise rounded-3xl border border-gray-200 bg-white p-6 xl:sticky xl:top-6">
 				<p class="text-xs font-bold uppercase tracking-widest text-primary-700">Live preview</p>
 				<h2 class="mt-1 text-base font-bold text-gray-900">What clients see</h2>
 				<p class="mt-1 text-xs text-gray-500">Only options you show. Try it like a client would.</p>
@@ -359,3 +384,51 @@ onMounted(async () => {
 	}
 })
 </script>
+
+<style scoped>
+.pl-rise {
+	animation: pl-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+	animation-delay: var(--d, 0ms);
+}
+
+.pl-float {
+	animation: pl-float 3.2s ease-in-out infinite;
+}
+
+.pl-group {
+	transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.pl-group:hover {
+	border-color: rgba(40, 95, 107, 0.25);
+	box-shadow: 0 16px 32px -24px rgba(17, 24, 39, 0.35);
+}
+
+.pl-row {
+	animation: pl-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.pl-row:nth-child(2) { animation-delay: 50ms; }
+.pl-row:nth-child(3) { animation-delay: 100ms; }
+.pl-row:nth-child(n + 4) { animation-delay: 150ms; }
+
+.slide-enter-active, .slide-leave-active { transition: transform 0.25s ease; }
+.slide-enter-from, .slide-leave-to { transform: translateX(100%); }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+@keyframes pl-rise {
+	from { opacity: 0; transform: translateY(14px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pl-float {
+	0%, 100% { transform: translateY(0); }
+	50% { transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.pl-rise, .pl-float, .pl-row { animation: none; }
+	.pl-group { transition: none; }
+}
+</style>

@@ -128,6 +128,13 @@
 							</p>
 						</div>
 					</div>
+
+					<button v-if="inquiryId && eventData.organizer?.id" type="button"
+						class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+						@click="showChat = true">
+						<IconBase name="message" class="h-4 w-4" />
+						Message organizer
+					</button>
 				</section>
 
 				<section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-3">
@@ -159,6 +166,8 @@
 					</div>
 				</section>
 			</div>
+
+			<ClientEventReviewCard v-if="eventData.event?.id" :event-id="eventData.event.id" />
 
 			<div class="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
 				<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
@@ -832,6 +841,8 @@
 				</div>
 			</div>
 		</Transition>
+
+		<MessagesThreadDrawer v-if="inquiryId && eventData?.organizer?.id" :open="showChat" :inquiry-id="Number(inquiryId)" :organizer-id="eventData.organizer.id" @close="showChat = false" />
 	</div>
 </template>
 
@@ -1631,9 +1642,13 @@ function closeTicketDetails() {
 		''
 }
 
-onMounted(() => {
+const showChat = ref(false)
+
+onMounted(async () => {
 	startRegistrationVerificationTimer()
-	loadEventDetails()
+	await loadEventDetails()
+
+	if (route.query.chat) showChat.value = true
 })
 
 onBeforeUnmount(() => {

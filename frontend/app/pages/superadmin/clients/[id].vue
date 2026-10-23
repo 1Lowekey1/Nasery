@@ -18,7 +18,7 @@
 		<template v-else-if="client">
 			<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
 				<div class="flex items-center gap-4">
-					<SuperadminAvatar :name="client.name" tone="blue" size="lg" />
+					<SuperadminAvatar :name="client.name" size="lg" />
 					<div>
 						<h1 class="text-2xl font-extrabold tracking-tight text-gray-950">{{ client.name }}</h1>
 						<p class="mt-1 text-gray-500">Client since {{ formatDate(client.joined) }}</p>
@@ -27,13 +27,13 @@
 			</div>
 
 			<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-				<SuperadminStatCard label="Inquiries Posted" :value="client.inquiries_count" icon="file-text" tone="violet"
+				<SuperadminStatCard label="Inquiries Posted" :value="client.inquiries_count" icon="file-text"
 					hint="As a client hiring organizers" />
-				<SuperadminStatCard label="Booked Events" :value="client.events_count" icon="calendar" tone="primary"
+				<SuperadminStatCard label="Booked Events" :value="client.events_count" icon="calendar"
 					hint="As a client (paid to the organizer directly)" />
-				<SuperadminStatCard label="Ticket Purchases" :value="formatCurrency(client.total_spend)" icon="ticket" tone="green"
-					value-class="text-green-600" :hint="`As an attendee: ${client.tickets_count ?? 0} tickets, after refunds`" />
-				<SuperadminStatCard label="Reviews Left" :value="client.reviews_count ?? 0" icon="star" tone="amber" />
+				<SuperadminStatCard label="Ticket Purchases" :value="formatCurrency(client.total_spend)" icon="ticket"
+					:hint="`As an attendee: ${client.tickets_count ?? 0} tickets, after refunds`" />
+				<SuperadminStatCard label="Reviews Left" :value="client.reviews_count ?? 0" icon="star" />
 			</div>
 
 			<div class="mb-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">

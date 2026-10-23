@@ -212,10 +212,15 @@ class PlatformDirectory
         return $this->db->system('admin.event_types', function () {
             $uses = DB::table('events')->whereNull('deleted_at')->whereNotNull('event_type_id')->groupBy('event_type_id')->selectRaw('event_type_id, count(*) as n')->pluck('n', 'event_type_id');
             $asks = DB::table('inquiries')->whereNull('deleted_at')->whereNotNull('event_type_id')->groupBy('event_type_id')->selectRaw('event_type_id, count(*) as n')->pluck('n', 'event_type_id');
+            // Organizers who list the type on their profile (event_tags holds names).
+            $offered = collect(DB::select('select lower(t.tag) as tag, count(distinct p.organization_id) as n
+                from organization_profiles p cross join lateral jsonb_array_elements_text(p.event_tags) as t(tag)
+                group by lower(t.tag)'))->pluck('n', 'tag');
 
             return DB::table('event_types')->whereNull('organization_id')->whereNull('deleted_at')->orderBy('name')
                 ->get(['id', 'name', 'description'])
-                ->map(fn ($t) => ['id' => $t->id, 'name' => $t->name, 'description' => $t->description, 'events' => (int) ($uses[$t->id] ?? 0), 'inquiries' => (int) ($asks[$t->id] ?? 0)])
+                ->map(fn ($t) => ['id' => $t->id, 'name' => $t->name, 'description' => $t->description, 'events' => (int) ($uses[$t->id] ?? 0), 'inquiries' => (int) ($asks[$t->id] ?? 0),
+                    'organizers' => (int) ($offered[mb_strtolower($t->name)] ?? 0)])
                 ->all();
         });
     }
