@@ -26,6 +26,7 @@ Use a separate browser profile or a private window per account so sign-ins don't
 
 ## Timing: do it all today
 
+- The **Event day** bar (Start event / Mark completed) appears from 24 hours before the start.
 - Check-in opens **3 hours before** the start time and closes at the end time.
 - An event can be **completed only after its start time**.
 - So for both events pick **today**, a start time about **1–1.5 hours from now** and an end time **2–3 hours later** (before midnight). Check-in is then open as soon as each event is published.
@@ -60,11 +61,12 @@ As **maria**, for each event:
 2. Upload an **event cover photo**.
 3. **Confirm the date and time**: today's real start and end time (see Timing).
 4. **Confirm the venue and guests**.
-5. **Choose how guests get in**:
-   - **A → Tickets**: add Free (₱0) and Regular (₱150), then under **Settings** turn on **Public registration**.
-   - **B → Guest list**: nothing else to set up. Seats follow Expected guests, and the event stays private.
+5. **Choose private or public** (Guests & tickets → *Who can come?*):
+   - **A → Public**: add Free (₱0) and Regular (₱150). Public events are listed on the Event Marketplace.
+   - **B → Private** (the default): nothing else to set up. Guests are invited (step 3), seats follow Expected guests, and the event is never listed.
+   - Optional on B: turn on **Also sell or give tickets** and add e.g. "Dinner seat" ₱500. After saving, the event page shows a **Private ticket link** with **Copy link**: only people with that link can open B and get a ticket.
 6. **Add a contact for the day**, **Describe the event**.
-7. **Publish it**: Basic info → Visibility → **Published** → **Save changes**. A's tickets go on sale with it; B is published to your team and guests but not listed anywhere.
+7. **Publish it**: Basic info → Visibility → **Published** → **Save changes**. A's tickets go on sale with it; B goes live for your team and the people you invite, but is not listed anywhere.
 8. Event A → Ticket Tiers: **Add ticket type** and a ticket's **Edit** open the ticket section directly.
 
 Then, on either or both events:
@@ -81,17 +83,18 @@ As **maria**:
 
 As **enzo**:
 14. **Preparation Tracking** (readiness, stage, milestones) and **Activity Timeline** (only items marked Client can see) for both events.
-15. Event Marketplace: **A** is listed, **B** is not.
+15. Event Marketplace: **A** is listed, **B** is not. Opening B's page without the private link says it isn't open to the public.
 
 ## 3. Guests get in
 
 **A (public):** as **carl / faith / gino**:
 1. Event Marketplace → event A → pick a ticket (free, or paid with a test card) → **My Tickets** shows the QR.
 
-**B (private):** as **maria**, Ticketing & Attendance → choose event B → **Attendees**:
-2. **Register** a guest by hand (name, e-mail optional) → the QR ticket appears → **Download**.
+**B (private):** as **maria**, Ticket Tiers → **Invite guests** (or Ticketing & Attendance → event B → **Attendees**):
+2. **Register Attendee**: the *Guest list* is already picked, category *Invited*. Name (e-mail optional) → the QR ticket appears → **Download**.
 3. **Bulk Import**: download the template, add a few names, upload. Each guest gets a QR invite.
 4. Normally each guest gets their QR invite by e-mail. Demo addresses get no e-mail, so use **Download** on an attendee's row and show the QR from another screen.
+5. Optional (if you turned on tickets for B): as **carl**, open the **Private ticket link** Maria copied → the page says *Private event · by invitation* → get a Dinner seat → **My Tickets** shows the QR.
 
 ## 4. During the events
 
