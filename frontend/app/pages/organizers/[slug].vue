@@ -55,7 +55,7 @@
 						class="inline-flex min-h-11 items-center justify-center rounded-lg border border-gray-200 px-3 text-center text-sm font-semibold hover:bg-gray-50 sm:px-5">
 						Explore past work ↓
 					</a>
-					<NuxtLink v-if="user?.role !== 'organizer'" :to="{ path: '/client/post-event', query: { organizer: identifier } }"
+					<NuxtLink v-if="canRequestQuote" :to="{ path: '/client/post-event', query: { organizer: identifier } }"
 						class="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-700 px-3 text-center text-sm font-bold text-white hover:bg-primary-900 sm:px-5">
 						Request a quotation
 					</NuxtLink>
@@ -162,7 +162,7 @@
 
 					<PricingPriceCalculator class="mt-5" :options="profile.price_options" :services="profile.services" :settings="profile.estimate">
 						<template #action="{ estimate, picks, guests }">
-							<div v-if="user?.role !== 'organizer'" class="mt-4 flex justify-end">
+							<div v-if="canRequestQuote" class="mt-4 flex justify-end">
 								<NuxtLink :to="{ path: '/client/post-event', query: { organizer: identifier, guests: String(guests), options: picks } }"
 									class="rounded-lg bg-primary-700 px-5 py-3 text-sm font-bold text-white hover:bg-primary-900"
 									:class="{ 'pointer-events-none opacity-50': !estimate.lines.length }" :aria-disabled="!estimate.lines.length">
@@ -206,7 +206,7 @@
 					Ask this team for a quotation, or post your event to receive
 					offers from matching organizers. Asking doesn’t book anyone.
 				</p>
-				<template v-if="user?.role !== 'organizer'">
+				<template v-if="canRequestQuote">
 					<NuxtLink :to="{ path: '/client/post-event', query: { organizer: identifier } }"
 						class="mt-6 block rounded-lg bg-primary-700 px-5 py-3 text-center text-sm font-bold text-white hover:bg-primary-900">
 						Request a quotation from {{ organizer.name }}
@@ -253,6 +253,9 @@ if (error.value && (error.value.statusCode === 404 || error.value.status === 404
 const organizer = computed(() => data.value?.data)
 useSeoMeta({ title: () => `${organizer.value?.name || 'Organizer'} | NaSeRy`, description: () => organizer.value?.bio || 'View this event organizer’s services and completed events.' })
 const { user } = useAuth()
+// Only clients (and guests, who are sent to sign in) ask for quotations; organizers, team
+// members and admins never see the button (an admin following it landed on the admin home).
+const canRequestQuote = computed(() => !user.value || user.value.role === 'client')
 
 // Our marketplace profile: the price list (calculator) and reviews the portfolio shape leaves out.
 const profile = ref<OrganizerPublicProfile | null>(null)
