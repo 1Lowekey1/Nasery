@@ -275,7 +275,7 @@ async function choose(plan: string, c: 'monthly' | 'yearly') {
 		// Renewals are already explained by the banner: go straight to payment.
 		if (pendingQuote.value.kind === 'renewal') await confirmChoice()
 		// The plan cards sit below the fold: bring the quote into view.
-		else nextTick(() => quotePanel.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+		else nextTick(() => scrollToElement(quotePanel.value, { block: 'center' }))
 	} catch (e) {
 		error.value = authMessage(e)
 	} finally {
@@ -350,7 +350,7 @@ const CIRCUMFERENCE = 2 * Math.PI * 26
 const ringsReady = ref(false)
 watch(data, (value) => { if (value) setTimeout(() => { ringsReady.value = true }, 150) })
 const plansRef = ref<HTMLElement | null>(null)
-function scrollToPlans() { plansRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+function scrollToPlans() { scrollToElement(plansRef.value) }
 // The most capable paid plan gets the "Most popular" ribbon.
 const featuredSlug = computed(() => [...(data.value?.plans ?? [])].filter(p => !p.is_free).sort((a, b) => Number(b.price_monthly) - Number(a.price_monthly))[0]?.slug ?? null)
 const yearlySavings = computed(() => {

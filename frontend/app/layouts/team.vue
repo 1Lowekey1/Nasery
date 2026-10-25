@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-screen overflow-hidden bg-gray-50">
+  <div class="flex h-dvh overflow-clip bg-gray-50">
     <aside class="shrink-0 overflow-hidden border-r border-gray-200 bg-white transition-all duration-200" :class="asideClass">
       <div class="flex h-full w-64 flex-col overflow-y-auto">
         <div class="flex items-center gap-2.5 px-5 py-5"><div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-700 text-sm font-bold text-white">N</div><div><div class="text-base font-bold leading-tight text-gray-900">NaSeRy</div><div class="text-[11px] text-gray-400">Event Management System</div></div></div>
@@ -48,6 +48,7 @@
 </template>
 
 <script setup lang="ts">
+useLockedFrame()
 const { user, fullName, initials, logout, updateProfile } = useAuth('team_member')
 const route = useRoute()
 const { organization, fetchOrganization } = useOrganization()

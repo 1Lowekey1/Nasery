@@ -847,7 +847,7 @@ let observer: IntersectionObserver | null = null
 
 function goTo(id: SectionId) {
 	activeSection.value = id
-	document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+	scrollToElement(document.getElementById(id))
 }
 
 function observeSections() {

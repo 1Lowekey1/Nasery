@@ -446,18 +446,7 @@ watch(
 	activeCreateTab,
 	(label) => {
 		nextTick(() => {
-			tabButtonRefs[
-				label
-			]?.scrollIntoView({
-				behavior:
-					'smooth',
-
-				inline:
-					'nearest',
-
-				block:
-					'nearest',
-			})
+			scrollRowTo(tabButtonRefs[label])
 		})
 	},
 )

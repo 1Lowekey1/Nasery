@@ -548,13 +548,7 @@ async function scrollToSelectedEvent() {
 		return
 	}
 
-	element.scrollIntoView({
-		behavior:
-			'smooth',
-
-		block:
-			'center',
-	})
+	scrollToElement(element, { block: 'center' })
 }
 async function openPlanningItem(
 	item: PlanningItem,

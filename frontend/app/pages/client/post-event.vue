@@ -804,7 +804,7 @@ const completion = computed(() => {
 function pointToFirstMissing() {
 	attempted.value = true
 	errorMessage.value = `Still needed: ${missing.value.map(m => m.label).join(', ')}.`
-	document.getElementById(`field-${missing.value[0]?.key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+	scrollToElement(document.getElementById(`field-${missing.value[0]?.key}`))
 }
 
 const minimumEventDate = computed(() => {
@@ -1788,7 +1788,7 @@ Estimate from ${target.value.display_name}${/s$/i.test(target.value.display_name
 			// Say what the server objected to, not just "The given data was invalid".
 			const firstReason = Object.values(error.fields).flat()[0]
 			errorMessage.value = error.code === 'VALIDATION_ERROR' && firstReason ? firstReason : authMessage(error)
-			if (key) document.getElementById(`field-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+			if (key) scrollToElement(document.getElementById(`field-${key}`))
 			return
 		}
 		console.error(

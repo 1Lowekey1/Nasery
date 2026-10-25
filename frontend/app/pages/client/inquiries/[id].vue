@@ -240,7 +240,7 @@ async function load() {
 			// Opened from a message notification: bring the conversation into view.
 			// Once: later reloads (after accepting, declining…) must not jump back to the messages.
 			if (route.query.thread || route.hash === '#messages') {
-				nextTick(() => document.getElementById('messages')?.scrollIntoView({ behavior: 'smooth' }))
+				setTimeout(() => scrollToElement(document.getElementById('messages'), { behavior: 'auto' }), 150)
 				navigateTo({ query: { ...route.query, thread: undefined }, hash: route.hash }, { replace: true })
 			}
 		}
@@ -248,7 +248,7 @@ async function load() {
 		if (route.hash === '#invite') {
 			nextTick(() => {
 				const box = document.getElementById('invite')
-				box?.scrollIntoView({ behavior: 'smooth' })
+				scrollToElement(box, { behavior: 'auto' })
 				box?.querySelector('input')?.focus({ preventScroll: true })
 			})
 		}

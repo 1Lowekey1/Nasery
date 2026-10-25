@@ -1,5 +1,5 @@
 <template>
-	<div class="flex h-screen overflow-hidden bg-gray-50">
+	<div class="flex h-dvh overflow-clip bg-gray-50">
 		<!-- <div class="fixed inset-x-0 top-0 z-50 h-1 bg-gray-900" /> -->
 
 		<aside class="shrink-0 overflow-hidden border-r border-gray-200 bg-white transition-all duration-200"
@@ -104,6 +104,7 @@
 </template>
 
 <script setup lang="ts">
+useLockedFrame()
 const route = useRoute()
 
 const { sidebarOpen, isMobile, asideClass, closeSidebar } = useResponsiveSidebar()

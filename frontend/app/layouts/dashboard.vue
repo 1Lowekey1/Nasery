@@ -1,5 +1,5 @@
 <template>
-	<div class="flex h-screen overflow-hidden bg-gray-50">
+	<div class="flex h-dvh overflow-clip bg-gray-50">
 		<!-- <div class="fixed inset-x-0 top-0 z-50 h-1 bg-gray-900" /> -->
 
 		<aside class="shrink-0 overflow-hidden border-r border-gray-200 bg-white transition-all duration-200" :class="asideClass">
@@ -459,6 +459,7 @@
 </template>
 
 <script setup lang="ts">
+useLockedFrame()
 onBeforeUnmount(() => {
 	window.removeEventListener('organizer-profile:updated', onOrganizerProfileUpdated)
 })
@@ -1052,12 +1053,7 @@ watch(
 	async (label) => {
 		await nextTick()
 
-		profileTabButtonRefs[label]
-			?.scrollIntoView({
-				behavior: 'smooth',
-				inline: 'nearest',
-				block: 'nearest',
-			})
+		scrollRowTo(profileTabButtonRefs[label])
 	}
 )
 

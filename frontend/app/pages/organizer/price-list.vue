@@ -243,7 +243,7 @@ const check = useFormCheck(() => {
 function startNew() {
 	editing.value = blank()
 	check.reset()
-	nextTick(() => editorEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+	nextTick(() => scrollToElement(editorEl.value))
 }
 
 function startEdit(o: PriceOption) {
@@ -253,7 +253,7 @@ function startEdit(o: PriceOption) {
 		max_quantity: o.max_quantity ? String(o.max_quantity) : '', description: o.description ?? '', is_active: o.is_active ?? true,
 	}
 	check.reset()
-	nextTick(() => editorEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+	nextTick(() => scrollToElement(editorEl.value))
 }
 
 function cancelEdit() {

@@ -902,7 +902,7 @@ function validateOffer() {
 		!offerForm.budget.trim()
 	) {
 		amountError.value = 'Enter your quotation amount, or build it from your price list.'
-		document.querySelector('[data-field="budget"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+		scrollToElement(document.querySelector('[data-field="budget"]'), { block: 'center' })
 
 		return null
 	}
@@ -916,7 +916,7 @@ function validateOffer() {
 		quotationAmount <= 0
 	) {
 		amountError.value = 'Enter an amount greater than zero, e.g. 240000.'
-		document.querySelector('[data-field="budget"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+		scrollToElement(document.querySelector('[data-field="budget"]'), { block: 'center' })
 
 		return null
 	}

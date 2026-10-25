@@ -611,7 +611,7 @@ const apiQuotationIds = ref<{ inquiry: string, quotation: string } | null>(null)
 const activeEditTab =
 	ref('Basic Info')
 // Keep the current section visible in the phone tab row (e.g. after Next).
-watch(activeEditTab, () => nextTick(() => document.querySelector('nav[aria-label="Edit sections"] .ed-nav.is-on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })))
+watch(activeEditTab, () => nextTick(() => scrollRowTo(document.querySelector('nav[aria-label="Edit sections"] .ed-nav.is-on'))))
 
 const eventId =
 	computed(() => routeId(route.query.event))
@@ -1353,14 +1353,14 @@ watch(() => [isEditMode.value, event.value?.id, isLoading.value, route.query.sec
 	navigateTo({ path: route.path, query: rest }, { replace: true })
 	if (focusIndex >= 0) focusTicket(focusIndex)
 	// An instant jump: a smooth scroll here gets cancelled by the section switch's own scroll.
-	else if (!adding) setTimeout(() => document.querySelector('nav[aria-label="Edit sections"]')?.scrollIntoView({ block: 'start' }), 600)
+	else if (!adding) setTimeout(() => scrollToElement(document.querySelector('nav[aria-label="Edit sections"]'), { behavior: 'auto' }), 600)
 }, { immediate: true })
 function focusTicket(index: number) {
 	// Wait for the section swap transition before scrolling to the card.
 	setTimeout(() => {
 		const card = document.querySelectorAll<HTMLElement>('[data-ticket-card]')[index]
 		if (!card) return
-		card.scrollIntoView({ block: 'center' })
+		scrollToElement(card, { block: 'center', behavior: 'auto' })
 		card.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true })
 	}, 350)
 }

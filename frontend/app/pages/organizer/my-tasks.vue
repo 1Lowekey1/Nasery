@@ -79,7 +79,7 @@ onMounted(async () => {
 	try {
 		const org = organization.value ?? await fetchOrganization()
 		if (org) tasks.value = await teamApi.myTasks(org.id)
-		if (highlighted.value) nextTick(() => document.getElementById(`task-${highlighted.value}`)?.scrollIntoView({ block: 'center' }))
+		if (highlighted.value) nextTick(() => scrollToElement(document.getElementById(`task-${highlighted.value}`), { block: 'center', behavior: 'auto' }))
 	} catch (e) {
 		error.value = authMessage(e)
 	} finally {
