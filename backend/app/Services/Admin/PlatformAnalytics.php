@@ -70,6 +70,7 @@ class PlatformAnalytics
         $sales = (float) DB::table('payments')->where('status', 'paid')->whereNotNull('registration_id')->sum('amount');
         $refunds = (float) DB::table('payment_refunds')->sum('amount');
         $fee = (float) DB::table('platform_fee_snapshots')->sum('computed_amount') - (float) DB::table('payment_refunds')->sum('fee_portion_refunded');
+        $month = now('Asia/Manila')->startOfMonth()->utc();
 
         return [
             'users' => ['client' => (int) ($users['client'] ?? 0), 'business' => (int) ($users['business'] ?? 0), 'admin' => (int) ($users['admin'] ?? 0),
@@ -84,6 +85,15 @@ class PlatformAnalytics
             // B18: organizer plan payments.
             'subscriptions' => round((float) DB::table('payments')->where('status', 'paid')->whereNotNull('subscription_invoice_id')->sum('amount'), 2),
             'rating' => ['average' => $rating?->avg !== null ? round((float) $rating->avg, 2) : null, 'count' => (int) ($rating->n ?? 0)],
+            // Quotations waiting for the client's decision (counts only: the amounts stay the parties').
+            'quotations_pending' => DB::table('quotations')->where('status', 'submitted')->count(),
+            'quotations' => DB::table('quotations')->selectRaw('status::text as s, count(*) as n')->groupBy('status')->pluck('n', 's')->map(fn ($n) => (int) $n),
+            'this_month' => [
+                'clients' => DB::table('users')->whereNull('deleted_at')->where('account_type', 'client')->where('created_at', '>=', $month)->count(),
+                'organizers' => DB::table('organizations')->whereNull('deleted_at')->where('created_at', '>=', $month)->count(),
+                'events' => DB::table('events')->whereNull('deleted_at')->where('created_at', '>=', $month)->count(),
+                'quotations' => DB::table('quotations')->where('created_at', '>=', $month)->count(),
+            ],
         ];
     }
 
@@ -104,6 +114,15 @@ class PlatformAnalytics
             ->selectRaw("organization_id, count(*) as events, count(*) filter (where status = 'completed') as completed");
         $ratings = DB::table('public_reviews')->groupBy('organization_id')->selectRaw('organization_id, avg(rating) as rating, count(*) as reviews');
         $members = DB::table('organization_members')->where('status', 'active')->whereNull('deleted_at')->groupBy('organization_id')->selectRaw('organization_id, count(*) as members');
+        // Where the ticket money went: NaSeRy's fee (less fees returned on refunds) and refunds to buyers.
+        $fees = DB::table('platform_fee_snapshots as f')->join('payments as p', 'p.id', '=', 'f.payment_id')->join('registrations as rg', 'rg.id', '=', 'p.registration_id')
+            ->join('events as e', 'e.id', '=', 'rg.event_id')->groupBy('e.organization_id')->selectRaw('e.organization_id, sum(f.computed_amount) as fee');
+        $refunds = DB::table('payment_refunds as f')->join('payments as p', 'p.id', '=', 'f.payment_id')->join('registrations as rg', 'rg.id', '=', 'p.registration_id')
+            ->join('events as e', 'e.id', '=', 'rg.event_id')->groupBy('e.organization_id')
+            ->selectRaw('e.organization_id, sum(f.amount) as refunded, sum(f.fee_portion_refunded) as fee_returned');
+        // What the organizer paid NaSeRy for its plan (B18).
+        $plans = DB::table('payments as p')->join('subscription_invoices as i', 'i.id', '=', 'p.subscription_invoice_id')->join('subscriptions as sb', 'sb.id', '=', 'i.subscription_id')
+            ->where('p.status', 'paid')->groupBy('sb.organization_id')->selectRaw('sb.organization_id, sum(p.amount) as plans');
 
         return DB::table('organizations as o')
             ->leftJoinSub($sales, 's', 's.organization_id', '=', 'o.id')
@@ -111,16 +130,25 @@ class PlatformAnalytics
             ->leftJoinSub($events, 'e', 'e.organization_id', '=', 'o.id')
             ->leftJoinSub($ratings, 'r', 'r.organization_id', '=', 'o.id')
             ->leftJoinSub($members, 'm', 'm.organization_id', '=', 'o.id')
+            ->leftJoinSub($fees, 'f', 'f.organization_id', '=', 'o.id')
+            ->leftJoinSub($refunds, 'rf', 'rf.organization_id', '=', 'o.id')
+            ->leftJoinSub($plans, 'pl', 'pl.organization_id', '=', 'o.id')
             ->whereNull('o.deleted_at')
             ->when($ids !== null, fn ($q) => $q->whereIn('o.id', $ids), fn ($q) => $q->where('o.approval_status', 'approved')->orderByDesc(DB::raw("coalesce({$sort}, 0)"))->limit($limit))
-            ->get(['o.id', 'o.display_name', 's.sales', 't.tickets', 'e.events', 'e.completed', 'r.rating', 'r.reviews', 'm.members'])
+            ->get(['o.id', 'o.display_name', 's.sales', 't.tickets', 'e.events', 'e.completed', 'r.rating', 'r.reviews', 'm.members',
+                'f.fee', 'rf.refunded', 'rf.fee_returned', 'pl.plans'])
             ->map(fn ($o) => [
                 'id' => $o->id,
                 'name' => $o->display_name,
                 'events' => (int) $o->events,
                 'completed_events' => (int) $o->completed,
                 'tickets_sold' => (int) $o->tickets,
+                // Gross ticket sales: the buyers' money, not NaSeRy's.
                 'sales' => round((float) $o->sales, 2),
+                'refunded' => round((float) $o->refunded, 2),
+                'platform_fee' => round((float) $o->fee - (float) $o->fee_returned, 2),
+                'organizer_net' => round((float) $o->sales - (float) $o->refunded - ((float) $o->fee - (float) $o->fee_returned), 2),
+                'plan_payments' => round((float) $o->plans, 2),
                 'rating' => $o->rating !== null ? round((float) $o->rating, 2) : null,
                 'reviews' => (int) $o->reviews,
                 'members' => (int) $o->members,
@@ -177,14 +205,16 @@ class PlatformAnalytics
         return $this->db->system('admin.events', function () use ($grantedOrgIds, $status, $search) {
             $firstSession = DB::table('event_sessions')->whereNull('deleted_at')->groupBy('event_id')->selectRaw('event_id, min(starts_at) as starts_at, max(ends_at) as ends_at');
             $sold = DB::table('tickets')->whereIn('status', ['valid', 'used'])->groupBy('event_id')->selectRaw('event_id, count(*) as sold');
+            $sales = DB::table('payments as p')->join('registrations as rg', 'rg.id', '=', 'p.registration_id')->where('p.status', 'paid')
+                ->groupBy('rg.event_id')->selectRaw('rg.event_id, sum(p.amount) as sales');
             $rows = DB::table('events as e')->join('organizations as o', 'o.id', '=', 'e.organization_id')
-                ->leftJoinSub($firstSession, 's', 's.event_id', '=', 'e.id')->leftJoinSub($sold, 't', 't.event_id', '=', 'e.id')
+                ->leftJoinSub($firstSession, 's', 's.event_id', '=', 'e.id')->leftJoinSub($sold, 't', 't.event_id', '=', 'e.id')->leftJoinSub($sales, 'ps', 'ps.event_id', '=', 'e.id')
                 ->whereNull('e.deleted_at')
                 ->where(fn ($q) => $q->where(fn ($p) => $p->where('e.visibility', 'public')->whereNot('e.status', 'draft'))->orWhereIn('e.organization_id', $grantedOrgIds))
                 ->when($status, fn ($q) => $q->where('e.status', $status))
                 ->when($search, fn ($q) => $q->where(fn ($w) => $w->where('e.name', 'ilike', '%'.addcslashes($search, '%_\\').'%')->orWhere('o.display_name', 'ilike', '%'.addcslashes($search, '%_\\').'%')))
                 ->orderByRaw('s.starts_at desc nulls last')->limit(200)
-                ->get(['e.id', 'e.name', 'e.status', 'e.visibility', 'e.overall_capacity', 'e.venue_name', 'o.id as org_id', 'o.display_name', 's.starts_at', 's.ends_at', 't.sold']);
+                ->get(['e.id', 'e.name', 'e.status', 'e.visibility', 'e.overall_capacity', 'e.venue_name', 'o.id as org_id', 'o.display_name', 's.starts_at', 's.ends_at', 't.sold', 'ps.sales']);
 
             return [
                 'counts' => $this->totals()['events'],
@@ -198,6 +228,7 @@ class PlatformAnalytics
                     'starts_at' => $e->starts_at ? CarbonImmutable::parse($e->starts_at)->toIso8601String() : null,
                     'ends_at' => $e->ends_at ? CarbonImmutable::parse($e->ends_at)->toIso8601String() : null,
                     'tickets_sold' => (int) $e->sold,
+                    'ticket_sales' => round((float) $e->sales, 2),
                     'capacity' => $e->overall_capacity,
                     'via_grant' => $e->visibility !== 'public' || in_array($e->org_id, $grantedOrgIds, true),
                 ])->values(),

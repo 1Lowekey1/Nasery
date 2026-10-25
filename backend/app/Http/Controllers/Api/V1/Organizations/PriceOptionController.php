@@ -84,6 +84,10 @@ class PriceOptionController extends Controller
             'pricing_unit' => [$required, Rule::in(OrganizationPriceOption::UNITS)],
             'price' => [$required, 'numeric', 'min:0', 'max:999999999.99', 'decimal:0,2'],
             'min_guests' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100000'],
+            // 0048: per_hour / per_day / per_unit options.
+            'unit_label' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'min_quantity' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100000'],
+            'max_quantity' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100000'],
             'organization_service_id' => ['sometimes', 'nullable', 'uuid'],
             'is_active' => ['sometimes', 'boolean'],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:1000'],
@@ -96,6 +100,12 @@ class PriceOptionController extends Controller
 
         if (isset($data['name'])) {
             $data['name'] = trim($data['name']);
+        }
+        if (array_key_exists('unit_label', $data)) {
+            $data['unit_label'] = filled($data['unit_label']) ? trim((string) $data['unit_label']) : null;
+        }
+        if (isset($data['min_quantity'], $data['max_quantity']) && $data['max_quantity'] < $data['min_quantity']) {
+            throw ValidationException::withMessages(['max_quantity' => 'The most a client can pick must be at least the least.']);
         }
 
         return $data;

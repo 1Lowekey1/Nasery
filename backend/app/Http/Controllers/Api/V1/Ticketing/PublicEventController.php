@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use App\Services\Tickets\TicketCards;
+use App\Services\Tickets\TicketMailer;
 use App\Services\Tickets\TicketPdf;
 
 /**
@@ -25,6 +26,7 @@ class PublicEventController extends Controller
         private readonly Payments $payments,
         private readonly TicketCards $cards,
         private readonly TicketPdf $pdf,
+        private readonly TicketMailer $mailer,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -34,9 +36,9 @@ class PublicEventController extends Controller
         return ApiResponse::success($this->registration->events($data));
     }
 
-    public function show(string $event): JsonResponse
+    public function show(Request $request, string $event): JsonResponse
     {
-        return ApiResponse::success($this->registration->event($event)
+        return ApiResponse::success($this->registration->event($event, $this->linkKey($request))
             ?? throw new ApiException(ErrorCode::NotFound, 'This event isn\'t open to the public.', 404));
     }
 
@@ -49,7 +51,7 @@ class PublicEventController extends Controller
             'attendees.*.email' => ['nullable', 'email', 'max:254'],
         ]);
 
-        $result = $this->registration->register($request->user(), $event, $data['ticket_type_id'], $data['attendees']);
+        $result = $this->registration->register($request->user(), $event, $data['ticket_type_id'], $data['attendees'], $this->linkKey($request));
 
         if ($result['status'] === 'confirmed') {
             return ApiResponse::created($result, 'You\'re registered. Your QR tickets are in My Tickets.');
@@ -79,10 +81,29 @@ class PublicEventController extends Controller
         ]);
     }
 
+    /** The holder e-mails one of their tickets to themselves again (it was e-mailed on purchase). */
+    public function emailMine(Request $request, string $ticket): JsonResponse
+    {
+        if (! $this->registration->owns($request->user(), $ticket)) {
+            throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
+        }
+        $result = $this->mailer->resend($ticket);
+
+        return ApiResponse::success($result, TicketMailer::resendMessage($result));
+    }
+
     public function cancelMine(Request $request, string $ticket): JsonResponse
     {
         $this->registration->cancelMine($request->user(), $ticket);
 
         return ApiResponse::success(null, 'Ticket cancelled.');
+    }
+
+    /** A private event's link key (?key=… on the page, or in the request body). */
+    private function linkKey(Request $request): ?string
+    {
+        $key = $request->input('key');
+
+        return is_string($key) && strlen($key) <= 64 ? $key : null;
     }
 }

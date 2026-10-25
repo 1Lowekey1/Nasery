@@ -45,4 +45,10 @@ class HttpSecurityTest extends TestCase
         // foreign origin (or "*") being granted with credentials.
         $this->assertNotContains($response->headers->get('Access-Control-Allow-Origin'), ['https://evil.example', '*']);
     }
+
+    public function test_signed_out_api_request_is_401_even_without_json_accept(): void
+    {
+        // No "Accept: application/json" (curl, scanners): still a JSON 401, not a 500 from a redirect to a missing login route.
+        $this->get('/api/v1/auth/me')->assertUnauthorized()->assertJsonPath('success', false);
+    }
 }

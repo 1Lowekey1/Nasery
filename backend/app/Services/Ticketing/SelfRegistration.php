@@ -2,6 +2,7 @@
 
 namespace App\Services\Ticketing;
 
+use App\Services\Media\ImageStore;
 use App\Enums\AdmissionType;
 use App\Enums\HoldStatus;
 use App\Enums\RegistrationSource;
@@ -70,13 +71,16 @@ class SelfRegistration
                 ->orderByRaw('starts_at asc nulls last')
                 ->paginate(perPage: 12, page: (int) ($filters['page'] ?? 1));
 
-            $prices = DB::table('public_ticket_types')->whereIn('event_id', $page->getCollection()->pluck('id'))
-                ->selectRaw('event_id, min(price) as from_price, count(*) as tiers')->groupBy('event_id')->get()->keyBy('event_id');
+            $tiers = DB::table('public_ticket_types')->whereIn('event_id', $page->getCollection()->pluck('id'))
+                ->orderBy('sort_order')->orderBy('price')->get(['id', 'event_id', 'name', 'price'])->groupBy('event_id');
 
             return $page->through(fn ($e) => [
                 ...$this->eventCard($e),
-                'from_price' => $prices[$e->id]->from_price ?? null,
-                'tiers' => (int) ($prices[$e->id]->tiers ?? 0),
+                'excerpt' => $e->description ? mb_strimwidth($e->description, 0, 200, '…') : null,
+                'from_price' => ($tiers[$e->id] ?? collect())->min('price'),
+                'tiers' => ($tiers[$e->id] ?? collect())->count(),
+                // Names and prices for the listing cards (details and availability: the event page).
+                'ticket_types' => ($tiers[$e->id] ?? collect())->map(fn ($t) => ['id' => $t->id, 'name' => $t->name, 'price' => $t->price])->values(),
             ]);
         });
     }
@@ -84,16 +88,16 @@ class SelfRegistration
     /**
      * @return array<string, mixed>|null
      */
-    public function event(string $eventId): ?array
+    public function event(string $eventId, ?string $key = null): ?array
     {
-        return $this->db->system('public.event', function () use ($eventId) {
-            $e = DB::table('public_events')->where('id', $eventId)->first();
+        return $this->db->system('public.event', function () use ($eventId, $key) {
+            $e = EventGate::event($eventId, $key)->first();
 
             if ($e === null) {
                 return null;
             }
 
-            $tiers = DB::table('public_ticket_types')->where('event_id', $eventId)->orderBy('sort_order')->orderBy('price')->get();
+            $tiers = EventGate::tiers($eventId, $key)->orderBy('sort_order')->orderBy('price')->get();
             $remaining = $this->capacity->remaining($tiers->pluck('id')->all());
             $sessions = DB::table('event_sessions')->where('event_id', $eventId)->whereNull('deleted_at')
                 ->where('status', '!=', 'cancelled')->orderBy('starts_at')->get(['name', 'starts_at', 'ends_at']);
@@ -101,6 +105,7 @@ class SelfRegistration
 
             return [
                 ...$this->eventCard($e),
+                'is_private' => ($e->visibility ?? 'public') !== 'public',
                 'description' => $e->description,
                 'latitude' => $e->latitude !== null ? (float) $e->latitude : null,
                 'longitude' => $e->longitude !== null ? (float) $e->longitude : null,
@@ -141,11 +146,11 @@ class SelfRegistration
      * @param  list<array{full_name: string, email?: ?string}>  $attendees
      * @return array<string, mixed>
      */
-    public function register(User $user, string $eventId, string $tierId, array $attendees): array
+    public function register(User $user, string $eventId, string $tierId, array $attendees, ?string $key = null): array
     {
-        $result = $this->db->system('public.register', function () use ($user, $eventId, $tierId, $attendees) {
-            // The public views are the gate: public, published, approved organizer, tier on sale.
-            $publicTier = DB::table('public_ticket_types')->where('id', $tierId)->where('event_id', $eventId)->first();
+        $result = $this->db->system('public.register', function () use ($user, $eventId, $tierId, $attendees, $key) {
+            // The gate: public (or private with its link), published, approved organizer, tier on sale.
+            $publicTier = EventGate::tiers($eventId, $key)->where('id', $tierId)->first();
 
             if ($publicTier === null) {
                 throw new ApiException(ErrorCode::NotFound, 'This ticket is not available.', 404);
@@ -319,6 +324,7 @@ class SelfRegistration
             'organizer' => ['name' => $e->organizer_name, 'slug' => $e->organizer_slug],
             'venue_name' => $e->venue_name,
             'venue_address' => $e->venue_address,
+            'cover_url' => ImageStore::url($e->cover_path ?? null),
             'timezone' => $e->timezone,
             'starts_at' => $e->starts_at ? CarbonImmutable::parse($e->starts_at)->setTimezone($e->timezone)->toIso8601String() : null,
             'ends_at' => $e->ends_at ? CarbonImmutable::parse($e->ends_at)->setTimezone($e->timezone)->toIso8601String() : null,

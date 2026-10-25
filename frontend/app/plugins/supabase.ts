@@ -1,21 +1,19 @@
 import { createClient } from '@supabase/supabase-js'
 
 export default defineNuxtPlugin(() => {
-  const config = useRuntimeConfig()
+    const config = useRuntimeConfig()
 
-  const supabaseUrl: string = config.public.supabaseUrl as string
-  const supabaseKey: string = config.public.supabaseKey as string
+    // Public browsing and Laravel authentication do not require Supabase.
+    if (!config.public.supabaseUrl || !config.public.supabaseKey) return
 
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing NUXT_PUBLIC_SUPABASE_URL or NUXT_PUBLIC_SUPABASE_KEY in .env')
-  }
+    const supabase = createClient(
+        config.public.supabaseUrl,
+        config.public.supabaseKey
+    )
 
-  const supabase = createClient(
-    supabaseUrl,
-    supabaseKey
-  )
-
-  return {
-    provide: { supabase },
-  }
+    return {
+        provide: {
+            supabase,
+        },
+    }
 })

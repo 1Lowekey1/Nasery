@@ -93,12 +93,28 @@ class PreparationController extends Controller
         $data = $this->taskData($request, creating: false);
 
         // B8: an assignee without task.manage may move their own task's status (paper: team members update task progress).
-        $statusOnly = array_keys($data) === ['status'];
+        // 0044: …and leave a completion note with it.
+        $statusOnly = $data !== [] && array_diff(array_keys($data), ['status', 'completion_note']) === [];
         $this->authorizeFor($request, $organization, $event, 'task.manage',
             orIf: fn () => $statusOnly && $this->team->isAssignee($event, $task, $request->user()));
-        $this->preparation->updateTask($event, $task, $data);
+        $reviewer = $this->access->canOnEvent($request->user(), $event, 'task.manage') ? $request->user()->id : null;
+        $this->preparation->updateTask($event, $task, $data, $reviewer);
 
         return ApiResponse::success($this->payload($event), 'Task saved.');
+    }
+
+    /** 0044: verify a finished task, or ask for changes (back to in progress, with a note). */
+    public function reviewTask(Request $request, Organization $organization, Event $event, Task $task): JsonResponse
+    {
+        $this->authorizeFor($request, $organization, $event, 'task.manage');
+        $data = $request->validate([
+            'decision' => ['required', Rule::in(['verified', 'changes_requested'])],
+            'note' => ['required_if:decision,changes_requested', 'nullable', 'string', 'min:3', 'max:1000'],
+        ]);
+        $verified = $data['decision'] === 'verified';
+        $this->preparation->reviewTask($event, $task, $verified, $data['note'] ?? null, $request->user()->id);
+
+        return ApiResponse::success($this->payload($event), $verified ? 'Task verified.' : 'Changes requested. The assignees were told.');
     }
 
     public function destroyTask(Request $request, Organization $organization, Event $event, Task $task): JsonResponse
@@ -144,6 +160,7 @@ class PreparationController extends Controller
             'due_at' => ['sometimes', 'nullable', 'date'],
             'priority' => ['sometimes', Rule::enum(TaskPriority::class)],
             'status' => ['sometimes', Rule::enum(TaskStatus::class)],
+            'completion_note' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ]);
     }
 
@@ -193,6 +210,11 @@ class PreparationController extends Controller
                     'due_local' => $t->due_at?->setTimezone($event->timezone)->format('Y-m-d\TH:i'),
                     'assignee_ids' => collect($assignees[$t->id] ?? [])->pluck('event_member_id')->values(),
                     'mine' => $myEventMember !== null && collect($assignees[$t->id] ?? [])->contains('event_member_id', $myEventMember),
+                    // 0044: the completion note and the organizer's review.
+                    'completion_note' => $t->completion_note,
+                    'review_status' => $t->review_status,
+                    'review_note' => $t->review_note,
+                    'reviewed_at' => $t->reviewed_at?->toIso8601String(),
                 ])->values(),
             ])->values(),
         ];

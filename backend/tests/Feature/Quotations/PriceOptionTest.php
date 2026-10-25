@@ -23,12 +23,42 @@ class PriceOptionTest extends TestCase
         ])->assertCreated()->assertJsonPath('data.price', '450.00')->assertJsonPath('data.pricing_unit', 'per_guest')->json('data.id');
         $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'Full-day coordination', 'pricing_unit' => 'flat', 'price' => 45000])->assertCreated();
 
-        $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'x', 'pricing_unit' => 'per_hour', 'price' => -1])
+        $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'x', 'pricing_unit' => 'per_week', 'price' => -1])
             ->assertUnprocessable()->assertJsonStructure(['error' => ['details' => ['fields' => ['name', 'pricing_unit', 'price']]]]);
 
         $this->actingAs($owner)->spaJson('PATCH', "{$base}/{$a}", ['price' => 480.5])->assertOk()->assertJsonPath('data.price', '480.50');
         $this->actingAs($owner)->spaJson('GET', $base)->assertOk()->assertJsonCount(2, 'data');
         $this->assertDatabaseHas('audit_logs', ['action' => 'organization.price_option_added', 'entity_id' => $a]);
+    }
+
+    public function test_hourly_daily_and_per_item_options_with_quantity_limits(): void
+    {
+        [$org, $owner] = $this->listedOrganizer('Unit Co');
+        $base = "/api/v1/organizations/{$org->id}/price-options";
+
+        // 0048: per item with a label and a 2–8 range; per hour with a minimum only.
+        $this->actingAs($owner)->spaJson('POST', $base, [
+            'name' => 'Round tables', 'pricing_unit' => 'per_unit', 'unit_label' => ' table ', 'price' => 500, 'min_quantity' => 2, 'max_quantity' => 8,
+        ])->assertCreated()->assertJsonPath('data.unit_label', 'table')->assertJsonPath('data.min_quantity', 2)->assertJsonPath('data.max_quantity', 8);
+        $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'Emcee', 'pricing_unit' => 'per_hour', 'price' => 2000, 'min_quantity' => 3])
+            ->assertCreated()->assertJsonPath('data.max_quantity', null);
+        $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'Venue', 'pricing_unit' => 'per_day', 'price' => 30000])->assertCreated();
+
+        // Most below least is refused.
+        $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'Bad range', 'pricing_unit' => 'per_unit', 'price' => 1, 'min_quantity' => 5, 'max_quantity' => 2])
+            ->assertUnprocessable()->assertJsonStructure(['error' => ['details' => ['fields' => ['max_quantity']]]]);
+
+        // Estimate settings on the profile, and everything on the public page.
+        $this->actingAs($owner)->spaJson('PATCH', "/api/v1/organizations/{$org->id}/profile", [
+            'estimate_service_charge_percent' => 10, 'estimate_tax_percent' => 12, 'estimate_note' => 'Final price after a site visit.',
+        ])->assertOk()->assertJsonPath('data.estimate_tax_percent', 12);
+        $this->actingAs($owner)->spaJson('PATCH', "/api/v1/organizations/{$org->id}/profile", ['estimate_tax_percent' => 25])->assertUnprocessable();
+
+        $slug = DB::table('organizations')->where('id', $org->id)->value('slug');
+        $public = $this->spaJson('GET', "/api/v1/marketplace/organizers/{$slug}")->assertOk();
+        $public->assertJsonPath('data.estimate.service_charge_percent', 10)->assertJsonPath('data.estimate.note', 'Final price after a site visit.');
+        $tables = collect($public->json('data.price_options'))->firstWhere('name', 'Round tables');
+        $this->assertSame(['per_unit', 'table', 2, 8], [$tables['pricing_unit'], $tables['unit_label'], $tables['min_quantity'], $tables['max_quantity']]);
     }
 
     public function test_options_stay_inside_their_organization(): void

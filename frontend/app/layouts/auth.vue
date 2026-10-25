@@ -1,14 +1,18 @@
 <script setup lang="ts">
 const route = useRoute()
 const activeTab = computed(() => (route.path === '/register' ? 'register' : 'signin'))
+const authQuery = computed(() => {
+	const redirect = inquiryRedirect(route.query.redirect)
+	return redirect ? { redirect } : {}
+})
 </script>
 
 <template>
 	<div class="relative flex min-h-screen flex-col bg-gray-50 lg:flex-row">
-		<div class="fixed inset-x-0 top-0 z-50 h-1 bg-gray-900" />
+		<!-- <div class="fixed inset-x-0 top-0 z-50 h-1 bg-gray-900" /> -->
 
 		<div
-			class="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-primary-600 to-primary-900 px-10 py-12 text-white lg:flex lg:w-1/2 lg:px-16 lg:py-14">
+			class="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-primary-600 to-primary-900 px-10 py-12 text-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-1/2 lg:self-start lg:px-16 lg:py-14">
 			<div class="pointer-events-none absolute inset-0"
 				style="background-image: radial-gradient(rgba(255,255,255,0.12) 1.5px, transparent 1.5px); background-size: 22px 22px;" />
 
@@ -48,14 +52,15 @@ const activeTab = computed(() => (route.path === '/register' ? 'register' : 'sig
 		</div>
 
 		<div class="flex w-full flex-1 flex-col overflow-y-auto px-4 py-8 sm:px-8 sm:py-10 lg:w-1/2 lg:px-12 lg:py-14">
+			<NuxtLink to="/organizers" class="mb-5 self-start text-sm font-semibold text-primary-700 hover:underline">← Browse organizers without signing in</NuxtLink>
 			<div class="mb-6 flex justify-center sm:mb-8 lg:justify-end">
 				<div class="inline-flex rounded-full border border-gray-200 bg-white p-1">
-					<NuxtLink to="/login"
+					<NuxtLink :to="{ path: '/login', query: authQuery }"
 						class="whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-semibold sm:px-6"
 						:class="activeTab === 'signin' ? 'bg-primary-700 text-white' : 'text-gray-700'">
 						Sign In
 					</NuxtLink>
-					<NuxtLink to="/register"
+					<NuxtLink :to="{ path: '/register', query: authQuery }"
 						class="whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-semibold sm:px-6"
 						:class="activeTab === 'register' ? 'bg-primary-700 text-white' : 'text-gray-700'">
 						Register

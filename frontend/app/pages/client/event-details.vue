@@ -1,105 +1,1732 @@
 <template>
-	<div class="mx-auto max-w-3xl">
-		<h1 class="text-2xl font-extrabold text-gray-900">Your events</h1>
-		<p class="mt-1 mb-6 text-gray-500">Events your organizers created from quotations you accepted.</p>
+	<div>
+		<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+			<div>
+				<NuxtLink to="/client/my-events"
+					class="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition hover:text-[#285F6b]">
+					<IconBase name="arrow-left" class="h-4 w-4" />
+					My Events
+				</NuxtLink>
 
-		<Alert v-if="error" type="danger" :text="error" />
-		<div v-if="loading" class="py-16 text-center text-sm text-gray-500">Loading your events…</div>
+				<p class="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-[#285F6b]">
+					Client Portal
+				</p>
 
-		<div v-else-if="!events.length" class="flex flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white px-6 py-20 text-center">
-			<div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
-				<IconBase name="calendar" class="h-7 w-7" />
+				<h1 class="mt-1 text-2xl font-black tracking-tight text-gray-900 sm:text-3xl">
+					Event details
+				</h1>
+
+				<p class="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+					Review your confirmed plan, organizer, attendee registration, and issued tickets in one place.
+				</p>
 			</div>
-			<h2 class="mt-4 text-lg font-bold text-gray-900">No events yet</h2>
-			<p class="mt-1 max-w-sm text-sm text-gray-500">When you accept a quotation, your organizer sets up the event here and you can follow it.</p>
 		</div>
 
-		<div v-else class="space-y-4">
-			<article v-for="e in events" :key="e.id" class="rounded-2xl border bg-white p-6"
-				:class="selected === e.id ? 'border-primary-300' : 'border-gray-200'">
-				<div class="flex flex-wrap items-start justify-between gap-3">
-					<div>
-						<h2 class="text-lg font-bold text-gray-900">{{ e.name }}</h2>
-						<p class="text-sm text-gray-500">{{ e.event_type ?? 'Event' }}<template v-if="e.organizer"> · by
-							<NuxtLink v-if="e.organizer.slug" :to="`/organizers/${e.organizer.slug}`" class="font-semibold text-primary-700">{{ e.organizer.display_name }}</NuxtLink>
-							<template v-else>{{ e.organizer.display_name }}</template></template>
-						</p>
-					</div>
-					<span class="rounded-full px-3 py-1 text-xs font-semibold" :class="eventStatusClasses[e.status]">{{ clientStatus[e.status] }}</span>
-				</div>
+		<div v-if="isLoading" class="rounded-2xl border border-gray-200 bg-white p-10 text-center">
+			<IconBase name="refresh-cw" class="mx-auto h-5 w-5 animate-spin text-gray-400" />
 
-				<p v-if="e.status === 'cancelled'" class="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">Cancelled by the organizer: {{ e.cancelled_reason }}</p>
+			<p class="mt-2 text-sm text-gray-500">
+				Loading event details...
+			</p>
+		</div>
 
-				<div class="mt-4 grid gap-4 sm:grid-cols-2">
-					<div>
-						<div class="text-xs text-gray-500">When</div>
-						<ul class="mt-1 space-y-1 text-sm font-semibold text-gray-900">
-							<li v-for="s in e.sessions" :key="s.id" :class="s.status === 'cancelled' ? 'text-gray-400 line-through' : ''">
-								<span v-if="s.name">{{ s.name }}: </span>{{ sessionLabel(s, e.timezone) }}
-							</li>
-							<li v-if="!e.sessions.length" class="font-normal text-gray-500">Date to be confirmed</li>
-						</ul>
-					</div>
-					<div>
-						<div class="text-xs text-gray-500">Where</div>
-						<div class="mt-1 text-sm font-semibold text-gray-900">{{ e.venue_name || 'Venue to be confirmed' }}</div>
-						<div v-if="e.venue_address" class="text-sm text-gray-500">{{ e.venue_address }}</div>
-						<a v-if="e.latitude !== null" :href="`https://www.openstreetmap.org/?mlat=${e.latitude}&mlon=${e.longitude}#map=16/${e.latitude}/${e.longitude}`"
-							target="_blank" rel="noopener noreferrer" class="text-xs font-semibold text-primary-700 underline">View on map ↗</a>
-					</div>
-					<div>
-						<div class="text-xs text-gray-500">Guests</div>
-						<div class="mt-1 text-sm font-semibold text-gray-900">{{ e.overall_capacity ?? '—' }}</div>
-					</div>
-					<div>
-						<div class="text-xs text-gray-500">Organizer</div>
-						<div class="mt-1 text-sm text-gray-900">
-							{{ e.organizer?.display_name ?? '—' }}
-							<span class="block text-gray-500">{{ [e.organizer?.contact_email, e.organizer?.contact_phone].filter(Boolean).join(' · ') }}</span>
+		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+			{{ errorMessage }}
+		</div>
+
+		<div v-else-if="eventData" class="space-y-6">
+			<section class="overflow-hidden rounded-3xl border border-[#285F6b]/15 bg-white shadow-sm">
+				<div class="bg-[#285F6b] px-5 py-6 text-white sm:px-7 sm:py-7">
+					<div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+						<div class="min-w-0">
+							<div class="flex flex-wrap items-center gap-2">
+								<span class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-white/90">
+									{{ eventData.event.event_type }}
+								</span>
+								<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-300 px-3 py-1 text-[11px] font-bold text-emerald-950">
+									<IconBase name="check-circle" class="h-3.5 w-3.5" />
+									{{ stateCopy.badge }}
+								</span>
+								<span v-if="isPrivate" class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold text-white/90">Private</span>
+							</div>
+
+							<h2 class="mt-4 text-2xl font-black tracking-tight sm:text-3xl">
+								{{ eventData.event.name }}
+							</h2>
+
+							<p class="mt-2 max-w-2xl text-sm leading-6 text-white/70">
+								{{ stateCopy.text }}
+							</p>
+						</div>
+
+						<div class="flex shrink-0 items-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
+							<IconBase name="calendar" class="h-5 w-5 text-white/80" />
+							<div>
+								<p class="text-[10px] font-bold uppercase tracking-[0.14em] text-white/60">Event date</p>
+								<p class="mt-0.5 text-sm font-bold">{{ formatDate(eventData.event.event_date) }}</p>
+							</div>
 						</div>
 					</div>
-					<div v-if="e.contact_name || e.contact_email || e.contact_phone">
-						<div class="text-xs text-gray-500">Event point person</div>
-						<div class="mt-1 text-sm text-gray-900">{{ [e.contact_name, e.contact_email, e.contact_phone].filter(Boolean).join(' · ') }}</div>
+				</div>
+
+				<div class="grid gap-4 p-5 sm:p-7 lg:grid-cols-[1.35fr_0.65fr]">
+					<div class="rounded-2xl border border-gray-100 bg-gray-50/70 p-5">
+						<div class="flex items-start gap-4">
+							<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#285F6b]/10 text-[#285F6b]">
+								<IconBase name="map-pin" class="h-5 w-5" />
+							</div>
+							<div class="min-w-0">
+								<p class="text-xs font-bold uppercase tracking-[0.12em] text-gray-400">Venue</p>
+								<p class="mt-2 text-sm font-semibold leading-6 text-gray-800">
+									{{ eventData.event.location || 'Venue not specified' }}
+								</p>
+							</div>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-2 gap-3">
+						<div class="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+							<IconBase name="users" class="h-5 w-5 text-[#285F6b]" />
+							<p class="mt-4 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400">Guests</p>
+							<p class="mt-1 text-xl font-black text-gray-900">{{ eventData.event.expected_guests ?? '—' }}</p>
+						</div>
+						<div class="rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+							<IconBase name="clock" class="h-5 w-5 text-[#285F6b]" />
+							<p class="mt-4 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400">Schedule</p>
+							<p class="mt-1 text-sm font-black text-gray-900">
+								{{ formatTime(eventData.event.start_time) }}–{{ formatTime(eventData.event.end_time) }}
+							</p>
+						</div>
+					</div>
+
+					<div v-if="eventData.event.description" class="lg:col-span-2 border-t border-gray-100 pt-4">
+						<p class="text-xs font-bold uppercase tracking-[0.12em] text-gray-400">Event notes</p>
+						<p class="mt-2 text-sm leading-6 text-gray-600">{{ eventData.event.description }}</p>
 					</div>
 				</div>
-				<ClientLiveAttendance v-if="['published', 'ongoing', 'completed'].includes(e.status)" :event-id="e.id" />
-				<NuxtLink v-if="e.status === 'completed'" :to="`/client/event-report?event=${e.id}`" class="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700">
-					<IconBase name="file-text" class="h-4 w-4" /> Post-event report
-				</NuxtLink>
-				<ClientReviewPanel v-if="e.status === 'completed' && e.organizer" :event-id="e.id" :organizer="e.organizer.display_name" />
-				<p v-if="e.description" class="mt-4 whitespace-pre-line text-sm text-gray-700">{{ e.description }}</p>
-			</article>
+			</section>
+
+			<div class="grid gap-5 lg:grid-cols-5">
+				<section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-2">
+					<div class="flex items-center gap-3">
+						<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#285F6b]/10 text-[#285F6b]">
+							<IconBase name="user" class="h-5 w-5" />
+						</div>
+						<div>
+							<p class="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-400">Your event partner</p>
+							<h3 class="text-lg font-extrabold text-gray-900">Selected organizer</h3>
+						</div>
+					</div>
+
+					<div class="mt-6 flex items-center gap-4 rounded-2xl bg-gray-50 p-4">
+						<div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#285F6b] text-base font-black text-white">
+							{{ organizerInitials }}
+						</div>
+						<div class="min-w-0">
+							<p class="truncate font-extrabold text-gray-900">{{ organizerName }}</p>
+							<p class="mt-1 flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+								<IconBase name="check-circle" class="h-3.5 w-3.5" /> Confirmed organizer
+							</p>
+						</div>
+					</div>
+
+					<NuxtLink v-if="inquiryId" :to="`/client/inquiries/${inquiryId}#messages`"
+						class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700">
+						<IconBase name="message" class="h-4 w-4" />
+						Message organizer
+					</NuxtLink>
+				</section>
+
+				<section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 lg:col-span-3">
+					<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+						<div class="flex items-center gap-3">
+							<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#285F6b]/10 text-[#285F6b]">
+								<IconBase name="briefcase" class="h-5 w-5" />
+							</div>
+							<div>
+								<p class="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-400">Accepted package</p>
+								<h3 class="text-lg font-extrabold text-gray-900">{{ eventData.quotation.package_name || 'Custom Package' }}</h3>
+							</div>
+						</div>
+						<div class="rounded-2xl bg-[#285F6b]/8 px-4 py-3 text-left sm:text-right">
+							<p class="text-[10px] font-bold uppercase tracking-[0.12em] text-[#285F6b]/70">Agreed amount</p>
+							<p class="mt-1 text-xl font-black text-[#285F6b]">{{ formatCurrency(eventData.quotation.quotation_amount) }}</p>
+						</div>
+					</div>
+
+					<div v-if="receipt.items.length" class="mt-5 border-t border-gray-100 pt-5">
+						<p class="text-xs font-bold uppercase tracking-[0.12em] text-gray-400">What's included</p>
+						<div class="mt-3 overflow-hidden rounded-xl border border-gray-100 text-sm">
+							<div v-for="(line, i) in receipt.items" :key="i" class="flex items-start justify-between gap-3 border-b border-gray-100 px-3 py-2">
+								<span class="min-w-0 text-gray-700">{{ line.label }}</span>
+								<span class="shrink-0 font-semibold tabular-nums text-gray-900">{{ formatCurrency(line.amount) }}</span>
+							</div>
+							<template v-if="receipt.charges.length">
+								<div class="flex justify-between gap-3 border-b border-gray-100 bg-gray-50/60 px-3 py-2 text-gray-600"><span>Subtotal</span><span class="tabular-nums">{{ formatCurrency(receipt.subtotal) }}</span></div>
+								<div v-for="(c, i) in receipt.charges" :key="`c${i}`" class="flex justify-between gap-3 border-b border-gray-100 px-3 py-2 text-gray-600">
+									<span>{{ c.label }} <span class="text-gray-400">({{ c.percent }}%)</span></span><span class="tabular-nums">{{ formatCurrency(c.amount) }}</span>
+								</div>
+							</template>
+							<div class="flex justify-between gap-3 bg-gray-50 px-3 py-2.5 font-extrabold text-gray-950"><span>Total</span><span class="tabular-nums">{{ formatCurrency(eventData.quotation.quotation_amount) }}</span></div>
+						</div>
+					</div>
+				</section>
+			</div>
+
+			<!-- B16: the client reviews the organizer once the event is completed -->
+			<ClientReviewPanel v-if="eventData.event?.id && eventData.event.status === 'completed' && eventData.organizer"
+				:event-id="String(eventData.event.id)" :organizer="eventData.organizer.company_name || eventData.organizer.name || 'your organizer'" />
+
+			<div v-if="showRegistrationSection" class="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+				<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+					<div>
+						<h3 class="text-lg font-bold text-gray-900">
+							{{ isPrivate ? 'Guests & tickets' : 'Registration &amp; Tickets' }}
+						</h3>
+
+						<p class="mt-1 text-sm text-gray-500">
+							{{ isPrivate
+								? (registrationAvailable ? 'Your organizer invites your guests. Share this private link with people who should get a ticket themselves.' : 'Your organizer invites your guests; each gets a QR invite.')
+								: 'Share the registration form with attendees and manage generated tickets.' }}
+						</p>
+					</div>
+					<div v-if="registrationAvailable"
+						class="flex w-full flex-wrap items-center justify-center gap-3 xl:w-auto xl:justify-end">
+						<button v-if="publicRegistrationUrl" type="button"
+							class="inline-flex h-11 min-w-[150px] items-center justify-center gap-2.5 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:bg-gray-50 hover:shadow-md"
+							@click="copyRegistrationLink">
+							<svg v-if="registrationLinkCopied" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+								fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+								stroke-linejoin="round" class="h-4 w-4 shrink-0 text-emerald-600">
+								<path d="M20 6 9 17l-5-5" />
+							</svg>
+
+							<svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+								stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+								class="h-4 w-4 shrink-0">
+								<rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+								<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+							</svg>
+
+							<span class="leading-none">
+								{{
+									registrationLinkCopied
+										? 'Copied'
+										: 'Copy Link'
+								}}
+							</span>
+						</button>
+
+						<NuxtLink v-if="publicRegistrationPath" :to="publicRegistrationPath" target="_blank"
+							class="inline-flex h-11 min-w-[180px] items-center justify-center gap-2.5 rounded-lg border border-[#285F6b]/30 bg-white px-4 text-sm font-semibold text-[#285F6b] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#285F6b]/50 hover:bg-[#285F6b]/5 hover:shadow-md">
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+								stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+								class="h-4 w-4 shrink-0">
+								<path d="M15 3h6v6" />
+								<path d="M10 14 21 3" />
+								<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+							</svg>
+
+							<span class="leading-none">
+								Open Form
+							</span>
+						</NuxtLink>
+
+
+
+					</div>
+				</div>
+
+				<div v-if="registrationSuccess" class="mt-5 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+					<div class="flex items-start gap-3">
+						<IconBase name="check-circle" class="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+
+						<div>
+							<p class="text-sm font-semibold text-green-800">
+								{{ registrationSuccess }}
+							</p>
+
+							<p v-if="latestTicket" class="mt-1 text-xs text-green-700">
+								{{ latestTicket.ticket_id }}
+								has been generated and is ready for check-in.
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<div v-if="!registrationAvailable && !isPrivate" class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+					<div class="flex items-start gap-3">
+						<IconBase name="alert-circle" class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+
+						<div>
+							<p class="text-sm font-bold text-gray-900">
+								Registration is not available yet
+							</p>
+
+							<p class="mt-1 text-sm text-gray-600">
+								The organizer has not enabled public registration for this event.
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<template v-else>
+					<div v-if="availableTicketTypes.length" class="mt-6">
+						<div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+							<div>
+								<div class="flex items-center gap-2">
+									<div
+										class="flex h-8 w-8 items-center justify-center rounded-xl bg-[#285F6b]/10 text-[#285F6b]">
+										<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+											stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+											stroke-linejoin="round" class="h-4 w-4">
+											<path
+												d="M2 9a3 3 0 0 0 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 0 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+											<path d="M13 5v2" />
+											<path d="M13 17v2" />
+											<path d="M13 11v2" />
+										</svg>
+									</div>
+
+									<h4 class="text-base font-extrabold text-gray-900">
+										Available Ticket Types
+									</h4>
+								</div>
+
+								<p class="mt-1 pl-10 text-xs text-gray-500">
+									Choose the pass that best fits your attendee.
+								</p>
+							</div>
+
+							<span
+								class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-700">
+								<span class="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+								{{ availableTicketTypes.length }}
+								{{ availableTicketTypes.length === 1 ? 'pass available' : 'passes available' }}
+							</span>
+						</div>
+
+						<div class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+							<div v-for="ticketType in availableTicketTypes" :key="ticketType.id"
+								class="group relative overflow-hidden rounded-[22px] border border-[#285F6b]/15 bg-white shadow-[0_8px_30px_rgba(40,95,107,0.07)] transition-all duration-300 hover:-translate-y-1 hover:border-[#285F6b]/35 hover:shadow-[0_18px_45px_rgba(40,95,107,0.16)]">
+								<div
+									class="relative overflow-hidden bg-gradient-to-br from-[#285F6b] via-[#2f6f7c] to-[#3f8a99] px-5 pb-6 pt-5 text-white">
+									<div
+										class="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-white/10" />
+									<div
+										class="pointer-events-none absolute -bottom-10 right-12 h-20 w-20 rounded-full bg-white/5" />
+
+									<div class="relative flex items-start justify-between gap-4">
+										<div class="min-w-0">
+											<p class="text-[10px] font-bold uppercase tracking-[0.22em] text-white/65">
+												NaSeRy Event Pass
+											</p>
+
+											<h5 class="mt-2 truncate text-xl font-black tracking-tight">
+												{{ ticketType.name }}
+											</h5>
+										</div>
+
+										<div
+											class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10 backdrop-blur-sm">
+											<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+												stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+												stroke-linejoin="round" class="h-5 w-5">
+												<path
+													d="M2 9a3 3 0 0 0 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 0 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+												<path d="M13 5v2" />
+												<path d="M13 17v2" />
+												<path d="M13 11v2" />
+											</svg>
+										</div>
+									</div>
+								</div>
+
+								<div class="relative px-5 pb-5 pt-4">
+									<div
+										class="absolute -left-3.5 top-7 h-7 w-7 rounded-full border border-[#285F6b]/10 bg-[#f8fafb]" />
+									<div
+										class="absolute -right-3.5 top-7 h-7 w-7 rounded-full border border-[#285F6b]/10 bg-[#f8fafb]" />
+
+									<div class="border-b border-dashed border-gray-200 pb-4">
+										<div class="flex items-end justify-between gap-3">
+											<div>
+												<p
+													class="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
+													Pass Price
+												</p>
+
+												<p class="mt-1 text-2xl font-black tracking-tight text-[#285F6b]">
+													{{ formatCurrency(ticketType.price) }}
+												</p>
+											</div>
+
+											<span
+												class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+												<span class="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+												Available
+											</span>
+										</div>
+									</div>
+
+									<div class="mt-4 grid grid-cols-2 gap-3">
+										<div class="rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-3">
+											<div class="flex items-center gap-2 text-gray-400">
+												<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+													stroke="currentColor" stroke-width="1.8" class="h-4 w-4">
+													<path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+													<circle cx="10" cy="7" r="4" />
+												</svg>
+												<span class="text-[10px] font-bold uppercase tracking-wide">
+													Capacity
+												</span>
+											</div>
+
+											<p class="mt-1.5 text-lg font-extrabold text-gray-900">
+												{{ ticketType.capacity }}
+											</p>
+										</div>
+
+										<div class="rounded-xl border border-[#285F6b]/10 bg-[#285F6b]/5 px-3.5 py-3">
+											<div class="flex items-center gap-2 text-[#285F6b]/60">
+												<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+													stroke="currentColor" stroke-width="1.8" class="h-4 w-4">
+													<path d="M20 6 9 17l-5-5" />
+												</svg>
+
+												<span class="text-[10px] font-bold uppercase tracking-wide">
+													Registration
+												</span>
+											</div>
+
+											<p class="mt-1.5 text-sm font-extrabold text-[#285F6b]">
+												Open
+											</p>
+										</div>
+									</div>
+
+									<div
+										class="mt-4 flex items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-gray-50 to-white px-3.5 py-3">
+										<div class="flex items-center gap-2 text-xs font-semibold text-gray-600">
+											<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+												stroke="currentColor" stroke-width="1.8"
+												class="h-4 w-4 shrink-0 text-[#285F6b]">
+												<path d="M5 12h14" />
+												<path d="m13 6 6 6-6 6" />
+											</svg>
+											<span>Ready for attendee registration</span>
+										</div>
+
+										<span
+											class="text-[10px] font-bold uppercase tracking-[0.12em] text-[#285F6b]/70">
+											Select Pass
+										</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div v-else class="mt-5 rounded-xl border border-dashed border-gray-300 px-5 py-8 text-center">
+						<IconBase name="ticket" class="mx-auto h-7 w-7 text-gray-400" />
+
+						<p class="mt-2 text-sm font-semibold text-gray-700">
+							Ticket types are not configured yet
+						</p>
+
+						<p class="mt-1 text-xs text-gray-500">
+							The organizer must configure ticket types before attendees can register.
+						</p>
+					</div>
+				</template>
+
+				<div class="my-6 border-t border-gray-100" />
+
+				<div class="flex flex-wrap items-center justify-between gap-3">
+					<div>
+						<h4 class="text-sm font-bold text-gray-900">
+							Your Tickets
+						</h4>
+
+						<p class="mt-0.5 text-xs text-gray-500">
+							Tickets registered for this event
+						</p>
+					</div>
+
+					<button v-if="eventTickets.length" type="button"
+						class="text-xs font-semibold text-[#285F6b] hover:underline" @click="loadTickets">
+						Refresh
+					</button>
+				</div>
+
+				<div v-if="isLoadingTickets" class="py-8 text-center">
+					<IconBase name="refresh-cw" class="mx-auto h-5 w-5 animate-spin text-gray-400" />
+
+					<p class="mt-2 text-sm text-gray-500">
+						Loading tickets...
+					</p>
+				</div>
+
+				<div v-else-if="ticketError"
+					class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+					{{ ticketError }}
+				</div>
+
+				<div v-else-if="eventTickets.length" class="mt-4 space-y-3">
+					<div v-for="ticket in eventTickets" :key="ticket.id"
+						class="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-gray-200 p-4">
+						<div class="flex min-w-0 items-center gap-3">
+							<div
+								class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#285F6b]/10 font-bold text-[#285F6b]">
+								{{
+									getInitials(
+										ticket.name,
+									)
+								}}
+							</div>
+
+							<div class="min-w-0">
+								<p class="truncate font-bold text-gray-900">
+									{{ ticket.name }}
+								</p>
+
+								<div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+									<span>
+										{{
+											ticket.ticket_type?.name ||
+											'General Admission'
+										}}
+									</span>
+
+									<span>
+										&bull;
+									</span>
+
+									<span class="font-mono">
+										{{ ticket.ticket_id }}
+									</span>
+								</div>
+							</div>
+						</div>
+
+						<div class="flex flex-wrap items-center gap-2">
+							<span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="ticket.status ===
+								'checked_in'
+								? 'bg-green-50 text-green-700'
+								: 'bg-gray-100 text-gray-600'
+								">
+								{{
+									ticket.status ===
+										'checked_in'
+										? 'Checked-in'
+										: 'Registered'
+								}}
+							</span>
+
+							<button type="button"
+								class="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+								@click="viewTicket(ticket)">
+								<IconBase name="qr-code" class="h-3.5 w-3.5" />
+
+								View Ticket
+							</button>
+						</div>
+					</div>
+				</div>
+
+				<div v-else class="mt-4 rounded-xl border border-dashed border-gray-300 px-5 py-10 text-center">
+					<IconBase name="qr-code" class="mx-auto h-7 w-7 text-gray-400" />
+
+					<p class="mt-2 text-sm font-semibold text-gray-700">
+						No tickets yet
+					</p>
+
+					<p class="mt-1 text-xs text-gray-500">
+						Tickets generated through the public registration form will appear here.
+					</p>
+				</div>
+			</div>
 		</div>
+
+
+		<Transition name="fade">
+			<div v-if="showTicketDetails" class="fixed inset-0 z-40 bg-gray-900/40" @click="closeTicketDetails" />
+		</Transition>
+
+		<Transition name="slide">
+			<div v-if="
+				showTicketDetails &&
+				activeTicket
+			" class="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col overflow-hidden bg-[#f4f8f8] shadow-2xl">
+
+				<div
+					class="relative overflow-hidden bg-gradient-to-br from-[#285F6b] via-[#2f6f7c] to-[#3d8796] px-6 pb-6 pt-5 text-white">
+					<div class="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/10" />
+					<div class="pointer-events-none absolute -bottom-20 left-16 h-40 w-40 rounded-full bg-white/5" />
+
+					<div class="relative flex items-start justify-between gap-4">
+						<div>
+							<span
+								class="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/85">
+								<span class="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+								Official Event Pass
+							</span>
+
+							<h2 class="mt-3 text-2xl font-black tracking-tight">
+								QR Ticket
+							</h2>
+
+							<p class="mt-1 font-mono text-xs font-bold tracking-[0.12em] text-white/70">
+								{{ activeTicket.ticket_id }}
+							</p>
+						</div>
+
+						<button type="button"
+							class="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white/80 transition hover:rotate-90 hover:bg-white/20 hover:text-white"
+							@click="closeTicketDetails">
+							<IconBase name="x" class="h-5 w-5" />
+						</button>
+					</div>
+				</div>
+
+				<div class="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+					<div
+						class="overflow-hidden rounded-[24px] border border-[#285F6b]/10 bg-white shadow-[0_12px_40px_rgba(40,95,107,0.08)]">
+						<div class="h-1.5 bg-gradient-to-r from-[#285F6b] via-[#3d8796] to-[#285F6b]" />
+
+						<div class="p-5">
+							<div class="flex items-center gap-4">
+								<div
+									class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#285F6b]/10 text-lg font-black text-[#285F6b] ring-1 ring-[#285F6b]/10">
+									{{ getInitials(activeTicket.name) }}
+								</div>
+
+								<div class="min-w-0 flex-1">
+									<p class="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400">
+										Ticket Holder
+									</p>
+
+									<h3 class="mt-1 truncate text-lg font-extrabold text-gray-900">
+										{{ activeTicket.name }}
+									</h3>
+
+									<p class="mt-1 text-sm font-semibold text-[#285F6b]">
+										{{ activeTicket.ticket_type?.name || 'General Admission' }}
+									</p>
+								</div>
+
+								<span class="rounded-full px-3 py-1.5 text-[11px] font-bold" :class="activeTicket.status ===
+									'checked_in'
+									? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
+									: 'bg-[#285F6b]/10 text-[#285F6b] ring-1 ring-[#285F6b]/10'
+									">
+									{{
+										activeTicket.status ===
+											'checked_in'
+											? 'Checked-in'
+											: 'Registered'
+									}}
+								</span>
+							</div>
+
+							<div class="my-5 border-t border-dashed border-gray-200" />
+
+							<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+								<div class="rounded-2xl bg-gray-50 px-4 py-3.5">
+									<p class="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">
+										Ticket ID
+									</p>
+									<p class="mt-1.5 font-mono text-sm font-black text-gray-900">
+										{{ activeTicket.ticket_id }}
+									</p>
+								</div>
+
+								<div class="rounded-2xl bg-gray-50 px-4 py-3.5">
+									<p class="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">
+										Event Date
+									</p>
+									<p class="mt-1.5 text-sm font-bold text-gray-900">
+										{{
+											eventData?.event.event_date
+												? formatDate(eventData.event.event_date)
+												: 'Date not set'
+										}}
+									</p>
+								</div>
+
+								<div v-if="activeTicket.email" class="rounded-2xl bg-gray-50 px-4 py-3.5">
+									<p class="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">
+										Email
+									</p>
+									<p class="mt-1.5 break-all text-xs font-semibold text-gray-800">
+										{{ activeTicket.email }}
+									</p>
+								</div>
+
+								<div class="rounded-2xl bg-gray-50 px-4 py-3.5">
+									<p class="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">
+										Location
+									</p>
+									<p class="mt-1.5 text-sm font-bold text-gray-900">
+										{{ eventData?.event.location || 'Not specified' }}
+									</p>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div
+						class="relative mt-5 overflow-hidden rounded-[24px] border border-[#285F6b]/10 bg-white p-5 shadow-[0_12px_40px_rgba(40,95,107,0.08)]">
+						<div
+							class="pointer-events-none absolute -left-4 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full bg-[#f4f8f8]" />
+						<div
+							class="pointer-events-none absolute -right-4 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full bg-[#f4f8f8]" />
+
+						<div class="text-center">
+							<p class="text-[10px] font-bold uppercase tracking-[0.18em] text-[#285F6b]">
+								Scan to Verify
+							</p>
+
+							<h3 class="mt-1 text-lg font-extrabold text-gray-900">
+								Ready for event check-in
+							</h3>
+
+							<p class="mx-auto mt-1 max-w-sm text-xs leading-5 text-gray-500">
+								This secure QR code is generated directly from this ticket's QR value.
+							</p>
+						</div>
+
+						<div
+							class="mx-auto mt-5 flex h-[230px] w-[230px] items-center justify-center rounded-[24px] border border-gray-200 bg-white p-3 shadow-inner">
+							<div v-if="isGeneratingTicketQr" class="text-center">
+								<IconBase name="refresh-cw" class="mx-auto h-7 w-7 animate-spin text-[#285F6b]" />
+								<p class="mt-2 text-xs font-semibold text-gray-500">
+									Generating secure QR...
+								</p>
+							</div>
+
+							<img v-else-if="activeTicketQrDataUrl" :src="activeTicketQrDataUrl"
+								:alt="`QR code for ${activeTicket.ticket_id}`"
+								class="h-full w-full rounded-xl object-contain">
+
+							<div v-else class="text-center text-gray-400">
+								<IconBase name="qr-code" class="mx-auto h-16 w-16" />
+								<p class="mt-2 text-xs font-semibold">
+									QR unavailable
+								</p>
+							</div>
+						</div>
+
+						<p v-if="activeTicketQrError"
+							class="mx-auto mt-3 max-w-sm rounded-xl bg-red-50 px-3 py-2 text-center text-xs font-semibold text-red-600">
+							{{ activeTicketQrError }}
+						</p>
+
+						<div
+							class="mx-auto mt-4 flex max-w-sm items-center justify-center gap-2 rounded-xl bg-[#285F6b]/5 px-4 py-3 text-xs font-semibold text-[#285F6b]">
+							<IconBase name="check-circle" class="h-4 w-4" />
+							Present this code to the organizer for scanning.
+						</div>
+					</div>
+
+					<details v-if="activeTicket.qr_value"
+						class="group mt-4 rounded-2xl border border-gray-200 bg-white">
+						<summary
+							class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-xs font-bold text-gray-600">
+							<span class="flex items-center gap-2">
+								<IconBase name="qr-code" class="h-4 w-4 text-[#285F6b]" />
+								Secure QR Value
+							</span>
+
+							<span class="text-[10px] font-semibold text-gray-400">
+								Tap to view
+							</span>
+						</summary>
+
+						<div class="border-t border-gray-100 px-4 py-3">
+							<p class="break-all font-mono text-[10px] leading-5 text-gray-500">
+								{{ activeTicket.qr_value }}
+							</p>
+						</div>
+					</details>
+				</div>
+
+				<div class="border-t border-gray-200/80 bg-white px-5 py-5 sm:px-6">
+					<div v-if="ticketEmailSuccess"
+						class="mb-4 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+						<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+							<IconBase name="check-circle" class="h-4 w-4" />
+						</div>
+						{{ ticketEmailSuccess }}
+					</div>
+
+					<div v-if="ticketEmailError"
+						class="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+						{{ ticketEmailError }}
+					</div>
+
+					<div class="mb-3 flex items-center justify-between gap-3">
+						<div>
+							<p class="text-sm font-extrabold text-gray-900">
+								Ticket Actions
+							</p>
+							<p class="mt-0.5 text-xs text-gray-500">
+								Save a copy or send it to the attendee.
+							</p>
+						</div>
+
+						<span
+							class="rounded-full bg-[#285F6b]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#285F6b]">
+							{{ activeTicket.ticket_type?.name || 'Ticket' }}
+						</span>
+					</div>
+
+					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+						<button type="button"
+							class="group relative overflow-hidden rounded-2xl border border-[#285F6b]/20 bg-white px-4 py-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-[#285F6b]/45 hover:shadow-lg hover:shadow-[#285F6b]/10 disabled:cursor-not-allowed disabled:opacity-50"
+							:disabled="!activeTicket.qr_token" @click="downloadActiveTicket">
+							<div class="flex items-center gap-3">
+								<div
+									class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#285F6b]/10 text-[#285F6b] transition group-hover:bg-[#285F6b] group-hover:text-white">
+									<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+										stroke="currentColor" stroke-width="2" stroke-linecap="round"
+										stroke-linejoin="round" class="h-5 w-5">
+										<path d="M12 3v12" />
+										<path d="m7 10 5 5 5-5" />
+										<path d="M5 21h14" />
+									</svg>
+								</div>
+
+								<div class="min-w-0">
+									<p class="text-sm font-extrabold text-gray-900">
+										Download Ticket
+									</p>
+									<p class="mt-0.5 text-[11px] text-gray-500">
+										PDF + secure QR code
+									</p>
+								</div>
+							</div>
+						</button>
+
+						<button type="button"
+							class="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#285F6b] to-[#347887] px-4 py-4 text-left text-white shadow-lg shadow-[#285F6b]/15 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#285F6b]/25 disabled:cursor-not-allowed disabled:opacity-50"
+							:disabled="isSendingTicketEmail || !activeTicket.qr_token"
+							@click="sendActiveTicketEmail">
+							<div
+								class="pointer-events-none absolute -right-5 -top-8 h-20 w-20 rounded-full bg-white/10" />
+
+							<div class="relative flex items-center gap-3">
+								<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15">
+									<svg v-if="isSendingTicketEmail" xmlns="http://www.w3.org/2000/svg"
+										viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+										stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 animate-spin">
+										<path d="M21 12a9 9 0 1 1-2.64-6.36" />
+										<path d="M21 3v6h-6" />
+									</svg>
+
+									<svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+										stroke="currentColor" stroke-width="2" stroke-linecap="round"
+										stroke-linejoin="round" class="h-5 w-5">
+										<rect x="3" y="5" width="18" height="14" rx="2" />
+										<path d="m3 7 9 6 9-6" />
+									</svg>
+								</div>
+
+								<div class="min-w-0">
+									<p class="text-sm font-extrabold">
+										{{ isSendingTicketEmail ? 'Sending Ticket...' : 'Email Ticket' }}
+									</p>
+
+									<p v-if="activeTicket.email"
+										class="mt-0.5 max-w-[180px] truncate text-[11px] text-white/70">
+										{{ activeTicket.email }}
+									</p>
+								</div>
+							</div>
+						</button>
+					</div>
+
+					<p v-if="!activeTicket.email" class="mt-3 text-center text-xs font-semibold text-amber-600">
+						Download the PDF to share or print this ticket. It's also in My Tickets.
+					</p>
+				</div>
+			</div>
+		</Transition>
+
 	</div>
 </template>
 
 <script setup lang="ts">
-import type { ClientEvent, EventStatus } from '~/composables/useEvents'
+import QRCode from 'qrcode'
+import type {
+	ApiErrorResponse,
+	ClientEventResponse,
+	EventTicket,
+	RegistrationForm,
+	TicketEmailResponse,
+	TicketListResponse,
+	TicketType,
+} from '~/types/client-event-details'
 
-definePageMeta({ layout: 'client' })
+definePageMeta({
+	layout: 'client',
+	middleware: ['client'],
+})
 
-const route = useRoute()
-const { list } = useClientEvents()
+const route =
+	useRoute()
 
-const events = ref<ClientEvent[]>([])
-const loading = ref(true)
-const error = ref('')
-const selected = computed(() => typeof route.query.event === 'string' ? route.query.event : null)
+const config =
+	useRuntimeConfig()
 
-const clientStatus: Record<EventStatus, string> = {
-	draft: 'Being planned', published: 'Confirmed', ongoing: 'Happening now', completed: 'Completed', cancelled: 'Cancelled',
+const {
+	token,
+	isAuthenticated,
+} = useAuth('client')
+
+const eventData =
+	ref<ClientEventResponse['data'] | null>(
+		null,
+	)
+
+const eventTickets =
+	ref<EventTicket[]>([])
+
+const isLoading =
+	ref(false)
+
+const isLoadingTickets =
+	ref(false)
+
+const isRegistering =
+	ref(false)
+
+
+const errorMessage =
+	ref('')
+
+const ticketError =
+	ref('')
+
+const registrationError =
+	ref('')
+
+const registrationSuccess =
+	ref('')
+
+
+
+const registrationLinkCopied = ref(false)
+
+const isSendingTicketEmail = ref(false)
+const ticketEmailSuccess = ref('')
+const ticketEmailError = ref('')
+
+
+const showRegistrationForm =
+	ref(false)
+
+const showTicketDetails =
+	ref(false)
+
+const activeTicket =
+	ref<EventTicket | null>(
+		null,
+	)
+
+const latestTicket =
+	ref<EventTicket | null>(
+		null,
+	)
+
+const activeTicketQrDataUrl =
+	ref('')
+
+const isGeneratingTicketQr =
+	ref(false)
+
+const activeTicketQrError =
+	ref('')
+
+
+const inquiryId =
+	computed(() => (typeof route.query.inquiry === 'string' ? route.query.inquiry : null))
+
+const eventParam =
+	computed(() => (typeof route.query.event === 'string' ? route.query.event : null))
+
+const eventId =
+	computed<number | string | null>(
+		() =>
+			eventData.value?.event.id ??
+			null,
+	)
+
+const ticketTypes =
+	computed<TicketType[]>(
+		() =>
+			eventData.value?.event
+				.ticket_types ??
+			[],
+	)
+
+const availableTicketTypes =
+	computed<TicketType[]>(
+		() =>
+			ticketTypes.value.filter(
+				ticketType =>
+					!ticketType.sold_out,
+			),
+	)
+
+const registrationAvailable =
+	computed(
+		() =>
+			Boolean(
+				eventData.value?.event
+					.public_registration,
+			),
+	)
+const publicRegistrationToken =
+	computed<string | null>(
+		() =>
+			eventData.value?.event
+				.public_registration_token ??
+			null,
+	)
+
+// Private events: their link key (from the event payload) opens the ticket page.
+const linkKey = ref<string | null>(null)
+const visibility = ref<string>('public')
+const isPrivate = computed(() => visibility.value === 'private')
+const isOver = computed(() => ['completed', 'cancelled'].includes(String(eventData.value?.event.status ?? '')))
+// After the event the section only matters if the client holds tickets.
+const showRegistrationSection = computed(() => !isOver.value || eventTickets.value.length > 0)
+const stateCopy = computed(() => ({
+	draft: { badge: 'Confirmed', text: 'Your organizer and package are confirmed. Your organizer is setting up the event.' },
+	published: { badge: 'Confirmed', text: 'Your organizer and package are confirmed. Everything for the day is below.' },
+	ongoing: { badge: 'Happening now', text: 'Your event is live. Enjoy it!' },
+	completed: { badge: 'Completed', text: 'Your event is done. Tell others how your organizer did below.' },
+	cancelled: { badge: 'Cancelled', text: 'This event was cancelled.' },
+} as Record<string, { badge: string, text: string }>)[String(eventData.value?.event.status ?? 'published')] ?? { badge: 'Confirmed', text: '' })
+// The accepted offer as a receipt: items, then service charge / VAT on the subtotal.
+const receipt = computed(() => {
+	const lines = (eventData.value?.quotation.inclusions ?? []) as Array<{ description: string, quantity?: number, amount?: number }>
+	const charge = /^(Service charge|VAT) \((\d+(?:\.\d+)?)%\)$/
+	const items = lines.filter(l => !charge.test(l.description)).map(l => ({
+		label: `${l.description}${l.quantity && l.quantity !== 1 ? ` × ${l.quantity.toLocaleString('en-PH')}` : ''}`,
+		amount: l.amount ?? 0,
+	}))
+	const charges = lines.flatMap((l) => {
+		const m = l.description.match(charge)
+		return m ? [{ label: m[1]!, percent: m[2]!, amount: l.amount ?? 0 }] : []
+	})
+	return { items, charges, subtotal: items.reduce((sum, l) => sum + l.amount, 0) }
+})
+
+const publicRegistrationPath =
+	computed<string | null>(() => {
+		if (!publicRegistrationToken.value) {
+			return null
+		}
+
+		return `/event-registration/${encodeURIComponent(
+			publicRegistrationToken.value,
+		)}${linkKey.value ? `?key=${encodeURIComponent(linkKey.value)}` : ''}`
+	})
+
+const publicRegistrationUrl =
+	computed<string | null>(() => {
+		if (!publicRegistrationPath.value) {
+			return null
+		}
+
+		if (import.meta.server) {
+			return publicRegistrationPath.value
+		}
+
+		return new URL(
+			publicRegistrationPath.value,
+			window.location.origin,
+		).toString()
+	})
+
+async function copyRegistrationLink() {
+	if (!publicRegistrationUrl.value) {
+		return
+	}
+
+	try {
+		await navigator.clipboard.writeText(
+			publicRegistrationUrl.value,
+		)
+		registrationLinkCopied.value = true
+
+		window.setTimeout(() => {
+			registrationLinkCopied.value = false
+		}, 2000)
+	} catch {
+		registrationLinkCopied.value = false
+	}
 }
 
-onMounted(async () => {
+type ClientRegistrationForm = RegistrationForm & {
+	contactNo: string
+}
+
+type RegistrationEmailVerificationState = {
+	sending: boolean
+	verifying: boolean
+	sent: boolean
+	verified: boolean
+	code: string
+	error: string
+	verificationToken: string | null
+	verifiedEmail: string
+	expiresIn: number
+	resendIn: number
+}
+
+type RegistrationVerificationSendResponse = {
+	message?: string
+	data?: {
+		expires_in?: number
+		resend_in?: number
+	}
+}
+
+type RegistrationVerificationVerifyResponse = {
+	message?: string
+	data?: {
+		verified?: boolean
+		email?: string
+		verification_token?: string
+	}
+}
+
+function emptyRegistrationForm(): ClientRegistrationForm {
+	return {
+		name: '',
+		email: '',
+		contactNo: '',
+		ticketTypeId: null,
+	}
+}
+
+const registrationForm =
+	reactive(
+		emptyRegistrationForm(),
+	)
+
+const createRegistrationEmailVerificationState =
+	(): RegistrationEmailVerificationState => ({
+		sending: false,
+		verifying: false,
+		sent: false,
+		verified: false,
+		code: '',
+		error: '',
+		verificationToken: null,
+		verifiedEmail: '',
+		expiresIn: 0,
+		resendIn: 0,
+	})
+
+const registrationEmailVerification =
+	reactive<RegistrationEmailVerificationState>(
+		createRegistrationEmailVerificationState(),
+	)
+
+let registrationVerificationTimer:
+	ReturnType<typeof setInterval> |
+	null = null
+
+const selectedRegistrationTicketType =
+	computed<TicketType | null>(
+		() => {
+			if (
+				!registrationForm.ticketTypeId
+			) {
+				return null
+			}
+
+			return (
+				availableTicketTypes.value.find(
+					ticketType =>
+						ticketType.id ===
+						registrationForm.ticketTypeId,
+				) ?? null
+			)
+		},
+	)
+
+
+function resetRegistrationEmailVerification() {
+	Object.assign(
+		registrationEmailVerification,
+		createRegistrationEmailVerificationState(),
+	)
+}
+
+function handleRegistrationEmailChanged() {
+	const currentEmail =
+		registrationForm.email
+			.trim()
+			.toLowerCase()
+
+	if (
+		registrationEmailVerification.verifiedEmail &&
+		currentEmail !==
+		registrationEmailVerification
+			.verifiedEmail
+			.trim()
+			.toLowerCase()
+	) {
+		resetRegistrationEmailVerification()
+		return
+	}
+
+	if (
+		registrationEmailVerification.sent &&
+		!registrationEmailVerification.verified
+	) {
+		registrationEmailVerification.code = ''
+		registrationEmailVerification.sent = false
+		registrationEmailVerification.error = ''
+		registrationEmailVerification.verificationToken = null
+		registrationEmailVerification.expiresIn = 0
+		registrationEmailVerification.resendIn = 0
+	}
+}
+
+function changeRegistrationVerifiedEmail() {
+	resetRegistrationEmailVerification()
+}
+
+function sanitizeRegistrationVerificationCode() {
+	registrationEmailVerification.code =
+		registrationEmailVerification.code
+			.replace(/\D/g, '')
+			.slice(0, 6)
+}
+
+function formatRegistrationCountdown(
+	seconds: number,
+): string {
+	const safeSeconds =
+		Math.max(0, seconds)
+
+	const minutes =
+		Math.floor(
+			safeSeconds / 60,
+		)
+
+	const remainingSeconds =
+		safeSeconds % 60
+
+	return `${minutes}:${String(
+		remainingSeconds,
+	).padStart(2, '0')}`
+}
+
+function startRegistrationVerificationTimer() {
+	if (registrationVerificationTimer) {
+		return
+	}
+
+	registrationVerificationTimer =
+		setInterval(
+			() => {
+				if (
+					registrationEmailVerification.expiresIn >
+					0
+				) {
+					registrationEmailVerification.expiresIn -=
+						1
+				}
+
+				if (
+					registrationEmailVerification.resendIn >
+					0
+				) {
+					registrationEmailVerification.resendIn -=
+						1
+				}
+			},
+			1000,
+		)
+}
+
+const organizerName =
+	computed(() => {
+		const organizer =
+			eventData.value?.organizer
+
+		if (!organizer) {
+			return 'Organizer'
+		}
+
+		const user =
+			organizer.user
+
+		if (user) {
+			const name = [
+				user.firstname,
+				user.middlename,
+				user.lastname,
+			]
+				.filter(Boolean)
+				.join(' ')
+
+			if (name) {
+				return name
+			}
+		}
+
+		return (
+			organizer.company_name ||
+			organizer.name ||
+			'Organizer'
+		)
+	})
+
+const organizerInitials =
+	computed(() => {
+		const words =
+			organizerName.value
+				.split(' ')
+				.filter(Boolean)
+
+		if (!words.length) {
+			return 'OR'
+		}
+
+		if (words.length === 1) {
+			return (
+				words[0]
+					?.charAt(0)
+					.toUpperCase() ||
+				'OR'
+			)
+		}
+
+		return (
+			(
+				words[0]?.charAt(0) ||
+				''
+			) +
+			(
+				words[
+					words.length - 1
+				]?.charAt(0) ||
+				''
+			)
+		).toUpperCase()
+	})
+
+function getApiErrorMessage(
+	error: unknown,
+	fallback: string,
+): string {
+	const apiError =
+		error as ApiErrorResponse
+
+	const validationMessage =
+		Object.values(
+			apiError.data?.errors ??
+			{},
+		)[0]?.[0]
+
+	return (
+		validationMessage ??
+		apiError.data?.message ??
+		fallback
+	)
+}
+
+function formatDate(
+	dateString: string | null,
+): string {
+	if (!dateString) {
+		return 'Date not set'
+	}
+
+	const date =
+		new Date(
+			dateString.includes('T')
+				? dateString
+				: `${dateString}T00:00:00`,
+		)
+
+	return date.toLocaleDateString(
+		'en-US',
+		{
+			month:
+				'long',
+
+			day:
+				'numeric',
+
+			year:
+				'numeric',
+		},
+	)
+}
+
+function formatTime(
+	timeString: string | null,
+): string {
+	if (!timeString) {
+		return 'Not set'
+	}
+
+	const [hours = '0', minutes = '0'] =
+		timeString.split(':')
+	const hour = Number(hours)
+
+	if (Number.isNaN(hour)) {
+		return timeString
+	}
+
+	const period = hour >= 12 ? 'PM' : 'AM'
+	const displayHour = hour % 12 || 12
+
+	return `${displayHour}:${minutes} ${period}`
+}
+
+function formatCurrency(
+	value: string | number,
+): string {
+	const amount =
+		Number(value)
+
+	return new Intl.NumberFormat(
+		'en-PH',
+		{
+			style:
+				'currency',
+
+			currency:
+				'PHP',
+
+			minimumFractionDigits:
+				2,
+		},
+	).format(
+		Number.isNaN(amount)
+			? 0
+			: amount,
+	)
+}
+
+function getInitials(
+	name: string,
+): string {
+	return name
+		.split(' ')
+		.filter(Boolean)
+		.slice(0, 2)
+		.map(
+			word =>
+				word.charAt(0),
+		)
+		.join('')
+		.toUpperCase()
+}
+
+/** "HH:mm" in the event's own timezone (formatTime expects clock time). */
+function clockTime(iso: string | null, timeZone: string): string | null {
+	if (!iso) return null
+	return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone })
+}
+
+/** The client's event (made from their accepted quotation), in this page's shape. */
+async function loadEventDetails() {
+	errorMessage.value = ''
+	isLoading.value = true
 	try {
-		events.value = await list()
-		// Show the requested event first.
-		if (selected.value) events.value.sort((a, b) => Number(b.id === selected.value) - Number(a.id === selected.value))
-	} catch (e) {
-		error.value = authMessage(e)
+		const events = await useClientEvents().list()
+		const event = events.find(e => e.id === eventParam.value)
+			?? events.find(e => inquiryId.value && e.inquiry_id === inquiryId.value)
+			?? (eventParam.value || inquiryId.value ? undefined : events[0])
+		if (!event) {
+			errorMessage.value = inquiryId.value
+				? 'Your organizer hasn\'t set up this event yet. It appears here once they do.'
+				: 'You don’t have a confirmed event yet. Accept an organizer’s quotation in My Events, and your event appears here once they set it up.'
+			return
+		}
+
+		const privateKey = event.visibility === 'private' ? ((event as { private_link_key?: string | null }).private_link_key ?? null) : null
+		const [quotes, publicEvent] = await Promise.all([
+			event.inquiry_id ? useClientQuotations().forInquiry(event.inquiry_id).catch(() => []) : Promise.resolve([]),
+			['published', 'ongoing'].includes(event.status) && (event.visibility === 'public' || privateKey)
+				? usePublicEvents().show(event.id, privateKey).catch(() => null)
+				: Promise.resolve(null),
+		])
+		const accepted = quotes.find(q => q.status === 'accepted')
+		const tiers = publicEvent?.tiers ?? []
+		linkKey.value = privateKey
+		visibility.value = event.visibility
+
+		eventData.value = {
+			event: {
+				id: event.id as unknown as number,
+				name: event.name,
+				event_type: event.event_type ?? 'Event',
+				description: event.description,
+				event_date: event.starts_at,
+				location: [event.venue_name, event.venue_address].filter(Boolean).join(', ') || null,
+				expected_guests: event.overall_capacity,
+				start_time: clockTime(event.starts_at, event.timezone),
+				end_time: clockTime(event.ends_at, event.timezone),
+				status: event.status,
+				public_registration: tiers.length > 0,
+				public_registration_token: tiers.length ? event.id : null,
+				require_approval: false,
+				waitlist_enabled: false,
+				contact_name: event.contact_name,
+				contact_email: event.contact_email,
+				contact_phone: event.contact_phone,
+				ticket_types: tiers.map(t => ({
+					id: t.id as unknown as number,
+					name: t.name,
+					price: t.price,
+					capacity: t.remaining,
+					remaining: t.remaining,
+					sold_out: t.availability !== 'available',
+				})),
+			},
+			quotation: {
+				id: (accepted?.id ?? 0) as unknown as number,
+				quotation_amount: accepted?.total_amount ?? 0,
+				package_name: accepted?.package_name ?? null,
+				timeline: accepted?.terms ?? null,
+				quotation_details: accepted?.proposal ?? null,
+				inclusions: (accepted?.items ?? []).map((item, i) => ({
+					id: i,
+					description: item.description,
+					quantity: Number(item.quantity),
+					amount: Number(item.subtotal ?? Number(item.quantity) * Number(item.unit_price)),
+				})),
+			},
+			organizer: event.organizer
+				? { id: 0, name: event.organizer.display_name, company_name: event.organizer.display_name }
+				: undefined,
+		}
+
+		// Tickets have their own loading state: show the event without waiting for them.
+		void loadTickets()
+	} catch (error: unknown) {
+		errorMessage.value = authMessage(error) || 'Unable to load event details.'
 	} finally {
-		loading.value = false
+		isLoading.value = false
+	}
+}
+
+/** Tickets the client holds for this event (bought through its registration page). */
+async function loadTickets() {
+	if (!eventId.value) return
+	isLoadingTickets.value = true
+	ticketError.value = ''
+	try {
+		eventTickets.value = (await usePublicEvents().myTickets())
+			.filter(t => t.event_id === String(eventId.value) && t.status !== 'cancelled' && t.status !== 'invalidated')
+			.map(t => ({
+				id: t.id as unknown as number,
+				name: t.attendee,
+				email: null,
+				ticket_type: { id: 0, name: t.tier, price: 0, capacity: 0 },
+				ticket_id: t.id.slice(0, 8).toUpperCase(),
+				qr_token: t.qr_token ?? undefined,
+				qr_value: t.qr_token ?? undefined,
+				source: 'online',
+				payment_status: 'paid',
+				status: t.status === 'used' ? 'checked_in' : 'registered',
+				checked_in_at: null,
+				created_at: t.starts_at ?? '',
+			}))
+	} catch (error: unknown) {
+		ticketError.value = authMessage(error) || 'Unable to load tickets.'
+	} finally {
+		isLoadingTickets.value = false
+	}
+}
+
+/** Tickets are bought on the event's registration page (e-mail check, then payment if priced). */
+function closeRegistrationForm() {
+	if (
+		isRegistering.value
+	) {
+		return
+	}
+
+	showRegistrationForm.value =
+		false
+
+	registrationError.value =
+		''
+
+	resetRegistrationEmailVerification()
+}
+
+async function generateActiveTicketQr() {
+	activeTicketQrDataUrl.value = ''
+	activeTicketQrError.value = ''
+
+	const qrValue =
+		activeTicket.value?.qr_value
+
+	if (!qrValue) {
+		activeTicketQrError.value =
+			'QR value is not available for this ticket.'
+		return
+	}
+
+	isGeneratingTicketQr.value =
+		true
+
+	try {
+		activeTicketQrDataUrl.value =
+			await QRCode.toDataURL(
+				qrValue,
+				{
+					width: 420,
+					margin: 2,
+					errorCorrectionLevel: 'M',
+					color: {
+						dark: '#172033',
+						light: '#FFFFFF',
+					},
+				},
+			)
+	} catch (error) {
+		console.error(
+			'Unable to generate QR preview:',
+			error,
+		)
+
+		activeTicketQrError.value =
+			'Unable to generate the QR preview.'
+	} finally {
+		isGeneratingTicketQr.value =
+			false
+	}
+}
+
+function viewTicket(
+	ticket: EventTicket,
+) {
+	ticketEmailSuccess.value = ''
+	ticketEmailError.value = ''
+
+	activeTicket.value =
+		ticket
+
+	showTicketDetails.value =
+		true
+
+	void generateActiveTicketQr()
+}
+
+async function downloadActiveTicket() {
+	const ticket = activeTicket.value
+	if (!ticket) return
+	ticketEmailError.value = ''
+	try {
+		const blob = await usePublicEvents().myTicketPdf(String(ticket.id))
+		const url = URL.createObjectURL(blob)
+		const link = document.createElement('a')
+		link.href = url
+		link.download = `ticket-${ticket.ticket_id}.pdf`
+		link.click()
+		URL.revokeObjectURL(url)
+	} catch (error: unknown) {
+		ticketEmailError.value = authMessage(error) || 'The downloadable ticket is not available.'
+	}
+}
+
+async function sendActiveTicketEmail() {
+	const ticket = activeTicket.value
+
+	if (!ticket?.qr_token) {
+		ticketEmailError.value =
+			'This ticket has no QR code yet.'
+		return
+	}
+
+	isSendingTicketEmail.value = true
+	ticketEmailSuccess.value = ''
+	ticketEmailError.value = ''
+
+	try {
+		// The ticket was e-mailed on purchase; this sends another copy (skipped if it was sent moments ago).
+		const response = await useApi().post<{ queued: number, already_sent?: boolean }>(`/me/tickets/${ticket.id}/email`)
+
+		ticketEmailSuccess.value =
+			response.message ||
+			'Ticket sent again. Check your inbox.'
+	} catch (error: unknown) {
+		ticketEmailError.value = getApiErrorMessage(
+			error,
+			'Unable to send the ticket email.',
+		)
+	} finally {
+		isSendingTicketEmail.value = false
+	}
+}
+
+function closeTicketDetails() {
+	showTicketDetails.value =
+		false
+
+	activeTicketQrDataUrl.value =
+		''
+
+	activeTicketQrError.value =
+		''
+}
+
+const showChat = ref(false)
+
+onMounted(async () => {
+	startRegistrationVerificationTimer()
+	await loadEventDetails()
+
+	if (route.query.chat) showChat.value = true
+})
+
+onBeforeUnmount(() => {
+	if (registrationVerificationTimer) {
+		clearInterval(
+			registrationVerificationTimer,
+		)
+
+		registrationVerificationTimer =
+			null
 	}
 })
 </script>
+
+<style scoped>
+.slide-enter-active,
+.slide-leave-active {
+	transition:
+		transform 0.25s ease;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+	transform:
+		translateX(100%);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+	transition:
+		opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+}
+</style>

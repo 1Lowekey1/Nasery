@@ -8,6 +8,7 @@ use App\Support\Http\ErrorCode;
 use App\Exceptions\ApiException;
 use App\Models\Event;
 use App\Services\CheckIn\CheckInDesk;
+use App\Services\Events\EventActivities;
 use App\Services\Events\EventPresenter;
 use App\Services\Preparation\ActivityTimeline;
 use App\Services\Preparation\ProgressTracker;
@@ -26,6 +27,7 @@ class ClientEventController extends Controller
     public function __construct(
         private readonly EventPresenter $presenter,
         private readonly ActivityTimeline $timeline,
+        private readonly EventActivities $activities,
         private readonly ProgressTracker $progress,
         private readonly CheckInDesk $checkIn,
         private readonly ReportSharing $sharing,
@@ -58,6 +60,8 @@ class ClientEventController extends Controller
             'stages' => $this->progress->stages()->keys()->values(),
             'event_status' => $presented['status'],
             'milestones' => $this->timeline->forClient($event, $presented['organizer']['display_name'] ?? 'Your organizer'),
+            // 0049: program items the organizer marked "visible to client".
+            'program' => $this->activities->forClient($event),
         ]);
     }
 

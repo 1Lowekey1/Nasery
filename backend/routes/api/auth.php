@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\MediaController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\Auth\PasswordController;
@@ -28,6 +29,10 @@ Route::prefix('auth')->name('auth.')->group(function () {
     Route::post('password/reset', [PasswordController::class, 'reset'])
         ->middleware(['throttle:password-reset', 'throttle:sensitive'])->name('password.reset');
 
+    // Team invitation link (account created by the invitation): set the first password and join.
+    Route::post('team-setup', [PasswordController::class, 'teamSetup'])
+        ->middleware(['throttle:password-reset', 'throttle:sensitive'])->name('team-setup');
+
     Route::prefix('social')->name('social.')->group(function () {
         Route::get('providers', [SocialAuthController::class, 'providers'])
             ->middleware('throttle:public')->name('providers');
@@ -48,6 +53,8 @@ Route::prefix('auth')->name('auth.')->group(function () {
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
         Route::get('me', [AuthController::class, 'me'])->name('me');
         Route::patch('me', [AuthController::class, 'updateMe'])->middleware('throttle:sensitive')->name('me.update');
+        Route::post('me/avatar', [MediaController::class, 'storeAvatar'])->middleware('throttle:sensitive')->name('me.avatar.store');
+        Route::delete('me/avatar', [MediaController::class, 'destroyAvatar'])->middleware('throttle:sensitive')->name('me.avatar.destroy');
 
         Route::post('email/verification-code', [EmailVerificationController::class, 'send'])
             ->middleware('throttle:email-verification')->name('email.send');

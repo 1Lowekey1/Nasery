@@ -3,6 +3,9 @@
 .env
 .env.backup
 .env.production
+# Any other copy of the settings (e.g. .env.supabase, .env.local-db) holds secrets too.
+.env.*
+!.env.example
 .phpactor.json
 .phpunit.result.cache
 /.codex

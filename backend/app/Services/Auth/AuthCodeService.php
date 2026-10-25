@@ -24,7 +24,10 @@ class AuthCodeService
      * Create (or replace) the user's code for $purpose and email it.
      * Throws RESEND_COOLDOWN when asked again too soon.
      */
-    public function issue(User $user, AuthCodePurpose $purpose, ?string $invitedBy = null): void
+    /**
+     * @param  array{organization: string, role: string}|null  $team  set for a team invitation (with $invitedBy)
+     */
+    public function issue(User $user, AuthCodePurpose $purpose, ?string $invitedBy = null, ?array $team = null): void
     {
         $settings = config('nasery.auth.codes');
 
@@ -46,7 +49,10 @@ class AuthCodeService
             [
                 'code_hash' => $this->hash($code),
                 'attempts' => 0,
-                'expires_at' => now()->addMinutes($settings['ttl_minutes']),
+                // Admin invitations last days, not minutes: the invitee may open the e-mail later.
+                'expires_at' => $invitedBy !== null
+                    ? now()->addHours((int) ($settings['invite_ttl_hours'] ?? 72))
+                    : now()->addMinutes($settings['ttl_minutes']),
                 'last_sent_at' => now(),
                 'consumed_at' => null,
             ],
@@ -55,7 +61,7 @@ class AuthCodeService
         // Sent as soon as the request commits (never for a rolled-back sign-up), directly
         // rather than through the queue: codes expire in minutes. A mail failure never
         // undoes the request; the user can press "Resend code".
-        $mail = new AuthCodeMail($code, $purpose, $user->first_name, $invitedBy);
+        $mail = new AuthCodeMail($code, $purpose, $user->first_name, $invitedBy, $user->email, $team);
         DB::afterCommit(function () use ($user, $mail, $purpose) {
             try {
                 Mail::to($user->email)->send($mail);
@@ -70,7 +76,7 @@ class AuthCodeService
      * limit even though the business transaction is rolled back, because the
      * code row lives on the separate `system` connection.
      */
-    public function consume(User $user, AuthCodePurpose $purpose, string $code): void
+    public function consume(User $user, AuthCodePurpose $purpose, #[SensitiveParameter] string $code): void
     {
         $settings = config('nasery.auth.codes');
 
@@ -114,7 +120,7 @@ class AuthCodeService
         }
     }
 
-    private function hash(string $code): string
+    private function hash(#[SensitiveParameter] string $code): string
     {
         return hash_hmac('sha256', $code, (string) config('app.key'));
     }

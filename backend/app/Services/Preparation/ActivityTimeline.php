@@ -47,6 +47,10 @@ class ActivityTimeline
      */
     public function forClient(Event $event, string $organizerName): Collection
     {
+        // A request sent straight to this organizer (no open posting) names them (#11).
+        $direct = $event->inquiry_id !== null && $this->db->system('event.inquiry_direct', fn () => DB::table('inquiries')
+            ->where('id', $event->inquiry_id)->whereNull('match_radius_km')->exists());
+
         return $this->rows($event, organizer: false)
             ->filter(fn ($r) => in_array($r->action, self::MILESTONES, true))
             ->map(fn ($r) => [
@@ -54,8 +58,8 @@ class ActivityTimeline
                 'at' => $r->created_at,
                 'action' => $r->action,
                 'message' => match ($r->action) {
-                    'inquiry.submitted' => 'You sent your inquiry to organizers',
-                    'quotation_accept' => "You accepted {$organizerName}'s quotation",
+                    'inquiry.submitted' => $direct ? "You sent your request to {$organizerName}" : 'You sent your inquiry to organizers',
+                    'quotation_accept' => 'You accepted '.$organizerName.(str_ends_with(strtolower($organizerName), 's') ? "'" : "'s").' quotation',
                     'event.converted_from_inquiry' => "{$organizerName} set up your event",
                     'event.stage_reached' => 'Stage reached: '.($this->values($r)['stage'] ?? ''),
                     'event.cancelled' => 'The event was cancelled',

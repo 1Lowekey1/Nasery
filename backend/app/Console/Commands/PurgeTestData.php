@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Extend the table list as later phases add tenant data (events, tickets...).
  */
-#[Signature('nasery:test-data:purge {--force : Actually delete (default: show what would be removed)} {--domain=nasery.test : Accounts whose e-mail ends in @this domain} {--everyone : Every account and organization (keeps reference data)}')]
+#[Signature('nasery:test-data:purge {--force : Actually delete (default: show what would be removed)} {--domain=nasery.test : Accounts whose e-mail ends in @this domain} {--everyone : Every account and organization (keeps reference data)} {--keep=* : With --everyone: e-mail(s) of accounts to keep, e.g. --keep=you@example.com}')]
 #[Description('Delete @nasery.test accounts (or another domain, or everyone) and the organizations they own')]
 class PurgeTestData extends Command
 {
@@ -33,14 +33,26 @@ class PurgeTestData extends Command
         $db = DB::connection('system');
         $everyone = (bool) $this->option('everyone');
         $domain = ltrim((string) $this->option('domain'), '@');
+        $keep = array_map(fn ($e) => mb_strtolower(trim((string) $e)), (array) $this->option('keep'));
+        if ($keep && ! $everyone) {
+            $this->error('--keep only works together with --everyone.');
+
+            return self::FAILURE;
+        }
+        $missing = array_diff($keep, $db->table('public.users')->whereIn(DB::raw('lower(email)'), $keep)->pluck('email')->map(fn ($e) => mb_strtolower($e))->all());
+        if ($missing) {
+            $this->error('No account with: '.implode(', ', $missing).'. Nothing deleted.');
+
+            return self::FAILURE;
+        }
         $users = $everyone
-            ? $db->table('public.users')->pluck('id')
+            ? $db->table('public.users')->whereNotIn(DB::raw('lower(email)'), $keep ?: [''])->pluck('id')
             : $db->table('public.users')->where('email', 'like', '%@'.$domain)->pluck('id');
         $orgs = $everyone
             ? $db->table('public.organizations')->pluck('id')
             : $db->table('public.organization_members')->whereIn('user_id', $users)->where('is_owner', true)->pluck('organization_id')->unique()->values();
 
-        $this->line(sprintf('%s: %d, organizations: %d', $everyone ? 'ALL accounts' : "Accounts @{$domain}", $users->count(), $orgs->count()));
+        $this->line(sprintf('%s: %d, organizations: %d', $everyone ? 'ALL accounts'.($keep ? ' except '.implode(', ', $keep) : '') : "Accounts @{$domain}", $users->count(), $orgs->count()));
 
         if ($users->isEmpty()) {
             $this->info('Nothing to purge.');
@@ -84,6 +96,10 @@ class PurgeTestData extends Command
             $reviewIds = $db->table('reviews')->whereIn('event_id', $events)->orWhereIn('client_user_id', $users)->pluck('id');
             $refundIds = $db->table('payment_refunds')->whereIn('payment_id', $payments)->pluck('id');
 
+            $orgIds = $orgs->map(fn ($id) => (string) $id)->all();
+            $aboutTest = fn ($q) => $q->whereIn('recipient_user_id', $users)->orWhereIn(DB::raw("data->>'organization_id'"), $orgIds ?: [''])
+                ->orWhereIn(DB::raw("data->>'review_id'"), $reviewIds->map(fn ($id) => (string) $id)->all() ?: ['']);
+
             $n = [
                 // B17: admin access, moderation cases and announcements touching test data.
                 'admin_access_requests' => $db->table('admin_access_requests')->whereIn('organization_id', $orgs)->orWhereIn('requested_by', $users)
@@ -98,9 +114,9 @@ class PurgeTestData extends Command
                     ->whereIn('subscription_id', $db->table('subscriptions')->whereIn('organization_id', $orgs)->select('id'))->select('id'))->delete(),
                 'subscription_invoices' => $db->table('subscription_invoices')->whereIn('subscription_id', $db->table('subscriptions')->whereIn('organization_id', $orgs)->select('id'))->delete(),
                 'subscriptions' => $db->table('subscriptions')->whereIn('organization_id', $orgs)->delete(),
-                // B13: notifications of test users, and ticket e-mail logs of test events.
-                'notification_deliveries' => $db->table('notification_deliveries')->whereIn('notification_id', $db->table('notifications')->whereIn('recipient_user_id', $users)->select('id'))->delete(),
-                'notifications' => $db->table('notifications')->whereIn('recipient_user_id', $users)->delete(),
+                // B13: notifications of test users (and other people's, e.g. admin alerts, about test organizations), and ticket e-mail logs of test events.
+                'notification_deliveries' => $db->table('notification_deliveries')->whereIn('notification_id', $db->table('notifications')->where($aboutTest)->select('id'))->delete(),
+                'notifications' => $db->table('notifications')->where($aboutTest)->delete(),
                 'notification_preferences' => $db->table('notification_preferences')->whereIn('user_id', $users)->delete(),
                 'mail_deliveries' => $db->table('laravel.mail_deliveries')->whereIn('event_id', $events)->delete(),
                 'event_reports' => $db->table('event_reports')->whereIn('event_id', $events)->delete(),
@@ -127,11 +143,15 @@ class PurgeTestData extends Command
                 'tasks' => $db->table('tasks')->whereIn('checklist_id', $db->table('checklists')->whereIn('event_id', $events)->select('id'))->delete(),
                 'checklists' => $db->table('checklists')->whereIn('event_id', $events)->delete(),
                 'event_progress' => $db->table('event_progress')->whereIn('event_id', $events)->delete(),
+                // 0045: activities organizers wrote on their events.
+                'event_activities' => $db->table('event_activities')->whereIn('event_id', $events)->orWhereIn('organization_id', $orgs)->delete(),
                 'event_sessions' => $db->table('event_sessions')->whereIn('event_id', $events)->delete(),
                 'events' => $db->table('events')->whereIn('id', $events)->delete(),
                 'quotation_status_history' => $db->table('quotation_status_history')->whereIn('quotation_id', $quotations)->delete(),
                 'quotation_items' => $db->table('quotation_items')->whereIn('quotation_id', $quotations)->delete(),
                 'quotations' => $db->table('quotations')->whereIn('id', $quotations)->delete(),
+                // 0043: payouts recorded for those organizations.
+                'organization_payouts' => $db->table('organization_payouts')->whereIn('organization_id', $orgs)->delete(),
                 'organization_price_options' => $db->table('organization_price_options')->whereIn('organization_id', $orgs)->delete(),
                 // Threads (0042) of those inquiry participants, and anything test users wrote or read.
                 'inquiry_thread_reads' => $db->table('inquiry_thread_reads')->whereIn('inquiry_organization_id', $db->table('inquiry_organizations')
@@ -145,6 +165,8 @@ class PurgeTestData extends Command
                 'ownership_transfers' => $db->table('ownership_transfers')->whereIn('organization_id', $orgs)->delete(),
                 'organization_services' => $db->table('organization_services')->whereIn('organization_id', $orgs)->delete(),
                 'event_types' => $db->table('event_types')->whereIn('organization_id', $orgs)->delete(),
+                'event_stages' => $db->table('event_stages')->whereIn('organization_id', $orgs)->delete(),
+                'moderation_reports' => $db->table('moderation_reports')->whereIn('reported_by', $users)->delete(),
                 'organization_profiles' => $db->table('organization_profiles')->whereIn('organization_id', $orgs)->delete(),
                 'member_permission_overrides' => $db->table('member_permission_overrides')->whereIn('organization_member_id',
                     $db->table('organization_members')->whereIn('organization_id', $orgs)->orWhereIn('user_id', $users)->select('id'))->delete(),
@@ -170,6 +192,8 @@ class PurgeTestData extends Command
         }
 
         $this->info('Purged.');
+        // Their uploaded pictures (older than an hour; the daily prune gets the rest).
+        $this->call('nasery:media:prune');
 
         return self::SUCCESS;
     }

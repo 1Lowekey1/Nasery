@@ -7,12 +7,13 @@
 					<h2 class="text-lg font-bold text-gray-900">{{ title }}</h2>
 					<p class="mt-0.5 text-sm text-gray-500">{{ context }}</p>
 				</div>
-				<button type="button" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Close" @click="$emit('close')">
+				<button type="button" class="tap-target rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Close" @click="$emit('close')">
 					<IconBase name="x" class="h-5 w-5" />
 				</button>
 			</div>
 
 			<form novalidate class="flex-1 space-y-5 overflow-y-auto px-6 py-5" @submit.prevent="save(true)">
+				<FormsDraftNotice :draft="draft" />
 				<Alert v-if="error" type="danger" :text="error" />
 				<p v-if="mode === 'revise'" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
 					Sending replaces your current quotation. The client will only see this new version.
@@ -117,6 +118,9 @@ const form = reactive<QuotationContent>({
 	items: props.quotation?.items.map(i => ({ organization_service_id: i.organization_service_id, description: i.description, quantity: Number(i.quantity), unit_price: Number(i.unit_price) })) ?? [blankLine()],
 })
 const total = computed(() => linesTotal(form.items))
+const draft = useDraft(() => (props.quotation ? null : `quotation:${props.inquiryId}`), form, {
+	isEmpty: v => !v.package_name?.trim() && !v.proposal?.trim() && !v.terms?.trim() && (v.items ?? []).every(i => !String(i.description ?? '').trim() && !i.unit_price),
+})
 const priceOptions = ref<PriceOption[]>([])
 const showPriceList = ref(false)
 const busy = ref(false)
@@ -148,6 +152,7 @@ async function save(send: boolean) {
 			if (send) saved = await api.submit(props.organizationId, q.id)
 		}
 		else saved = await api.revise(props.organizationId, q.id, payload())
+		draft.clear()
 		emit('saved', saved)
 	} catch (e) {
 		const fields = fieldErrors(e)

@@ -3,6 +3,7 @@
 namespace App\Services\Ticketing;
 
 use App\Enums\AdmissionType;
+use Carbon\CarbonImmutable;
 use App\Enums\RegistrationSource;
 use App\Enums\RegistrationStatus;
 use App\Enums\TicketStatus;
@@ -94,8 +95,12 @@ class GuestList
             $guests[] = ['full_name' => $row['name'], 'email' => $row['email'] ?? null, 'contact_number' => $row['contact'] ?? null, 'tier' => $tier];
         }
 
+        if ($rows !== [] && ! array_key_exists('name', $rows[0])) {
+            $errors = ['The first row needs a "name" column (or "first name" and "last name"). Download the template to see the format.'];
+        }
+
         if ($guests === [] && $errors === []) {
-            $errors[] = 'The file has no guests. Use a header row: name, email, contact, tier.';
+            $errors[] = 'The file has no guests. The first row must be the column names (name, email, contact, tier), then one guest per row.';
         }
 
         if ($errors !== []) {
@@ -151,8 +156,29 @@ class GuestList
      */
     public function list(Event $event, array $filters, int $page, int $perPage = 25): LengthAwarePaginator
     {
-        return $this->query($event, $filters)->paginate(perPage: $perPage, page: $page)
-            ->through(fn ($r) => $this->present($r));
+        $page = $this->query($event, $filters)->paginate(perPage: $perPage, page: $page);
+        $times = $this->checkInTimes($page->getCollection()->pluck('id')->all());
+
+        return $page->through(fn ($r) => $this->present($r, $times[$r->id] ?? null));
+    }
+
+    /**
+     * Latest check-in per ticket (the attendance report's "Check-in time"). Attendance
+     * rows are readable only with checkin.perform; the caller already holds attendee
+     * access to this event's list, so read just these tickets' times in system context.
+     *
+     * @param  list<string>  $ticketIds
+     * @return array<string, string>
+     */
+    private function checkInTimes(array $ticketIds): array
+    {
+        if ($ticketIds === []) {
+            return [];
+        }
+
+        return $this->db->system('tickets.checkin_times', fn () => DB::table('attendance_records')->whereIn('ticket_id', $ticketIds)
+            ->groupBy('ticket_id')->selectRaw('ticket_id, max(checked_in_at) as at')->pluck('at', 'ticket_id')
+            ->map(fn ($at) => CarbonImmutable::parse($at)->toIso8601String())->all());
     }
 
     /**
@@ -160,7 +186,10 @@ class GuestList
      */
     public function export(Event $event): Collection
     {
-        return $this->query($event, [])->limit(20000)->get()->map(fn ($r) => $this->present($r));
+        $rows = $this->query($event, [])->limit(20000)->get();
+        $times = $this->checkInTimes($rows->pluck('id')->all());
+
+        return $rows->map(fn ($r) => $this->present($r, $times[$r->id] ?? null));
     }
 
     /**
@@ -251,7 +280,7 @@ class GuestList
     /**
      * @return array<string, mixed>
      */
-    private function present(object $r): array
+    private function present(object $r, ?string $checkedInAt = null): array
     {
         return [
             'id' => $r->id,
@@ -264,6 +293,7 @@ class GuestList
             'admission_type' => $r->admission_type,
             'source' => $r->registration_source,
             'issued_at' => $r->issued_at,
+            'checked_in_at' => $checkedInAt,
             'cancellation_reason' => $r->cancellation_reason,
         ];
     }
@@ -280,14 +310,25 @@ class GuestList
             return [];
         }
 
-        $aliases = ['full name' => 'name', 'full_name' => 'name', 'guest' => 'name', 'e-mail' => 'email', 'phone' => 'contact',
-            'contact number' => 'contact', 'mobile' => 'contact', 'ticket' => 'tier', 'ticket type' => 'tier', 'zone' => 'tier'];
-        $header = array_map(fn ($h) => $aliases[Str::lower(trim($h))] ?? Str::lower(trim($h)), str_getcsv(array_shift($lines)));
+        // Excel saves "CSV" with ; (or tabs) in some regional settings: use whichever splits the header best.
+        $delimiter = collect([',', ';', "\t"])->sortByDesc(fn ($d) => substr_count($lines[0], $d))->first();
 
-        return array_map(function (string $line) use ($header) {
-            $cells = array_pad(array_slice(str_getcsv($line), 0, count($header)), count($header), '');
+        $aliases = ['full name' => 'name', 'full_name' => 'name', 'guest' => 'name', 'guest name' => 'name', 'attendee' => 'name',
+            'e-mail' => 'email', 'email address' => 'email', 'phone' => 'contact', 'contact number' => 'contact', 'mobile' => 'contact',
+            'mobile number' => 'contact', 'phone number' => 'contact', 'ticket' => 'tier', 'ticket type' => 'tier', 'ticket tier' => 'tier', 'zone' => 'tier',
+            'first name' => 'first_name', 'firstname' => 'first_name', 'given name' => 'first_name',
+            'last name' => 'last_name', 'lastname' => 'last_name', 'surname' => 'last_name', 'family name' => 'last_name'];
+        $header = array_map(fn ($h) => $aliases[Str::lower(trim((string) $h))] ?? Str::lower(trim((string) $h)), str_getcsv(array_shift($lines), $delimiter));
 
-            return array_combine($header, array_map(fn ($v) => trim((string) $v), $cells));
+        return array_map(function (string $line) use ($header, $delimiter) {
+            $cells = array_pad(array_slice(str_getcsv($line, $delimiter), 0, count($header)), count($header), '');
+            $row = array_combine($header, array_map(fn ($v) => trim((string) $v), $cells));
+            // "First name" + "Last name" columns instead of one "name" column.
+            if (blank($row['name'] ?? null) && (array_key_exists('first_name', $row) || array_key_exists('last_name', $row))) {
+                $row['name'] = trim(($row['first_name'] ?? '').' '.($row['last_name'] ?? ''));
+            }
+
+            return $row;
         }, $lines);
     }
 }

@@ -137,7 +137,7 @@ class PreparationTest extends TestCase
         // test is one transaction, so that row sorts first here; in production
         // each request is its own transaction and the order is chronological.
         $this->assertEqualsCanonicalizing([
-            'You sent your inquiry to organizers',
+            "You sent your request to {$org->display_name}", // a direct request names its organizer
             "You accepted {$org->display_name}'s quotation",
             "{$org->display_name} set up your event",
             'Stage reached: Planning',
@@ -146,6 +146,19 @@ class PreparationTest extends TestCase
         $this->assertSame(["{$org->display_name} set up your event", 'Stage reached: Planning', 'Stage reached: Confirmed'], $messages->slice(2)->values()->all());
         $this->assertStringNotContainsString('Secret staff list', json_encode($progress));
         $this->assertStringNotContainsString($owner->first_name, json_encode($progress));
+
+        // 0049: program items are internal unless the organizer shows them to the client (no person in charge).
+        $activities = "/api/v1/organizations/{$org->id}/events/{$event}/activities";
+        $this->actingAs($owner)->spaJson('POST', $activities, ['title' => 'Staff briefing', 'person' => 'Ken Staffer'])->assertCreated()
+            ->assertJsonPath('data.visible_to_client', false);
+        $entrance = $this->actingAs($owner)->spaJson('POST', $activities, ['title' => 'Grand entrance', 'person' => 'Ken Staffer', 'tag' => 'cue-7', 'visible_to_client' => true])
+            ->assertCreated()->assertJsonPath('data.visible_to_client', true)->json('data.id');
+        $program = $this->actingAs($client)->spaJson('GET', "/api/v1/events/{$event}/progress")->assertOk()->json('data.program');
+        $this->assertSame(['Grand entrance'], array_column($program, 'title'));
+        $this->assertStringNotContainsString('Ken Staffer', json_encode($program));
+        $this->assertStringNotContainsString('cue-7', json_encode($program));
+        $this->actingAs($owner)->spaJson('PATCH', "{$activities}/{$entrance}", ['visible_to_client' => false])->assertOk()->assertJsonPath('data.visible_to_client', false);
+        $this->assertSame([], $this->actingAs($client)->spaJson('GET', "/api/v1/events/{$event}/progress")->json('data.program'));
 
         // The organizer's detailed timeline has everything, with who did it.
         $timeline = $this->actingAs($owner)->spaJson('GET', "{$base}/timeline")->assertOk()->json('data');

@@ -19,6 +19,7 @@ use App\Services\Ticketing\TicketIssuer;
 use App\Support\Audit\AuditLogger;
 use App\Support\Database\DatabaseContext;
 use App\Support\Http\ErrorCode;
+use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -58,8 +59,29 @@ class Payments
      */
     public function startCheckout(User $user, string $registrationId): array
     {
-        $prepared = $this->db->system('payments.prepare', function () use ($user, $registrationId) {
-            $registration = Registration::query()->whereKey($registrationId)->where('purchaser_user_id', $user->id)->lockForUpdate()->first()
+        $owned = $this->db->system('payments.owner', fn () => Registration::query()->whereKey($registrationId)->where('purchaser_user_id', $user->id)->exists());
+
+        if (! $owned) {
+            throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
+        }
+
+        $return = rtrim((string) config('nasery.auth.frontend_url'), '/').'/payments/return?payment=';
+
+        return $this->checkout($registrationId, fn (string $paymentId) => $return.$paymentId);
+    }
+
+    /**
+     * Opens a checkout for a registration waiting for payment (signed-in
+     * buyers and guests). $returnUrl builds the page PayMongo sends the buyer
+     * back to, from the new payment's id.
+     *
+     * @param  Closure(string): string  $returnUrl
+     * @return array{payment_id: string, checkout_url: string, amount: string, mode: string}
+     */
+    public function checkout(string $registrationId, Closure $returnUrl): array
+    {
+        $prepared = $this->db->system('payments.prepare', function () use ($registrationId) {
+            $registration = Registration::query()->whereKey($registrationId)->lockForUpdate()->first()
                 ?? throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
 
             if ($registration->status !== RegistrationStatus::Pending) {
@@ -84,10 +106,10 @@ class Payments
             DB::table('payments')->where('registration_id', $registration->id)->where('status', PaymentStatus::Pending->value)
                 ->update(['status' => PaymentStatus::Cancelled->value, 'failure_reason' => 'replaced by a new checkout', 'updated_at' => now()]);
 
-            $tier = TicketType::query()->find($tickets->first()->ticket_type_id);
+            $tiers = TicketType::query()->whereIn('id', $tickets->pluck('ticket_type_id')->unique())->get()->keyBy('id');
             $event = Event::query()->find($registration->event_id);
 
-            return compact('registration', 'tickets', 'amountCents', 'tier', 'event');
+            return compact('registration', 'tickets', 'amountCents', 'tiers', 'event');
         });
 
         $payment = (new Payment)->forceFill([
@@ -98,16 +120,18 @@ class Payments
             'status' => PaymentStatus::Pending,
         ]);
 
-        $return = rtrim((string) config('nasery.auth.frontend_url'), '/').'/payments/return?payment='.$payment->id;
-        $session = $this->gateway->createCheckout($payment, [[
-            'name' => "{$prepared['event']->name}: {$prepared['tier']->name}",
-            'amount_centavos' => (int) round((float) $prepared['tier']->price * 100),
-            'quantity' => $prepared['tickets']->count(),
-        ]], [
+        $return = $returnUrl($payment->id);
+        // One line per ticket type (a registration can mix them).
+        $lines = $prepared['tickets']->groupBy('ticket_type_id')->map(fn ($group, $tierId) => [
+            'name' => "{$prepared['event']->name}: {$prepared['tiers'][$tierId]->name}",
+            'amount_centavos' => (int) round((float) $group->first()->purchased_price * 100),
+            'quantity' => $group->count(),
+        ])->values()->all();
+        $session = $this->gateway->createCheckout($payment, $lines, [
             'name' => (string) $prepared['registration']->purchaser_name,
             'email' => $prepared['registration']->purchaser_email,
             'phone' => $prepared['registration']->purchaser_contact,
-        ], $return, $return.'&cancelled=1');
+        ], $return, $return.(str_contains($return, '?') ? '&' : '?').'cancelled=1');
 
         $this->db->system('payments.create', fn () => $payment->forceFill(['paymongo_payment_intent_id' => $session->intentId])->save());
         $this->audit->record('payment.checkout_started', $payment,
@@ -257,6 +281,28 @@ class Payments
             'failure_reason' => $payment->failure_reason,
             'mode' => $this->gateway->mode(),
         ];
+    }
+
+    /**
+     * Guest checkout return page: if this registration's payment is still
+     * pending, ask the gateway (the webhook may be late or unavailable).
+     */
+    public function refreshPending(string $registrationId, string $paymentId): void
+    {
+        $payment = $this->db->system('payments.refresh', fn () => Payment::query()->whereKey($paymentId)
+            ->where('registration_id', $registrationId)->first());
+
+        if ($payment === null || $payment->status !== PaymentStatus::Pending || $this->gateway->mode() === 'fake') {
+            return;
+        }
+
+        try {
+            if ($this->gatewayFor($payment)->status($payment->paymongo_payment_intent_id) === 'paid') {
+                $this->settle($payment->paymongo_payment_intent_id, 'return');
+            }
+        } catch (Throwable $e) {
+            Log::info('payments.status_check_failed', ['payment' => $payment->id, 'error' => $e->getMessage()]);
+        }
     }
 
     /** The buyer gives up a reservation: places, pending tickets and open checkouts are released. */

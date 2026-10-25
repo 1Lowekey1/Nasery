@@ -71,7 +71,9 @@ class NotificationTest extends TestCase
         $ben = $this->guest($owner, $base, $tier, 'Ben Lim', null)->json('data.ticket_id');           // no address
         $cara = $this->guest($owner, $base, $tier, 'Cara Tan', 'cara@party.test')->json('data.ticket_id'); // test domain
         $dan = $this->guest($owner, $base, $tier, 'Dan Uy', 'dan@guests.ph', send: false)->json('data.ticket_id');
-        Mail::assertSentCount(1);
+        // Only Ana's ticket is e-mailed. (Count ticket mail only: real admins in the database
+        // also get a "new organizer" alert for the organizer this test creates.)
+        Mail::assertSent(TicketMail::class, 1);
 
         $rows = collect($this->actingAs($owner)->spaJson('GET', "{$base}/guests")->assertOk()->json('data'))->keyBy('id');
         $this->assertSame('sent', $rows[$ana]['email_delivery']['status']);
@@ -83,7 +85,7 @@ class NotificationTest extends TestCase
         $this->actingAs($owner)->spaJson('POST', "{$base}/tickets/{$dan}/email")->assertOk()->assertJsonPath('data.email_delivery.status', 'queued');
         $this->assertSame('sent', collect($this->actingAs($owner)->spaJson('GET', "{$base}/guests")->json('data'))->firstWhere('id', $dan)['email_delivery']['status']);
         $this->actingAs($owner)->spaJson('POST', "{$base}/tickets/{$ben}/email")->assertOk()->assertJsonPath('message', 'Not sent: No e-mail address.');
-        Mail::assertSentCount(2);
+        Mail::assertSent(TicketMail::class, 2);
 
         // Printable PDF for the organizer; the holder route refuses someone else's ticket.
         $pdf = $this->actingAs($owner)->spaJson('GET', "{$base}/tickets/{$ana}/pdf");
@@ -111,6 +113,12 @@ class NotificationTest extends TestCase
         $ticket = DB::table('tickets')->where('event_id', $event)->value('id');
         $mine = $this->actingAs($fan)->spaJson('GET', "/api/v1/me/tickets/{$ticket}/pdf");
         $mine->assertOk()->assertHeader('Content-Type', 'application/pdf');
+
+        // "E-mail my ticket": not a duplicate right after purchase, a fresh copy later, nobody else's ticket.
+        $this->actingAs($fan)->spaJson('POST', "/api/v1/me/tickets/{$ticket}/email")->assertOk()->assertJsonPath('data.already_sent', true);
+        $this->travel(3)->minutes();
+        $this->actingAs($fan)->spaJson('POST', "/api/v1/me/tickets/{$ticket}/email")->assertOk()->assertJsonPath('data.queued', 1);
+        $this->actingAs(User::factory()->create())->spaJson('POST', "/api/v1/me/tickets/{$ticket}/email")->assertNotFound();
     }
 
     public function test_in_app_notifications_email_preferences_and_privacy(): void

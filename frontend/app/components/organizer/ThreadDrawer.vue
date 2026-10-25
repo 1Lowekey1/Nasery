@@ -7,7 +7,7 @@
 						<p class="text-xs font-bold uppercase tracking-wide text-gray-400">Messages</p>
 						<h2 class="text-base font-bold text-gray-900">{{ title }}</h2>
 					</div>
-					<button type="button" class="text-gray-400 hover:text-gray-700" aria-label="Close" @click="emit('close')">
+					<button type="button" class="tap-target text-gray-400 hover:text-gray-700" aria-label="Close" @click="emit('close')">
 						<IconBase name="x" class="h-5 w-5" />
 					</button>
 				</div>

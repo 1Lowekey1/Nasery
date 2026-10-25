@@ -149,6 +149,102 @@ class InquiryManager
         return $listed->count();
     }
 
+    /**
+     * Fields a client may change after sending. Event type and place stay:
+     * organizers were invited (and matched) on them; for those, cancel and
+     * post a new request.
+     */
+    public const REVISABLE = ['requested_date', 'guest_count', 'budget_min', 'budget_max', 'additional_requirements'];
+
+    private const CHANGE_LABELS = [
+        'requested_date' => 'the date', 'guest_count' => 'the guest count', 'budget_min' => 'the budget',
+        'budget_max' => 'the budget', 'additional_requirements' => 'the notes', 'services' => 'the services',
+    ];
+
+    /**
+     * Change a sent request while it is open. Invited organizers (not those
+     * who declined or withdrew) are told what changed; quotations already
+     * sent stay valid but show as sent before the change, so the organizer
+     * can revise them.
+     *
+     * @param  array<string, mixed>  $data  validated fields + optional services[]
+     */
+    public function revise(Inquiry $inquiry, array $data): Inquiry
+    {
+        $this->lock($inquiry);
+        $this->assertStatus($inquiry, Inquiry::OPEN_STATUSES, 'This request is closed, so it can no longer be changed.');
+
+        if ($inquiry->revision_count >= Inquiry::MAX_REVISIONS) {
+            throw new ApiException(ErrorCode::InvalidStateTransition,
+                'This request was already changed '.Inquiry::MAX_REVISIONS.' times. Cancel it and post a new one if more has changed.', 409);
+        }
+
+        $fields = collect($data)->only(self::REVISABLE)->all();
+        $old = collect($inquiry->only(array_keys($fields)))->map(fn ($v) => $v instanceof \DateTimeInterface ? $v->format('Y-m-d') : $v)->all();
+        $inquiry->fill($fields);
+        $changed = array_keys($inquiry->getDirty());
+
+        $missing = [];
+        if (blank($inquiry->requested_date)) {
+            $missing['requested_date'] = 'Pick the event date.';
+        }
+        if (blank($inquiry->guest_count)) {
+            $missing['guest_count'] = 'Add the expected number of guests.';
+        }
+
+        $servicesChanged = false;
+        if (array_key_exists('services', $data)) {
+            $services = $data['services'] ?? [];
+            if ($services === [] && $inquiry->isOpenPosting()) {
+                $missing['services'] = 'Keep at least one service: organizers were matched on them.';
+            }
+            $current = $this->db->system('inquiry.services', fn () => DB::table('inquiry_services')->where('inquiry_id', $inquiry->id)
+                ->get(['service_id', 'custom_service_name', 'notes'])->map(fn ($s) => (array) $s)->all());
+            $servicesChanged = $this->servicesKey($current) !== $this->servicesKey($services);
+        }
+
+        if ($missing !== []) {
+            throw ValidationException::withMessages($missing);
+        }
+
+        if ($changed === [] && ! $servicesChanged) {
+            throw ValidationException::withMessages(['request' => 'Nothing was changed.']);
+        }
+
+        $inquiry->forceFill(['revised_at' => now(), 'revision_count' => $inquiry->revision_count + 1])->save();
+
+        if ($servicesChanged) {
+            $this->replaceServices($inquiry, $data['services'] ?? []);
+            $changed[] = 'services';
+        }
+
+        $labels = collect($changed)->map(fn ($f) => self::CHANGE_LABELS[$f] ?? null)->filter()->unique()->values()->all();
+
+        $this->audit->record('inquiry.revised', $inquiry, old: $old, new: [
+            ...collect($fields)->only($changed)->all(),
+            'services_changed' => $servicesChanged,
+            'revision' => $inquiry->revision_count,
+        ]);
+
+        $notify = $this->db->system('inquiry.invitations', fn () => DB::table('inquiry_organizations')->where('inquiry_id', $inquiry->id)
+            ->whereIn('status', [InquiryOrgStatus::Pending->value, InquiryOrgStatus::Viewed->value, InquiryOrgStatus::Quoted->value])
+            ->get(['organization_id', 'status']));
+        $this->alerts->inquiryRevised($inquiry, $notify->pluck('organization_id'), $labels,
+            $notify->where('status', InquiryOrgStatus::Quoted->value)->pluck('organization_id')->all());
+
+        return $inquiry->refresh();
+    }
+
+    /** Order-insensitive comparison key for a requested-services list. */
+    private function servicesKey(array $services): string
+    {
+        return collect($services)->map(fn ($s) => [
+            (string) ($s['service_id'] ?? ''),
+            trim((string) ($s['custom_service_name'] ?? '')),
+            trim((string) ($s['notes'] ?? '')),
+        ])->sort()->values()->toJson();
+    }
+
     public function cancel(Inquiry $inquiry, ?string $reason): Inquiry
     {
         $this->lock($inquiry);

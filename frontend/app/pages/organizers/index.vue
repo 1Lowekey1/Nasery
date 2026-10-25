@@ -1,7 +1,7 @@
 <template>
 	<div class="mx-auto max-w-7xl px-5 pt-10 sm:px-8">
 		<p class="text-xs font-bold uppercase tracking-widest text-primary-700">Organizer directory</p>
-		<h1 class="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">Find the right team for your event</h1>
+		<h1 class="mt-2 text-2xl font-extrabold tracking-tight sm:text-4xl">Find the right team for your event</h1>
 		<p class="mt-3 max-w-2xl text-gray-600">
 			Every organizer here is reviewed by NaSeRy. Compare services and reviews, then post your event to receive their quotations.
 		</p>
@@ -50,10 +50,12 @@
 			<NuxtLink v-for="org in items" :key="org.id" :to="`/organizers/${org.slug}`"
 				class="group overflow-hidden rounded-2xl border border-gray-200 bg-white transition hover:-translate-y-0.5 hover:shadow-md">
 				<div class="h-28 bg-gradient-to-br from-primary-600 to-primary-900"
-					:style="org.cover_image_url ? { backgroundImage: `url(${JSON.stringify(org.cover_image_url)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}" />
+					:style="(org.cover_url || org.cover_image_url) ? { backgroundImage: `url(${JSON.stringify(org.cover_url || org.cover_image_url)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}" />
 				<div class="p-5">
-					<div class="-mt-12 mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border-4 border-white bg-gray-900 text-lg font-bold text-white">
-						{{ initialsOf(org.display_name) }}
+					<div class="-mt-12 mb-3 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border-4 border-white text-lg font-bold text-white"
+						:class="org.logo_url ? 'bg-white' : 'bg-gray-900'">
+						<img v-if="org.logo_url" :src="org.logo_url" :alt="`${org.display_name} logo`" class="h-full w-full object-contain">
+						<template v-else>{{ initialsOf(org.display_name) }}</template>
 					</div>
 					<h2 class="text-lg font-bold group-hover:text-primary-800">{{ org.display_name }}</h2>
 					<p class="mt-1 text-sm text-gray-500">

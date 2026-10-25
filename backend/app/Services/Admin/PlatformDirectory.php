@@ -53,6 +53,8 @@ class PlatformDirectory
                 ->orderByDesc('u.created_at')
                 ->paginate(25, ['u.id', 'u.first_name', 'u.last_name', 'u.email', 'u.phone', 'u.account_type', 'u.status', 'u.email_verified_at', 'u.created_at', 'g.orgs'], 'page', $f['page'] ?? 1);
 
+            $counts = $this->activityCounts($page->getCollection()->pluck('id')->all());
+
             $page->getCollection()->transform(fn ($u) => [
                 'id' => $u->id,
                 'name' => trim("{$u->first_name} {$u->last_name}"),
@@ -63,10 +65,69 @@ class PlatformDirectory
                 'verified' => $u->email_verified_at !== null,
                 'organizations' => $u->orgs,
                 'joined' => CarbonImmutable::parse($u->created_at)->toIso8601String(),
+                ...$counts[$u->id],
             ]);
 
             return $page;
         });
+    }
+
+    /**
+     * One account for the admin portal: who they are and how much they use
+     * NaSeRy. Counts only; what they asked for or booked stays private.
+     *
+     * @return array<string, mixed>
+     */
+    public function user(string $userId): array
+    {
+        return $this->db->system('admin.user', function () use ($userId) {
+            $u = DB::table('users')->where('id', $userId)->whereNull('deleted_at')
+                ->first(['id', 'first_name', 'last_name', 'email', 'phone', 'account_type', 'status', 'email_verified_at', 'created_at'])
+                ?? throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
+            $reviews = DB::table('reviews')->where('client_user_id', $u->id)->whereNull('deleted_at')->selectRaw('count(*) as n, avg(rating) as avg')->first();
+
+            return [
+                'id' => $u->id,
+                'name' => trim("{$u->first_name} {$u->last_name}"),
+                'email' => $u->email,
+                'phone' => $u->phone,
+                'type' => $u->account_type,
+                'status' => $u->status,
+                'verified' => $u->email_verified_at !== null,
+                'joined' => CarbonImmutable::parse($u->created_at)->toIso8601String(),
+                'organizations' => DB::table('organization_members as m')->join('organizations as o', 'o.id', '=', 'm.organization_id')
+                    ->where('m.user_id', $u->id)->where('m.status', 'active')->whereNull('m.deleted_at')->orderBy('o.display_name')->pluck('o.display_name')->all(),
+                ...$this->activityCounts([$u->id])[$u->id],
+                'reviews' => (int) $reviews->n,
+                'average_rating_given' => $reviews->avg !== null ? round((float) $reviews->avg, 2) : null,
+            ];
+        });
+    }
+
+    /**
+     * @param  list<string>  $userIds
+     * @return array<string, array{inquiries: int, bookings: int, tickets: int, spend: float}>
+     */
+    private function activityCounts(array $userIds): array
+    {
+        $inquiries = DB::table('inquiries')->whereIn('client_user_id', $userIds)->whereNull('deleted_at')
+            ->groupBy('client_user_id')->selectRaw('client_user_id as id, count(*) as n')->pluck('n', 'id');
+        $bookings = DB::table('events as e')->join('inquiries as i', 'i.id', '=', 'e.inquiry_id')->whereIn('i.client_user_id', $userIds)->whereNull('e.deleted_at')
+            ->groupBy('i.client_user_id')->selectRaw('i.client_user_id as id, count(*) as n')->pluck('n', 'id');
+        $tickets = DB::table('tickets as t')->join('registrations as r', 'r.id', '=', 't.registration_id')->whereIn('r.purchaser_user_id', $userIds)
+            ->whereIn('t.status', ['valid', 'used'])->groupBy('r.purchaser_user_id')->selectRaw('r.purchaser_user_id as id, count(*) as n')->pluck('n', 'id');
+        // As an attendee: ticket purchases, net of refunds. (Organizer bookings are paid outside NaSeRy.)
+        $spend = DB::table('payments as p')->join('registrations as r', 'r.id', '=', 'p.registration_id')->whereIn('r.purchaser_user_id', $userIds)
+            ->where('p.status', 'paid')->groupBy('r.purchaser_user_id')
+            ->selectRaw('r.purchaser_user_id as id, sum(p.amount) - coalesce(sum((select sum(f.amount) from payment_refunds f where f.payment_id = p.id)), 0) as n')
+            ->pluck('n', 'id');
+
+        return collect($userIds)->mapWithKeys(fn ($id) => [$id => [
+            'inquiries' => (int) ($inquiries[$id] ?? 0),
+            'bookings' => (int) ($bookings[$id] ?? 0),
+            'tickets' => (int) ($tickets[$id] ?? 0),
+            'spend' => round((float) ($spend[$id] ?? 0), 2),
+        ]])->all();
     }
 
     public function setUserStatus(User $admin, string $userId, bool $suspend, string $reason): array
@@ -141,6 +202,65 @@ class PlatformDirectory
             DB::table('services')->where('id', $id)->update(['deleted_at' => $archive ? now() : null]);
         });
         $this->audit->record($archive ? 'service_catalog.archived' : 'service_catalog.restored', ['services', $id]);
+    }
+
+    // ---- Standard event types ("event tags" in the admin portal) -----------
+
+    /** @return list<array<string, mixed>> NaSeRy's own event types (organizers add their own on top) */
+    public function eventTypes(): array
+    {
+        return $this->db->system('admin.event_types', function () {
+            $uses = DB::table('events')->whereNull('deleted_at')->whereNotNull('event_type_id')->groupBy('event_type_id')->selectRaw('event_type_id, count(*) as n')->pluck('n', 'event_type_id');
+            $asks = DB::table('inquiries')->whereNull('deleted_at')->whereNotNull('event_type_id')->groupBy('event_type_id')->selectRaw('event_type_id, count(*) as n')->pluck('n', 'event_type_id');
+            // Organizers who list the type on their profile (event_tags holds names).
+            $offered = collect(DB::select('select lower(t.tag) as tag, count(distinct p.organization_id) as n
+                from organization_profiles p cross join lateral jsonb_array_elements_text(p.event_tags) as t(tag)
+                group by lower(t.tag)'))->pluck('n', 'tag');
+
+            return DB::table('event_types')->whereNull('organization_id')->whereNull('deleted_at')->orderBy('name')
+                ->get(['id', 'name', 'description'])
+                ->map(fn ($t) => ['id' => $t->id, 'name' => $t->name, 'description' => $t->description, 'events' => (int) ($uses[$t->id] ?? 0), 'inquiries' => (int) ($asks[$t->id] ?? 0),
+                    'organizers' => (int) ($offered[mb_strtolower($t->name)] ?? 0)])
+                ->all();
+        });
+    }
+
+    public function saveEventType(?string $id, string $name, ?string $description): array
+    {
+        $name = trim($name);
+        $description = $description !== null && trim($description) !== '' ? trim($description) : null;
+
+        $id = $this->db->system('admin.event_type_save', function () use ($id, $name, $description) {
+            $clash = DB::table('event_types')->whereNull('organization_id')->whereNull('deleted_at')->whereRaw('lower(name) = lower(?)', [$name])
+                ->when($id, fn ($q) => $q->where('id', '<>', $id))->exists();
+            if ($clash) {
+                throw ValidationException::withMessages(['name' => 'There is already an event type with this name.']);
+            }
+            if ($id === null) {
+                $id = (string) Str::uuid7();
+                DB::table('event_types')->insert(['id' => $id, 'organization_id' => null, 'name' => $name, 'description' => $description,
+                    'is_system_default' => true, 'created_at' => now(), 'updated_at' => now()]);
+            } elseif (DB::table('event_types')->where('id', $id)->whereNull('organization_id')->whereNull('deleted_at')
+                ->update(['name' => $name, 'description' => $description, 'updated_at' => now()]) === 0) {
+                throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
+            }
+
+            return $id;
+        });
+        $this->audit->record('event_type.saved', ['event_types', $id], new: ['name' => $name]);
+
+        return collect($this->eventTypes())->firstWhere('id', $id);
+    }
+
+    /** Removed types stay on the events and inquiries that already use them; they just can't be picked anymore. */
+    public function removeEventType(string $id): void
+    {
+        $this->db->system('admin.event_type_remove', function () use ($id) {
+            if (DB::table('event_types')->where('id', $id)->whereNull('organization_id')->whereNull('deleted_at')->update(['deleted_at' => now()]) === 0) {
+                throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
+            }
+        });
+        $this->audit->record('event_type.removed', ['event_types', $id]);
     }
 
     // ---- Announcements ------------------------------------------------------

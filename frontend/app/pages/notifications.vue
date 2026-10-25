@@ -17,7 +17,7 @@
 			<section v-if="tab !== 'settings'" class="rounded-2xl border border-gray-200 bg-white">
 				<div class="flex items-center justify-between border-b border-gray-100 px-5 py-3">
 					<p class="text-sm text-gray-500">{{ tab === 'unread' ? 'Unread' : 'All notifications' }}</p>
-					<button v-if="unread" type="button" class="text-sm font-semibold text-primary-700" @click="readAll">Mark all read</button>
+					<button v-if="unread" type="button" class="tap-target text-sm font-semibold text-primary-700" @click="readAll">Mark all read</button>
 				</div>
 				<p v-if="loading && !items.length" class="px-5 py-10 text-center text-sm text-gray-400">Loading…</p>
 				<p v-else-if="!items.length" class="px-5 py-10 text-center text-sm text-gray-400">{{ tab === 'unread' ? "You're all caught up." : 'No notifications yet.' }}</p>
@@ -30,15 +30,15 @@
 							<p class="mt-1 text-xs text-gray-400">{{ timeAgo(n.created_at) }}<span v-if="n.critical"> · important</span></p>
 						</div>
 						<div class="flex shrink-0 flex-col items-end gap-1">
-							<button v-if="n.url" type="button" class="text-sm font-semibold text-primary-700" @click="openItem(n)">Open</button>
-							<button v-if="!n.read" type="button" class="text-xs text-gray-500 hover:text-gray-800" @click="markRead(n)">Mark read</button>
+							<button v-if="n.url" type="button" class="tap-target text-sm font-semibold text-primary-700" @click="openItem(n)">Open</button>
+							<button v-if="!n.read" type="button" class="tap-target text-xs text-gray-500 hover:text-gray-800" @click="markRead(n)">Mark read</button>
 						</div>
 					</li>
 				</ul>
 				<div v-if="lastPage > 1" class="flex justify-between border-t border-gray-100 px-5 py-3 text-sm">
-					<button type="button" :disabled="page <= 1" class="font-semibold text-primary-700 disabled:text-gray-300" @click="load(page - 1)">Newer</button>
+					<button type="button" :disabled="page <= 1" class="tap-target font-semibold text-primary-700 disabled:text-gray-300" @click="load(page - 1)">Newer</button>
 					<span class="text-gray-400">Page {{ page }} of {{ lastPage }}</span>
-					<button type="button" :disabled="page >= lastPage" class="font-semibold text-primary-700 disabled:text-gray-300" @click="load(page + 1)">Older</button>
+					<button type="button" :disabled="page >= lastPage" class="tap-target font-semibold text-primary-700 disabled:text-gray-300" @click="load(page + 1)">Older</button>
 				</div>
 			</section>
 
@@ -75,7 +75,8 @@ const { user } = useAuth()
 const api = useNotifications()
 const unread = useUnreadCount()
 
-const layout = computed(() => ({ business: 'dashboard', client: 'client', admin: 'admin' } as Record<string, string>)[user.value?.account_type ?? ''] ?? 'public')
+type PortalLayout = 'dashboard' | 'client' | 'superadmin' | 'public'
+const layout = computed<PortalLayout>(() => ({ business: 'dashboard', client: 'client', admin: 'superadmin' } as Record<string, PortalLayout>)[user.value?.account_type ?? ''] ?? 'public')
 type Tab = 'all' | 'unread' | 'settings'
 const tabs: { key: Tab, label: string }[] = [{ key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' }, { key: 'settings', label: 'E-mail settings' }]
 const tab = ref<Tab>((['all', 'unread', 'settings'] as Tab[]).includes(route.query.tab as Tab) ? route.query.tab as Tab : 'all')

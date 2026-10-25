@@ -14,7 +14,20 @@ export interface OrganizationProfile {
   contact_email: string | null
   contact_phone: string | null
   cover_image_url: string | null
+  /** Uploaded pictures (the cover falls back to cover_image_url). */
+  logo_url?: string | null
+  cover_url?: string | null
+  cover_uploaded?: boolean
   is_published: boolean
+  /** 0046: details from the business profile panel. */
+  years_experience?: string | null
+  service_radius_km?: number | null
+  event_tags?: string[]
+  specialties?: string[]
+  website?: string | null
+  facebook?: string | null
+  instagram?: string | null
+  banner_color?: string | null
 }
 
 export interface Organization {
@@ -35,6 +48,8 @@ export interface Organization {
     role: string | null
     permissions: string[]
     sees_all_events: boolean
+    /** Permissions held only on events they're assigned to (e.g. checkin.perform). */
+    event_permissions?: string[]
   } | null
   profile?: OrganizationProfile
   created_at: string

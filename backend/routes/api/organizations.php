@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\MediaController;
 use App\Http\Controllers\Api\V1\Admin\OrganizerApplicationController;
 use App\Http\Controllers\Api\V1\Organizations\ApprovalController;
 use App\Http\Controllers\Api\V1\Organizations\EventTypeController;
@@ -34,6 +35,10 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
 
             Route::get('profile', [OrganizationProfileController::class, 'show'])->name('profile.show');
             Route::patch('profile', [OrganizationProfileController::class, 'update'])->middleware('throttle:sensitive')->name('profile.update');
+            Route::post('profile/{slot}', [MediaController::class, 'storeOrganizationImage'])->whereIn('slot', ['logo', 'cover'])
+                ->middleware('throttle:sensitive')->name('profile.image.store');
+            Route::delete('profile/{slot}', [MediaController::class, 'destroyOrganizationImage'])->whereIn('slot', ['logo', 'cover'])
+                ->middleware('throttle:sensitive')->name('profile.image.destroy');
 
             Route::get('services', [OfferedServiceController::class, 'index'])->name('services.index');
             Route::post('services', [OfferedServiceController::class, 'store'])->middleware('throttle:sensitive')->name('services.store');

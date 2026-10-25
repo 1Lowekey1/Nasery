@@ -115,6 +115,14 @@ class TicketingTest extends TestCase
         $this->assertSame(3, DB::table('qr_tickets')->join('tickets', 'tickets.id', '=', 'qr_tickets.ticket_id')->where('tickets.event_id', $event)->count());
         $this->assertSame(1, DB::table('tickets')->join('ticket_types', 'ticket_types.id', '=', 'tickets.ticket_type_id')->where('ticket_types.name', 'Family')->where('tickets.event_id', $event)->count());
 
+        // Excel's semicolon "CSV" with first/last name columns also works; a file without a name column is explained.
+        $post("First name;Last name;Email address;Mobile number;Ticket tier\nDina;Uy;dina@example.com;0918;Family\nEli;Tan;;;")
+            ->assertCreated()->assertJsonPath('data.imported', 2);
+        $this->assertTrue(DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')->where('t.event_id', $event)
+            ->where('a.full_name', 'Dina Uy')->where('a.contact_number', '0918')->exists());
+        $post("email,contact\nfay@example.com,0917")->assertUnprocessable()
+            ->assertJsonPath('error.details.fields.file.0', 'The first row needs a "name" column (or "first name" and "last name"). Download the template to see the format.');
+
         // Exported CSV neutralizes the formula-looking name.
         $csv = $this->actingAs($owner)->get($this->base($org, $event).'/guests/export')->assertOk()->streamedContent();
         $this->assertStringContainsString("'=HYPERLINK", $csv);
@@ -187,6 +195,42 @@ class TicketingTest extends TestCase
         // Holders can cancel their own free tickets.
         $this->actingAs($fan)->spaJson('POST', "/api/v1/me/tickets/{$mine[0]['id']}/cancel")->assertOk();
         $this->actingAs(User::factory()->create())->spaJson('POST', "/api/v1/me/tickets/{$mine[1]['id']}/cancel")->assertNotFound();
+    }
+
+    public function test_private_events_open_only_with_their_link(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $party = $this->event($owner, $org, ['name' => 'Ana Debut', 'visibility' => 'private']);
+        $seat = $this->tier($owner, $org, $party, ['name' => 'Dinner seat', 'price' => 0, 'capacity' => 3, 'status' => 'on_sale']);
+        $hidden = $this->tier($owner, $org, $party, ['name' => 'Guest list', 'price' => 0, 'capacity' => 50, 'status' => 'closed']);
+        $this->actingAs($owner)->spaJson('POST', $this->base($org, $party).'/publish')->assertOk();
+        $key = $this->actingAs($owner)->spaJson('GET', $this->base($org, $party))->assertOk()->json('data.private_link_key');
+        auth()->forgetGuards();
+        $this->assertNotEmpty($key);
+
+        // Never listed; the page needs the right key.
+        $this->getJson('/api/v1/public-events')->assertOk()->assertJsonMissing(['name' => 'Ana Debut']);
+        $this->getJson("/api/v1/public-events/{$party}")->assertNotFound();
+        $this->getJson("/api/v1/public-events/{$party}?key=wrong-key")->assertNotFound();
+        $page = $this->getJson("/api/v1/public-events/{$party}?key={$key}")->assertOk()->assertJsonPath('data.is_private', true)->json('data');
+        $this->assertSame([$seat], collect($page['tiers'])->pluck('id')->all()); // the invitation-only tier stays hidden
+
+        // A key opens only its own event.
+        $other = $this->event($owner, $org, ['name' => 'Other Party', 'visibility' => 'private']);
+        $this->actingAs($owner)->spaJson('POST', $this->base($org, $other).'/publish')->assertOk();
+        auth()->forgetGuards();
+        $this->getJson("/api/v1/public-events/{$other}?key={$key}")->assertNotFound();
+
+        $fan = User::factory()->create();
+        $this->actingAs($fan)->spaJson('POST', "/api/v1/public-events/{$party}/register", ['ticket_type_id' => $seat, 'attendees' => [['full_name' => 'Cousin']]], $this->key())->assertNotFound();
+        $this->actingAs($fan)->spaJson('POST', "/api/v1/public-events/{$party}/register", ['ticket_type_id' => $hidden, 'attendees' => [['full_name' => 'Cousin']], 'key' => $key], $this->key())->assertNotFound();
+        $this->actingAs($fan)->spaJson('POST', "/api/v1/public-events/{$party}/register", ['ticket_type_id' => $seat, 'attendees' => [['full_name' => 'Cousin']], 'key' => $key], $this->key())
+            ->assertCreated()->assertJsonPath('data.status', 'confirmed');
+        $this->actingAs($fan)->spaJson('GET', '/api/v1/me/tickets')->assertOk()->assertJsonCount(1, 'data');
+
+        // Public events carry no key.
+        $open = $this->event($owner, $org, ['name' => 'Open Fair', 'visibility' => 'public']);
+        $this->assertNull($this->actingAs($owner)->spaJson('GET', $this->base($org, $open))->json('data.private_link_key'));
     }
 
     public function test_sales_window_is_respected(): void

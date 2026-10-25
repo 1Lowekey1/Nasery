@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Media\ImageStore;
 use App\Models\User;
 use App\Services\Auth\SocialAuthService;
 use Illuminate\Http\Request;
@@ -27,6 +28,7 @@ class UserResource extends JsonResource
             'last_name' => $this->last_name,
             'full_name' => trim(implode(' ', array_filter([$this->first_name, $this->middle_name, $this->last_name]))),
             'phone' => $this->phone,
+            'avatar_url' => ImageStore::url($this->avatar_path ?? null),
             'account_type' => $this->account_type->value,
             'status' => $this->status->value,
             'email_verified' => $this->email_verified_at !== null,

@@ -6,7 +6,7 @@
 				<p class="font-semibold">{{ a.title }}</p>
 				<p class="whitespace-pre-line">{{ a.body }}</p>
 			</div>
-			<button type="button" class="shrink-0 text-sky-700 hover:text-sky-900" :aria-label="`Dismiss: ${a.title}`" @click="dismiss(a.id)">
+			<button type="button" class="tap-target shrink-0 text-sky-700 hover:text-sky-900" :aria-label="`Dismiss: ${a.title}`" @click="dismiss(a.id)">
 				<IconBase name="x" class="h-4 w-4" />
 			</button>
 		</div>

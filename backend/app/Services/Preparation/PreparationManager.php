@@ -7,6 +7,7 @@ use App\Exceptions\ApiException;
 use App\Models\Checklist;
 use App\Models\Event;
 use App\Models\Task;
+use App\Services\Notifications\Alerts;
 use App\Support\Audit\AuditLogger;
 use App\Support\Http\ErrorCode;
 use Carbon\CarbonImmutable;
@@ -35,6 +36,7 @@ class PreparationManager
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly ProgressTracker $progress,
+        private readonly Alerts $alerts,
     ) {}
 
     /**
@@ -102,7 +104,7 @@ class PreparationManager
     /**
      * @param  array<string, mixed>  $data
      */
-    public function updateTask(Event $event, Task $task, array $data): Task
+    public function updateTask(Event $event, Task $task, array $data, ?string $reviewerId = null): Task
     {
         $this->assertOpen($event);
         $oldStatus = $task->status;
@@ -111,7 +113,18 @@ class PreparationManager
             $data['due_at'] = $this->due($data['due_at'], $event);
         }
 
-        $task->fill($data)->save();
+        $task->fill($data);
+
+        // 0044: finishing a task sends it for review; reopening it clears the review.
+        if ($task->status !== $oldStatus) {
+            // Someone who reviews tasks (task.manage) finishing one needs no second check.
+            $task->forceFill($task->status === TaskStatus::Done
+                ? ($reviewerId !== null
+                    ? ['review_status' => 'verified', 'review_note' => null, 'reviewed_by' => $reviewerId, 'reviewed_at' => now()]
+                    : ['review_status' => 'pending', 'review_note' => null, 'reviewed_by' => null, 'reviewed_at' => null])
+                : ['review_status' => $task->review_status === 'changes_requested' ? 'changes_requested' : null]);
+        }
+        $task->save();
 
         $statusChanged = $task->status !== $oldStatus;
         $this->audit->record($statusChanged ? 'task.status_changed' : 'task.updated', $task,
@@ -122,6 +135,35 @@ class PreparationManager
         if ($statusChanged) {
             $this->progress->refresh($event);
         }
+
+        return $task;
+    }
+
+    /**
+     * 0044: the organizer checks a finished task. "Changes requested" puts it
+     * back in progress with the note for the assignees.
+     */
+    public function reviewTask(Event $event, Task $task, bool $verified, ?string $note, string $userId): Task
+    {
+        $this->assertOpen($event);
+
+        if ($task->status !== TaskStatus::Done) {
+            throw new ApiException(ErrorCode::InvalidStateTransition, 'Only a finished task can be reviewed.', 409);
+        }
+
+        $task->forceFill([
+            'review_status' => $verified ? 'verified' : 'changes_requested',
+            'review_note' => $verified ? null : $note,
+            'reviewed_by' => $userId,
+            'reviewed_at' => now(),
+            ...($verified ? [] : ['status' => TaskStatus::InProgress]),
+        ])->save();
+
+        $this->audit->record($verified ? 'task.verified' : 'task.changes_requested', $task,
+            new: ['name' => $task->name, 'event_id' => $event->id, 'note' => $note], organizationId: $event->organization_id);
+        // Readiness counts verified work, so both outcomes move it.
+        $this->progress->refresh($event);
+        $this->alerts->taskReviewed($event, $task, $verified, $note, $userId);
 
         return $task;
     }

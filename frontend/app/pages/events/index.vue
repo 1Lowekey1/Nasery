@@ -1,7 +1,7 @@
 <template>
 	<div class="mx-auto max-w-7xl px-5 pt-8 pb-16 sm:px-8">
 		<p class="text-xs font-bold uppercase tracking-widest text-primary-700">Events</p>
-		<h1 class="mt-2 text-3xl font-bold tracking-tight">Public events on NaSeRy</h1>
+		<h1 class="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Public events on NaSeRy</h1>
 		<p class="mt-2 max-w-2xl text-gray-500">Concerts, conferences and gatherings by organizers reviewed by NaSeRy. Register to get your QR ticket.</p>
 
 		<form class="mt-6 flex max-w-xl gap-2" @submit.prevent="load(1)">
@@ -15,7 +15,8 @@
 		</div>
 
 		<div v-else-if="events.length" class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-			<NuxtLink v-for="e in events" :key="e.id" :to="`/events/${e.id}`" class="rounded-2xl border border-gray-200 bg-white p-6 hover:border-primary-300 hover:shadow-sm">
+			<NuxtLink v-for="e in events" :key="e.id" :to="`/events/${e.id}`" class="overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 hover:border-primary-300 hover:shadow-sm">
+				<img v-if="e.cover_url" :src="e.cover_url" alt="" class="-mx-6 -mt-6 mb-5 aspect-[16/9] w-[calc(100%+3rem)] max-w-none object-cover">
 				<p class="text-xs font-semibold uppercase tracking-wide text-primary-700">{{ e.event_type ?? 'Event' }}<span v-if="e.status === 'ongoing'" class="text-green-700"> · Happening now</span></p>
 				<h2 class="mt-2 text-lg font-bold text-gray-900">{{ e.name }}</h2>
 				<p class="mt-1 text-sm text-gray-500">by {{ e.organizer.name }}</p>

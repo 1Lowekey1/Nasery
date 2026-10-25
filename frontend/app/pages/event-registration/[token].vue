@@ -1,0 +1,1893 @@
+<template>
+    <div class="relative min-h-screen overflow-hidden bg-[#f4f7f7]">
+        <div class="pointer-events-none absolute inset-x-0 top-0 h-[430px] bg-gradient-to-br from-[#173d45] via-[#285F6b] to-[#3f7b87]" />
+        <div class="pointer-events-none absolute -right-24 top-20 h-80 w-80 rounded-full border border-white/10" />
+        <div class="pointer-events-none absolute -left-32 top-52 h-72 w-72 rounded-full bg-white/5 blur-2xl" />
+
+        <header class="relative z-10 border-b border-white/10 bg-[#173d45]/40 text-white backdrop-blur-xl">
+            <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+                <NuxtLink to="/" class="flex items-center gap-3" aria-label="NaSeRy home">
+                    <div
+                        class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sm font-black text-[#285F6b] shadow-lg shadow-black/10">
+                        N
+                    </div>
+
+                    <div>
+                        <p class="font-extrabold tracking-tight text-white">
+                            NaSeRy
+                        </p>
+
+                        <p class="text-xs text-white/60">
+                            Secure event registration
+                        </p>
+                    </div>
+                </NuxtLink>
+
+                <span v-if="eventData && isPrivateEvent"
+                    class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-bold text-white shadow-sm backdrop-blur">
+                    <span class="h-2 w-2 rounded-full bg-amber-300" />
+                    Private event · by invitation
+                </span>
+                <span v-else-if="eventData?.public_registration"
+                    class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-bold text-white shadow-sm backdrop-blur">
+                    <span class="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_0_4px_rgba(110,231,183,0.15)]" />
+                    Registration Open
+                </span>
+            </div>
+        </header>
+
+        <main class="relative z-[1] mx-auto max-w-6xl px-4 pb-14 pt-8 sm:px-6 sm:pb-20 sm:pt-10 lg:px-8">
+            <div v-if="loading" class="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
+                <svg class="mx-auto h-6 w-6 animate-spin text-[#285F6b]" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
+                </svg>
+
+                <p class="mt-3 text-sm font-medium text-gray-600">
+                    Loading registration form...
+                </p>
+            </div>
+
+            <div v-else-if="errorMessage && !eventData"
+                class="rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm">
+                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" class="h-5 w-5">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" x2="12" y1="8" y2="12" />
+                        <line x1="12" x2="12.01" y1="16" y2="16" />
+                    </svg>
+                </div>
+
+                <h1 class="mt-4 text-xl font-bold text-gray-900">
+                    Registration unavailable
+                </h1>
+
+                <p class="mt-2 text-sm text-red-600">
+                    {{ errorMessage }}
+                </p>
+            </div>
+
+            <div v-else-if="eventData" class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+                <section class="space-y-5">
+                    <div class="relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-[#285F6b] via-[#245661] to-[#173d45] text-white shadow-2xl shadow-[#173d45]/25 ring-1 ring-white/10">
+                        <div class="pointer-events-none absolute -right-16 -top-20 -z-10 h-64 w-64 rounded-full border-[36px] border-white/[0.04]" />
+                        <div class="pointer-events-none absolute -bottom-24 left-1/3 -z-10 h-48 w-48 rounded-full bg-white/[0.04] blur-2xl" />
+
+                        <div class="p-6 sm:p-8">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-white/75 ring-1 ring-white/10">
+                                    <span class="h-1.5 w-1.5 rounded-full" :class="isPrivateEvent ? 'bg-amber-300' : 'bg-emerald-300'" />
+                                    {{ isPrivateEvent ? 'Private event' : (eventData.event_type || 'Event') }}
+                                </span>
+                                <span class="hidden text-xs font-medium text-white/50 sm:inline">Official NaSeRy event form</span>
+                            </div>
+
+                            <h1 class="mt-4 text-2xl font-black tracking-tight text-white sm:mt-5 sm:text-4xl">
+                                {{ eventData.name }}
+                            </h1>
+
+                            <p v-if="eventData.description" class="mt-2 max-w-2xl text-sm leading-6 text-white/65">
+                                {{ eventData.description }}
+                            </p>
+
+                            <div class="mt-5 divide-y divide-white/10 overflow-hidden rounded-2xl bg-black/10 ring-1 ring-white/10 sm:mt-7 sm:grid sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+                                <div class="flex items-center gap-3 px-3.5 py-3 sm:items-start sm:p-5">
+                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/10 sm:h-10 sm:w-10">
+                                        <IconBase name="calendar" class="h-5 w-5" />
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-[11px] font-bold uppercase tracking-[0.12em] text-white/50">Schedule</p>
+                                        <p class="mt-1 text-sm font-bold leading-5 text-white">{{ eventSchedule }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-3 px-3.5 py-3 sm:items-start sm:p-5">
+                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white ring-1 ring-white/10 sm:h-10 sm:w-10">
+                                        <IconBase name="map-pin" class="h-5 w-5" />
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-[11px] font-bold uppercase tracking-[0.12em] text-white/50">Venue</p>
+                                        <p class="mt-1 text-sm font-semibold leading-5 text-white/90">{{ eventData.location || 'Location not specified' }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <RegistrationPayMongoCheckoutCard v-if="pendingPayment" :amount="pendingPayment.amount"
+                        :currency="pendingPayment.currency" @checkout="openPayMongoCheckout" />
+
+                    <div v-else-if="registeredTickets.length || pendingApprovalCount"
+                        :class="pendingApprovalCount ? 'border-amber-200' : 'border-emerald-200'"
+                        class="rounded-3xl border bg-white p-6 shadow-xl shadow-slate-900/5 sm:p-7">
+                        <div class="flex items-start gap-3">
+                            <div
+                                :class="pendingApprovalCount ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'"
+                                class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2" class="h-5 w-5">
+                                    <path v-if="pendingApprovalCount" d="M12 6v6l4 2" />
+                                    <circle v-if="pendingApprovalCount" cx="12" cy="12" r="9" />
+                                    <path v-else d="M20 6 9 17l-5-5" />
+                                </svg>
+                            </div>
+
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-900">
+                                    {{ pendingApprovalCount ? 'Registration sent for approval' : 'Registration successful' }}
+                                </h2>
+
+                                <p class="mt-1 text-sm text-gray-500">
+                                    {{ successMessage }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div v-if="pendingApprovalCount" class="mt-6 rounded-2xl border border-amber-100 bg-amber-50 p-5">
+                            <p class="font-bold text-amber-900">What happens next</p>
+                            <p class="mt-1 text-sm leading-6 text-amber-800">The organizer will review your registration. Once approved, your active QR ticket will be sent to your verified email address.</p>
+                            <div class="mt-4 flex items-center gap-2 text-xs font-semibold text-amber-700">
+                                <IconBase name="mail" class="h-4 w-4" />
+                                You may safely close this page.
+                            </div>
+                        </div>
+
+                        <div class="mt-6 space-y-4">
+                            <div v-for="ticket in registeredTickets" :key="ticket.id"
+                                class="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <p class="text-xs font-medium uppercase tracking-wide text-gray-400">
+                                            Attendee
+                                        </p>
+
+                                        <p class="mt-1 text-lg font-bold text-gray-900">
+                                            {{ ticket.name }}
+                                        </p>
+
+                                        <p class="mt-1 text-sm text-gray-500">
+                                            {{ ticket.ticket_type?.name || 'General Admission' }}
+                                        </p>
+
+                                        <p class="mt-2 font-mono text-xs font-semibold text-[#285F6b]">
+                                            {{ ticket.ticket_id }}
+                                        </p>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 gap-2 sm:min-w-[210px]">
+                                        <button type="button"
+                                            class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                                            @click="downloadTicket(ticket)">
+                                            Download PDF Ticket
+                                        </button>
+
+                                        <button type="button"
+                                            class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-50"
+                                            :disabled="!ticket.email ||
+                                                emailSendingTicketId === ticket.id
+                                                " @click="sendTicketEmail(ticket)">
+                                            {{
+                                                emailSendingTicketId === ticket.id
+                                                    ? 'Sending Ticket...'
+                                                    : 'Send PDF to Email'
+                                            }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <p v-if="emailSuccessTicketId === ticket.id"
+                                    class="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                                    QR ticket was successfully sent to {{ ticket.email }}.
+                                </p>
+
+                                <div v-if="emailErrorTicketId === ticket.id"
+                                    class="mt-3 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-xs font-semibold text-red-700">
+                                    <p>
+                                        {{ emailErrorMessages[ticket.id] || 'Unable to send this ticket.' }}
+                                    </p>
+
+                                    <p class="mt-1 font-normal text-red-600">
+                                        Recipient: {{ ticket.email || 'No attendee email available' }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="button"
+                            class="mt-6 inline-flex h-11 items-center justify-center rounded-xl border border-[#285F6b]/25 bg-white px-5 text-sm font-semibold text-[#285F6b] transition hover:bg-[#285F6b]/5"
+                            @click="registerMore">
+                            Register another attendee
+                        </button>
+                    </div>
+
+                    <form v-else class="rounded-3xl border border-gray-200/80 bg-white p-5 shadow-xl shadow-slate-900/5 sm:p-8"
+                        @submit.prevent="submitRegistration">
+                        <div class="mb-7 flex items-center gap-2 rounded-2xl border border-[#285F6b]/10 bg-[#285F6b]/5 p-2">
+                            <div class="flex flex-1 items-center gap-2 rounded-xl bg-white px-3 py-2.5 shadow-sm">
+                                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-[#285F6b] text-[11px] font-bold text-white">1</span>
+                                <span class="text-xs font-bold text-gray-800">Attendee details</span>
+                            </div>
+                            <div class="hidden flex-1 items-center gap-2 px-3 py-2.5 sm:flex">
+                                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[11px] font-bold text-[#285F6b]">2</span>
+                                <span class="text-xs font-semibold text-gray-500">Email verification</span>
+                            </div>
+                            <div class="hidden flex-1 items-center gap-2 px-3 py-2.5 md:flex">
+                                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[11px] font-bold text-[#285F6b]">3</span>
+                                <span class="text-xs font-semibold text-gray-500">
+                                    {{ hasPaidAttendees ? 'Secure payment' : 'Get QR ticket' }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-900">
+                                    Attendee Information
+                                </h2>
+
+                                <p class="mt-1 text-sm text-gray-500">
+                                    <template v-if="signedIn">
+                                        You're signed in as {{ user?.email }}: no e-mail codes needed. The tickets also appear under My Tickets.
+                                    </template>
+                                    <template v-else>
+                                        Fill in the attendee details below. Each attendee must verify their email with a
+                                        6-digit code.
+                                    </template>
+                                </p>
+                            </div>
+
+                            <button v-if="availableTicketTypes.length" type="button"
+                                class="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                                @click="addAttendee">
+                                + Add Attendee
+                            </button>
+                        </div>
+
+                        <div v-if="errorMessage"
+                            class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {{ errorMessage }}
+                        </div>
+
+                        <div class="mt-6 space-y-5">
+                            <div v-for="(attendee, index) in form.attendees" :key="index"
+                                class="rounded-2xl border border-gray-200 bg-gradient-to-b from-gray-50/80 to-white p-5 shadow-sm sm:p-6">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <p class="text-sm font-bold text-gray-900">
+                                            Attendee {{ index + 1 }}
+                                        </p>
+
+                                        <p class="mt-0.5 text-xs text-gray-500">
+                                            Fields marked with * are required.
+                                        </p>
+                                    </div>
+
+                                    <button v-if="form.attendees.length > 1" type="button"
+                                        class="text-xs font-semibold text-red-600 hover:text-red-700"
+                                        @click="removeAttendee(index)">
+                                        Remove
+                                    </button>
+                                </div>
+
+                                <div class="mt-5">
+                                    <label class="mb-1.5 block text-sm font-semibold text-gray-700">
+                                        Full Name
+                                        <span class="text-red-500">*</span>
+                                    </label>
+
+                                    <input v-model="attendee.name" type="text" required autocomplete="name"
+                                        placeholder="Enter attendee full name"
+                                        class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#285F6b] focus:ring-2 focus:ring-[#285F6b]/10">
+                                </div>
+
+                                <div v-if="!signedIn" class="mt-4">
+                                    <div class="mb-2 flex items-center justify-between gap-3">
+                                        <label class="block text-sm font-semibold text-gray-700">
+                                            Email Address
+                                            <span class="text-red-500">*</span>
+                                        </label>
+
+                                        <span v-if="verificationState(index).verified"
+                                            class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2" class="h-3.5 w-3.5">
+                                                <path d="M20 6 9 17l-5-5" />
+                                            </svg>
+                                            VERIFIED
+                                        </span>
+
+                                        <span v-else-if="verificationState(index).sent"
+                                            class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                            CODE SENT
+                                        </span>
+
+                                        <span v-else
+                                            class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-500">
+                                            NOT VERIFIED
+                                        </span>
+                                    </div>
+
+                                    <div class="overflow-hidden rounded-2xl border bg-white transition" :class="verificationState(index).verified
+                                        ? 'border-emerald-200 ring-2 ring-emerald-500/5'
+                                        : verificationState(index).sent
+                                            ? 'border-[#285F6b]/25 ring-2 ring-[#285F6b]/5'
+                                            : 'border-gray-200'
+                                        ">
+                                        <div class="flex flex-col gap-2 p-3 sm:flex-row">
+                                            <div class="relative flex-1">
+                                                <div
+                                                    class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                        fill="none" stroke="currentColor" stroke-width="2"
+                                                        class="h-4 w-4">
+                                                        <rect width="20" height="16" x="2" y="4" rx="2" />
+                                                        <path d="m22 7-10 6L2 7" />
+                                                    </svg>
+                                                </div>
+
+                                                <input v-model="attendee.email" type="email" required
+                                                    autocomplete="email" placeholder="attendee@example.com"
+                                                    :disabled="verificationState(index).verified"
+                                                    class="w-full rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-10 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#285F6b] focus:ring-2 focus:ring-[#285F6b]/10 disabled:border-emerald-100 disabled:bg-emerald-50/60"
+                                                    @input="handleEmailChanged(index)">
+
+                                                <span v-if="verificationState(index).verified"
+                                                    class="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"
+                                                    title="Verified email">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                        fill="none" stroke="currentColor" stroke-width="2.5"
+                                                        class="h-3.5 w-3.5">
+                                                        <path d="M20 6 9 17l-5-5" />
+                                                    </svg>
+                                                </span>
+                                            </div>
+
+                                            <button type="button"
+                                                class="inline-flex h-[46px] shrink-0 items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
+                                                :disabled="verificationState(index).sending ||
+                                                    verificationState(index).verified ||
+                                                    !attendee.email.trim()
+                                                    " @click="sendVerificationCode(index)">
+                                                <svg v-if="!verificationState(index).sending"
+                                                    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                                    stroke="currentColor" stroke-width="2" class="h-4 w-4">
+                                                    <path d="m22 2-7 20-4-9-9-4Z" />
+                                                    <path d="M22 2 11 13" />
+                                                </svg>
+
+                                                <svg v-else class="h-4 w-4 animate-spin"
+                                                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10"
+                                                        stroke="currentColor" stroke-width="4" />
+                                                    <path class="opacity-75" fill="currentColor"
+                                                        d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
+                                                </svg>
+
+                                                {{
+                                                    verificationState(index).sending
+                                                        ? 'Sending...'
+                                                        : verificationState(index).sent
+                                                            ? 'Resend Code'
+                                                            : 'Send Code'
+                                                }}
+                                            </button>
+                                        </div>
+
+                                        <div v-if="!verificationState(index).sent && !verificationState(index).verified"
+                                            class="border-t border-gray-100 bg-gray-50/80 px-4 py-3">
+                                            <div class="flex items-start gap-2.5">
+                                                <div
+                                                    class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-[#285F6b]">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                        fill="none" stroke="currentColor" stroke-width="2"
+                                                        class="h-3.5 w-3.5">
+                                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+                                                        <path d="m9 12 2 2 4-4" />
+                                                    </svg>
+                                                </div>
+
+                                                <div>
+                                                    <p class="text-xs font-semibold text-gray-700">
+                                                        Secure email verification
+                                                    </p>
+                                                    <p class="mt-0.5 text-xs leading-5 text-gray-500">
+                                                        We will send a one-time 6-digit PIN. Registration stays locked
+                                                        until the email is verified.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="verificationState(index).verified"
+                                        class="mt-3 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white">
+                                        <div class="flex items-center justify-between gap-3 p-4">
+                                            <div class="flex items-center gap-3">
+                                                <div
+                                                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                        fill="none" stroke="currentColor" stroke-width="2"
+                                                        class="h-5 w-5">
+                                                        <path d="M20 6 9 17l-5-5" />
+                                                    </svg>
+                                                </div>
+
+                                                <div>
+                                                    <p class="text-sm font-bold text-emerald-800">
+                                                        Email verified successfully
+                                                    </p>
+                                                    <p class="mt-0.5 break-all text-xs text-emerald-700">
+                                                        {{ verificationState(index).verifiedEmail }}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <button type="button"
+                                                class="shrink-0 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50"
+                                                @click="changeVerifiedEmail(index)">
+                                                Change
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div v-else-if="verificationState(index).sent"
+                                        class="mt-3 overflow-hidden rounded-2xl border border-[#285F6b]/20 bg-white shadow-sm">
+                                        <div class="bg-gradient-to-r from-[#285F6b] to-[#347887] px-4 py-3 text-white">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <div class="flex items-center gap-2.5">
+                                                    <div
+                                                        class="flex h-8 w-8 items-center justify-center rounded-full bg-white/15">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                            fill="none" stroke="currentColor" stroke-width="2"
+                                                            class="h-4 w-4">
+                                                            <rect width="20" height="16" x="2" y="4" rx="2" />
+                                                            <path d="m22 7-10 6L2 7" />
+                                                        </svg>
+                                                    </div>
+
+                                                    <div>
+                                                        <p class="text-sm font-bold">
+                                                            Check your inbox
+                                                        </p>
+                                                        <p class="mt-0.5 max-w-[260px] truncate text-xs text-white/75">
+                                                            Code sent to {{ attendee.email }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <span v-if="verificationState(index).expiresIn > 0"
+                                                    class="rounded-lg bg-white/15 px-2.5 py-1 font-mono text-xs font-bold">
+                                                    {{ formatCountdown(verificationState(index).expiresIn) }}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div class="p-4">
+                                            <label
+                                                class="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-gray-500">
+                                                6-Digit Verification PIN
+                                            </label>
+
+                                            <div class="flex flex-col gap-2 sm:flex-row">
+                                                <input v-model="verificationState(index).code" type="text"
+                                                    inputmode="numeric" autocomplete="one-time-code" maxlength="6"
+                                                    placeholder="000000"
+                                                    class="h-[52px] w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-center font-mono text-xl font-extrabold tracking-[0.45em] text-gray-900 outline-none transition placeholder:tracking-[0.45em] placeholder:text-gray-300 focus:border-[#285F6b] focus:bg-white focus:ring-2 focus:ring-[#285F6b]/10"
+                                                    @input="sanitizeVerificationCode(index)"
+                                                    @keyup.enter="verifyEmailCode(index)">
+
+                                                <button type="button"
+                                                    class="inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-50"
+                                                    :disabled="verificationState(index).verifying ||
+                                                        verificationState(index).code.length !== 6 ||
+                                                        verificationState(index).expiresIn <= 0
+                                                        " @click="verifyEmailCode(index)">
+                                                    <svg v-if="verificationState(index).verifying"
+                                                        class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10"
+                                                            stroke="currentColor" stroke-width="4" />
+                                                        <path class="opacity-75" fill="currentColor"
+                                                            d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
+                                                    </svg>
+
+                                                    {{
+                                                        verificationState(index).verifying
+                                                            ? 'Verifying...'
+                                                            : 'Verify Email'
+                                                    }}
+                                                </button>
+                                            </div>
+
+                                            <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                                                <p v-if="verificationState(index).expiresIn > 0"
+                                                    class="text-xs text-gray-500">
+                                                    The PIN expires after 10 minutes.
+                                                </p>
+
+                                                <p v-else class="text-xs font-semibold text-amber-700">
+                                                    This PIN expired. Request a new code.
+                                                </p>
+
+                                                <button type="button"
+                                                    class="text-xs font-bold text-[#285F6b] transition hover:text-[#1f4a54] disabled:cursor-not-allowed disabled:text-gray-400"
+                                                    :disabled="verificationState(index).sending ||
+                                                        verificationState(index).resendIn > 0
+                                                        " @click="sendVerificationCode(index)">
+                                                    {{
+                                                        verificationState(index).resendIn > 0
+                                                            ? `Resend available in ${verificationState(index).resendIn}s`
+                                                            : 'Resend verification code'
+                                                    }}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="verificationState(index).error"
+                                        class="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-xs font-semibold text-red-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" class="mt-0.5 h-4 w-4 shrink-0">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <path d="M12 8v4" />
+                                            <path d="M12 16h.01" />
+                                        </svg>
+
+                                        {{ verificationState(index).error }}
+                                    </div>
+
+                                    <div v-if="
+                                        verificationState(index).success &&
+                                        !verificationState(index).verified
+                                    "
+                                        class="mt-3 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-xs font-semibold text-emerald-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" class="mt-0.5 h-4 w-4 shrink-0">
+                                            <path d="M20 6 9 17l-5-5" />
+                                        </svg>
+
+                                        {{ verificationState(index).success }}
+                                    </div>
+                                </div>
+
+                                <div v-else class="mt-4">
+                                    <label class="mb-1.5 block text-sm font-semibold text-gray-700">
+                                        Email Address
+                                        <span class="text-xs font-normal text-gray-400">(optional: we send this attendee's ticket here)</span>
+                                    </label>
+
+                                    <input v-model="attendee.email" type="email" autocomplete="email"
+                                        placeholder="attendee@example.com"
+                                        class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#285F6b] focus:ring-2 focus:ring-[#285F6b]/10">
+                                </div>
+
+                                <div class="mt-4">
+                                    <label class="mb-1.5 block text-sm font-semibold text-gray-700">
+                                        Contact Number
+                                        <span class="text-xs font-normal text-gray-400">(optional)</span>
+                                    </label>
+
+                                    <input v-model="attendee.contact_no" type="tel" autocomplete="tel"
+                                        placeholder="e.g. 09171234567"
+                                        class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#285F6b] focus:ring-2 focus:ring-[#285F6b]/10">
+                                </div>
+
+                                <div class="mt-4">
+                                    <label class="mb-1.5 block text-sm font-semibold text-gray-700">
+                                        Ticket Type
+                                        <span class="text-red-500">*</span>
+                                    </label>
+
+                                    <FormsSelect v-model="attendee.event_ticket_type_id"
+                                        :options="availableTicketTypes.map(ticketType => ({ value: ticketType.id, label: `${ticketType.name} — ${formatCurrency(ticketType.price)}` }))"
+                                        placeholder="Select ticket type" :can-clear="false" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 rounded-2xl border border-[#285F6b]/10 bg-gradient-to-r from-[#285F6b]/5 to-[#4b8792]/10 p-5">
+                            <div class="flex items-center justify-between gap-4">
+                                <div>
+                                    <p class="text-xs font-medium text-gray-500">
+                                        Registration total
+                                    </p>
+
+                                    <p class="mt-1 text-sm font-semibold text-gray-900">
+                                        {{ totalAttendees }}
+                                        {{ totalAttendees === 1 ? 'attendee' : 'attendees' }}
+                                    </p>
+
+                                    <p v-if="!signedIn" class="mt-1 text-xs text-gray-500">
+                                        {{ verifiedAttendeeCount }} of {{ totalAttendees }} email(s) verified
+                                    </p>
+                                </div>
+
+                                <p class="text-xl font-extrabold text-[#285F6b]">
+                                    {{ formatCurrency(totalAmount) }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <button type="submit"
+                            class="mt-5 inline-flex h-13 w-full items-center justify-center rounded-2xl bg-[#285F6b] px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#285F6b]/20 transition hover:-translate-y-0.5 hover:bg-[#1f4a54] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                            :disabled="submitting ||
+                                !registrationAvailable ||
+                                !allEmailsVerified
+                                ">
+                            {{
+                                submitting
+                                    ? 'Saving Registration...'
+                                    : !allEmailsVerified
+                                        ? 'Verify All Emails to Continue'
+                                        : totalAmount > 0
+                                            ? 'Continue to Payment'
+                                            : 'Submit Registration'
+                            }}
+                        </button>
+
+                        <p class="mt-3 text-center text-xs leading-5 text-gray-400">
+                            Your information will only be used for this event registration.
+                        </p>
+                    </form>
+                </section>
+
+                <aside class="space-y-4 lg:sticky lg:top-6 lg:self-start">
+                    <div class="rounded-3xl border border-gray-200/80 bg-white p-5 shadow-xl shadow-slate-900/5">
+                        <div class="flex items-center justify-between gap-3"><h3 class="text-sm font-bold text-gray-900">
+                            Available Tickets
+                        </h3><span class="rounded-full bg-[#285F6b]/10 px-2.5 py-1 text-[11px] font-bold text-[#285F6b]">{{ availableTicketTypes.length }} {{ availableTicketTypes.length === 1 ? 'type' : 'types' }}</span></div>
+
+                        <div v-if="availableTicketTypes.length" class="mt-4 space-y-3">
+                            <div v-for="ticketType in availableTicketTypes" :key="ticketType.id"
+                                class="group rounded-2xl border border-gray-100 bg-gray-50 p-4 transition hover:border-[#285F6b]/20 hover:bg-[#285F6b]/5">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p class="font-semibold text-gray-900">
+                                            {{ ticketType.name }}
+                                        </p>
+
+                                        <p class="mt-1 text-sm font-bold text-[#285F6b]">
+                                            {{ formatCurrency(ticketType.price) }}
+                                        </p>
+                                    </div>
+
+                                    <span v-if="
+                                        ticketType.remaining !== null &&
+                                        ticketType.remaining !== undefined
+                                    "
+                                        class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-600">
+                                        {{ ticketType.remaining }} left
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p v-else class="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                            No ticket types are currently available.
+                            <NuxtLink to="/events" class="ml-1 font-semibold underline">Browse other events</NuxtLink>
+                        </p>
+                    </div>
+
+                    <div class="rounded-3xl border border-gray-200/80 bg-white p-5 shadow-xl shadow-slate-900/5">
+                        <h3 class="text-sm font-bold text-gray-900">
+                            What happens next?
+                        </h3>
+
+                        <ol class="mt-4 space-y-3 text-sm text-gray-600">
+                            <li class="flex gap-3">
+                                <span
+                                    class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-xs font-bold text-[#285F6b]">
+                                    1
+                                </span>
+                                {{ signedIn ? 'Check each attendee’s name (yours is filled in).' : 'Enter your attendee details and email.' }}
+                            </li>
+
+                            <li v-if="!signedIn" class="flex gap-3">
+                                <span
+                                    class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-xs font-bold text-[#285F6b]">
+                                    2
+                                </span>
+                                Verify the email using the 6-digit code.
+                            </li>
+
+                            <li class="flex gap-3">
+                                <span
+                                    class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-xs font-bold text-[#285F6b]">
+                                    3
+                                </span>
+                                {{ signedIn ? 'Submit (pay if the ticket costs anything): the QR ticket is created.' : 'Submit registration and generate the QR ticket.' }}
+                            </li>
+
+                            <li class="flex gap-3">
+                                <span
+                                    class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-xs font-bold text-[#285F6b]">
+                                    4
+                                </span>
+                                {{ signedIn ? 'Find it under My Tickets, or download the PDF.' : 'Download the PDF ticket or send it to the verified email.' }}
+                            </li>
+                        </ol>
+                    </div>
+                </aside>
+            </div>
+        </main>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+
+import type {
+    AttendeeForm,
+    PublicEvent,
+    PublicRegistrationResponse,
+    PublicRegistrationSubmitResponse,
+    RegisteredTicket,
+} from '~/types/public-registration'
+
+definePageMeta({
+    layout: false,
+})
+
+type VerificationState = {
+    sending: boolean
+    verifying: boolean
+    sent: boolean
+    verified: boolean
+    code: string
+    error: string
+    success: string
+    verificationToken: string | null
+    verifiedEmail: string
+    expiresIn: number
+    resendIn: number
+}
+
+type VerificationSendResponse = {
+    message: string
+    data?: {
+        expires_in?: number
+        resend_in?: number
+    }
+}
+
+type VerificationVerifyResponse = {
+    message: string
+    data?: {
+        verified?: boolean
+        email?: string
+        verification_token?: string
+    }
+}
+
+type AttendeeFormWithContact = AttendeeForm & {
+    contact_no?: string
+}
+
+const route = useRoute()
+const config = useRuntimeConfig()
+const api = useApi()
+const { user, fetchUser } = useAuth()
+
+/** Signed-in, verified buyers skip the e-mail codes (the API knows who they are). */
+const signedIn = computed(() => Boolean(user.value?.email_verified))
+
+const apiBaseURL = String(config.public.apiBase)
+
+/** Set after registering: opens this registration's status and tickets (guests have no session). */
+const registrationId = ref<string | null>(null)
+const registrationAccess = ref<string | null>(null)
+
+type PublicEventDetail = import('~/composables/useTicketing').PublicEventDetail
+
+/** The public event API, in the shape this page was designed for. */
+function toPublicEvent(e: PublicEventDetail): PublicEvent {
+    const day = (iso: string | null) => iso ? new Intl.DateTimeFormat('en-CA', { timeZone: e.timezone }).format(new Date(iso)) : null
+    const time = (iso: string | null) => iso ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: e.timezone }).format(new Date(iso)) : null
+    const tiers = e.tiers.map(t => ({
+        id: t.id as unknown as number,
+        name: t.name,
+        price: t.price,
+        capacity: t.remaining,
+        issued: 0,
+        remaining: t.remaining,
+        sold_out: t.availability !== 'available',
+    }))
+
+    return {
+        id: e.id as unknown as number,
+        name: e.name,
+        event_type: e.event_type ?? 'Event',
+        description: e.description,
+        event_date: day(e.starts_at),
+        location: [e.venue_name, e.venue_address].filter(Boolean).join(', ') || null,
+        expected_guests: null,
+        start_time: time(e.starts_at),
+        end_time: time(e.ends_at),
+        status: e.status,
+        public_registration: tiers.some(t => !t.sold_out),
+        public_registration_token: null,
+        require_approval: false,
+        waitlist_enabled: false,
+        contact_name: e.organizer.name,
+        contact_email: null,
+        contact_phone: null,
+        ticket_types: tiers,
+    } as PublicEvent
+}
+
+type GuestRegistration = {
+    registration_id: string
+    status: string
+    tickets: { id: string, status: string, attendee: string, email: string | null, tier: string, price: string, qr_token: string | null }[]
+}
+
+/** Valid tickets of this registration, in the shape the success panel shows. */
+async function loadRegisteredTickets() {
+    if (!registrationId.value || !registrationAccess.value) return
+    const { data } = await api.get<GuestRegistration>(`/public-registrations/${registrationId.value}`, { query: { access: registrationAccess.value } })
+    registeredTickets.value = data.tickets.filter(t => t.status === 'valid').map(t => ({
+        id: t.id as unknown as number,
+        name: t.attendee,
+        email: t.email,
+        ticket_id: t.id.replace(/-/g, '').slice(-10).toUpperCase(),
+        qr_token: t.qr_token ?? '',
+        qr_value: t.qr_token ?? '',
+        source: 'online',
+        payment_status: Number(t.price) > 0 ? 'paid' : 'free',
+        status: 'registered',
+        checked_in_at: null,
+        created_at: new Date().toISOString(),
+        ticket_type: { id: 0 as number, name: t.tier, price: t.price, capacity: 0, issued: 0, remaining: null, sold_out: false },
+    }) as unknown as RegisteredTicket)
+}
+
+const token = computed<string>(() => {
+    const routeToken = route.params.token
+
+    if (Array.isArray(routeToken)) {
+        return routeToken[0] ?? ''
+    }
+
+    return typeof routeToken === 'string'
+        ? routeToken
+        : ''
+})
+
+// A private event's link key (?key=…): opens its page and checkout.
+const linkKey = computed(() => typeof route.query.key === 'string' && route.query.key ? route.query.key : null)
+const withKey = <T extends object>(body: T) => (linkKey.value ? { ...body, key: linkKey.value } : body)
+
+const isPrivateEvent = ref(false)
+const loading = ref(true)
+const submitting = ref(false)
+
+const errorMessage = ref('')
+const successMessage = ref('')
+
+const eventData =
+    ref<PublicEvent | null>(null)
+
+const registeredTickets =
+    ref<RegisteredTicket[]>([])
+
+const pendingApprovalCount = ref(0)
+
+const pendingPayment = ref<PublicRegistrationSubmitResponse['data']['payment'] | null>(null)
+
+const emailSendingTicketId =
+    ref<number | null>(null)
+
+const emailSuccessTicketId =
+    ref<number | null>(null)
+
+const emailErrorTicketId =
+    ref<number | null>(null)
+
+const emailErrorMessages =
+    reactive<Record<number, string>>({})
+
+const attendeeCategoryOptions = [
+    { value: 'invited', label: 'Invited — organizer guest' },
+    { value: 'free', label: 'Free — no payment required' },
+    { value: 'paid', label: 'Paid — PayMongo payment' },
+]
+
+const categoryHelp = (category: string) => ({
+    invited: 'For a guest attending through an organizer invitation.',
+    free: 'A complimentary registration with no payment.',
+    paid: 'Continue to secure payment after registration.',
+}[category] ?? '')
+
+const createVerificationState =
+    (): VerificationState => ({
+        sending: false,
+        verifying: false,
+        sent: false,
+        verified: false,
+        code: '',
+        error: '',
+        success: '',
+        verificationToken: null,
+        verifiedEmail: '',
+        expiresIn: 0,
+        resendIn: 0,
+    })
+
+const form = reactive({
+    attendees: [
+        {
+            name: '',
+            email: '',
+            contact_no: '',
+            attendee_category: 'paid',
+            event_ticket_type_id: null,
+        },
+    ] as AttendeeFormWithContact[],
+})
+
+const emailVerificationStates =
+    reactive<VerificationState[]>([
+        createVerificationState(),
+    ])
+
+let countdownTimer:
+    ReturnType<typeof setInterval> |
+    null = null
+
+const verificationState = (
+    index: number
+): VerificationState => {
+    if (!emailVerificationStates[index]) {
+        emailVerificationStates[index] =
+            createVerificationState()
+    }
+
+    return emailVerificationStates[index]
+}
+
+const ticketTypes = computed(() =>
+    eventData.value?.ticket_types ?? []
+)
+
+const availableTicketTypes = computed(() =>
+    ticketTypes.value.filter(
+        ticketType =>
+            !ticketType.sold_out
+    )
+)
+
+const registrationAvailable = computed(() =>
+    Boolean(
+        eventData.value?.public_registration &&
+        availableTicketTypes.value.length
+    )
+)
+
+const totalAttendees = computed(
+    () => form.attendees.length
+)
+
+const verifiedAttendeeCount = computed(
+    () =>
+        emailVerificationStates.filter(
+            state => state.verified
+        ).length
+)
+
+const allEmailsVerified = computed(
+    () =>
+        signedIn.value ||
+        form.attendees.length > 0 &&
+        form.attendees.every(
+            (attendee, index) => {
+                const state =
+                    verificationState(index)
+
+                return (
+                    state.verified &&
+                    state.verificationToken &&
+                    state.verifiedEmail
+                        .toLowerCase() ===
+                    attendee.email
+                        .trim()
+                        .toLowerCase()
+                )
+            }
+        )
+)
+
+const totalAmount = computed(() =>
+    form.attendees.reduce(
+        (total, attendee) => {
+            const ticketType =
+                availableTicketTypes.value.find(
+                    item =>
+                        item.id ===
+                        attendee.event_ticket_type_id
+                )
+
+            return (
+                total +
+                Number(ticketType?.price ?? 0)
+            )
+        },
+        0
+    )
+)
+
+const hasPaidAttendees = computed(() => totalAmount.value > 0)
+
+const formatCurrency = (
+    amount: string | number
+) =>
+    new Intl.NumberFormat(
+        'en-PH',
+        {
+            style: 'currency',
+            currency: 'PHP',
+            minimumFractionDigits: 2,
+        }
+    ).format(
+        Number(amount || 0)
+    )
+
+const formatDate = (
+    value: string | null
+) => {
+    if (!value) {
+        return 'Date not specified'
+    }
+
+    const date =
+        new Date(
+            value.includes('T')
+                ? value
+                : `${value}T00:00:00`
+        )
+
+    return new Intl.DateTimeFormat(
+        'en-PH',
+        {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+        }
+    ).format(date)
+}
+
+const formatTime = (
+    value: string | null
+) => {
+    if (!value) {
+        return null
+    }
+
+    const parts = value.split(':')
+
+    if (parts.length < 2) {
+        return value
+    }
+
+    const hours =
+        Number(parts[0])
+
+    const minutes =
+        Number(parts[1])
+
+    if (
+        Number.isNaN(hours) ||
+        Number.isNaN(minutes)
+    ) {
+        return value
+    }
+
+    const date =
+        new Date()
+
+    date.setHours(
+        hours,
+        minutes,
+        0,
+        0
+    )
+
+    return new Intl.DateTimeFormat(
+        'en-PH',
+        {
+            hour: 'numeric',
+            minute: '2-digit',
+        }
+    ).format(date)
+}
+
+const formatCountdown = (
+    seconds: number
+): string => {
+    const safeSeconds =
+        Math.max(0, seconds)
+
+    const minutes =
+        Math.floor(
+            safeSeconds / 60
+        )
+
+    const remainingSeconds =
+        safeSeconds % 60
+
+    return `${minutes}:${String(
+        remainingSeconds
+    ).padStart(2, '0')}`
+}
+
+const eventSchedule = computed(() => {
+    if (!eventData.value) {
+        return ''
+    }
+
+    const date =
+        formatDate(
+            eventData.value.event_date
+        )
+
+    const start =
+        formatTime(
+            eventData.value.start_time
+        )
+
+    const end =
+        formatTime(
+            eventData.value.end_time
+        )
+
+    if (start && end) {
+        return `${date} • ${start} - ${end}`
+    }
+
+    return start
+        ? `${date} • ${start}`
+        : date
+})
+
+const getDefaultTicketTypeId =
+    (): number | null =>
+        availableTicketTypes.value[0]?.id ??
+        null
+
+const resetVerificationState = (
+    index: number
+) => {
+    emailVerificationStates[index] =
+        createVerificationState()
+}
+
+const handleEmailChanged = (
+    index: number
+) => {
+    const state =
+        verificationState(index)
+
+    const currentEmail =
+        form.attendees[index]
+            ?.email
+            ?.trim()
+            .toLowerCase() ?? ''
+
+    if (
+        state.verifiedEmail &&
+        currentEmail !==
+        state.verifiedEmail
+            .trim()
+            .toLowerCase()
+    ) {
+        resetVerificationState(index)
+        return
+    }
+
+    if (state.sent && !state.verified) {
+        state.code = ''
+        state.sent = false
+        state.success = ''
+        state.error = ''
+        state.verificationToken = null
+        state.expiresIn = 0
+        state.resendIn = 0
+    }
+}
+
+const changeVerifiedEmail = (
+    index: number
+) => {
+    resetVerificationState(index)
+}
+
+const sanitizeVerificationCode = (
+    index: number
+) => {
+    const state =
+        verificationState(index)
+
+    state.code =
+        state.code
+            .replace(/\D/g, '')
+            .slice(0, 6)
+}
+
+const startCountdownTimer = () => {
+    if (countdownTimer) {
+        return
+    }
+
+    countdownTimer =
+        setInterval(
+            () => {
+                emailVerificationStates.forEach(
+                    state => {
+                        if (state.expiresIn > 0) {
+                            state.expiresIn -= 1
+                        }
+
+                        if (state.resendIn > 0) {
+                            state.resendIn -= 1
+                        }
+                    }
+                )
+            },
+            1000
+        )
+}
+
+const addAttendee = () => {
+    errorMessage.value = ''
+
+    const defaultTicketTypeId =
+        getDefaultTicketTypeId()
+
+    if (!defaultTicketTypeId) {
+        errorMessage.value =
+            'There are no available ticket types for this event.'
+
+        return
+    }
+
+    form.attendees.push({
+        name: '',
+        email: '',
+        contact_no: '',
+        attendee_category: 'paid',
+        event_ticket_type_id:
+            defaultTicketTypeId,
+    })
+
+    emailVerificationStates.push(
+        createVerificationState()
+    )
+}
+
+const removeAttendee = (
+    index: number
+) => {
+    if (
+        form.attendees.length === 1
+    ) {
+        return
+    }
+
+    form.attendees.splice(
+        index,
+        1
+    )
+
+    emailVerificationStates.splice(
+        index,
+        1
+    )
+}
+
+const getApiErrorMessage = (
+    error: unknown,
+    fallback: string
+): string => {
+    if (error instanceof ApiError) {
+        return Object.values(error.fields)[0]?.[0] ?? error.message ?? fallback
+    }
+
+    const apiError =
+        error as {
+            data?: {
+                message?: string
+                errors?: Record<
+                    string,
+                    string[]
+                >
+            }
+            message?: string
+        }
+
+    const validationMessage =
+        Object.values(
+            apiError.data?.errors ??
+            {}
+        )[0]?.[0]
+
+    const message = (
+        validationMessage ??
+        apiError.data?.message ??
+        apiError.message ??
+        fallback
+    )
+
+    return message.includes('SQLSTATE')
+        ? fallback
+        : message
+}
+
+const sendVerificationCode =
+    async (
+        index: number
+    ) => {
+        errorMessage.value = ''
+
+        const attendee =
+            form.attendees[index]
+
+        if (!attendee) {
+            return
+        }
+
+        const email =
+            attendee.email.trim()
+
+        const state =
+            verificationState(index)
+
+        state.error = ''
+        state.success = ''
+
+        if (!email) {
+            state.error =
+                'Please enter an email address first.'
+
+            return
+        }
+
+        const emailPattern =
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+        if (!emailPattern.test(email)) {
+            state.error =
+                'Please enter a valid email address.'
+
+            return
+        }
+
+        if (state.resendIn > 0) {
+            state.error =
+                `Please wait ${state.resendIn} seconds before requesting another code.`
+
+            return
+        }
+
+        state.sending = true
+
+        try {
+            const response =
+                await api.post<VerificationSendResponse['data']>(`/public-events/${encodeURIComponent(token.value)}/email-code`, withKey({ email }))
+
+            state.sent = true
+            state.verified = false
+            state.code = ''
+            state.verificationToken = null
+            state.verifiedEmail = ''
+            state.expiresIn =
+                Number(
+                    response.data?.expires_in ??
+                    600
+                )
+            state.resendIn =
+                Number(
+                    response.data?.resend_in ??
+                    60
+                )
+            state.success =
+                response.message ||
+                'A 6-digit verification code was sent to your email.'
+        } catch (error: unknown) {
+            state.error =
+                getApiErrorMessage(
+                    error,
+                    'Unable to send the verification code.'
+                )
+        } finally {
+            state.sending = false
+        }
+    }
+
+const verifyEmailCode =
+    async (
+        index: number
+    ) => {
+        errorMessage.value = ''
+
+        const attendee =
+            form.attendees[index]
+
+        if (!attendee) {
+            return
+        }
+
+        const state =
+            verificationState(index)
+
+        state.error = ''
+        state.success = ''
+
+        const email =
+            attendee.email.trim()
+
+        const code =
+            state.code.trim()
+
+        if (!email) {
+            state.error =
+                'Please enter an email address.'
+
+            return
+        }
+
+        if (!/^\d{6}$/.test(code)) {
+            state.error =
+                'Please enter the complete 6-digit verification code.'
+
+            return
+        }
+
+        if (state.expiresIn <= 0) {
+            state.error =
+                'This verification code has expired. Please request a new code.'
+
+            return
+        }
+
+        state.verifying = true
+
+        try {
+            const response =
+                await api.post<VerificationVerifyResponse['data']>(`/public-events/${encodeURIComponent(token.value)}/email-code/verify`, withKey({ email, code }))
+
+            if (
+                !response.data?.verified ||
+                !response.data
+                    ?.verification_token
+            ) {
+                state.error =
+                    'The email could not be verified.'
+
+                return
+            }
+
+            state.verified = true
+            state.sent = true
+            state.verifiedEmail =
+                response.data.email ??
+                email
+            state.verificationToken =
+                response.data
+                    .verification_token
+            state.success =
+                response.message ||
+                'Email verified successfully.'
+            state.code = ''
+        } catch (error: unknown) {
+            state.error =
+                getApiErrorMessage(
+                    error,
+                    'The verification code is invalid or expired.'
+                )
+        } finally {
+            state.verifying = false
+        }
+    }
+
+const loadEvent = async () => {
+    loading.value = true
+    errorMessage.value = ''
+
+    if (!token.value) {
+        errorMessage.value =
+            'The registration link is invalid or incomplete.'
+
+        loading.value = false
+
+        return
+    }
+
+    try {
+        await fetchUser()
+        const detail = (await api.get<PublicEventDetail>(`/public-events/${encodeURIComponent(token.value)}`, { query: linkKey.value ? { key: linkKey.value } : undefined })).data
+        isPrivateEvent.value = !!detail.is_private
+        rememberEventKey(token.value, linkKey.value)
+        // Signed in: the first attendee is usually the buyer.
+        const first = form.attendees[0]
+        if (user.value && first && !first.name && !first.email) {
+            first.name = [user.value.first_name, user.value.last_name].filter(Boolean).join(' ')
+            first.email = user.value.email ?? ''
+        }
+        eventData.value =
+            toPublicEvent(detail)
+
+        const defaultTicketTypeId =
+            getDefaultTicketTypeId()
+
+        form.attendees.forEach(
+            attendee => {
+                const selectedTicketStillAvailable =
+                    availableTicketTypes.value.some(
+                        ticketType =>
+                            ticketType.id ===
+                            attendee.event_ticket_type_id
+                    )
+
+                if (
+                    !selectedTicketStillAvailable
+                ) {
+                    attendee.event_ticket_type_id =
+                        defaultTicketTypeId
+                }
+            }
+        )
+    } catch (error: unknown) {
+        eventData.value = null
+
+        errorMessage.value = error instanceof ApiError && error.status === 404
+            ? 'This event isn’t open to the public. If you were invited, open the full link the host sent you.'
+            : getApiErrorMessage(
+                error,
+                'Unable to load this registration page.'
+            )
+    } finally {
+        loading.value = false
+    }
+}
+
+const submitRegistration =
+    async () => {
+        errorMessage.value = ''
+        successMessage.value = ''
+
+        emailSuccessTicketId.value = null
+        emailErrorTicketId.value = null
+
+        if (!token.value) {
+            errorMessage.value =
+                'The registration link is invalid.'
+
+            return
+        }
+
+        if (
+            !eventData.value?.public_registration
+        ) {
+            errorMessage.value =
+                'Registration is currently closed for this event.'
+
+            return
+        }
+
+        if (
+            !availableTicketTypes.value.length
+        ) {
+            errorMessage.value =
+                'There are no available ticket types remaining for this event.'
+
+            return
+        }
+
+        const emailPattern =
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+        const invalidAttendeeIndex =
+            form.attendees.findIndex(
+                attendee =>
+                    !attendee.name.trim() ||
+                    (!signedIn.value && !attendee.email.trim()) ||
+                    (attendee.email.trim() !== '' && !emailPattern.test(
+                        attendee.email.trim()
+                    )) ||
+                    !attendee.event_ticket_type_id
+            )
+
+        if (
+            invalidAttendeeIndex !== -1
+        ) {
+            errorMessage.value =
+                `Please complete the full name, valid email address, and ticket type for attendee ${invalidAttendeeIndex + 1}.`
+
+            return
+        }
+
+        const unverifiedAttendeeIndex =
+            form.attendees.findIndex(
+                (attendee, index) => {
+                    const state =
+                        verificationState(index)
+
+                    return !(
+                        state.verified &&
+                        state.verificationToken &&
+                        state.verifiedEmail
+                            .toLowerCase() ===
+                        attendee.email
+                            .trim()
+                            .toLowerCase()
+                    )
+                }
+            )
+
+        if (
+            !signedIn.value &&
+            unverifiedAttendeeIndex !== -1
+        ) {
+            errorMessage.value =
+                `Please verify the email address for attendee ${unverifiedAttendeeIndex + 1} before submitting.`
+
+            return
+        }
+
+        const unavailableTicket =
+            form.attendees.find(
+                attendee =>
+                    !availableTicketTypes.value.some(
+                        ticketType =>
+                            ticketType.id ===
+                            attendee.event_ticket_type_id
+                    )
+            )
+
+        if (unavailableTicket) {
+            errorMessage.value =
+                'One of the selected ticket types is no longer available. Please select another ticket type.'
+
+            return
+        }
+
+        submitting.value = true
+
+        try {
+            const { data, message } =
+                await api.post<{
+                    registration_id: string
+                    access: string
+                    status: 'confirmed' | 'awaiting_payment'
+                    checkout: { payment_id: string, checkout_url: string, amount: string } | null
+                }>(`/public-events/${encodeURIComponent(token.value)}/checkout`, {
+                    ...(linkKey.value ? { key: linkKey.value } : {}),
+                    attendees: form.attendees.map((attendee, index) => ({
+                        full_name: attendee.name.trim(),
+                        email: attendee.email.trim() || null,
+                        ticket_type_id: attendee.event_ticket_type_id,
+                        verification_token: signedIn.value ? null : verificationState(index).verificationToken,
+                    })),
+                    buyer: { phone: form.attendees[0]?.contact_no?.trim() || null },
+                }, { idempotencyKey: crypto.randomUUID() })
+
+            registrationId.value = data.registration_id
+            registrationAccess.value = data.access
+            pendingApprovalCount.value = 0
+            pendingPayment.value = data.checkout
+                ? { reference: data.checkout.payment_id, amount: data.checkout.amount, currency: 'PHP', status: 'pending', checkout_url: data.checkout.checkout_url }
+                : null
+
+            if (pendingPayment.value) {
+                registeredTickets.value = []
+                successMessage.value = 'Your places are reserved. Complete payment to receive the QR tickets.'
+            } else {
+                await loadRegisteredTickets()
+                successMessage.value = message ||
+                    (registeredTickets.value.length > 1
+                        ? 'Registration successful. Your QR tickets are ready.'
+                        : 'Registration successful. Your QR ticket is ready.')
+            }
+
+            await loadEvent()
+
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth',
+            })
+        } catch (error: unknown) {
+            errorMessage.value =
+                getApiErrorMessage(
+                    error,
+                    'Registration failed. Please try again.'
+                )
+        } finally {
+            submitting.value =
+                false
+        }
+    }
+
+const openPayMongoCheckout = () => {
+    if (pendingPayment.value?.checkout_url) {
+        window.location.assign(pendingPayment.value.checkout_url)
+    }
+}
+
+const downloadTicket = (
+    ticket: RegisteredTicket
+) => {
+    if (!ticket.qr_token) {
+        errorMessage.value =
+            'This ticket does not have a valid QR token.'
+
+        return
+    }
+
+    window.open(
+        `${apiBaseURL}/public-registrations/${registrationId.value}/tickets/${ticket.id}/pdf?access=${registrationAccess.value}`,
+        '_blank',
+        'noopener,noreferrer'
+    )
+}
+
+const sendTicketEmail =
+    async (
+        ticket: RegisteredTicket
+    ) => {
+        emailSuccessTicketId.value = null
+        emailErrorTicketId.value = null
+        delete emailErrorMessages[ticket.id]
+
+        if (!ticket.email) {
+            emailErrorTicketId.value =
+                ticket.id
+
+            const message =
+                'This ticket does not have an attendee email address.'
+
+            emailErrorMessages[ticket.id] =
+                message
+
+            errorMessage.value =
+                message
+
+            return
+        }
+
+        if (!ticket.qr_token) {
+            emailErrorTicketId.value =
+                ticket.id
+
+            const message =
+                'This ticket does not have a valid QR token.'
+
+            emailErrorMessages[ticket.id] =
+                message
+
+            errorMessage.value =
+                message
+
+            return
+        }
+
+        emailSendingTicketId.value =
+            ticket.id
+
+        try {
+            await api.post(`/public-registrations/${registrationId.value}/tickets/${ticket.id}/email`, { access: registrationAccess.value })
+
+            emailSuccessTicketId.value =
+                ticket.id
+
+            delete emailErrorMessages[ticket.id]
+            errorMessage.value = ''
+
+        } catch (error: unknown) {
+            console.error(
+                'Unable to send ticket email:',
+                error
+            )
+
+            emailErrorTicketId.value =
+                ticket.id
+
+            const message =
+                getApiErrorMessage(
+                    error,
+                    'Unable to send the QR ticket by email.'
+                )
+
+            emailErrorMessages[ticket.id] =
+                message
+
+            errorMessage.value =
+                message
+        } finally {
+            emailSendingTicketId.value =
+                null
+        }
+    }
+
+const registerMore = () => {
+    registeredTickets.value = []
+    pendingApprovalCount.value = 0
+    pendingPayment.value = null
+
+    successMessage.value = ''
+    errorMessage.value = ''
+
+    emailSendingTicketId.value = null
+    emailSuccessTicketId.value = null
+    emailErrorTicketId.value = null
+
+    Object.keys(
+        emailErrorMessages
+    ).forEach(
+        key => {
+            delete emailErrorMessages[
+                Number(key)
+            ]
+        }
+    )
+
+    form.attendees.splice(
+        0,
+        form.attendees.length,
+        {
+            name: '',
+            email: '',
+            contact_no: '',
+            attendee_category: 'paid',
+            event_ticket_type_id:
+                getDefaultTicketTypeId(),
+        }
+    )
+
+    emailVerificationStates.splice(
+        0,
+        emailVerificationStates.length,
+        createVerificationState()
+    )
+
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+    })
+}
+
+onMounted(() => {
+    startCountdownTimer()
+    loadEvent()
+})
+
+onBeforeUnmount(() => {
+    if (countdownTimer) {
+        clearInterval(
+            countdownTimer
+        )
+
+        countdownTimer = null
+    }
+})
+</script>

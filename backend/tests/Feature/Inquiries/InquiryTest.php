@@ -65,6 +65,18 @@ class InquiryTest extends TestCase
         ])->assertUnprocessable()
             ->assertJsonStructure(['error' => ['details' => ['fields' => ['requested_date', 'budget_max', 'longitude', 'guest_count']]]]);
 
+        // Dates up to December 31, three years from now.
+        $last = now('Asia/Manila')->addYears(3)->endOfYear();
+        $this->actingAs($this->client)->spaJson('POST', '/api/v1/inquiries', ['requested_date' => $last->toDateString()])->assertCreated();
+        $this->actingAs($this->client)->spaJson('POST', '/api/v1/inquiries', ['requested_date' => $last->copy()->addDay()->toDateString()])->assertUnprocessable()
+            ->assertJsonPath('error.details.fields.requested_date.0', "Choose an event date on or before December 31, {$last->year}.");
+
+        // One-sided budgets ("Under ₱50,000", "Over ₱800,000") are fine; a draft keeps its other side.
+        $under = $this->actingAs($this->client)->spaJson('POST', '/api/v1/inquiries', ['budget_min' => null, 'budget_max' => 50000])->assertCreated()->json('data.id');
+        $this->actingAs($this->client)->spaJson('POST', '/api/v1/inquiries', ['budget_min' => 800000, 'budget_max' => null])->assertCreated();
+        $this->actingAs($this->client)->spaJson('PATCH', "/api/v1/inquiries/{$under}", ['budget_min' => 60000])->assertUnprocessable()
+            ->assertJsonPath('error.details.fields.budget_max.0', 'The maximum budget must be at least the minimum budget.');
+
         // Organizer-owned event types aren't offered to clients.
         [$org, $owner] = $this->listedOrganizer();
         $custom = $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/event-types", ['name' => 'Private Kind'])->json('data.id');
@@ -143,7 +155,7 @@ class InquiryTest extends TestCase
             ->assertConflict()->assertJsonPath('error.code', 'INVALID_STATE_TRANSITION');
     }
 
-    public function test_drafts_are_editable_and_sent_inquiries_are_not(): void
+    public function test_drafts_are_editable_and_sent_inquiries_only_revisable(): void
     {
         [$org] = $this->listedOrganizer();
         $id = $this->draft();
@@ -154,7 +166,10 @@ class InquiryTest extends TestCase
         ])->assertOk()->assertJsonPath('data.guest_count', 200)->assertJsonCount(2, 'data.services');
 
         $this->submit($id, ['mode' => 'direct', 'organization_ids' => [$org->id]])->assertOk();
-        $this->actingAs($this->client)->spaJson('PATCH', "/api/v1/inquiries/{$id}", ['guest_count' => 10])->assertConflict();
+        // Sent: a revision (0051, see RequestRevisionTest) that can't move the event type or place; never deleted.
+        $this->actingAs($this->client)->spaJson('PATCH', "/api/v1/inquiries/{$id}", ['guest_count' => 10, 'location_text' => 'Elsewhere'])->assertOk()
+            ->assertJsonPath('data.guest_count', 10)->assertJsonPath('data.revisions_left', 4)
+            ->assertJsonPath('data.location_text', DB::table('inquiries')->where('id', $id)->value('location_text'));
         $this->actingAs($this->client)->spaJson('DELETE', "/api/v1/inquiries/{$id}")->assertConflict();
     }
 

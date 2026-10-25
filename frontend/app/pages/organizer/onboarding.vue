@@ -1,9 +1,26 @@
 <template>
 	<div class="mx-auto max-w-2xl">
+		<!-- A former team member (removed or left): say so first, before "set up your organization". -->
+		<section v-if="formerTeam && !invitations.length" class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-6" role="status">
+			<h1 class="text-xl font-extrabold text-gray-900">You're no longer on {{ formerTeam.organization }}'s team</h1>
+			<p class="mt-2 text-sm leading-relaxed text-gray-700">
+				{{ formerTeam.how === 'left' ? 'You left the team' : `${formerTeam.organization} removed you from their team` }}<template v-if="formerTeam.ended_at"> on {{ new Date(formerTeam.ended_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) }}</template>,
+				so you can't open their events anymore. Your account stays yours.
+			</p>
+			<ul class="mt-4 space-y-2 text-sm text-gray-700">
+				<li><span class="font-semibold">Joining another team?</span> Ask that organizer to invite <span class="font-semibold">{{ user?.email }}</span>. The invitation will appear here.</li>
+				<li><span class="font-semibold">Starting your own business?</span>
+					<button type="button" class="font-semibold text-primary-700 underline" @click="showSetup = true">Set up your organization</button>.</li>
+				<li><span class="font-semibold">Want your account closed?</span> Contact NaSeRy support and we will close it for you.</li>
+			</ul>
+		</section>
+
+		<template v-if="!formerTeam || invitations.length || showSetup">
 		<h1 class="text-2xl font-extrabold text-gray-900">Set up your organization</h1>
 		<p class="mt-1 mb-6 text-gray-500">
 			Tell clients who you are. NaSeRy reviews every organizer before they can bid, run events and sell tickets.
 		</p>
+		</template>
 
 		<Alert v-if="error" type="danger" :text="error" />
 
@@ -24,9 +41,10 @@
 			</ul>
 			<p class="mt-4 text-xs text-gray-500">Or set up your own organization below.</p>
 		</section>
-		<p v-else class="mb-6 text-sm text-gray-500">Joining an organizer's team instead? Ask them to invite {{ user?.email }}; the invitation will appear here.</p>
+		<p v-else-if="!formerTeam" class="mb-6 text-sm text-gray-500">Joining an organizer's team instead? Ask them to invite {{ user?.email }}; the invitation will appear here.</p>
 
-		<form novalidate class="space-y-6" @submit.prevent="handleSubmit">
+		<form v-if="!formerTeam || invitations.length || showSetup" novalidate class="space-y-6" @submit.prevent="handleSubmit">
+			<FormsDraftNotice :draft="draft" />
 			<section class="rounded-2xl border border-gray-200 bg-white p-6">
 				<h2 class="mb-4 text-base font-bold text-gray-900">Business</h2>
 				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -88,7 +106,7 @@
 
 <script setup lang="ts">
 import type { OnboardingPayload } from '~/composables/useOrganization'
-import type { MyInvitation } from '~/composables/useTeam'
+import type { FormerTeam, MyInvitation } from '~/composables/useTeam'
 
 definePageMeta({ layout: 'dashboard' })
 
@@ -96,6 +114,8 @@ const { user } = useAuth()
 const { create, fetchOrganization } = useOrganization()
 const teamApi = useTeam()
 const invitations = ref<MyInvitation[]>([])
+const formerTeam = ref<FormerTeam | null>(null)
+const showSetup = ref(false)
 const responding = ref(false)
 
 async function respond(id: string, accept: boolean) {
@@ -105,7 +125,7 @@ async function respond(id: string, accept: boolean) {
 		if (accept) {
 			await teamApi.accept(id)
 			await fetchOrganization(true)
-			await navigateTo('/organizer/my-tasks')
+			await navigateTo('/team/dashboard')
 		} else {
 			await teamApi.decline(id)
 			invitations.value = invitations.value.filter(i => i.id !== id)
@@ -119,7 +139,7 @@ async function respond(id: string, accept: boolean) {
 
 onMounted(async () => {
 	try {
-		invitations.value = await teamApi.myInvitations()
+		;[invitations.value, formerTeam.value] = await Promise.all([teamApi.myInvitations(), teamApi.formerTeam().catch(() => null)])
 	} catch {
 		// Invitations are optional here; onboarding still works without them.
 	}
@@ -136,6 +156,7 @@ const form = reactive<OnboardingPayload>({
 		contact_phone: '',
 	},
 })
+const draft = useDraft(() => 'organizer:onboarding', form)
 const submitting = ref(false)
 const error = ref('')
 const fields = ref<Record<string, string>>({})
@@ -153,6 +174,7 @@ async function handleSubmit() {
 			...form,
 			profile: { ...form.profile, contact_phone: form.profile.contact_phone || null, description: form.profile.description || null },
 		})
+		draft.clear()
 		await navigateTo('/organizer/home')
 	} catch (e) {
 		fields.value = fieldErrors(e)

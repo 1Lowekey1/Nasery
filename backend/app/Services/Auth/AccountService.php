@@ -39,7 +39,7 @@ class AccountService
     /**
      * @param  array{first_name: string, middle_name?: ?string, last_name: string, email: string, phone?: ?string, password: string, account_type: string}  $data
      */
-    public function register(array $data, Request $request): User
+    public function register(#[\SensitiveParameter] array $data, Request $request): User
     {
         $email = self::normalizeEmail($data['email']);
 
@@ -71,7 +71,7 @@ class AccountService
         return $this->db->system('auth.register', fn () => $user->refresh());
     }
 
-    public function login(string $email, string $password, Request $request): User
+    public function login(string $email, #[\SensitiveParameter] string $password, Request $request): User
     {
         $user = $this->db->system('auth.login', fn () => $this->findByEmail(self::normalizeEmail($email)));
 
@@ -164,7 +164,7 @@ class AccountService
         }
     }
 
-    public function resetPassword(string $email, string $code, string $password): void
+    public function resetPassword(string $email, #[\SensitiveParameter] string $code, #[\SensitiveParameter] string $password): void
     {
         $user = $this->db->system('auth.password_reset', fn () => $this->findByEmail(self::normalizeEmail($email)));
 
@@ -186,7 +186,23 @@ class AccountService
         Log::channel('security')->info('auth.password_reset', ['user_id' => $user->id]);
     }
 
-    public function changePassword(User $user, string $current, string $new, Request $request): void
+    /**
+     * Team invitation set-up (/team-setup): the invitee's account was created by
+     * the invitation and has no password yet. Same code check as a reset; any
+     * other account gets the generic "invalid code" answer.
+     */
+    public function setFirstPassword(string $email, #[\SensitiveParameter] string $code, #[\SensitiveParameter] string $password): User
+    {
+        $user = $this->db->system('auth.first_password', fn () => $this->findByEmail(self::normalizeEmail($email)));
+        if ($user === null || $user->password_hash !== null || $user->account_type !== AccountType::Business) {
+            throw new ApiException(ErrorCode::InvalidCode, 'This link is invalid or was already used. Sign in, or ask for a new invitation.', 422);
+        }
+        $this->resetPassword($email, $code, $password);
+
+        return $this->db->system('auth.first_password', fn () => $user->refresh());
+    }
+
+    public function changePassword(User $user, #[\SensitiveParameter] string $current, #[\SensitiveParameter] string $new, Request $request): void
     {
         if ($user->password_hash !== null && ! Hash::check($current, $user->password_hash)) {
             throw ValidationException::withMessages(['current_password' => 'The current password is incorrect.']);

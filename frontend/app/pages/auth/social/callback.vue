@@ -1,36 +1,29 @@
 <template>
-	<div class="text-center">
-		<template v-if="!error">
-			<div class="mx-auto mb-5 h-10 w-10 animate-spin rounded-full border-4 border-primary-100 border-t-primary-600" />
-			<h2 class="mb-1.5 text-xl font-extrabold text-gray-900">Signing you in…</h2>
-			<p class="text-sm text-gray-500">Just a moment.</p>
-		</template>
-		<template v-else>
-			<Alert type="danger" :text="error" />
-			<NuxtLink to="/login" class="font-bold text-primary-600">Back to sign in</NuxtLink>
-		</template>
+	<div class="py-10 text-center">
+		<div v-if="!error" class="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-primary-100 border-t-primary-700" />
+		<h2 class="mt-5 text-xl font-extrabold text-gray-900">{{ error ? 'Unable to sign in' : 'Completing secure sign in…' }}</h2>
+		<p class="mt-2 text-sm text-gray-500">{{ error || 'Please keep this window open.' }}</p>
+		<NuxtLink v-if="error" to="/login" class="mt-6 inline-flex rounded-xl bg-primary-700 px-5 py-3 text-sm font-bold text-white">Back to sign in</NuxtLink>
 	</div>
 </template>
 
 <script setup lang="ts">
+
 definePageMeta({ layout: 'auth' })
+useSeoMeta({ title: 'Social sign in | NaSeRy' })
 
 const route = useRoute()
-const { exchangeSocial, homePath } = useAuth()
 const error = ref('')
+const { exchangeSocial, redirectByRole } = useAuth()
 
 onMounted(async () => {
 	const code = typeof route.query.code === 'string' ? route.query.code : ''
-	if (!code) {
-		error.value = authMessage('SOCIAL_LOGIN_EXPIRED')
-		return
-	}
+	if (!code) { error.value = 'The social provider did not return a valid sign-in code.'; return }
 	try {
 		const user = await exchangeSocial(code)
-		// Drop the one-time code from the address bar / history.
-		await navigateTo(homePath(user), { replace: true })
-	} catch (e) {
-		error.value = authMessage(e)
+		await redirectByRole(user)
+	} catch (value) {
+		error.value = authMessage(value) || 'Social sign in could not be completed. Please try again.'
 	}
 })
 </script>

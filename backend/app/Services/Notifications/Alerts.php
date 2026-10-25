@@ -44,6 +44,27 @@ class Alerts
         }
     }
 
+    /**
+     * The client changed a sent request (0051).
+     *
+     * @param  Collection<int, string>  $organizationIds  invited, not declined or withdrawn
+     * @param  list<string>  $changes  e.g. ['the date', 'the budget']
+     * @param  list<string>  $quoted  of those, the ones with a quotation out (opens Offers)
+     */
+    public function inquiryRevised(Inquiry $inquiry, Collection $organizationIds, array $changes, array $quoted = []): void
+    {
+        $what = $changes === [] ? 'the details' : (count($changes) > 1
+            ? implode(', ', array_slice($changes, 0, -1)).' and '.end($changes)
+            : $changes[0]);
+
+        foreach ($organizationIds->unique() as $orgId) {
+            $this->notifier->send($this->recipients->forOrganization($orgId, ['inquiry.manage']), 'inquiry.revised',
+                'A client updated their request', "The client changed {$what}. Check the request, and revise your quotation if it no longer fits.",
+                ['inquiry_id' => $inquiry->id], in_array($orgId, $quoted, true) ? '/organizer/inquiries/offers' : '/organizer/inquiries/match-inquiries',
+                "inquiry-revised:{$inquiry->id}:{$orgId}:{$inquiry->revision_count}");
+        }
+    }
+
     public function quotationReceived(Quotation $quotation, bool $revised = false): void
     {
         $row = $this->quotationInfo($quotation);
@@ -115,6 +136,29 @@ class Alerts
             'Open NaSeRy to accept or decline the invitation.', ['organization_member_id' => $member->id], '/organizer/onboarding');
     }
 
+    /** Owner (or a staff manager) removed this member; their account stays, the team access ends. */
+    public function staffRemoved(OrganizationMember $member, string $organizationName): void
+    {
+        $this->notifier->send($member->user_id, 'staff.removed', "You're no longer on {$organizationName}'s team",
+            "{$organizationName} removed you from their team on NaSeRy, so you can't open their events anymore. Your account stays; another organizer can invite you.",
+            ['organization_member_id' => $member->id], '/organizer/onboarding');
+    }
+
+    /** A member left on their own: tell whoever manages the team. */
+    public function staffLeft(OrganizationMember $member, string $name, int $openTasks): void
+    {
+        $this->notifier->send($this->recipients->forOrganization($member->organization_id, ['staff.manage']), 'staff.left', "{$name} left your team",
+            $openTasks > 0 ? "{$openTasks} of their open ".($openTasks === 1 ? 'task needs' : 'tasks need').' a new assignee in Preparation.' : 'They had no open tasks.',
+            ['organization_member_id' => $member->id, 'organization_id' => $member->organization_id], '/organizer/team');
+    }
+
+    /** Open tasks of a removed member were handed to this person. */
+    public function tasksHandedOver(OrganizationMember $to, int $count): void
+    {
+        $this->notifier->send($to->user_id, 'task.assigned', $count === 1 ? 'A task was handed over to you' : "{$count} tasks were handed over to you",
+            'A teammate left, so their open work is now yours. See My Assignments.', ['organization_member_id' => $to->id], '/team/dashboard');
+    }
+
     /** @param  list<string>  $eventMemberIds  newly assigned */
     public function taskAssigned(Event $event, Task $task, array $eventMemberIds, ?string $actorUserId): void
     {
@@ -122,6 +166,17 @@ class Alerts
             ->whereIn('em.id', $eventMemberIds)->pluck('m.user_id')->all());
         $this->notifier->send(array_values(array_diff($users, [$actorUserId])), 'task.assigned', "New task: {$task->name}",
             "You were assigned a task for {$event->name}.", ['event_id' => $event->id, 'task_id' => $task->id], '/organizer/my-tasks');
+    }
+
+    /** 0044: the organizer reviewed a finished task; tell its assignees. */
+    public function taskReviewed(Event $event, Task $task, bool $verified, ?string $note, ?string $actorUserId): void
+    {
+        $users = $this->db->system('alerts.task_reviewers', fn () => DB::table('task_assignees as ta')->join('event_members as em', 'em.id', '=', 'ta.event_member_id')
+            ->join('organization_members as m', 'm.id', '=', 'em.organization_member_id')->where('ta.task_id', $task->id)->pluck('m.user_id')->all());
+        $this->notifier->send(array_values(array_diff($users, [$actorUserId])), 'task.reviewed',
+            $verified ? "Verified: {$task->name}" : "Changes requested: {$task->name}",
+            $verified ? "Your task for {$event->name} was checked and verified." : 'Please take another look'.($note ? ': '.rtrim($note, '.').'.' : '.'),
+            ['event_id' => $event->id, 'task_id' => $task->id], '/organizer/my-tasks');
     }
 
     /**

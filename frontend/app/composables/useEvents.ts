@@ -101,6 +101,17 @@ export interface ClientProgress {
   stages: string[]
   event_status: EventStatus
   milestones: TimelineEntry[]
+  /** 0049: program items the organizer chose to show the client, in time order. */
+  program: ClientProgramItem[]
+}
+
+export interface ClientProgramItem {
+  id: string
+  title: string
+  description: string | null
+  category: string | null
+  status: 'pending' | 'in_progress' | 'completed'
+  activity_at: string | null
 }
 
 export const taskStatusLabels: Record<TaskStatus, string> = {

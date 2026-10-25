@@ -1,20 +1,25 @@
-# Local Environment Files
-backend/.env
-backend/.env.production
-frontend/.env
-frontend/.env.local
+# Root-level ignores only. backend/.gitignore and frontend/.gitignore cover each
+# app's own secrets (.env), dependencies (vendor, node_modules) and build output.
 
-# Extra Files
-.claude
-backend/CLAUDE.md
-backend/AGENTS.md
-node_modules/
+# Settings with secrets, wherever they sit (.env.example stays tracked)
+.env
+.env.*
+!.env.example
 
-# Dependency Folders
-backend/vendor/
-frontend/node_modules/
 
-# IDE & OS Files
-.DS_Store
-.idea/
+# Local AI assistant files and the private context pack
+.claude/
+.github/
+**/CLAUDE.md
+**/AGENTS.md
+Context Folder/
+
+# Exports
+/*.pdf
+
+# Logs, editors and OS files
+*.log
 .vscode/
+.idea/
+.DS_Store
+Thumbs.db

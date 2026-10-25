@@ -8,6 +8,7 @@ use App\Models\Inquiry;
 use App\Models\InquiryInvitation;
 use App\Models\Organization;
 use App\Models\Quotation;
+use App\Services\Quotations\OrganizerQuotations;
 use App\Support\Audit\AuditLogger;
 use App\Support\Database\DatabaseContext;
 use App\Support\Http\ErrorCode;
@@ -48,7 +49,8 @@ class OrganizerInquiries
         $inquiries = $paginator->getCollection()->pluck('inquiry');
         $extras = $this->extras($inquiries, $organization);
 
-        $paginator->getCollection()->transform(fn (InquiryInvitation $i) => $this->present($i, $extras, detailed: false));
+        // The redesigned inquiry cards show everything at once (no "open" step), so the list carries the details too.
+        $paginator->getCollection()->transform(fn (InquiryInvitation $i) => $this->present($i, $extras, detailed: true));
 
         return $paginator;
     }
@@ -134,7 +136,7 @@ class OrganizerInquiries
 
         $quotations = $ids->isEmpty() ? collect() : Quotation::query()
             ->where('organization_id', $organization->id)->whereIn('inquiry_id', $ids)
-            ->orderByDesc('created_at')->get(['id', 'inquiry_id', 'status', 'total_amount'])
+            ->orderByDesc('created_at')->get(['id', 'inquiry_id', 'status', 'total_amount', 'submitted_at'])
             ->unique('inquiry_id')->keyBy('inquiry_id');
 
         return [
@@ -168,6 +170,8 @@ class OrganizerInquiries
             'responded_at' => $invitation->responded_at?->toIso8601String(),
             'inquiry_status' => $inquiry->status->value,
             'is_open' => $inquiry->isOpen(),
+            // 0051: when the client last changed the request after sending it.
+            'revised_at' => $inquiry->revised_at?->toIso8601String(),
             'via' => $inquiry->isOpenPosting() ? 'open_posting' : 'direct',
             'client' => $extras['clients'][$inquiry->client_user_id] ?? 'Client',
             'event_type' => $extras['types'][$inquiry->event_type_id] ?? null,
@@ -182,7 +186,8 @@ class OrganizerInquiries
             ])->values(),
             'additional_requirements' => $detailed ? $inquiry->additional_requirements : null,
             'quotation' => ($q = $extras['quotations'][$inquiry->id] ?? null)
-                ? ['id' => $q->id, 'status' => $q->status->value, 'total_amount' => $q->total_amount]
+                ? ['id' => $q->id, 'status' => $q->status->value, 'total_amount' => $q->total_amount,
+                    'before_changes' => OrganizerQuotations::beforeChanges($q, $inquiry)]
                 : null,
         ];
     }

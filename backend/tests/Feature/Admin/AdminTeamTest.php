@@ -37,6 +37,14 @@ class AdminTeamTest extends TestCase
         $this->assertNull($ana->password_hash);
         Mail::assertSent(AuthCodeMail::class, fn (AuthCodeMail $m) => $m->hasTo('ana@nasery.test') && $m->invitedBy === 'Nathan Sevilla'
             && $m->envelope()->subject === 'Nathan Sevilla added you as a NaSeRy administrator');
+        // One link straight to the set-up page, e-mail + code in the #fragment (no second code from "Forgot password").
+        $mail = Mail::sent(AuthCodeMail::class)->last();
+        $setupUrl = $mail->content()->with['setupUrl'];
+        $this->assertSame('http://localhost:3000/admin-setup#'.http_build_query(['email' => 'ana@nasery.test', 'code' => $mail->code]), $setupUrl);
+        $mail->assertSeeInHtml('Set up my admin account');
+        // Invitations last 72 hours, not the usual 10 minutes.
+        $expires = \App\Models\Auth\AuthCode::query()->where('user_id', User::query()->where('email', 'ana@nasery.test')->value('id'))->value('expires_at');
+        $this->assertTrue(now()->addHours(71)->lt($expires));
         $this->app['auth']->forgetGuards();
         $this->spaJson('POST', '/api/v1/auth/login', ['email' => 'ana@nasery.test', 'password' => 'Whatever123'])->assertUnauthorized();
 

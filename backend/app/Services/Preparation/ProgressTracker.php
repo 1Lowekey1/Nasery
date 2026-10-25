@@ -82,7 +82,8 @@ class ProgressTracker
             ->where('c.event_id', $event->id)
             ->whereNull('c.deleted_at')->whereNull('t.deleted_at')
             ->where('t.status', '!=', TaskStatus::Cancelled->value)
-            ->selectRaw("count(*) as total, count(*) filter (where t.status = 'done') as done")
+            // 0044: finished work counts once it's verified (or needed no review: older tasks, the reviewer's own).
+            ->selectRaw("count(*) as total, count(*) filter (where t.status = 'done' and coalesce(t.review_status, 'verified') = 'verified') as done")
             ->first();
 
         return (int) $counts->total === 0 ? null : round(100 * (int) $counts->done / (int) $counts->total, 2);

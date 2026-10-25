@@ -1,9 +1,9 @@
 <template>
-	<div class="flex h-screen overflow-hidden bg-gray-50">
-		<div class="fixed inset-x-0 top-0 z-50 h-1 bg-gray-900" />
+	<div class="flex h-dvh overflow-clip bg-gray-50">
+		<!-- <div class="fixed inset-x-0 top-0 z-50 h-1 bg-gray-900" /> -->
 
 		<aside class="shrink-0 overflow-hidden border-r border-gray-200 bg-white transition-all duration-200"
-			:class="sidebarOpen ? 'w-64' : 'w-0 border-r-0'">
+			:class="asideClass">
 			<div class="flex h-full w-64 flex-col overflow-y-auto">
 				<div class="flex items-center gap-2.5 px-5 py-5">
 					<div
@@ -38,225 +38,181 @@
 				</nav>
 
 				<div class="border-t border-gray-100 px-4 py-4">
-					<div class="mb-3 flex w-full items-center gap-3 rounded-lg p-1.5 text-left">
-						<div
-							class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-700 text-sm font-bold text-white">
-							{{ sidebarInitials }}
-						</div>
-						<div class="min-w-0">
-							<div class="truncate text-sm font-semibold text-gray-900">{{ fullName }}</div>
-							<div class="truncate text-xs text-gray-400">Client · {{ user?.email }}</div>
-						</div>
-					</div>
 					<button type="button"
 						class="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-700"
-						@click="signOut">
+						@click="handleLogout">
 						<IconBase name="log-out" class="h-4 w-4" />
+
 						Sign out
 					</button>
 				</div>
 			</div>
 		</aside>
+		<div v-if="isMobile && sidebarOpen" class="fixed inset-0 z-[85] bg-gray-900/40" aria-hidden="true" @click="closeSidebar" />
 
 		<div class="flex min-w-0 flex-1 flex-col">
-			<header class="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 py-3.5">
+			<header class="flex shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-3.5">
 				<div class="flex items-center gap-4">
-					<button type="button" class="text-gray-400 hover:text-gray-600" @click="sidebarOpen = !sidebarOpen">
+					<button type="button" class="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700" :aria-label="sidebarOpen ? 'Close menu' : 'Open menu'" :aria-expanded="sidebarOpen" @click="sidebarOpen = !sidebarOpen">
 						<IconBase :name="sidebarOpen ? 'x' : 'menu'" class="h-5 w-5" />
 					</button>
 					<div>
 						<div class="text-xs text-gray-400">Client Portal</div>
-						<div class="text-sm font-bold text-gray-900">{{ activeItem.label }}</div>
+						<div class="text-sm font-bold text-gray-900">{{ headerTitle }}</div>
 					</div>
 				</div>
-				<NotificationBell />
+				<div class="flex items-center gap-2">
+					<NotificationsDropdown portal="client" />
+					<button type="button" class="flex max-w-52 items-center gap-2 rounded-xl border border-gray-200 bg-white p-1.5 pr-3 text-left transition hover:border-primary-200 hover:bg-primary-50" @click="openProfilePanel">
+						<span class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary-700 text-xs font-bold text-white">
+							<img v-if="user?.avatar_url" :src="user.avatar_url" alt="" class="h-full w-full object-cover" /><span v-else>{{ sidebarInitials }}</span>
+						</span>
+						<span class="hidden min-w-0 sm:block"><span class="block truncate text-xs font-bold text-gray-900">{{ sidebarName }}</span><span class="block text-[10px] text-gray-400">Edit profile</span></span>
+					</button>
+				</div>
 			</header>
 
-			<main class="flex-1 overflow-y-auto p-6">
-				<AnnouncementBanner class="mb-4" />
+			<main class="flex-1 overflow-y-auto p-4 sm:p-6">
 				<slot />
 			</main>
 		</div>
 
 		<Transition name="fade">
-			<div v-if="showProfilePanel" class="fixed inset-0 z-40 bg-gray-900/40" @click="closeProfilePanel" />
+			<div v-if="showProfilePanel" class="fixed inset-0 z-[90] bg-gray-900/40 backdrop-blur-[2px]" @click="closeProfilePanel" />
 		</Transition>
 
 		<Transition name="slide">
 			<div v-if="showProfilePanel"
-				class="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl">
-				<div class="relative shrink-0 pb-9">
-					<div class="h-16" :style="{ backgroundColor: draftProfile.bannerColor }" />
-					<button type="button" class="absolute right-4 top-4 text-white/80 hover:text-white"
+				class="fixed inset-y-0 right-0 z-[100] flex w-full max-w-3xl flex-col overflow-hidden bg-white shadow-2xl"
+				role="dialog" aria-modal="true" aria-labelledby="client-profile-title">
+				<!-- Header -->
+				<div class="relative shrink-0">
+					<div class="relative h-32 overflow-hidden bg-primary-700">
+						<span class="cp-dots" />
+						<span class="pointer-events-none absolute -right-12 -top-16 h-52 w-52 rounded-full bg-white/10 blur-2xl" />
+					</div>
+
+					<button type="button" aria-label="Close profile"
+						class="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-black/20 text-white backdrop-blur-sm transition hover:bg-black/35"
 						@click="closeProfilePanel">
 						<IconBase name="x" class="h-5 w-5" />
 					</button>
-					<div
-						class="absolute -bottom-1 left-6 flex h-16 w-16 items-center justify-center rounded-2xl border-4 border-white bg-white text-lg font-bold text-primary-700 shadow-sm">
-						{{ panelInitials }}
+
+					<div class="flex items-end gap-5 px-6 md:px-8">
+						<div class="-mt-12 flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-primary-50 text-2xl font-extrabold text-primary-700 shadow-lg ring-4 ring-white">
+							<img v-if="user?.avatar_url" :src="user.avatar_url" alt="" class="h-full w-full object-cover" />
+							<span v-else>{{ panelInitials }}</span>
+						</div>
+
+						<div class="min-w-0 flex-1 pb-1 pt-4">
+							<p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary-700">Client profile</p>
+							<h2 id="client-profile-title" class="mt-0.5 truncate text-2xl font-extrabold tracking-tight text-gray-950">{{ draftName || 'Your profile' }}</h2>
+							<p class="mt-0.5 truncate text-sm text-gray-500">{{ user?.email }}</p>
+						</div>
 					</div>
 				</div>
 
-				<div class="px-6 pb-4">
-					<h2 class="text-lg font-bold text-gray-900">{{ draftProfile.fullName }}</h2>
-					<p class="text-sm text-gray-500">{{ draftProfile.clientType }} Client</p>
-				</div>
-
-				<div class="flex scroll-px-6 scroll-smooth gap-5 overflow-x-auto border-b border-gray-200 px-6">
-					<button v-for="tab in profileTabs" :key="tab.label" :ref="(el) => setProfileTabRef(tab.label, el)"
-						type="button" class="flex shrink-0 items-center gap-1.5 border-b-2 pb-3 text-sm font-semibold"
-						:class="activeProfileTab === tab.label ? 'border-primary-700 text-primary-700' : 'border-transparent text-gray-400 hover:text-gray-600'"
+				<!-- Mobile section chips -->
+				<div class="mt-5 flex shrink-0 gap-2 overflow-x-auto border-b border-gray-100 px-6 pb-3 md:hidden">
+					<button v-for="tab in profileTabs" :key="tab.label" type="button"
+						class="flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition"
+						:class="activeProfileTab === tab.label ? 'bg-primary-700 text-white' : 'bg-gray-100 text-gray-600'"
 						@click="activeProfileTab = tab.label">
-						<IconBase :name="tab.icon" class="h-4 w-4" />
+						<IconBase :name="tab.icon" class="h-3.5 w-3.5" />
 						{{ tab.label }}
 					</button>
 				</div>
 
-				<div class="flex-1 px-6 py-5">
-					<div v-if="activeProfileTab === 'Identity'">
-						<div class="mb-5 flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="user" class="h-4 w-4" />
-							</div>
-							<div>
-								<div class="text-sm font-bold text-gray-900">Identity</div>
-								<div class="text-xs text-gray-500">Your name and how organizers should address you</div>
-							</div>
-						</div>
+				<div class="flex min-h-0 flex-1 border-t border-gray-100 md:mt-6">
+					<!-- Section rail -->
+					<nav class="hidden w-64 shrink-0 space-y-1 overflow-y-auto border-r border-gray-100 bg-gray-50/60 p-4 md:block" aria-label="Profile sections">
+						<button v-for="tab in profileTabs" :key="tab.label" type="button"
+							class="group relative flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition duration-200"
+							:class="activeProfileTab === tab.label ? 'bg-white shadow-sm ring-1 ring-gray-200' : 'hover:bg-white/70'"
+							@click="activeProfileTab = tab.label">
+							<span v-if="activeProfileTab === tab.label" class="absolute inset-y-3 left-0 w-[3px] rounded-r-full bg-primary-700" />
+							<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition"
+								:class="activeProfileTab === tab.label ? 'bg-primary-700 text-white' : 'bg-white text-gray-400 ring-1 ring-gray-200 group-hover:text-primary-700'">
+								<IconBase :name="tab.icon" class="h-4 w-4" />
+							</span>
+							<span class="min-w-0">
+								<span class="block truncate text-sm font-bold" :class="activeProfileTab === tab.label ? 'text-gray-950' : 'text-gray-600'">{{ tab.label }}</span>
+								<span class="block truncate text-[11px] text-gray-400">{{ tab.hint }}</span>
+							</span>
+						</button>
+					</nav>
 
-						<FormsLabel text="Full Name" />
-						<FormsTextField v-model="draftProfile.fullName" />
+					<!-- Section content -->
+					<div class="min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-8 md:px-9">
+						<div :key="activeProfileTab" class="cp-fade mx-auto max-w-xl">
+							<div class="mb-8 flex items-center gap-4">
+								<span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+									<IconBase :name="activeTabMeta.icon" class="h-5 w-5" />
+								</span>
+								<div>
+									<h3 class="text-lg font-extrabold tracking-tight text-gray-950">{{ activeTabMeta.label }}</h3>
+									<p class="mt-0.5 text-sm text-gray-500">{{ activeTabMeta.description }}</p>
+								</div>
+							</div>
 
-						<label class="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">Client Type</label>
-						<select v-model="draftProfile.clientType"
-							class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15">
-							<option v-for="type in clientTypes" :key="type" :value="type">{{ type }}</option>
-						</select>
+							<!-- Identity -->
+							<div v-if="activeProfileTab === 'Identity'" class="space-y-6">
+								<div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+									<div class="space-y-2">
+										<FormsLabel text="First name" required />
+										<FormsTextField v-model="draft.first_name" size="lg" autocomplete="given-name" />
+										<p v-if="fields.first_name" class="text-xs text-rose-600">{{ fields.first_name }}</p>
+									</div>
+									<div class="space-y-2">
+										<FormsLabel text="Last name" required />
+										<FormsTextField v-model="draft.last_name" size="lg" autocomplete="family-name" />
+										<p v-if="fields.last_name" class="text-xs text-rose-600">{{ fields.last_name }}</p>
+									</div>
+								</div>
+								<div class="space-y-2">
+									<FormsLabel text="Middle name (optional)" />
+									<FormsTextField v-model="draft.middle_name" size="lg" autocomplete="additional-name" />
+								</div>
+							</div>
 
-						<div class="mt-4">
-							<FormsLabel text="Location / City" />
-							<FormsTextField v-model="draftProfile.location" icon="map-pin" placeholder="e.g. Quezon City" />
-						</div>
-					</div>
+							<!-- Contact -->
+							<div v-else-if="activeProfileTab === 'Contact'" class="space-y-6">
+								<div class="space-y-2">
+									<FormsLabel text="Email address" />
+									<div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">{{ user?.email }}</div>
+									<p class="text-xs text-gray-400">This is your sign-in e-mail, so it can't be changed here.</p>
+								</div>
+								<div class="space-y-2">
+									<FormsLabel text="Mobile number" />
+									<FormsTextField v-model="draft.phone" type="tel" size="lg" autocomplete="tel" placeholder="0917 123 4567" />
+									<p v-if="fields.phone" class="text-xs text-rose-600">{{ fields.phone }}</p>
+									<p v-else class="text-xs text-gray-400">A Philippine mobile number. Leave it empty to remove it.</p>
+								</div>
+							</div>
 
-					<div v-else-if="activeProfileTab === 'About'">
-						<div class="mb-5 flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="file-text" class="h-4 w-4" />
+							<!-- Appearance -->
+							<div v-else-if="activeProfileTab === 'Appearance'">
+								<MediaBatchScope :batch="mediaBatch"><MediaAvatarUploader /></MediaBatchScope>
 							</div>
-							<div>
-								<div class="text-sm font-bold text-gray-900">About</div>
-								<div class="text-xs text-gray-500">Share a bit about your event vision</div>
-							</div>
-						</div>
-						<label class="mb-1.5 block text-sm font-semibold text-gray-700">Bio / Description</label>
-						<textarea v-model="draftProfile.bio" rows="7"
-							placeholder="Tell organizers about your event vision, priorities, and what matters most to you..."
-							class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15" />
-					</div>
 
-					<div v-else-if="activeProfileTab === 'Event Preferences'">
-						<div class="mb-5 flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="tag" class="h-4 w-4" />
-							</div>
-							<div>
-								<div class="text-sm font-bold text-gray-900">Event Preferences</div>
-								<div class="text-xs text-gray-500">Types of events you usually need help with</div>
-							</div>
-						</div>
-						<div class="flex flex-wrap gap-2">
-							<button v-for="type in eventPreferenceOptions" :key="type" type="button"
-								class="rounded-full px-3.5 py-1.5 text-sm font-semibold"
-								:class="draftProfile.eventPreferences.includes(type) ? 'bg-primary-700 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'"
-								@click="toggleEventPreference(type)">
-								{{ type }}
-							</button>
-						</div>
-					</div>
-
-					<div v-else-if="activeProfileTab === 'Planning Style'">
-						<div class="mb-5 flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="sparkles" class="h-4 w-4" />
-							</div>
-							<div>
-								<div class="text-sm font-bold text-gray-900">Planning Style</div>
-								<div class="text-xs text-gray-500">How involved you'd like organizers to be</div>
-							</div>
-						</div>
-						<div class="flex flex-wrap gap-2">
-							<button v-for="style in planningStyleOptions" :key="style" type="button"
-								class="rounded-full px-3.5 py-1.5 text-sm font-semibold"
-								:class="draftProfile.planningStyle.includes(style) ? 'bg-primary-700 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'"
-								@click="togglePlanningStyle(style)">
-								{{ style }}
-							</button>
-						</div>
-					</div>
-
-					<div v-else-if="activeProfileTab === 'Contact'">
-						<div class="mb-5 flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="phone" class="h-4 w-4" />
-							</div>
-							<div>
-								<div class="text-sm font-bold text-gray-900">Contact</div>
-								<div class="text-xs text-gray-500">How organizers can reach you</div>
-							</div>
-						</div>
-
-						<FormsLabel text="Email Address" />
-						<FormsTextField v-model="draftProfile.email" type="email" />
-
-						<div class="mt-4">
-							<FormsLabel text="Phone Number" />
-							<FormsTextField v-model="draftProfile.phone" />
-						</div>
-
-						<div class="mb-2 mt-6 flex items-center gap-2 text-xs font-semibold tracking-wide text-gray-400">
-							<IconBase name="user" class="h-3.5 w-3.5" /> ALTERNATE CONTACT
-						</div>
-						<p class="mb-3 text-xs text-gray-400">Optional — for day-of coordination if you're unreachable</p>
-
-						<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-							<div>
-								<FormsLabel text="Name" />
-								<FormsTextField v-model="draftProfile.altContactName" placeholder="e.g. Maria Santos" />
-							</div>
-							<div>
-								<FormsLabel text="Phone" />
-								<FormsTextField v-model="draftProfile.altContactPhone" placeholder="e.g. 0917 123 4567" />
-							</div>
-						</div>
-					</div>
-
-					<div v-else-if="activeProfileTab === 'Appearance'">
-						<div class="mb-5 flex items-center gap-3">
-							<div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-								<IconBase name="settings" class="h-4 w-4" />
-							</div>
-							<div>
-								<div class="text-sm font-bold text-gray-900">Appearance</div>
-								<div class="text-xs text-gray-500">Customize your profile banner color</div>
-							</div>
-						</div>
-						<div class="flex flex-wrap gap-3">
-							<button v-for="color in bannerColors" :key="color" type="button"
-								class="h-10 w-10 rounded-full border-2"
-								:class="draftProfile.bannerColor === color ? 'border-gray-900' : 'border-transparent'"
-								:style="{ backgroundColor: color }" @click="draftProfile.bannerColor = color" />
+							<p v-if="saveError" class="mt-6 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700" role="alert">{{ saveError }}</p>
 						</div>
 					</div>
 				</div>
 
-				<div class="flex shrink-0 gap-3 border-t border-gray-200 px-6 py-4">
-					<FormsButton variant="secondary" class="flex-1" @click="closeProfilePanel">
-						Cancel
-					</FormsButton>
-					<FormsButton class="flex-1" @click="saveProfile">
-						Save Profile
-					</FormsButton>
+				<!-- Footer -->
+				<div class="flex shrink-0 items-center justify-between gap-4 border-t border-gray-200 bg-white px-6 py-4 md:px-9">
+					<p class="hidden text-xs text-gray-400 sm:block">Review your changes, then save.</p>
+					<div class="flex w-full gap-3 sm:w-auto">
+						<button type="button" class="flex-1 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 active:scale-[0.98] sm:flex-none"
+							@click="closeProfilePanel">
+							Cancel
+						</button>
+						<button type="button" class="flex-1 rounded-xl bg-primary-700 px-7 py-3 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-primary-900 hover:shadow-md active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+							:disabled="saving" @click="saveProfile">
+							{{ saving ? 'Saving…' : 'Save Profile' }}
+						</button>
+					</div>
 				</div>
 			</div>
 		</Transition>
@@ -264,132 +220,208 @@
 </template>
 
 <script setup lang="ts">
-const { logout, user } = useAuth()
-const fullName = computed(() => user.value ? `${user.value.first_name} ${user.value.last_name}` : '')
-
-async function signOut() {
-	await logout()
-	await navigateTo('/login')
-}
-
+useLockedFrame()
 const route = useRoute()
 
-const sidebarOpen = ref(true)
+const {
+	user,
+	firstName,
+	initials,
+	logout,
+	updateProfile,
+} = useAuth()
+
+const { sidebarOpen, isMobile, asideClass, closeSidebar } = useResponsiveSidebar()
 
 const navItems = [
-	{ label: 'My Events', to: '/client/my-events', icon: 'home' },
-	{ label: 'Post an Event', to: '/client/post-event', icon: 'plus' },
-	{ label: 'My Event', to: '/client/event-details', icon: 'calendar' },
-	{ label: 'Preparation Tracking', to: '/client/preparation-tracking', icon: 'clipboard-list' },
-	{ label: 'Activity Timeline', to: '/client/activity-timeline', icon: 'activity' },
-	{ label: 'My Tickets', to: '/my-tickets', icon: 'tag' }
+	{
+		label: 'My Events',
+		to: '/client/my-events',
+		icon: 'home',
+	},
+	{
+		label: 'Post Event Inquiry',
+		to: '/client/post-event',
+		icon: 'send',
+	},
+	{
+		label: 'Event Journey',
+		to: '/client/preparation-tracking',
+		icon: 'activity',
+	},
+	{
+		label: 'My Tickets',
+		to: '/my-tickets',
+		icon: 'ticket',
+	},
+	{
+		label: 'Event Marketplace',
+		to: '/marketplace',
+		icon: 'calendar',
+	},
+	{
+		label: 'Browse Organizers',
+		to: '/organizers',
+		icon: 'users',
+	},
 ]
 
-const activeItem = computed(() => route.path === '/notifications' ? { label: 'Notifications' } : navItems.find((item) => item.to === route.path) ?? navItems[0])
-
-const profileTabs = [
-	{ label: 'Identity', icon: 'user' },
-	{ label: 'About', icon: 'file-text' },
-	{ label: 'Event Preferences', icon: 'tag' },
-	{ label: 'Planning Style', icon: 'sparkles' },
-	{ label: 'Contact', icon: 'phone' },
-	{ label: 'Appearance', icon: 'settings' }
-]
-
-const clientTypes = ['Individual', 'Couple', 'Family', 'Corporate']
-const eventPreferenceOptions = ['Wedding', 'Corporate', 'Birthday', 'Debut', 'Concert', 'Conference', 'Reunion', 'Seminar']
-const planningStyleOptions = ['Full Coordination', 'Partial Planning', 'Day-of Coordination', 'Vendor Referrals Only', 'Budget-Conscious', 'Premium / Luxury']
-const bannerColors = ['#285F6b', '#7c3aed', '#be123c', '#b45309', '#15803d', '#1d4ed8']
-
-function defaultProfile() {
-	return {
-		fullName: 'EventPro Solutions',
-		clientType: clientTypes[0],
-		location: '',
-		bio: '',
-		eventPreferences: ['Wedding'],
-		planningStyle: ['Full Coordination'],
-		email: '',
-		phone: '',
-		altContactName: '',
-		altContactPhone: '',
-		bannerColor: '#285F6b'
-	}
-}
-
-const profile = reactive(defaultProfile())
-const draftProfile = reactive(defaultProfile())
-const showProfilePanel = ref(false)
-const activeProfileTab = ref('Identity')
-
-const profileTabButtonRefs = {}
-function setProfileTabRef(label, el) {
-	if (el) profileTabButtonRefs[label] = el
-}
-
-watch(activeProfileTab, (label) => {
-	nextTick(() => {
-		profileTabButtonRefs[label]?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' })
-	})
+const activeItem = computed(() => {
+	return (
+		navItems.find(
+			(item) => item.to === route.path
+		) ?? navItems[0]
+	)
 })
 
-function initialsOf(name) {
-	return (name || '').trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join('').toUpperCase()
+// Pages outside the menu still get their own title in the header.
+const pageTitles: Record<string, string> = { '/notifications': 'Notifications', '/my-tickets': 'My Tickets' }
+const headerTitle = computed(() => pageTitles[route.path] ?? activeItem.value?.label ?? '')
+
+/**
+ * Sidebar name.
+ *
+ * Example:
+ * firstname = "Nina"
+ *
+ * Sidebar:
+ * Nina
+ */
+const sidebarName = computed(() => {
+	return (
+		firstName.value ||
+		'User'
+	)
+})
+
+const sidebarInitials = computed(() => {
+	return (
+		initials.value ||
+		'U'
+	)
+})
+
+// The client profile is their account: name, mobile number and photo
+// (PATCH auth/me + the photo upload). E-mail is the sign-in and stays read-only.
+const profileTabs = [
+	{ label: 'Identity', icon: 'user', hint: 'Your name', description: 'The name organizers see on your requests.' },
+	{ label: 'Contact', icon: 'phone', hint: 'How to reach you', description: 'How organizers can reach you.' },
+	{ label: 'Appearance', icon: 'camera', hint: 'Profile photo', description: 'The photo shown with your name.' },
+]
+
+const draft = reactive({ first_name: '', middle_name: '', last_name: '', phone: '' })
+const draftName = computed(() => [draft.first_name, draft.middle_name, draft.last_name].map(v => v.trim()).filter(Boolean).join(' '))
+
+const showProfilePanel = ref(false)
+const activeProfileTab = ref('Identity')
+const activeTabMeta = computed(() => profileTabs.find(tab => tab.label === activeProfileTab.value) ?? profileTabs[0]!)
+const saving = ref(false)
+const saveError = ref('')
+const fields = ref<Record<string, string>>({})
+
+function syncDraft() {
+	Object.assign(draft, {
+		first_name: user.value?.first_name ?? '',
+		middle_name: user.value?.middle_name ?? '',
+		last_name: user.value?.last_name ?? '',
+		phone: user.value?.phone ?? '',
+	})
 }
 
-const sidebarInitials = computed(() => initialsOf(fullName.value))
-const panelInitials = computed(() => initialsOf(draftProfile.fullName))
+function initialsOf(name: string): string {
+	return (name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()
+}
+
+/** Profile-panel initials (follow the name being edited). */
+const panelInitials = computed(() => initialsOf(draftName.value) || initials.value || 'U')
 
 function openProfilePanel() {
-	Object.assign(draftProfile, profile)
-	draftProfile.eventPreferences = [...profile.eventPreferences]
-	draftProfile.planningStyle = [...profile.planningStyle]
+	window.dispatchEvent(new CustomEvent('dashboard:close-notifications'))
+	syncDraft()
+	saveError.value = ''
+	fields.value = {}
 	activeProfileTab.value = 'Identity'
 	showProfilePanel.value = true
 }
 
+// Pictures picked in the panel are uploaded by Save Profile.
+const mediaBatch = createMediaBatch()
+
 function closeProfilePanel() {
 	showProfilePanel.value = false
+	saveError.value = ''
+	fields.value = {}
+	mediaBatch.clear()
 }
 
-function saveProfile() {
-	Object.assign(profile, draftProfile)
-	profile.eventPreferences = [...draftProfile.eventPreferences]
-	profile.planningStyle = [...draftProfile.planningStyle]
+async function saveProfile() {
+	saveError.value = ''
+	fields.value = {}
+	if (!draft.first_name.trim() || !draft.last_name.trim()) {
+		fields.value = {
+			...(draft.first_name.trim() ? {} : { first_name: 'Enter your first name.' }),
+			...(draft.last_name.trim() ? {} : { last_name: 'Enter your last name.' }),
+		}
+		activeProfileTab.value = 'Identity'
+		return
+	}
+
+	saving.value = true
+	try {
+		const phone = draft.phone.trim()
+		await updateProfile({
+			first_name: draft.first_name.trim(),
+			middle_name: draft.middle_name.trim() || null,
+			last_name: draft.last_name.trim(),
+			// Only when edited, so an older saved number never blocks a name change.
+			...(phone !== (user.value?.phone ?? '') ? { phone: phone || null } : {}),
+		})
+	} catch (e: unknown) {
+		fields.value = fieldErrors(e)
+		saveError.value = Object.keys(fields.value).length ? 'Please check the highlighted fields.' : authMessage(e)
+		activeProfileTab.value = fields.value.phone ? 'Contact' : 'Identity'
+		saving.value = false
+		return
+	}
+
+	saveError.value = await mediaBatch.flush()
+	saving.value = false
+	if (saveError.value) {
+		activeProfileTab.value = 'Appearance'
+		return
+	}
 	closeProfilePanel()
 }
 
-function toggleEventPreference(type) {
-	const index = draftProfile.eventPreferences.indexOf(type)
-	if (index === -1) draftProfile.eventPreferences.push(type)
-	else draftProfile.eventPreferences.splice(index, 1)
-}
+async function handleLogout() {
+	// Finish signing out first, or the login page sends a still-signed-in user back home.
+	await logout()
 
-function togglePlanningStyle(style) {
-	const index = draftProfile.planningStyle.indexOf(style)
-	if (index === -1) draftProfile.planningStyle.push(style)
-	else draftProfile.planningStyle.splice(index, 1)
+	await navigateTo('/login')
 }
 </script>
 
 <style scoped>
-.slide-enter-active,
-.slide-leave-active {
-	transition: transform 0.25s ease;
+.cp-dots {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1px);
+	background-size: 22px 22px;
+	mask-image: linear-gradient(115deg, transparent 20%, #000 95%);
+	-webkit-mask-image: linear-gradient(115deg, transparent 20%, #000 95%);
 }
 
-.slide-enter-from,
-.slide-leave-to {
-	transform: translateX(100%);
+.cp-fade {
+	animation: cp-fade 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.fade-enter-active,
-.fade-leave-active {
-	transition: opacity 0.2s ease;
+@keyframes cp-fade {
+	from { opacity: 0; transform: translateY(8px); }
+	to { opacity: 1; transform: translateY(0); }
 }
 
-.fade-enter-from,
-.fade-leave-to {
-	opacity: 0;
+@media (prefers-reduced-motion: reduce) {
+	.cp-fade { animation: none; }
 }
 </style>

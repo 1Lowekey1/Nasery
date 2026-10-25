@@ -19,10 +19,30 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <!-- Never load production's frozen settings/routes (scripts/nasery-mode.ps1
+             production runs `artisan optimize`): tests use their own cache paths,
+             which don't exist, so config is read fresh with the values below. -->
+        <env name="APP_CONFIG_CACHE" value="bootstrap/cache/testing-config.php" force="true"/>
+        <env name="APP_ROUTES_CACHE" value="bootstrap/cache/testing-routes.php" force="true"/>
+        <env name="APP_EVENTS_CACHE" value="bootstrap/cache/testing-events.php" force="true"/>
+        <!-- Tests expect the local-development addresses, whatever mode .env is in. -->
+        <env name="APP_URL" value="http://localhost:8000" force="true"/>
+        <env name="FRONTEND_APP_URL" value="http://localhost:3000" force="true"/>
+        <env name="FRONTEND_URLS" value="http://localhost:3000" force="true"/>
+        <env name="SANCTUM_STATEFUL_DOMAINS" value="localhost:3000,127.0.0.1:3000" force="true"/>
+        <env name="SESSION_DOMAIN" value="localhost" force="true"/>
+        <env name="SESSION_SECURE_COOKIE" value="false" force="true"/>
+        <env name="TRUSTED_PROXIES" value="" force="true"/>
+        <env name="DB_PERSISTENT" value="false" force="true"/>
+        <env name="APP_DEBUG" value="true" force="true"/>
+        <!-- Never write into the live logs (storage/logs/laravel-*.log, security-*.log). -->
+        <env name="LOG_CHANNEL" value="null" force="true"/>
+        <env name="LOG_SECURITY_PATH" value="storage/logs/testing/security.log" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
+        <env name="MEDIA_ROOT" value="storage/framework/testing/media" force="true"/>
         <env name="CACHE_LIMITER_STORE" value="array"/>
         <!-- Tests run against the DB in .env (Supabase) inside transactions that
              are always rolled back. Run via `composer test`, which takes a

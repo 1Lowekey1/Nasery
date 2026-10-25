@@ -39,6 +39,8 @@ export interface CheckInSummary {
   expected: number
   checked_in: number
   walk_ins: number
+  /** Tickets sold at the door (already in expected / checked_in). */
+  door_sales?: number
   arrived: number
   sessions: CheckInSession[]
   tiers: { name: string, expected: number, checked_in: number }[]

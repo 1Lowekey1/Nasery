@@ -1,5 +1,6 @@
 <template>
-	<div class="mx-auto max-w-4xl px-5 pt-8 pb-16 sm:px-8">
+	<NuxtLayout :name="layout">
+	<div class="mx-auto max-w-4xl" :class="layout === 'public' ? 'px-5 pt-8 pb-16 sm:px-8' : ''">
 		<h1 class="text-3xl font-bold tracking-tight">My tickets</h1>
 		<p class="mt-2 text-gray-500">Show the QR code at the entrance. Each person needs their own.</p>
 
@@ -49,12 +50,17 @@
 			</article>
 		</div>
 	</div>
+	</NuxtLayout>
 </template>
 
 <script setup lang="ts">
 import type { MyTicket, PendingReservation } from '~/composables/useTicketing'
 
-definePageMeta({ layout: 'public' })
+// Clients see their tickets inside their portal (sidebar stays, one tap back);
+// other visitors get the public header.
+definePageMeta({ layout: false })
+const { user } = useAuth()
+const layout = computed(() => (user.value?.account_type === 'client' ? 'client' : 'public'))
 useSeoMeta({ title: 'My tickets | NaSeRy' })
 
 const api = usePublicEvents()
@@ -90,7 +96,7 @@ async function pay(registrationId: string) {
 }
 
 async function release(registrationId: string) {
-	if (!confirm('Cancel this reservation? The places are released for others.')) return
+	if (!(await confirmDialog('Cancel this reservation? The places are released for others.', { confirmLabel: 'Cancel reservation', cancelLabel: 'Keep it' }))) return
 	busy.value = true
 	try {
 		await payments.cancelReservation(registrationId)
@@ -116,7 +122,7 @@ async function downloadPdf(t: MyTicket) {
 }
 
 async function cancel(t: MyTicket) {
-	if (!confirm(`Cancel ${t.attendee}'s ticket to ${t.event}? This can't be undone.`)) return
+	if (!(await confirmDialog(`Cancel ${t.attendee}'s ticket to ${t.event}? This can't be undone.`, { confirmLabel: 'Cancel ticket', cancelLabel: 'Keep it' }))) return
 	try {
 		await api.cancelMine(t.id)
 		await load()

@@ -25,9 +25,12 @@ class PlatformFee
     public function apply(Payment $payment, Collection $tickets): array
     {
         $subtotalCents = (int) round((float) $payment->amount * 100);
+        // Full precision: fee versions start at a microsecond stamp (PlatformSettings), and a
+        // Carbon binding would be cut to whole seconds, applying the old fee for up to 1 s.
+        $now = now()->format('Y-m-d H:i:s.uP');
         $config = DB::table('platform_fee_configs')->where('is_enabled', true)
-            ->where('effective_from', '<=', now())
-            ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>', now()))
+            ->where('effective_from', '<=', $now)
+            ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>', $now))
             ->orderByDesc('effective_from')->first();
 
         if ($config === null) {

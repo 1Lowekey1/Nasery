@@ -34,4 +34,18 @@ class InvitationController extends Controller
 
         return ApiResponse::success(null, 'Invitation declined.');
     }
+
+    /** Leave the team you're on (non-owners). */
+    public function leave(Request $request): JsonResponse
+    {
+        $organization = $this->staff->leave($request->user());
+
+        return ApiResponse::success(null, "You left {$organization->display_name}. Your account stays; another organizer can invite you.");
+    }
+
+    /** For a business account without a team: the team it was on last (removed or left). */
+    public function formerTeam(Request $request): JsonResponse
+    {
+        return ApiResponse::success($this->staff->formerTeam($request->user()));
+    }
 }

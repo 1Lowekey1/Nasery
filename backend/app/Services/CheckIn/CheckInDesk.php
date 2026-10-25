@@ -45,7 +45,7 @@ class CheckInDesk
     /**
      * @return array<string, mixed>
      */
-    public function scan(Event $event, OrganizationMember $by, string $token, ?string $sessionId): array
+    public function scan(Event $event, OrganizationMember $by, #[SensitiveParameter] string $token, ?string $sessionId): array
     {
         $token = trim($token);
 
@@ -119,11 +119,14 @@ class CheckInDesk
             $checkedIn = (int) DB::table('tickets')->where('event_id', $event->id)->whereNull('deleted_at')->where('status', TicketStatus::Used->value)->count();
             // B12: people without a ticket (name log + headcount); door sales are tickets, already counted above.
             $walkIns = (int) DB::table('walk_in_records')->where('event_id', $event->id)->whereNull('linked_ticket_id')->sum('count');
+            $doorSales = (int) DB::table('walk_in_records')->where('event_id', $event->id)->whereNotNull('linked_ticket_id')->sum('count');
 
             return [
                 'expected' => $expected,
                 'checked_in' => $checkedIn,
                 'walk_ins' => $walkIns,
+                // Tickets sold at the door (already in expected/checked_in): screens add them to "Walk-ins".
+                'door_sales' => $doorSales,
                 'arrived' => $checkedIn + $walkIns,
                 'sessions' => $this->window->sessions($event)->map(fn ($s) => [...$this->window->present($s, $event), 'checked_in' => (int) ($perSession[$s->id] ?? 0)])->values(),
                 'tiers' => $tiers->map(fn ($t) => ['name' => $t->name, 'expected' => (int) $t->expected, 'checked_in' => (int) $t->checked_in])->values(),
@@ -148,7 +151,9 @@ class CheckInDesk
             ->join('ticket_types as tt', 'tt.id', '=', 't.ticket_type_id')
             ->where('t.event_id', $event->id)->whereNull('t.deleted_at')
             ->whereIn('t.status', [TicketStatus::Valid->value, TicketStatus::Used->value, TicketStatus::Cancelled->value])
-            ->where(fn ($w) => $w->where('a.full_name', 'ilike', $like)->orWhere('a.email', 'ilike', $like)->orWhere('a.contact_number', 'ilike', $like))
+            ->where(fn ($w) => $w->where('a.full_name', 'ilike', $like)->orWhere('a.email', 'ilike', $like)->orWhere('a.contact_number', 'ilike', $like)
+                // The ticket ID printed on tickets: the last 10 characters of the ticket id.
+                ->orWhereRaw("upper(right(replace(t.id::text, '-', ''), 10)) like ?", [strtoupper(str_replace('-', '', trim($term))).'%']))
             ->orderBy('a.full_name')->limit(15)
             ->get(['t.id', 't.status', 'a.full_name', 'a.email', 'tt.name as tier', 'tt.zone_name',
                 DB::raw('(select max(ar.checked_in_at) from attendance_records ar where ar.ticket_id = t.id) as last_checked_in_at')])

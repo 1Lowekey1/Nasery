@@ -20,6 +20,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'account:business'])
         Route::get('me/invitations', [InvitationController::class, 'index'])->name('me.invitations');
         Route::post('me/invitations/{member}/accept', [InvitationController::class, 'accept'])->middleware('throttle:sensitive')->name('me.invitations.accept');
         Route::post('me/invitations/{member}/decline', [InvitationController::class, 'decline'])->middleware('throttle:sensitive')->name('me.invitations.decline');
+        Route::post('me/team/leave', [InvitationController::class, 'leave'])->middleware('throttle:sensitive')->name('me.team.leave');
+        Route::get('me/former-team', [InvitationController::class, 'formerTeam'])->name('me.former-team');
 
         Route::prefix('organizations/{organization}')->name('organizations.')->group(function () {
             Route::get('team', [TeamController::class, 'index'])->name('team.index');
@@ -27,6 +29,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'account:business'])
             Route::patch('team/{member}', [TeamController::class, 'update'])->middleware('throttle:sensitive')->name('team.update');
             Route::delete('team/{member}', [TeamController::class, 'destroy'])->middleware('throttle:sensitive')->name('team.destroy');
             Route::post('team/{member}/reactivate', [TeamController::class, 'reactivate'])->middleware('throttle:sensitive')->name('team.reactivate');
+            Route::get('team/{member}/open-tasks', [TeamController::class, 'openTasks'])->name('team.open-tasks');
+            Route::post('team/{member}/resend', [TeamController::class, 'resend'])->middleware('throttle:sensitive')->name('team.resend');
 
             Route::post('roles', [TeamController::class, 'storeRole'])->middleware('throttle:sensitive')->name('roles.store');
             Route::patch('roles/{role}', [TeamController::class, 'updateRole'])->middleware('throttle:sensitive')->name('roles.update');

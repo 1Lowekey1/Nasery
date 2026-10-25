@@ -7,8 +7,9 @@
 					:class="size === 'lg' ? 'left-3.5 h-[18px] w-[18px]' : ''" />
 			</slot>
 			<input :id="fieldId" v-bind="inputAttrs" :value="modelValue" :type="type" :placeholder="placeholder"
-				:required="required" :class="inputClasses" @input="$emit('update:modelValue', $event.target.value)" />
+				:required="required" :class="inputClasses" :aria-invalid="error ? 'true' : undefined" :aria-describedby="error ? `${fieldId}-error` : undefined" @input="$emit('update:modelValue', $event.target.value)" />
 		</div>
+		<p v-if="error" :id="`${fieldId}-error`" class="mt-1.5 text-xs font-semibold text-rose-600" role="alert">{{ error }}</p>
 	</div>
 </template>
 
@@ -21,7 +22,9 @@ const props = defineProps({
 	type: { type: String, default: 'text' },
 	placeholder: { type: String, default: '' },
 	icon: { type: String, default: '' },
-	size: { type: String, default: 'md' }
+	size: { type: String, default: 'md' },
+	// Message shown under the field (red border too), e.g. from a form's missing-fields check.
+	error: { type: String, default: '' }
 })
 
 defineEmits(['update:modelValue'])
@@ -40,7 +43,7 @@ const inputAttrs = computed(() => {
 const hasLeftIcon = computed(() => Boolean(props.icon) || Boolean(slots.icon))
 
 const inputClasses = computed(() => {
-	const base = 'w-full rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15'
+	const base = (props.error ? 'border-rose-400 bg-rose-50/40 ' : 'border-gray-200 bg-gray-50 ') + 'w-full rounded-xl border text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15'
 
 	if (props.size === 'lg') {
 		const left = hasLeftIcon.value ? 'pl-11' : 'pl-4'

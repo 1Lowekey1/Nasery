@@ -25,6 +25,7 @@
 
 		<!-- New review / edit -->
 		<form v-else class="space-y-3" @submit.prevent="save">
+			<FormsDraftNotice :draft="draft" />
 			<p class="text-sm font-bold text-gray-900">{{ editing ? 'Edit your review' : `How was ${organizer}?` }}</p>
 			<p v-if="!editing" class="text-xs text-gray-500">Your review appears on their public profile with your first name and last initial. You can change it for 30 days.</p>
 			<StarRating v-model="form.rating" label="Your rating" />
@@ -54,6 +55,7 @@ const editing = ref(false)
 const busy = ref(false)
 const error = ref('')
 const form = reactive({ rating: 0, text: '' })
+const draft = useDraft(() => `review:${props.eventId}`, form, { isEmpty: v => !v.rating && !v.text?.trim() })
 
 const canChange = computed(() => !!state.value?.review && new Date(state.value.review.editable_until) > new Date())
 const date = (at: string) => new Date(at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -79,6 +81,7 @@ async function save() {
 		const review = editing.value ? await api.update(props.eventId, body) : await api.create(props.eventId, body)
 		state.value = { can_review: false, reason: null, review }
 		editing.value = false
+		draft.clear()
 	} catch (e) {
 		error.value = Object.values(fieldErrors(e))[0] ?? authMessage(e)
 	} finally {
@@ -87,7 +90,7 @@ async function save() {
 }
 
 async function remove() {
-	if (!confirm('Remove your review? It disappears from their profile.')) return
+	if (!(await confirmDialog('Remove your review? It disappears from their profile.', { confirmLabel: 'Remove review' }))) return
 	await api.remove(props.eventId)
 	Object.assign(form, { rating: 0, text: '' })
 	await load()

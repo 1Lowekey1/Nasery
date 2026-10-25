@@ -18,7 +18,7 @@
 					<div class="min-w-0">
 						<p class="font-semibold" :class="t.status === 'done' ? 'text-gray-400 line-through' : 'text-gray-900'">{{ t.name }}</p>
 						<p class="text-xs text-gray-500">
-							<NuxtLink :to="`/organizer/eventmanagement/preparation-tracking?event=${t.event_id}`" class="font-semibold text-primary-700">{{ t.event }}</NuxtLink>
+							<NuxtLink :to="`/organizer/eventmanagement/preparation-tracking?event=${t.event_id}`" class="tap-target font-semibold text-primary-700">{{ t.event }}</NuxtLink>
 							· {{ t.checklist }}
 							<template v-if="t.due_at"> · <span :class="overdue(t) ? 'font-semibold text-rose-700' : ''">due {{ due(t.due_at) }}{{ overdue(t) ? ' (overdue)' : '' }}</span></template>
 						</p>
@@ -27,7 +27,7 @@
 					<div class="flex items-center gap-2">
 						<span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="priorityClasses[t.priority]">{{ t.priority }}</span>
 						<select :value="t.status" :disabled="pending.has(t.id)" :aria-label="`Status of ${t.name}`"
-							class="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs" @change="setStatus(t, ($event.target as HTMLSelectElement).value as TaskStatus)">
+							class="min-h-9 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm" @change="setStatus(t, ($event.target as HTMLSelectElement).value as TaskStatus)">
 							<option v-for="(label, key) in taskStatusLabels" :key="key" :value="key">{{ label }}</option>
 						</select>
 					</div>
@@ -75,11 +75,17 @@ async function setStatus(t: MyTask, status: TaskStatus) {
 	}
 }
 
+// Close to live (review #12): newly assigned or reviewed tasks appear on their own.
+useLiveRefresh(async () => {
+	const org = organization.value ?? await fetchOrganization()
+	if (org) tasks.value = await teamApi.myTasks(org.id)
+})
+
 onMounted(async () => {
 	try {
 		const org = organization.value ?? await fetchOrganization()
 		if (org) tasks.value = await teamApi.myTasks(org.id)
-		if (highlighted.value) nextTick(() => document.getElementById(`task-${highlighted.value}`)?.scrollIntoView({ block: 'center' }))
+		if (highlighted.value) nextTick(() => scrollToElement(document.getElementById(`task-${highlighted.value}`), { block: 'center', behavior: 'auto' }))
 	} catch (e) {
 		error.value = authMessage(e)
 	} finally {

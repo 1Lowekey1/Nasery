@@ -81,7 +81,7 @@ return [
         // audit_logs table, not here.
         'security' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/security.log'),
+            'path' => env('LOG_SECURITY_PATH') ?: storage_path('logs/security.log'),
             'level' => 'info',
             'days' => env('LOG_SECURITY_DAYS', 90),
             'replace_placeholders' => true,

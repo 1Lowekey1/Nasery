@@ -46,6 +46,33 @@ class TicketMailer
     }
 
     /**
+     * "Send my ticket again" from the buyer: skipped when it was just e-mailed
+     * (it goes out automatically on purchase), so a click right after buying
+     * doesn't send a duplicate.
+     *
+     * @return array{queued: int, skipped: int, already_sent?: bool}
+     */
+    public function resend(string $ticketId): array
+    {
+        $last = $this->latestFor([$ticketId])[$ticketId] ?? null;
+        if ($last && in_array($last['status'], ['queued', 'sent'], true) && now()->diffInSeconds($last['at'], true) < 120) {
+            return ['queued' => 0, 'skipped' => 0, 'already_sent' => true];
+        }
+
+        return $this->send([$ticketId]);
+    }
+
+    /** Message for the result of resend(). */
+    public static function resendMessage(array $result): string
+    {
+        return match (true) {
+            ($result['already_sent'] ?? false) => 'Your ticket was e-mailed a moment ago. Check your inbox and Spam folder.',
+            $result['queued'] > 0 => 'Ticket sent again.',
+            default => 'We can\'t send e-mail to this address.',
+        };
+    }
+
+    /**
      * Latest e-mail per ticket, for the guest list.
      *
      * @param  list<string>  $ticketIds

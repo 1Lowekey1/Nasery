@@ -2,6 +2,7 @@
 
 namespace App\Services\Marketplace;
 
+use App\Services\Media\ImageStore;
 use App\Support\Database\DatabaseContext;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -33,7 +34,7 @@ class MarketplaceDirectory
                 ->leftJoinSub($this->ratings(), 'r', 'r.organization_id', '=', 'p.organization_id')
                 ->select([
                     'p.organization_id', 'p.slug', 'p.display_name', 'p.business_name', 'p.description',
-                    'p.location_text', 'p.cover_image_url', 'p.latitude', 'p.longitude',
+                    'p.location_text', 'p.cover_image_url', 'p.logo_path', 'p.cover_path', 'p.latitude', 'p.longitude',
                     DB::raw('coalesce(r.rating_avg, 0) as rating_avg'),
                     DB::raw('coalesce(r.reviews_count, 0) as reviews_count'),
                 ]);
@@ -72,9 +73,13 @@ class MarketplaceDirectory
             $query->orderBy('p.display_name')->orderBy('p.organization_id');
 
             $page = $query->paginate(perPage: $filters['per_page'] ?? 12, page: $filters['page'] ?? 1);
-            $services = $this->serviceNames($page->getCollection()->pluck('organization_id'));
+            $ids = $page->getCollection()->pluck('organization_id');
+            $services = $this->serviceNames($ids);
+            $completed = $this->completedCounts($ids);
 
-            $page->getCollection()->transform(fn (object $row) => $this->card($row, $services[$row->organization_id] ?? collect()));
+            $page->getCollection()->transform(fn (object $row) => $this->card($row, $services[$row->organization_id] ?? collect()) + [
+                'completed_events' => (int) ($completed[$row->organization_id] ?? 0),
+            ]);
 
             return $page;
         });
@@ -108,13 +113,30 @@ class MarketplaceDirectory
                 'contact_email' => $profile->contact_email,
                 'contact_phone' => $profile->contact_phone,
                 'cover_image_url' => $profile->cover_image_url,
+                'logo_url' => ImageStore::url($profile->logo_path ?? null),
+                'cover_url' => ImageStore::url($profile->cover_path ?? null) ?? $profile->cover_image_url,
+                // 0046: details from the business profile panel.
+                'years_experience' => $profile->years_experience ?? null,
+                'service_radius_km' => isset($profile->service_radius_km) ? (int) $profile->service_radius_km : null,
+                'event_tags' => isset($profile->event_tags) ? json_decode($profile->event_tags, true) : [],
+                'specialties' => isset($profile->specialties) ? json_decode($profile->specialties, true) : [],
+                'website' => $profile->website ?? null,
+                'facebook' => $profile->facebook ?? null,
+                'instagram' => $profile->instagram ?? null,
+                'banner_color' => $profile->banner_color ?? null,
+                // 0048: estimate settings for the client calculator.
+                'estimate' => [
+                    'service_charge_percent' => isset($profile->estimate_service_charge_percent) ? (float) $profile->estimate_service_charge_percent : null,
+                    'tax_percent' => isset($profile->estimate_tax_percent) ? (float) $profile->estimate_tax_percent : null,
+                    'note' => $profile->estimate_note ?? null,
+                ],
                 'services' => DB::table('public_organization_services')->where('organization_id', $profile->organization_id)
                     ->orderBy('name')->get(['id', 'name', 'description', 'base_price'])
                     ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'description' => $s->description, 'base_price' => $s->base_price])->all(),
                 // Quotation calculator (0033): the organizer's own price list.
                 'price_options' => DB::table('public_organization_price_options')->where('organization_id', $profile->organization_id)
                     ->orderBy('sort_order')->orderBy('name')
-                    ->get(['id', 'organization_service_id', 'name', 'description', 'pricing_unit', 'price', 'min_guests'])
+                    ->get(['id', 'organization_service_id', 'name', 'description', 'pricing_unit', 'price', 'min_guests', 'unit_label', 'min_quantity', 'max_quantity'])
                     ->map(fn ($o) => (array) $o)->all(),
                 'event_types' => DB::table('public_event_types')->where('organization_id', $profile->organization_id)
                     ->orderBy('name')->get(['id', 'name', 'description'])->map(fn ($t) => (array) $t)->all(),
@@ -124,6 +146,8 @@ class MarketplaceDirectory
                     'distribution' => collect(range(5, 1))->mapWithKeys(fn ($r) => [$r => (int) ($ratings[$r] ?? 0)]),
                 ],
                 'recent_reviews' => $this->reviewQuery($profile->organization_id)->limit(5)->get()->map(fn ($r) => $this->review($r))->all(),
+                'completed_events' => (int) ($this->completedCounts(collect([$profile->organization_id]))[$profile->organization_id] ?? 0),
+                'portfolio' => $this->portfolio($profile->organization_id),
             ];
         });
     }
@@ -224,6 +248,8 @@ class MarketplaceDirectory
             'excerpt' => $row->description ? mb_strimwidth($row->description, 0, 180, '…') : null,
             'location_text' => $row->location_text,
             'cover_image_url' => $row->cover_image_url,
+            'logo_url' => ImageStore::url($row->logo_path ?? null),
+            'cover_url' => ImageStore::url($row->cover_path ?? null) ?? $row->cover_image_url,
             'latitude' => $row->latitude !== null ? (float) $row->latitude : null,
             'longitude' => $row->longitude !== null ? (float) $row->longitude : null,
             'rating_avg' => (int) $row->reviews_count ? (float) $row->rating_avg : null,
@@ -231,6 +257,44 @@ class MarketplaceDirectory
             'services' => $services->take(6)->values()->all(),
             'distance_km' => isset($row->distance_km) ? round((float) $row->distance_km, 1) : null,
         ];
+    }
+
+    /** @return Collection<string, int> completed (not deleted) events per organization */
+    private function completedCounts(Collection $organizationIds): Collection
+    {
+        return DB::table('events')->whereIn('organization_id', $organizationIds)->where('status', 'completed')->whereNull('deleted_at')
+            ->groupBy('organization_id')->selectRaw('organization_id, count(*) as total')->pluck('total', 'organization_id');
+    }
+
+    /**
+     * Past work for the public profile. Public (ticketed) events are already
+     * public, so they show in full. Private client events show only their type
+     * and month: never the name, venue or anything that identifies the client.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function portfolio(string $organizationId): array
+    {
+        return DB::table('events as e')
+            ->leftJoin('event_types as t', 't.id', '=', 'e.event_type_id')
+            ->where('e.organization_id', $organizationId)->where('e.status', 'completed')->whereNull('e.deleted_at')
+            ->selectRaw('e.id, e.name, e.description, e.venue_name, e.visibility, e.cover_path, t.name as type,
+                (select min(s.starts_at) from event_sessions s where s.event_id = e.id and s.deleted_at is null) as held_at')
+            ->orderByDesc('held_at')->limit(12)->get()
+            ->map(function (object $e) {
+                $public = $e->visibility === 'public';
+
+                return [
+                    'id' => $public ? $e->id : null,
+                    'title' => $public ? $e->name : ($e->type ?? 'Private event'),
+                    'category' => $e->type ?? 'Event',
+                    'date' => $e->held_at ? substr((string) $e->held_at, 0, 10) : null,
+                    'venue' => $public ? $e->venue_name : null,
+                    'description' => $public ? $e->description : null,
+                    'cover_url' => $public ? ImageStore::url($e->cover_path) : null,
+                    'is_public' => $public,
+                ];
+            })->all();
     }
 
     /** Great-circle distance in km (haversine) from (?, ?) to the profile. */

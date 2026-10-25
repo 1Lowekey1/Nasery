@@ -120,7 +120,7 @@ class TicketingController extends Controller
     {
         $member = $this->check($request, $organization, $event, 'attendee.manage', write: true);
         $data = $request->validate([
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:1024'],
+            'file' => ['required', 'file', 'extensions:csv,txt', 'max:1024'],
             'ticket_type_id' => ['required', 'uuid'],
             'admission_type' => ['required', Rule::in(['invited', 'complimentary'])],
             'send_email' => ['sometimes', 'boolean'],
