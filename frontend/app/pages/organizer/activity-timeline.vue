@@ -352,8 +352,8 @@ function syncTimelineEvents() {
 	timelineEvents.value = items
 }
 
-async function loadTimeline() {
-	isLoading.value = true
+async function loadTimeline(quiet = false) {
+	if (!quiet) isLoading.value = true
 	errorMessage.value = ''
 	try {
 		const org = await useOrganization().fetchOrganization()
@@ -596,6 +596,8 @@ function showToast(message: string, error = false) { toast.value = { message, er
 
 function onKey(e: KeyboardEvent) { if (e.key === 'Escape' && showAddActivity.value) closeAddActivity() }
 onMounted(() => { loadTimeline(); window.addEventListener('keydown', onKey) })
+// Close to live (review #12): other people's changes appear without a reload.
+useLiveRefresh(() => loadTimeline(true), { interval: 60000, paused: () => showAddActivity.value })
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 

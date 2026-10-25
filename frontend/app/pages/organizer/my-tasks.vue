@@ -75,6 +75,12 @@ async function setStatus(t: MyTask, status: TaskStatus) {
 	}
 }
 
+// Close to live (review #12): newly assigned or reviewed tasks appear on their own.
+useLiveRefresh(async () => {
+	const org = organization.value ?? await fetchOrganization()
+	if (org) tasks.value = await teamApi.myTasks(org.id)
+})
+
 onMounted(async () => {
 	try {
 		const org = organization.value ?? await fetchOrganization()

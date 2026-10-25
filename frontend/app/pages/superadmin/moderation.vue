@@ -178,8 +178,8 @@ function setTab(t: 'reviews' | 'claims') {
 	t === 'claims' ? loadClaims() : loadReviews()
 }
 
-async function loadReviews() {
-	reviewsLoading.value = true
+async function loadReviews(quiet = false) {
+	if (!quiet) reviewsLoading.value = true
 	try {
 		const r = await admin.reportedReviews(queue.value)
 		reviews.value = r.items
@@ -190,6 +190,8 @@ async function loadReviews() {
 		reviewsLoading.value = false
 	}
 }
+// Close to live (review #12): new applications, reports and payouts appear on their own.
+useLiveRefresh(() => loadReviews(true))
 
 async function loadClaims() {
 	claimsLoading.value = true

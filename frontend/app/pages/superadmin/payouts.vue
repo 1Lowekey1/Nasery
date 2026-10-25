@@ -123,7 +123,7 @@ const totals = computed(() => (rows.value ?? []).reduce((t, r) => ({
 
 const dateLabel = (at: string) => new Date(at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
 
-async function load() {
+async function load(quiet = false) {
 	try {
 		const data = await api.balances()
 		rows.value = data.organizers
@@ -132,6 +132,8 @@ async function load() {
 		error.value = authMessage(e)
 	}
 }
+// Close to live (review #12): new applications, reports and payouts appear on their own.
+useLiveRefresh(() => load(true))
 
 async function toggle(orgId: string) {
 	if (open.value === orgId) { open.value = null; return }

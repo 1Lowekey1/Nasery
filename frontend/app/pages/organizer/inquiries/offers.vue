@@ -350,8 +350,8 @@ async function openThread(offer: OrganizerOffer) {
 	}
 }
 
-async function loadOffers() {
-	isLoading.value = true
+async function loadOffers(quiet = false) {
+	if (!quiet) isLoading.value = true
 	errorMessage.value = ''
 	try {
 		const org = await useOrganization().fetchOrganization()
@@ -425,6 +425,8 @@ async function startEventPlanning(
 onMounted(() => {
 	loadOffers()
 })
+// Close to live (review #12): other people's changes appear without a reload.
+useLiveRefresh(() => loadOffers(true), { interval: 60000 })
 // Summary tiles and filter chips (counted from the offers loaded above).
 type OfferFilter = 'all' | OrganizerOffer['quotation_status']
 const activeFilter = ref<OfferFilter>('all')

@@ -769,6 +769,9 @@ watch(
 	},
 )
 
+// Header counters stay current during the event (review #12).
+useLiveRefresh(() => loadSummary(), { interval: 20000 })
+
 onMounted(async () => {
 	document.addEventListener('click', handleClickOutsideEventSelector)
 

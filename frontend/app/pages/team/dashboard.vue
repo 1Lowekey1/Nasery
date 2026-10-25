@@ -102,8 +102,8 @@ const groupedTasks = computed(() => {
   })
 })
 const stats = computed(() => [{ label: 'Assigned Tasks', value: tasks.value.length, icon: 'clipboard-list', iconClass: 'bg-gray-100 text-gray-500' }, { label: 'Assigned Events', value: groupedTasks.value.length, icon: 'calendar', iconClass: 'bg-blue-50 text-blue-600' }, { label: 'Ready to Work', value: tasks.value.filter(t => !t.is_completed).length, icon: 'clock', iconClass: 'bg-amber-50 text-amber-600' }, { label: 'Completed', value: tasks.value.filter(t => t.is_completed).length, icon: 'check-circle', iconClass: 'bg-green-50 text-green-600' }])
-async function load() {
-  loading.value = true
+async function load(quiet = false) {
+  if (!quiet) loading.value = true
   errorMessage.value = ''
   try {
     orgId.value ??= (await useOrganization().fetchOrganization())?.id ?? null
@@ -139,4 +139,6 @@ async function completeTask(task: Task) {
   }
 }
 const formatDate = (value: string | null) => value ? new Date(value).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Date not set'; const reviewLabel = (status: string) => status === 'verified' ? 'Verified' : status === 'changes_requested' ? 'Changes Requested' : 'Awaiting Review'; const reviewClass = (status: string) => status === 'verified' ? 'bg-green-50 text-green-700' : status === 'changes_requested' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'; onMounted(load)
+// Close to live (review #12): other people's changes appear without a reload.
+useLiveRefresh(() => load(true), { interval: 60000 })
 </script>

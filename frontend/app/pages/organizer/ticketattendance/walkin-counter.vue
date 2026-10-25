@@ -643,12 +643,12 @@ async function loadSelectedEvent() {
     await loadWalkIns()
 }
 
-async function loadWalkIns() {
+async function loadWalkIns(quiet = false) {
     if (!selectedEventId.value) {
         walkIns.value = []
         return
     }
-    isLoadingWalkIns.value = true
+    if (!quiet) isLoadingWalkIns.value = true
     errorMessage.value = ''
     try {
         const data = await walkInApi.walkIns(await orgIdOf(), eventKey())
@@ -681,6 +681,8 @@ async function loadWalkIns() {
         isLoadingWalkIns.value = false
     }
 }
+// Close to live during the event (review #12): check-ins and sales appear on their own.
+useLiveRefresh(() => loadWalkIns(true), { interval: 20000 })
 
 async function refreshTopSummary() {
     if (!selectedEventId.value) return

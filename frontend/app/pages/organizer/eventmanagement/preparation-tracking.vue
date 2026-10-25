@@ -414,13 +414,13 @@ function applyPreparation(prep: ApiPreparation) {
 	})))
 }
 
-async function loadPreparation() {
+async function loadPreparation(quiet = false) {
 	errorMessage.value = ''
 	if (!eventId.value) {
 		await navigateTo('/organizer/eventmanagement/all-events', { replace: true })
 		return
 	}
-	isLoading.value = true
+	if (!quiet) isLoading.value = true
 	try {
 		const org = await useOrganization().fetchOrganization()
 		if (!org) throw new Error('Set up your organizer workspace first.')
@@ -592,6 +592,8 @@ watch(
 onMounted(() => {
 	loadPreparation()
 })
+// Close to live (review #12): other people's changes appear without a reload.
+useLiveRefresh(() => loadPreparation(true), { interval: 60000 })
 // ---------- Redesign helpers ----------
 const PT_RING = 2 * Math.PI * 40
 const ringReady = ref(false)

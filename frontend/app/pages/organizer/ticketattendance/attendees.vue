@@ -1212,12 +1212,12 @@ function getApiErrorMessage(
 	)
 }
 
-async function loadAttendees() {
+async function loadAttendees(quiet = false) {
 	if (!selectedEventId.value) {
 		attendees.value = []
 		return
 	}
-	isLoading.value = true
+	if (!quiet) isLoading.value = true
 	errorMessage.value = ''
 	try {
 		const orgId = await orgIdOf()
@@ -1230,6 +1230,8 @@ async function loadAttendees() {
 		isLoading.value = false
 	}
 }
+// Close to live during the event (review #12): check-ins and sales appear on their own.
+useLiveRefresh(() => loadAttendees(true), { interval: 20000 })
 
 function downloadAttendeeTicket(attendee: Attendee) {
 	if (!attendee.qr_token) return

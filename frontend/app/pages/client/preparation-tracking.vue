@@ -134,8 +134,8 @@ function formatShort(at: string) {
 	return new Date(at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-async function loadProgress() {
-	progress.value = null
+async function loadProgress(quiet = false) {
+	if (!quiet) progress.value = null
 	if (!selectedId.value) return
 	try {
 		progress.value = await useClientEvents().progress(selectedId.value)
@@ -144,7 +144,9 @@ async function loadProgress() {
 	}
 }
 
-watch(selectedId, loadProgress)
+watch(selectedId, () => loadProgress())
+// Close to live (review #12).
+useLiveRefresh(() => loadProgress(true))
 
 onMounted(async () => {
 	try {

@@ -428,8 +428,8 @@ const earningsApi = useEarnings()
 const notificationsApi = useNotifications()
 
 /** The dashboard, built from the NaSeRy API (events, quotations, inquiries, bids, earnings, notifications). */
-async function loadDashboard() {
-	isLoading.value = true
+async function loadDashboard(quiet = false) {
+	if (!quiet) isLoading.value = true
 	errorMessage.value = ''
 
 	try {
@@ -490,6 +490,8 @@ async function loadDashboard() {
 }
 
 onMounted(loadDashboard)
+// Close to live (review #12): other people's changes appear without a reload.
+useLiveRefresh(() => loadDashboard(true), { interval: 60000 })
 </script>
 
 <style scoped>

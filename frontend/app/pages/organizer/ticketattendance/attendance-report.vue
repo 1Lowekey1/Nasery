@@ -748,12 +748,12 @@ function getApiErrorMessage(
 }
 
 /** The event's guest list (every ticket) as this report's attendee rows. */
-async function loadAttendanceReport() {
+async function loadAttendanceReport(quiet = false) {
     if (!selectedEventId.value) {
         attendees.value = []
         return
     }
-    isLoading.value = true
+    if (!quiet) isLoading.value = true
     errorMessage.value = ''
     try {
         const org = await useOrganization().fetchOrganization()
@@ -780,6 +780,8 @@ async function loadAttendanceReport() {
         isLoading.value = false
     }
 }
+// Close to live during the event (review #12): check-ins and sales appear on their own.
+useLiveRefresh(() => loadAttendanceReport(true), { interval: 20000 })
 
 function formatSource(
     source: string,

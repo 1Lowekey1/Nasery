@@ -1195,9 +1195,9 @@ async function acceptQuotation(
 }
 
 /** The client's inquiries (their "events" here), with how many quotations each has. */
-async function loadClientInquiries() {
+async function loadClientInquiries(quiet = false) {
 	errorMessage.value = ''
-	isLoading.value = true
+	if (!quiet) isLoading.value = true
 	try {
 		const [inquiries, events] = await Promise.all([
 			allItems(page => useInquiries().list(page)),
@@ -1307,6 +1307,8 @@ onMounted(() => {
 	loadClientInquiries()
 	loadNotifications()
 })
+// Close to live (review #12): other people's changes appear without a reload.
+useLiveRefresh(() => loadClientInquiries(true), { interval: 60000 })
 </script>
 
 <style scoped>

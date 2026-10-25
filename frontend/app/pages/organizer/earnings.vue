@@ -335,8 +335,8 @@ async function downloadCsv() {
 	}
 }
 
-async function loadEarnings() {
-	isLoading.value = true
+async function loadEarnings(quiet = false) {
+	if (!quiet) isLoading.value = true
 	errorMessage.value = ''
 	try {
 		const org = await useOrganization().fetchOrganization()
@@ -368,4 +368,6 @@ async function loadEarnings() {
 onMounted(() => {
 	loadEarnings()
 })
+// Close to live (review #12): other people's changes appear without a reload.
+useLiveRefresh(() => loadEarnings(true), { interval: 60000 })
 </script>

@@ -120,12 +120,12 @@ const overview = ref<AdminOverview | null>(null)
 const isLoading = ref(false)
 const errorMessage = ref('')
 
-async function loadOverview() {
+async function loadOverview(quiet = false) {
 	if (!token.value) {
 		return
 	}
 
-	isLoading.value = true
+	if (!quiet) isLoading.value = true
 	errorMessage.value = ''
 
 	try {
@@ -137,6 +137,8 @@ async function loadOverview() {
 		isLoading.value = false
 	}
 }
+// Close to live (review #12): new applications, reports and payouts appear on their own.
+useLiveRefresh(() => loadOverview(true))
 
 function getApiErrorMessage(error: unknown, fallback: string): string {
 	const apiError = error as { data?: { message?: string } }

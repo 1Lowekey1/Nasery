@@ -314,9 +314,9 @@ async function loadEvents() {
 }
 
 /** Live numbers and the latest arrivals, from the event's check-in desk. */
-async function loadEventData() {
+async function loadEventData(quiet = false) {
 	if (!selectedEventId.value || !orgId) return
-	isLoading.value = true
+	if (!quiet) isLoading.value = true
 	errorMessage.value = ''
 	try {
 		const data = await useCheckIn().summary(orgId, String(selectedEventId.value))
@@ -350,6 +350,8 @@ watch(selectedEventId, async (newId, oldId) => {
 onMounted(() => {
 	loadEvents()
 })
+// Close to live (review #12): other people's changes appear without a reload.
+useLiveRefresh(() => loadEventData(true), { interval: 20000 })
 </script>
 
 <style scoped>

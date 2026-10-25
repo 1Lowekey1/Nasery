@@ -168,12 +168,12 @@ function rankStyle(index: number) {
 	return 'bg-gray-100 text-gray-400'
 }
 
-async function loadOrganizers() {
+async function loadOrganizers(quiet = false) {
 	if (!token.value) {
 		return
 	}
 
-	isLoading.value = true
+	if (!quiet) isLoading.value = true
 	errorMessage.value = ''
 
 	try {
@@ -185,6 +185,8 @@ async function loadOrganizers() {
 		isLoading.value = false
 	}
 }
+// Close to live (review #12): new applications, reports and payouts appear on their own.
+useLiveRefresh(() => loadOrganizers(true))
 
 function getApiErrorMessage(error: unknown, fallback: string): string {
 	const apiError = error as { data?: { message?: string } }

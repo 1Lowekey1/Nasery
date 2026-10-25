@@ -399,8 +399,8 @@ async function report(review: Review) {
 	}
 }
 
-async function loadReviews() {
-	isLoading.value = !data.value
+async function loadReviews(quiet = false) {
+	if (!quiet) isLoading.value = !data.value
 	errorMessage.value = ''
 	try {
 		const org = await useOrganization().fetchOrganization()
@@ -438,6 +438,8 @@ async function loadReviews() {
 onMounted(() => {
 	loadReviews()
 })
+// Close to live (review #12): other people's changes appear without a reload.
+useLiveRefresh(() => loadReviews(true), { interval: 60000 })
 </script>
 
 <style scoped>

@@ -178,7 +178,7 @@
 
                         <button v-if="eventId" type="button"
                             class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-primary-700 transition hover:bg-primary-50"
-                            @click="loadCheckInSummary">
+                            @click="loadCheckInSummary()">
                             <IconBase name="refresh-cw" class="h-3.5 w-3.5" :class="{ 'animate-spin': isLoadingSummary }" />
                             Refresh
                         </button>
@@ -900,12 +900,12 @@ async function handleScannedCode(
     }
 }
 
-async function loadCheckInSummary() {
+async function loadCheckInSummary(quiet = false) {
     if (!eventId.value) {
         checkInSummary.value = { registered: 0, checked_in: 0, recent_check_ins: [] }
         return
     }
-    isLoadingSummary.value = true
+    if (!quiet) isLoadingSummary.value = true
     try {
         const data = await checkInApi.summary(await orgIdOf(), eventKey())
         checkInSummary.value = {
@@ -930,6 +930,8 @@ async function loadCheckInSummary() {
         isLoadingSummary.value = false
     }
 }
+// Close to live during the event (review #12): check-ins and sales appear on their own.
+useLiveRefresh(() => loadCheckInSummary(true), { interval: 20000 })
 
 function openManualEntry() {
     if (!eventId.value) {

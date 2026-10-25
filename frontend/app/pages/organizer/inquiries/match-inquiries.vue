@@ -684,8 +684,8 @@ async function askQuestion(inquiry: { id: number | string, event_title?: string 
 }
 
 /** Open inquiries this organizer was invited to (or matched with) and hasn't quoted yet. */
-async function loadMatchingInquiries() {
-	isLoading.value = true
+async function loadMatchingInquiries(quiet = false) {
+	if (!quiet) isLoading.value = true
 	errorMessage.value = ''
 	try {
 		const org = await useOrganization().fetchOrganization()
@@ -1124,6 +1124,8 @@ async function submitOffer() {
 onMounted(() => {
 	loadMatchingInquiries()
 })
+// Close to live (review #12): other people's changes appear without a reload.
+useLiveRefresh(() => loadMatchingInquiries(true), { interval: 60000 })
 </script>
 
 <style scoped>
