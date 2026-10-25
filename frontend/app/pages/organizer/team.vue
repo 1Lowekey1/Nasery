@@ -527,7 +527,7 @@ onMounted(async () => {
 .tm-seg { @apply flex rounded-xl bg-gray-100 p-1; }
 .tm-seg > button { @apply flex min-h-9 items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:text-gray-800; }
 .tm-seg > button.is-on { @apply bg-white text-gray-950 shadow-sm; }
-.tm-seg-slide { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tm-seg-slide { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 .tm-seg-slide > button { position: relative; z-index: 1; justify-content: center; min-width: 3.5rem; }
 .tm-seg-slide > button.is-on { background: transparent; box-shadow: none; }
 .tm-seg-thumb {
