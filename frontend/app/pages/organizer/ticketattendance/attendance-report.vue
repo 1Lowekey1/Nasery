@@ -627,7 +627,9 @@ const byTicketType =
     )
 
 // Colors: utils/chartColors.ts
-const COLORS = { primary: CHART.blue, soft: CHART.aqua, track: CHART.track }
+// Attended (gauge + per-ticket bars) is one measure against what is left, so brand teal like every
+// single-measure chart; the source donut keeps the multi-series palette.
+const COLORS = { primary: CHART.brand, soft: CHART.aqua, track: CHART.track }
 
 const statCards = computed(() => [
     { label: 'Total Registered', value: totalRegistered.value, hint: 'Issued attendee tickets', icon: 'users' },
