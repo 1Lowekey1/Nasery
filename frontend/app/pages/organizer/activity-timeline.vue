@@ -249,7 +249,8 @@
 									<label for="at-person" class="at-label">Person in charge <span class="at-optional">Optional</span></label>
 									<div class="relative">
 										<IconBase name="user" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-										<input id="at-person" v-model="activityForm.person" type="text" maxlength="255" class="at-field !pl-10" placeholder="e.g. Venue coordinator" />
+										<input id="at-person" v-model="activityForm.person" type="text" maxlength="255" list="at-people" autocomplete="off" class="at-field !pl-10" placeholder="Pick a teammate or type, e.g. Venue coordinator" />
+										<datalist id="at-people"><option v-for="name in teamNames" :key="name" :value="name" /></datalist>
 									</div>
 								</div>
 								<div>
@@ -308,6 +309,8 @@ const timelineEvents = useState<ActivityTimelineEvent[]>('organizerActivityTimel
 const organizerEvents = useState<OrganizerEvent[]>('organizerEvents', () => [])
 const quotations = useState<OrganizerQuotation[]>('organizerEventQuotations', () => [])
 const activities = ref<EventActivity[]>([])
+// "Person in charge" suggestions: the organizer's active team (#13). Free text still works.
+const teamNames = ref<string[]>([])
 const selectedEventId = ref<number | null>(null)
 const selectedEventKey = ref<string | null>(null)
 const selectedStatus = ref<'All' | ActivityStatus>('All')
@@ -363,6 +366,7 @@ async function loadTimeline() {
 		organizerEvents.value = data.events as unknown as OrganizerEvent[]
 		quotations.value = data.quotations as unknown as OrganizerQuotation[]
 		activities.value = list.data.filter(a => !isHistory(a))
+		useTeam().team(orgId).then(t => { teamNames.value = (t?.members ?? []).filter(m => m.status === 'active').map(m => m.name) }).catch(() => {})
 		syncTimelineEvents()
 	} catch (error: unknown) {
 		errorMessage.value = getApiErrorMessage(error, 'Your timeline couldn’t be loaded. Refresh the page to try again.')

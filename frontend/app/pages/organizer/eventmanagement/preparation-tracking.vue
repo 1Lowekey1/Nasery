@@ -37,6 +37,11 @@
 				</div>
 			</section>
 
+			<p v-if="actionError" class="flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+				<span>{{ actionError }}</span>
+				<button type="button" class="tap-target shrink-0 font-semibold" aria-label="Dismiss" @click="actionError = ''"><IconBase name="x" class="h-4 w-4" /></button>
+			</p>
+
 			<!-- Where the event is: the same stage bar the client sees (review #14) -->
 			<EventStageBar :stages="stageInfo.stages" :stage="stageInfo.stage" :event-status="stageInfo.status" :readiness="readinessPercent" />
 
@@ -56,7 +61,7 @@
 					</div>
 
 					<!-- Quick add -->
-					<form v-if="!['completed', 'cancelled'].includes(stageInfo.status ?? '')" class="flex flex-col gap-2 border-b border-gray-100 bg-gray-50/60 px-5 py-4 sm:flex-row" @submit.prevent="quickAdd">
+					<form v-if="!isFinished" class="flex flex-col gap-2 border-b border-gray-100 bg-gray-50/60 px-5 py-4 sm:flex-row" @submit.prevent="quickAdd">
 						<div class="relative min-w-0 flex-1">
 							<IconBase name="plus" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
 							<input ref="quickInput" v-model="newItemLabel" type="text" maxlength="255" class="pt-field !pl-10" placeholder="Add a task, e.g. Confirm sound system with supplier" :disabled="isAddingItem" aria-label="New task" />
@@ -79,10 +84,15 @@
 									<label class="pt-chip min-h-9 cursor-pointer !py-1.5" :class="item.assigned_team_member ? '' : (item.is_completed ? 'text-gray-400' : 'border-amber-200 bg-amber-50 text-amber-800')">
 										<span v-if="item.assigned_team_member" class="pt-avatar h-4 w-4 text-[8px]">{{ initials(memberName(item.assigned_team_member)) }}</span>
 										<select class="min-h-7 cursor-pointer appearance-none bg-transparent pr-1 outline-none" :value="item.assigned_team_member_id ?? ''"
-											:disabled="updatingItemId === item.id || !teamMembers.length" :aria-label="`Assign ${item.label}`"
+											:disabled="updatingItemId === item.id || (!teamMembers.length && !availableMembers.length)" :aria-label="`Assign ${item.label}`"
 											@change="assignItem(item, ($event.target as HTMLSelectElement).value)">
 											<option value="">{{ item.is_completed ? 'Unassigned' : 'Needs an assignee' }}</option>
-											<option v-for="member in teamMembers" :key="member.id" :value="member.id">{{ memberName(member) }}</option>
+											<optgroup v-if="teamMembers.length" label="On this event">
+												<option v-for="member in teamMembers" :key="member.id" :value="member.id">{{ memberName(member) }}</option>
+											</optgroup>
+											<optgroup v-if="availableMembers.length && !isFinished" label="Rest of your team (adds them)">
+												<option v-for="m in availableMembers" :key="m.id" :value="`org:${m.id}`">{{ m.name }}</option>
+											</optgroup>
 										</select>
 									</label>
 									<span v-if="item.completed_by" class="text-xs text-gray-500">Done by {{ userName(item.completed_by) }}<template v-if="item.completion_note"> · “{{ item.completion_note }}”</template></span>
@@ -138,22 +148,19 @@
 						<p v-else class="px-5 py-6 text-sm text-gray-500">No teammates yet. Add one to start assigning tasks.</p>
 
 						<div class="border-t border-gray-100 p-4">
-							<button v-if="!showMemberForm" type="button" class="flex h-10 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 text-sm font-semibold text-gray-600 transition hover:border-primary-300 hover:bg-primary-25 hover:text-primary-800" @click="showMemberForm = true"><IconBase name="user-plus" class="h-4 w-4" /> Add team member</button>
-							<Transition name="pt-fade">
-								<form v-if="showMemberForm" class="space-y-2.5" @submit.prevent="createTeamMember">
-									<FormsSelect v-model="memberForm.organization_member_id"
-										:options="availableMembers.map(m => ({ value: m.id, label: `${m.name} · ${m.role}` }))"
-										placeholder="Choose someone from your team" />
-									<p class="text-xs leading-5 text-gray-500">
-										<template v-if="!availableMembers.length">Everyone on your team is already here. </template>
-										New person? <NuxtLink to="/organizer/team" class="font-semibold text-primary-700">Invite them from Team</NuxtLink>; they choose their own password.
-									</p>
-									<div class="grid grid-cols-[auto_1fr] gap-2 pt-1">
-										<button type="button" class="pt-btn" @click="showMemberForm = false">Cancel</button>
-										<button type="submit" class="pt-btn-primary justify-center" :disabled="creatingMember || !memberForm.organization_member_id">{{ creatingMember ? 'Adding…' : 'Add to this event' }}</button>
-									</div>
-								</form>
-							</Transition>
+							<template v-if="availableMembers.length && !isFinished">
+								<p class="mb-2 text-xs font-semibold text-gray-500">Add to this event (one tap)</p>
+								<div class="flex flex-wrap gap-2">
+									<button v-for="m in availableMembers" :key="m.id" type="button" class="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-dashed border-gray-300 px-3 text-xs font-semibold text-gray-700 transition hover:border-primary-300 hover:bg-primary-25 hover:text-primary-800 disabled:opacity-50"
+										:disabled="creatingMember" @click="addMember(m.id)">
+										<IconBase name="plus" class="h-3.5 w-3.5" />{{ m.name }}<span class="font-normal text-gray-400">· {{ m.role }}</span>
+									</button>
+								</div>
+							</template>
+							<p class="text-xs leading-5 text-gray-500" :class="availableMembers.length ? 'mt-3' : ''">
+								<template v-if="!availableMembers.length">Everyone on your team is on this event. </template>
+								New person? <NuxtLink to="/organizer/team" class="font-semibold text-primary-700">Invite them from Team</NuxtLink>; they choose their own password.
+							</p>
 						</div>
 					</section>
 				</aside>
@@ -269,6 +276,8 @@ const updatingItemId =
 const deletingItemId =
 	ref<number | null>(null)
 
+// Action errors show as a banner; only a failed load replaces the page.
+const actionError = ref('')
 const errorMessage =
 	ref('')
 
@@ -375,6 +384,7 @@ type ApiPreparation = {
 }
 
 /** The API's preparation (checklists of tasks + the event team), as this page's flat list. */
+const isFinished = computed(() => ['completed', 'cancelled'].includes(stageInfo.value.status ?? ''))
 const stageInfo = ref<{ stage: string | null, stages: string[], status: string | null }>({ stage: null, stages: [], status: null })
 const journey = ref<{ id: string, at: string, message: string, actor?: string | null }[]>([])
 async function loadJourney() {
@@ -436,12 +446,12 @@ const tasksBase = () => `/organizations/${orgId}/events/${eventId.value}`
 async function toggleItem(item: PreparationItem) {
 	if (!eventId.value || updatingItemId.value !== null) return
 	updatingItemId.value = item.id
-	errorMessage.value = ''
+	actionError.value = ''
 	try {
 		const { data } = await useApi().patch<ApiPreparation>(`${tasksBase()}/tasks/${item.id}`, { status: item.is_completed ? 'pending' : 'done' })
 		applyPreparation(data)
 	} catch (error: unknown) {
-		errorMessage.value = authMessage(error) || 'Unable to update checklist item.'
+		actionError.value = authMessage(error) || 'Unable to update checklist item.'
 	} finally {
 		updatingItemId.value = null
 	}
@@ -453,17 +463,18 @@ async function addChecklistItem() {
 	const label = newItemLabel.value.trim()
 	if (!label) return
 	isAddingItem.value = true
-	errorMessage.value = ''
+	actionError.value = ''
 	try {
 		let prep = await useOrganizerEvents().preparation(orgId, eventId.value) as unknown as ApiPreparation
 		if (!prep.checklists.length) {
 			prep = (await useApi().post<ApiPreparation>(`${tasksBase()}/checklists`, { name: 'Preparation' })).data
 		}
 		prep = (await useApi().post<ApiPreparation>(`${tasksBase()}/checklists/${prep.checklists[0]!.id}/tasks`, { name: label })).data
-		if (newItemAssignee.value) {
+		const assignee = await resolveAssignee(newItemAssignee.value as string | number | null)
+		if (assignee) {
 			const created = [...prep.checklists[0]!.tasks].reverse().find(t => t.name === label) ?? prep.checklists[0]!.tasks.at(-1)!
 			// Assigning returns only the ids; reload the checklist.
-			await useApi().put(`${tasksBase()}/tasks/${created.id}/assignees`, { event_member_ids: [String(newItemAssignee.value)] })
+			await useApi().put(`${tasksBase()}/tasks/${created.id}/assignees`, { event_member_ids: [assignee] })
 			prep = await useOrganizerEvents().preparation(orgId, String(eventId.value)) as unknown as ApiPreparation
 		}
 		applyPreparation(prep)
@@ -471,7 +482,7 @@ async function addChecklistItem() {
 		newItemAssignee.value = null
 		showAddForm.value = false
 	} catch (error: unknown) {
-		errorMessage.value = authMessage(error) || 'Unable to add checklist item.'
+		actionError.value = authMessage(error) || 'Unable to add checklist item.'
 	} finally {
 		isAddingItem.value = false
 	}
@@ -487,19 +498,32 @@ function userName(user: TeamUser) { return `${user.firstname} ${user.lastname}`.
 function memberName(member: TeamMember) { return userName(member.user) }
 
 /** Put an organization member on this event's team, so tasks can be assigned to them. */
-async function createTeamMember() {
+// One tap adds a teammate to the event (review #13: was 4 taps).
+async function addMember(organizationMemberId: string) {
 	creatingMember.value = true
-	errorMessage.value = ''
+	actionError.value = ''
 	try {
-		await useTeam().addToEvent(orgId, String(eventId.value), { organization_member_id: memberForm.organization_member_id, label: null, permissions: [] })
+		await useTeam().addToEvent(orgId, String(eventId.value), { organization_member_id: organizationMemberId, label: null, permissions: [] })
 		applyPreparation(await useOrganizerEvents().preparation(orgId, String(eventId.value)) as unknown as ApiPreparation)
-		memberForm.organization_member_id = ''
-		showMemberForm.value = false
 	} catch (error: unknown) {
-		errorMessage.value = authMessage(error) || 'Unable to add this person to the event.'
+		actionError.value = authMessage(error) || 'Unable to add this person to the event.'
 	} finally {
 		creatingMember.value = false
 	}
+}
+async function createTeamMember() {
+	if (memberForm.organization_member_id) await addMember(memberForm.organization_member_id)
+	memberForm.organization_member_id = ''
+	showMemberForm.value = false
+}
+/** An assignee pick: an event member id, or "org:<id>" for a teammate not on the event yet (added first). */
+async function resolveAssignee(value: string | number | null): Promise<string | null> {
+	const pick = value === null ? '' : String(value)
+	if (!pick.startsWith('org:')) return pick || null
+	const orgMemberId = pick.slice(4)
+	await addMember(orgMemberId)
+	const member = teamMembers.value.find(m => (m as unknown as { organization_member_id: string }).organization_member_id === orgMemberId)
+	return member ? String(member.id) : null
 }
 
 const changesFor = ref<number | null>(null)
@@ -512,14 +536,15 @@ function startChanges(item: PreparationItem) {
 }
 
 /** Assign (or unassign) someone from this event's team. */
-async function assignItem(item: PreparationItem, memberId: string) {
+async function assignItem(item: PreparationItem, pick: string) {
 	updatingItemId.value = item.id
-	errorMessage.value = ''
+	actionError.value = ''
 	try {
+		const memberId = await resolveAssignee(pick)
 		await useApi().put(`${tasksBase()}/tasks/${item.id}/assignees`, { event_member_ids: memberId ? [memberId] : [] })
 		applyPreparation(await useOrganizerEvents().preparation(orgId, String(eventId.value)) as unknown as ApiPreparation)
 	} catch (error: unknown) {
-		errorMessage.value = authMessage(error) || 'Unable to assign this item.'
+		actionError.value = authMessage(error) || 'Unable to assign this item.'
 	} finally {
 		updatingItemId.value = null
 	}
@@ -533,19 +558,19 @@ async function reviewItem(item: PreparationItem, status: 'verified' | 'changes_r
 		applyPreparation((await useApi().post<ApiPreparation>(`${tasksBase()}/tasks/${item.id}/review`, { decision: status, note })).data)
 		changesFor.value = null
 	} catch (error: unknown) {
-		errorMessage.value = authMessage(error) || 'Unable to review completed work.'
+		actionError.value = authMessage(error) || 'Unable to review completed work.'
 	}
 }
 
 async function removeChecklistItem(item: PreparationItem) {
 	if (!eventId.value || deletingItemId.value !== null) return
 	deletingItemId.value = item.id
-	errorMessage.value = ''
+	actionError.value = ''
 	try {
 		applyPreparation((await useApi().delete<ApiPreparation>(`${tasksBase()}/tasks/${item.id}`)).data)
 		confirmDeleteId.value = null
 	} catch (error: unknown) {
-		errorMessage.value = authMessage(error) || 'Unable to delete checklist item.'
+		actionError.value = authMessage(error) || 'Unable to delete checklist item.'
 	} finally {
 		deletingItemId.value = null
 	}
@@ -594,7 +619,12 @@ function memberRole(m: { position?: string | null }) {
 	const orgId = (m as unknown as { organization_member_id?: string }).organization_member_id
 	return m.position || orgMembers.value.find(o => o.id === orgId)?.role || 'Team member'
 }
-const assigneeOptions = computed(() => [{ value: null, label: 'Unassigned' }, ...teamMembers.value.map(m => ({ value: m.id, label: `${memberName(m)} · ${memberRole(m)}` }))])
+const assigneeOptions = computed(() => [
+	{ value: null, label: 'Unassigned' },
+	...teamMembers.value.map(m => ({ value: m.id, label: `${memberName(m)} · ${memberRole(m)}` })),
+	// Teammates not on the event yet: picking one adds them, then assigns (#13).
+	...availableMembers.value.map(m => ({ value: `org:${m.id}` as unknown as number, label: `${m.name} · ${m.role} (adds to event)` })),
+])
 function openFor(member: TeamMember) { return checklist.value.filter(i => !i.is_completed && i.assigned_team_member_id === member.id).length }
 function initials(name: string) { const w = name.split(/\s+/).filter(Boolean); return ((w[0]?.[0] ?? '') + (w.length > 1 ? w[w.length - 1]?.[0] ?? '' : '')).toUpperCase() || '?' }
 async function quickAdd() {
