@@ -534,7 +534,7 @@ const navItems = [
 		icon: 'check-circle',
 	},
 	{
-		label: 'Activity Timeline',
+		label: 'Event Program',
 		to: '/organizer/activity-timeline',
 		icon: 'clipboard-list',
 	},

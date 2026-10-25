@@ -1,8 +1,8 @@
 <template>
 	<div class="space-y-6">
 		<div class="pt-rise">
-			<h1 class="text-2xl font-extrabold tracking-tight text-gray-900">Preparation Tracking</h1>
-			<p class="mt-1 text-gray-500">Live readiness overview for your event, straight from your organizer.</p>
+			<h1 class="text-2xl font-extrabold tracking-tight text-gray-900">Event journey</h1>
+			<p class="mt-1 text-gray-500">Where your event is, what's coming up, and what has happened, straight from your organizer.</p>
 		</div>
 
 		<!-- Event rail -->
@@ -66,60 +66,41 @@
 				</div>
 			</section>
 
-			<div class="grid grid-cols-1 gap-5 lg:grid-cols-12">
-				<!-- Readiness -->
-				<section class="pt-rise rounded-3xl border border-gray-200 bg-white p-6 lg:col-span-5" style="--d: 100ms">
-					<h3 class="text-lg font-extrabold tracking-tight text-gray-950">Overall Readiness</h3>
-					<p class="mt-0.5 text-sm text-gray-500">
-						{{ progress?.readiness_percent === null ? 'Your organizer hasn\'t started the checklist yet.' : 'Based on the preparation work your organizer has verified.' }}
-					</p>
-					<ClientOnly>
-						<apexchart type="radialBar" height="240" :options="gaugeOptions" :series="[readiness]" />
-					</ClientOnly>
-				</section>
+			<!-- Where it's at -->
+			<EventStageBar :stages="progress?.stages ?? []" :stage="progress?.stage ?? null" :event-status="event.status"
+				:readiness="progress?.readiness_percent ?? null" />
 
-				<!-- Stage -->
-				<section class="pt-rise rounded-3xl border border-gray-200 bg-white p-6 lg:col-span-7" style="--d: 140ms">
-					<h3 class="text-lg font-extrabold tracking-tight text-gray-950">Planning Stage</h3>
-					<p class="mt-0.5 text-sm text-gray-500">Where your organizer is in the plan.</p>
-					<ol v-if="progress?.stages.length" class="mt-5 space-y-2">
-						<li v-for="(stage, i) in progress.stages" :key="stage" class="flex items-center gap-3 rounded-2xl px-3 py-3"
-							:class="i === stageIndex ? 'bg-primary-50 ring-1 ring-primary-100' : ''">
-							<span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-								:class="i < stageIndex ? 'bg-[#285F6b] text-white' : i === stageIndex ? 'bg-white text-primary-700 ring-2 ring-[#285F6b]' : 'bg-gray-100 text-gray-400'">
-								<IconBase v-if="i < stageIndex" name="check" class="h-3.5 w-3.5" />
-								<template v-else>{{ i + 1 }}</template>
-							</span>
-							<span class="text-sm" :class="i === stageIndex ? 'font-bold text-gray-950' : i < stageIndex ? 'font-medium text-gray-700' : 'font-medium text-gray-400'">{{ stage }}</span>
-							<span v-if="i === stageIndex" class="ml-auto rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-primary-700">Now</span>
-						</li>
-					</ol>
-					<p v-else class="mt-5 text-sm text-gray-500">The stage shows here once your organizer starts planning.</p>
-				</section>
-			</div>
-
-			<!-- Milestones -->
-			<section class="pt-rise rounded-3xl border border-gray-200 bg-white p-6" style="--d: 180ms">
-				<h3 class="text-lg font-extrabold tracking-tight text-gray-950">Milestones</h3>
-				<p v-if="!progress?.milestones.length" class="mt-2 text-sm text-gray-500">Milestones appear here as your organizer reaches them.</p>
-				<ol v-else class="mt-4 space-y-1">
-					<li v-for="m in progress.milestones" :key="m.id" class="pt-row flex flex-wrap items-center justify-between gap-2 rounded-2xl px-3 py-3 transition hover:bg-gray-50">
-						<div class="flex min-w-0 items-center gap-3">
-							<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><IconBase name="check-circle" class="h-4 w-4" /></span>
-							<span class="text-sm font-medium text-gray-900">{{ m.message }}</span>
+			<!-- Coming up: the program the organizer shared -->
+			<section v-if="progress?.program?.length" class="rounded-2xl border border-gray-200 bg-white px-4 py-4 sm:px-6 sm:py-5">
+				<h3 class="text-base font-extrabold tracking-tight text-gray-950">{{ event.status === 'completed' ? 'Program' : 'Coming up' }}</h3>
+				<p class="mt-0.5 text-xs text-gray-400">The event program from your organizer. Times can still change; they update it here.</p>
+				<ol class="mt-3 divide-y divide-gray-100">
+					<li v-for="item in progress.program" :key="item.id" class="flex gap-3 py-2.5">
+						<div class="w-20 shrink-0 text-sm">
+							<p class="font-bold text-gray-900">{{ item.activity_at ? formatTime(item.activity_at) : 'Time TBA' }}</p>
+							<p v-if="item.activity_at" class="text-xs text-gray-400">{{ formatShort(item.activity_at) }}</p>
 						</div>
-						<span class="shrink-0 text-xs font-semibold text-gray-500">{{ formatShort(m.at) }}</span>
+						<div class="min-w-0 flex-1">
+							<div class="flex flex-wrap items-center gap-2">
+								<p class="text-sm font-semibold text-gray-900">{{ item.title }}</p>
+								<span v-if="!(event.status === 'completed' && item.status === 'pending')" class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="programStatus[item.status].cls">{{ programStatus[item.status].label }}</span>
+							</div>
+							<p v-if="item.description" class="mt-0.5 text-sm text-gray-500">{{ item.description }}</p>
+						</div>
 					</li>
 				</ol>
 			</section>
+
+			<!-- What's happened -->
+			<EventJourneyLog :entries="progress?.milestones ?? []" empty="Milestones appear here as your organizer reaches them." />
 		</template>
 	</div>
 </template>
 
 <script setup lang="ts">
-// The client's view of their booked event: readiness, stage and milestones only
-// (the organizer's task list stays private to their team).
-import type { ApexOptions } from 'apexcharts'
+// The client's "Event journey" (review #14): where the event is (stage bar), what's
+// coming up (the program the organizer shared) and what has happened (milestones).
+// The organizer's task list stays private to their team.
 import type { ClientEvent, ClientProgress } from '~/composables/useEvents'
 
 definePageMeta({ layout: 'client', middleware: ['client'] })
@@ -148,8 +129,6 @@ const countdown = computed(() => {
 	if (days === 0) return { value: 'Today', label: `at ${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` }
 	return { value: String(days), label: days === 1 ? 'Day away' : 'Days away' }
 })
-const readiness = computed(() => Math.round(progress.value?.readiness_percent ?? 0))
-const stageIndex = computed(() => (progress.value?.stage ? progress.value.stages.indexOf(progress.value.stage) : -1))
 
 function formatShort(at: string) {
 	return new Date(at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -183,25 +162,14 @@ onMounted(async () => {
 	}
 })
 
-// Readiness gauge (same look as the organizer analytics).
-const gaugeOptions = computed<ApexOptions>(() => ({
-	chart: { type: 'radialBar', fontFamily: 'inherit', animations: { speed: 900 } },
-	colors: ['#285F6b'],
-	plotOptions: {
-		radialBar: {
-			startAngle: -135,
-			endAngle: 135,
-			hollow: { size: '64%' },
-			track: { background: '#eef2f3', strokeWidth: '100%' },
-			dataLabels: {
-				name: { show: true, offsetY: 24, color: '#6b7280', fontSize: '12px', fontWeight: 700 },
-				value: { offsetY: -14, color: '#111827', fontSize: '38px', fontWeight: 800, formatter: (value: number) => `${value}%` },
-			},
-		},
-	},
-	stroke: { lineCap: 'round' },
-	labels: ['ready'],
-}))
+const programStatus = {
+	pending: { label: 'Upcoming', cls: 'bg-gray-100 text-gray-600' },
+	in_progress: { label: 'Happening now', cls: 'bg-amber-50 text-amber-700' },
+	completed: { label: 'Done', cls: 'bg-green-50 text-green-700' },
+} as const
+function formatTime(at: string) {
+	return new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
 </script>
 
 <style scoped>

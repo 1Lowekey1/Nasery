@@ -3,11 +3,11 @@
 		<!-- Header -->
 		<header class="flex flex-wrap items-end justify-between gap-4">
 			<div>
-				<h1 class="text-2xl font-extrabold tracking-tight text-gray-950 sm:text-[28px]">Activity timeline</h1>
-				<p class="mt-1 text-sm text-gray-500">Every milestone, update and task across the events you manage.</p>
+				<h1 class="text-2xl font-extrabold tracking-tight text-gray-950 sm:text-[28px]">Event program</h1>
+				<p class="mt-1 text-sm text-gray-500">The run of show for each event: timed items your team follows on the day. Share any of them with the client.</p>
 			</div>
 			<button type="button" class="at-btn-primary h-11" :disabled="!realEvents.length" @click="openAddActivity">
-				<IconBase name="plus" class="h-4 w-4" /> Add activity
+				<IconBase name="plus" class="h-4 w-4" /> Add to program
 			</button>
 		</header>
 
@@ -38,7 +38,7 @@
 							<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" :class="!selectedEventKey ? 'bg-primary-700 text-white' : 'bg-gray-100 text-gray-500'"><IconBase name="grid" class="h-4 w-4" /></span>
 							<span class="min-w-0 flex-1">
 								<span class="block text-sm font-semibold text-gray-950">All events</span>
-								<span class="block text-xs text-gray-500">{{ totalActivities }} {{ totalActivities === 1 ? 'activity' : 'activities' }}</span>
+								<span class="block text-xs text-gray-500">{{ totalActivities }} {{ totalActivities === 1 ? 'item' : 'items' }}</span>
 							</span>
 						</button>
 
@@ -92,27 +92,20 @@
 							</div>
 							<div class="basis-full border-t border-white/15 pt-3 text-sm text-white/80 2xl:basis-auto 2xl:border-0 2xl:pt-0 2xl:text-right">
 								<p>{{ selectedReadiness === null ? 'Preparation not started' : `Preparation ${selectedReadiness}% done` }}</p>
-								<p v-if="selectedProgress.total"><strong class="text-white">{{ selectedProgress.done }}</strong> of {{ selectedProgress.total }} activities done</p>
-								<p v-else>No activities yet</p>
+								<p v-if="selectedProgress.total"><strong class="text-white">{{ selectedProgress.done }}</strong> of {{ selectedProgress.total }} program items done</p>
+								<p v-else>No program yet</p>
 							</div>
 						</div>
 					</div>
 				</Transition>
 
-				<!-- Activities / history -->
-				<div class="flex flex-wrap items-center gap-2" role="tablist" aria-label="Show">
-					<button v-for="k in kindOptions" :key="k.value" type="button" role="tab" :aria-selected="selectedKind === k.value" class="at-kind" :class="selectedKind === k.value ? 'is-on' : ''" @click="selectedKind = k.value">
-						{{ k.label }}<span class="tabular-nums opacity-70">{{ k.count }}</span>
-					</button>
-				</div>
-
 				<!-- Search -->
 				<div class="flex flex-wrap items-center gap-3">
 					<div class="relative min-w-0 flex-1">
 						<IconBase name="search" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-						<input v-model="searchQuery" type="search" placeholder="Search activities, people or tags" aria-label="Search activities" class="at-field !pl-10" />
+						<input v-model="searchQuery" type="search" placeholder="Search the program, people or tags" aria-label="Search the program" class="at-field !pl-10" />
 					</div>
-					<p class="shrink-0 text-sm text-gray-500"><strong class="font-semibold text-gray-900">{{ filteredActivities.length }}</strong> {{ filteredActivities.length === 1 ? 'activity' : 'activities' }}</p>
+					<p class="shrink-0 text-sm text-gray-500"><strong class="font-semibold text-gray-900">{{ filteredActivities.length }}</strong> {{ filteredActivities.length === 1 ? 'item' : 'items' }}</p>
 				</div>
 
 				<!-- Loading -->
@@ -193,23 +186,22 @@
 						<span class="at-float mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-primary-700"><IconBase name="clipboard-list" class="h-7 w-7" /></span>
 						<p class="mt-4 font-semibold text-gray-900">{{ emptyTitle }}</p>
 						<p class="mx-auto mt-1 max-w-md text-sm text-gray-500">{{ emptyText }}</p>
-						<button v-if="canAddHere && !hasFilters" type="button" class="at-btn-primary mx-auto mt-5 h-11" @click="openAddActivity"><IconBase name="plus" class="h-4 w-4" /> Add the first activity</button>
+						<button v-if="canAddHere && !hasFilters" type="button" class="at-btn-primary mx-auto mt-5 h-11" @click="openAddActivity"><IconBase name="plus" class="h-4 w-4" /> Add the first program item</button>
 						<button v-else-if="hasFilters" type="button" class="mt-4 text-sm font-semibold text-primary-700 hover:underline" @click="clearFilters">Clear filters</button>
-						<button v-if="!hasFilters && selectedKind === 'activities' && scopedHistory.length" type="button" class="mx-auto mt-3 block text-sm font-semibold text-primary-700 hover:underline" @click="selectedKind = 'history'">See what NaSeRy recorded ({{ scopedHistory.length }})</button>
 					</div>
 				</Transition>
 			</section>
 		</div>
 
-		<!-- Add activity panel -->
+		<!-- Add to program panel -->
 		<Teleport to="body">
 			<Transition name="at-fade"><div v-if="showAddActivity" class="fixed inset-0 z-[110] bg-slate-950/40 backdrop-blur-[2px]" @click="closeAddActivity" /></Transition>
 			<Transition name="at-slide">
-				<aside v-if="showAddActivity" class="fixed inset-y-0 right-0 z-[115] flex w-full max-w-md flex-col bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Add activity">
+				<aside v-if="showAddActivity" class="fixed inset-y-0 right-0 z-[115] flex w-full max-w-md flex-col bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Add to program">
 					<div class="flex items-start justify-between border-b border-gray-100 px-6 py-5">
 						<div>
-							<h2 class="text-lg font-bold text-gray-950">Add activity</h2>
-							<p class="mt-0.5 text-sm text-gray-500">Log a milestone, update or task on an event.</p>
+							<h2 class="text-lg font-bold text-gray-950">Add to program</h2>
+							<p class="mt-0.5 text-sm text-gray-500">A timed item for the event day, e.g. "Guest arrival, 5:00 PM".</p>
 						</div>
 						<button type="button" class="flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700" aria-label="Close" @click="closeAddActivity"><IconBase name="x" class="h-5 w-5" /></button>
 					</div>
@@ -217,7 +209,7 @@
 					<form class="flex min-h-0 flex-1 flex-col" novalidate @submit.prevent="saveActivity">
 						<fieldset :disabled="isSavingActivity" class="flex-1 divide-y divide-gray-100 overflow-y-auto">
 							<div class="at-group">
-								<p class="at-group-title">What happened?</p>
+								<p class="at-group-title">What's planned?</p>
 								<div>
 									<span class="at-label">Event</span>
 									<FormsSelect v-model="activityForm.eventId" :options="eventOptions" placeholder="Choose an event" :can-clear="false" />
@@ -279,7 +271,7 @@
 							<button type="button" class="at-btn-secondary h-11 px-5" :disabled="isSavingActivity" @click="closeAddActivity">Cancel</button>
 							<button type="submit" class="at-btn-primary h-11 justify-center" :disabled="isSavingActivity">
 								<IconBase :name="isSavingActivity ? 'refresh-cw' : 'plus'" class="h-4 w-4" :class="isSavingActivity ? 'animate-spin' : ''" />
-								{{ isSavingActivity ? 'Adding…' : 'Add activity' }}
+								{{ isSavingActivity ? 'Adding…' : 'Add to program' }}
 							</button>
 						</div>
 					</form>
@@ -287,7 +279,7 @@
 			</Transition>
 		</Teleport>
 
-		<FormsConfirmationModal :open="!!confirmDelete" :title="`Delete “${confirmDelete?.title ?? ''}”?`" description="This removes the activity from the timeline for good." eyebrow="Activity timeline" icon="trash" confirm-icon="trash" confirm-label="Delete activity" cancel-label="Keep it" loading-label="Deleting…" :loading="!!confirmDelete && busyId === confirmDelete.id" @confirm="deleteActivity" @cancel="confirmDelete = null" />
+		<FormsConfirmationModal :open="!!confirmDelete" :title="`Delete “${confirmDelete?.title ?? ''}”?`" description="This removes the item from the program for good." eyebrow="Event program" icon="trash" confirm-icon="trash" confirm-label="Delete item" cancel-label="Keep it" loading-label="Deleting…" :loading="!!confirmDelete && busyId === confirmDelete.id" @confirm="deleteActivity" @cancel="confirmDelete = null" />
 
 		<Teleport to="body">
 			<Transition name="at-toast">
@@ -319,7 +311,7 @@ const activities = ref<EventActivity[]>([])
 const selectedEventId = ref<number | null>(null)
 const selectedEventKey = ref<string | null>(null)
 const selectedStatus = ref<'All' | ActivityStatus>('All')
-const selectedKind = ref<'all' | 'activities' | 'history'>('activities')
+const selectedKind = ref<'all' | 'activities' | 'history'>('activities') // history moved to Preparation Tracking (#14)
 const PAGE = 50
 const limit = ref(PAGE)
 const searchQuery = ref('')
@@ -370,7 +362,7 @@ async function loadTimeline() {
 		])
 		organizerEvents.value = data.events as unknown as OrganizerEvent[]
 		quotations.value = data.quotations as unknown as OrganizerQuotation[]
-		activities.value = list.data
+		activities.value = list.data.filter(a => !isHistory(a))
 		syncTimelineEvents()
 	} catch (error: unknown) {
 		errorMessage.value = getApiErrorMessage(error, 'Your timeline couldn’t be loaded. Refresh the page to try again.')
@@ -424,7 +416,7 @@ const statusCards = computed(() => {
 	const total = scope.length || 1
 	const count = (s: ActivityStatus) => scope.filter(a => a.status === s).length
 	return [
-		{ value: 'All' as const, label: 'All activities', count: scope.length, percent: scope.length ? 100 : 0, node: 'is-all', bar: 'bg-gray-800' },
+		{ value: 'All' as const, label: 'All items', count: scope.length, percent: scope.length ? 100 : 0, node: 'is-all', bar: 'bg-gray-800' },
 		{ value: 'completed' as const, label: 'Completed', count: count('completed'), percent: Math.round((count('completed') / total) * 100), node: 'is-done', bar: 'bg-primary-700' },
 		{ value: 'in_progress' as const, label: 'In progress', count: count('in_progress'), percent: Math.round((count('in_progress') / total) * 100), node: 'is-progress', bar: 'bg-amber-500' },
 		{ value: 'pending' as const, label: 'Pending', count: count('pending'), percent: Math.round((count('pending') / total) * 100), node: 'is-pending', bar: 'bg-gray-400' },
@@ -444,12 +436,18 @@ const selectedReadiness = computed(() => {
 	return typeof pct === 'number' ? Math.round(pct) : null
 })
 
-// Group newest first by day.
+// Run of show: today and upcoming in time order, then items without a time, then past days.
+function programRank(a: EventActivity) {
+	if (!a.activity_at) return 1
+	const start = new Date(); start.setHours(0, 0, 0, 0)
+	return new Date(a.activity_at).getTime() >= start.getTime() ? 0 : 2
+}
 const groupedActivities = computed(() => {
-	const sorted = [...filteredActivities.value].sort((a, b) => stamp(b) - stamp(a)).slice(0, limit.value)
+	const sorted = [...filteredActivities.value].sort((a, b) => programRank(a) - programRank(b)
+		|| (programRank(a) === 2 ? stamp(b) - stamp(a) : stamp(a) - stamp(b))).slice(0, limit.value)
 	const groups: Array<{ label: string, items: EventActivity[] }> = []
 	for (const a of sorted) {
-		const label = dayLabel(a.activity_at ?? a.created_at ?? null)
+		const label = a.activity_at ? dayLabel(a.activity_at) : 'Time to be set'
 		const last = groups[groups.length - 1]
 		if (last && last.label === label) last.items.push(a)
 		else groups.push({ label, items: [a] })

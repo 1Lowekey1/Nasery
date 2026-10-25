@@ -244,13 +244,8 @@ const navItems = [
 		icon: 'send',
 	},
 	{
-		label: 'Preparation Tracking',
+		label: 'Event Journey',
 		to: '/client/preparation-tracking',
-		icon: 'clipboard-list',
-	},
-	{
-		label: 'Activity Timeline',
-		to: '/client/activity-timeline',
 		icon: 'activity',
 	},
 	{

@@ -37,6 +37,9 @@
 				</div>
 			</section>
 
+			<!-- Where the event is: the same stage bar the client sees (review #14) -->
+			<EventStageBar :stages="stageInfo.stages" :stage="stageInfo.stage" :event-status="stageInfo.status" :readiness="readinessPercent" />
+
 			<!-- The client's request, one tap away while preparing -->
 			<OrganizerClientRequest v-if="requestRef.inquiry && requestRef.org" :organization-id="requestRef.org"
 				:inquiry-id="requestRef.inquiry" :quotation-id="requestRef.quotation" collapsible />
@@ -53,7 +56,7 @@
 					</div>
 
 					<!-- Quick add -->
-					<form class="flex flex-col gap-2 border-b border-gray-100 bg-gray-50/60 px-5 py-4 sm:flex-row" @submit.prevent="quickAdd">
+					<form v-if="!['completed', 'cancelled'].includes(stageInfo.status ?? '')" class="flex flex-col gap-2 border-b border-gray-100 bg-gray-50/60 px-5 py-4 sm:flex-row" @submit.prevent="quickAdd">
 						<div class="relative min-w-0 flex-1">
 							<IconBase name="plus" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
 							<input ref="quickInput" v-model="newItemLabel" type="text" maxlength="255" class="pt-field !pl-10" placeholder="Add a task, e.g. Confirm sound system with supplier" :disabled="isAddingItem" aria-label="New task" />
@@ -155,6 +158,9 @@
 					</section>
 				</aside>
 			</div>
+
+			<!-- What's happened: the event's journey (moved here from the Activity Timeline's History) -->
+			<EventJourneyLog :entries="journey" />
 		</template>
 	</div>
 </template>
@@ -358,6 +364,9 @@ function extractEvent(
  */
 
 type ApiPreparation = {
+	stage?: string | null
+	stages?: string[]
+	event_status?: string
 	team: { id: string, organization_member_id: string, name: string, email: string | null, label: string | null }[]
 	checklists: { id: string, name: string, tasks: {
 		id: string, name: string, status: string, assignee_ids: string[], completion_note: string | null,
@@ -366,7 +375,14 @@ type ApiPreparation = {
 }
 
 /** The API's preparation (checklists of tasks + the event team), as this page's flat list. */
+const stageInfo = ref<{ stage: string | null, stages: string[], status: string | null }>({ stage: null, stages: [], status: null })
+const journey = ref<{ id: string, at: string, message: string, actor?: string | null }[]>([])
+async function loadJourney() {
+	journey.value = await useOrganizerEvents().timeline(orgId, String(eventId.value)).catch(() => [])
+}
+
 function applyPreparation(prep: ApiPreparation) {
+	stageInfo.value = { stage: prep.stage ?? null, stages: prep.stages ?? [], status: prep.event_status ?? null }
 	teamMembers.value = prep.team.map(m => {
 		const [firstname, ...rest] = m.name.split(' ')
 		return { id: m.id as unknown as number, position: m.label, organization_member_id: m.organization_member_id,
@@ -406,6 +422,7 @@ async function loadPreparation() {
 		])
 		event.value = toLegacyEvent(apiEvent) as unknown as OrganizerEvent
 		applyPreparation(prep as unknown as ApiPreparation)
+		void loadJourney()
 		orgMembers.value = (team?.members ?? []).filter(m => m.status === 'active').map(m => ({ id: m.id, name: m.name, role: m.role }))
 	} catch (error: unknown) {
 		errorMessage.value = authMessage(error) || 'Unable to load preparation tracking.'

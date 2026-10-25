@@ -13,7 +13,7 @@ const items: (TeamNavItem & { needs: string[] | null })[] = [
 	{ label: 'QR Check-in', to: '/organizer/ticketattendance/qr-checkin', icon: 'check-circle', needs: ['checkin.perform'] },
 	{ label: 'Guest List', to: '/organizer/ticketattendance/attendees', icon: 'users', needs: ['attendee.manage', 'ticket.manage'], matches: ['/organizer/ticketattendance/attendees', '/organizer/ticketattendance/walkin-counter'] },
 	{ label: 'Events', to: '/organizer/eventmanagement/all-events', icon: 'calendar', needs: ['event.create', 'event.update', 'checklist.manage', 'task.manage'], matches: ['/organizer/eventmanagement'] },
-	{ label: 'Activity Timeline', to: '/organizer/activity-timeline', icon: 'clipboard-list', needs: ['event.update', 'checklist.manage', 'task.manage'] },
+	{ label: 'Event Program', to: '/organizer/activity-timeline', icon: 'clipboard-list', needs: ['event.update', 'checklist.manage', 'task.manage'] },
 	{ label: 'Inquiries & Quotations', to: '/organizer/inquiries/match-inquiries', icon: 'file-text', needs: ['inquiry.manage', 'quotation.manage'], matches: ['/organizer/inquiries'] },
 	{ label: 'Payments', to: '/organizer/ticketattendance/payments', icon: 'peso', needs: ['finance.view'] },
 	{ label: 'Earnings', to: '/organizer/earnings', icon: 'peso', needs: ['finance.view'] },
