@@ -77,10 +77,21 @@
 								<span v-if="app.owner.email_verified" class="text-xs text-green-600">(verified)</span></p>
 							<p class="text-gray-600">{{ app.owner.phone || 'No mobile on file' }}</p>
 						</div>
-						<a v-if="app.owner" :href="`mailto:${app.owner.email}?subject=${encodeURIComponent(`NaSeRy organizer application: ${app.display_name}`)}`"
-							class="mt-4 block rounded-lg border border-gray-200 px-3 py-2 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50">
-							Email owner for documents
-						</a>
+						<!-- A bare mailto: does nothing without a default mail app, so offer the usual ways. -->
+						<template v-if="app.owner">
+							<button type="button" :aria-expanded="emailOpen"
+								class="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+								@click="emailOpen = !emailOpen">
+								Email owner for documents <span aria-hidden="true" class="text-xs text-gray-400">{{ emailOpen ? '▲' : '▼' }}</span>
+							</button>
+							<div v-if="emailOpen" class="mt-2 grid grid-cols-2 gap-2">
+								<a v-for="opt in emailLinks" :key="opt.label" :href="opt.href" :target="opt.external ? '_blank' : undefined" rel="noopener"
+									class="rounded-lg bg-gray-50 px-3 py-2 text-center text-xs font-semibold text-gray-700 hover:bg-gray-100">{{ opt.label }}</a>
+								<button type="button" class="col-span-2 rounded-lg bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100" @click="copyEmail">
+									{{ copied ? 'Address copied ✓' : 'Copy address' }}
+								</button>
+							</div>
+						</template>
 					</section>
 
 					<section v-if="app.allowed_decisions.length" class="rounded-2xl border border-gray-200 bg-white p-6">
@@ -127,6 +138,33 @@ const notice = ref('')
 const busy = ref(false)
 const pending = ref<ApprovalStatus | null>(null)
 const reason = ref('')
+
+// Email the owner: Gmail / Outlook on the web, the computer's mail app, or copy the address.
+const emailOpen = ref(false)
+const copied = ref(false)
+const emailLinks = computed(() => {
+	const owner = app.value?.owner
+	if (!owner) return []
+	const to = encodeURIComponent(owner.email)
+	const subject = encodeURIComponent(`NaSeRy organizer application: ${app.value?.display_name}`)
+	const body = encodeURIComponent(`Hi ${owner.full_name},\n\nThank you for your NaSeRy organizer application (${app.value?.display_name}). To finish reviewing it, please send us:\n\n- \n\nThank you,\nNaSeRy`)
+	return [
+		{ label: 'Gmail', href: `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${subject}&body=${body}`, external: true },
+		{ label: 'Outlook', href: `https://outlook.live.com/mail/0/deeplink/compose?to=${to}&subject=${subject}&body=${body}`, external: true },
+		{ label: 'Mail app', href: `mailto:${owner.email}?subject=${subject}&body=${body}`, external: false },
+	]
+})
+async function copyEmail() {
+	const email = app.value?.owner?.email
+	if (!email) return
+	try {
+		await navigator.clipboard.writeText(email)
+	} catch {
+		window.prompt('Copy the owner’s email address:', email)
+	}
+	copied.value = true
+	setTimeout(() => { copied.value = false }, 2000)
+}
 
 const decisionLabel: Record<ApprovalStatus, string> = {
 	pending: 'Pending',
