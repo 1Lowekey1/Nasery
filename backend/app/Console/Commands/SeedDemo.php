@@ -1169,9 +1169,10 @@ class SeedDemo extends Command
         // The event matches what the client asked for: same date, same guest count.
         DB::table('inquiries')->where('id', $quotation->inquiry_id)->update(['requested_date' => $start->toDateString()]);
         $guests = (int) DB::table('inquiries')->where('id', $quotation->inquiry_id)->value('guest_count');
+        $typeId = DB::table('inquiries')->where('id', $quotation->inquiry_id)->value('event_type_id');
 
         return $this->as($this->u($ownerKey), fn () => app(EventManager::class)->convert($org, $this->member($org, $ownerKey), $quotation, [
-            'name' => $name, 'venue_name' => $venue, 'visibility' => 'private', 'overall_capacity' => $guests ?: $capacityHint * 20,
+            'name' => $name, 'event_type_id' => $typeId, 'venue_name' => $venue, 'visibility' => 'private', 'overall_capacity' => $guests ?: $capacityHint * 20,
             'sessions' => [['name' => 'Main program', 'starts_at' => $start->format('Y-m-d\TH:i'), 'ends_at' => $start->copy()->addHours(5)->format('Y-m-d\TH:i')]],
         ]));
     }

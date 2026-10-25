@@ -41,10 +41,16 @@
 			<div v-if="quotation">
 				<p class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Your accepted offer<template v-if="quotation.package_name"> · {{ quotation.package_name }}</template></p>
 				<div class="rounded-xl border border-gray-100">
-					<div v-for="(line, i) in quotation.items" :key="i" class="flex items-start justify-between gap-3 border-b border-gray-100 px-3 py-2 text-sm last:border-b-0">
-						<span class="min-w-0 text-gray-700">{{ line.description }}<span v-if="Number(line.quantity) !== 1" class="text-gray-400"> × {{ Number(line.quantity).toLocaleString('en-PH') }}</span></span>
-						<span class="shrink-0 font-semibold text-gray-900">{{ formatPeso(line.subtotal ?? Number(line.quantity) * Number(line.unit_price)) }}</span>
+					<div v-for="(line, i) in receipt.items" :key="i" class="flex items-start justify-between gap-3 border-b border-gray-100 px-3 py-2 text-sm">
+						<span class="min-w-0 text-gray-700">{{ line.description }}<span v-if="line.quantity !== 1" class="text-gray-400"> × {{ line.quantity.toLocaleString('en-PH') }}</span></span>
+						<span class="shrink-0 font-semibold text-gray-900">{{ formatPeso(line.amount) }}</span>
 					</div>
+					<template v-if="receipt.charges.length">
+						<div class="flex justify-between gap-3 border-b border-gray-100 bg-gray-50/60 px-3 py-2 text-sm text-gray-600"><span>Subtotal</span><span>{{ formatPeso(receipt.subtotal) }}</span></div>
+						<div v-for="(c, i) in receipt.charges" :key="`c${i}`" class="flex justify-between gap-3 border-b border-gray-100 px-3 py-2 text-sm text-gray-600">
+							<span>{{ c.label }} <span class="text-gray-400">({{ c.percent }}%)</span></span><span>{{ formatPeso(c.amount) }}</span>
+						</div>
+					</template>
 					<div class="flex justify-between gap-3 bg-gray-50 px-3 py-2.5 text-sm font-extrabold text-gray-950">
 						<span>Total</span><span>{{ formatPeso(quotation.total_amount) }}</span>
 					</div>
@@ -95,6 +101,14 @@ const summary = computed(() => {
 	const i = inquiry.value
 	if (!i) return ''
 	return [i.event_type, i.guest_count ? `${i.guest_count} guests` : null, i.budget_min || i.budget_max ? budgetLabel(i.budget_min, i.budget_max) : null, quotation.value ? `offer ${formatPeso(quotation.value.total_amount)}` : null].filter(Boolean).join(' · ')
+})
+// The accepted offer as a receipt: items, subtotal, then service charge / VAT.
+const receipt = computed(() => {
+	const charge = /^(Service charge|VAT) \((\d+(?:\.\d+)?)%\)$/
+	const lines = (quotation.value?.items ?? []).map(l => ({ description: l.description, quantity: Number(l.quantity), amount: Number(l.subtotal ?? Number(l.quantity) * Number(l.unit_price)) }))
+	const items = lines.filter(l => !charge.test(l.description))
+	const charges = lines.flatMap((l) => { const m = l.description.match(charge); return m ? [{ label: m[1]!, percent: m[2]!, amount: l.amount }] : [] })
+	return { items, charges, subtotal: items.reduce((sum, l) => sum + l.amount, 0) }
 })
 const date = (at: string) => new Date(at.length === 10 ? `${at}T00:00:00` : at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
 

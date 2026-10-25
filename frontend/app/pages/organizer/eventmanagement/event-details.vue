@@ -363,102 +363,9 @@
 				</span>
 			</div>
 
-			<div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-				<div class="rounded-xl bg-gray-50 p-4">
-					<div class="text-xs text-gray-500">
-						Accepted Package
-					</div>
-
-					<div class="mt-1 font-bold text-gray-900">
-						{{
-							quotationData.quotation.package_name ||
-							'Custom Package'
-						}}
-					</div>
-				</div>
-
-				<div class="rounded-xl bg-gray-50 p-4">
-					<div class="text-xs text-gray-500">
-						Agreed Amount
-					</div>
-
-					<div class="mt-1 font-bold text-primary-700">
-						{{
-							formatCurrency(
-								quotationData.quotation.quotation_amount,
-							)
-						}}
-					</div>
-				</div>
-
-				<div class="rounded-xl bg-gray-50 p-4">
-					<div class="text-xs text-gray-500">
-						Timeline
-					</div>
-
-					<div class="mt-1 font-bold text-gray-900">
-						{{
-							quotationData.quotation.timeline ||
-							'Not specified'
-						}}
-					</div>
-				</div>
-			</div>
-
-			<div class="mt-6 grid grid-cols-1 gap-x-12 gap-y-6 sm:grid-cols-2">
-				<div>
-					<div class="text-sm text-gray-500">Event Type</div>
-					<div class="mt-1 text-base font-bold text-gray-900">
-						{{ quotationData.inquiry.event_type }}
-					</div>
-				</div>
-
-				<div>
-					<div class="text-sm text-gray-500">Expected Guests</div>
-					<div class="mt-1 text-base font-bold text-gray-900">
-						{{ quotationData.inquiry.expected_guests }}
-					</div>
-				</div>
-
-				<div>
-					<div class="text-sm text-gray-500">Location</div>
-					<div class="mt-1 text-base font-bold text-gray-900">
-						{{ quotationData.inquiry.location || 'Not set' }}
-					</div>
-				</div>
-
-				<div>
-					<div class="text-sm text-gray-500">Inquiry Status</div>
-					<div class="mt-1 text-base font-bold text-gray-900">
-						{{ formatStatus(quotationData.inquiry.status) }}
-					</div>
-				</div>
-			</div>
-
-			<div v-if="quotationData.quotation.quotation_details" class="mt-6 rounded-xl bg-gray-50 p-4">
-				<p class="text-sm font-semibold text-gray-900">
-					Proposal
-				</p>
-
-				<p class="mt-2 text-sm leading-6 text-gray-600">
-					{{ quotationData.quotation.quotation_details }}
-				</p>
-			</div>
-
-			<div v-if="quotationData.quotation.inclusions?.length" class="mt-6">
-				<p class="text-sm font-semibold text-gray-900">
-					Inclusions
-				</p>
-
-				<div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-					<div v-for="item in quotationData.quotation.inclusions" :key="item.id"
-						class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
-						<IconBase name="check-circle" class="h-4 w-4 text-green-600" />
-
-						{{ item.description }}
-					</div>
-				</div>
-			</div>
+			<!-- The request and the accepted offer (receipt), with Message / Call / E-mail -->
+			<OrganizerClientRequest v-if="apiQuotationIds" class="mt-6" :organization-id="coverOrgId"
+				:inquiry-id="apiQuotationIds.inquiry" :quotation-id="apiQuotationIds.quotation" />
 
 			<div class="mt-6 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
 				<p class="font-semibold text-gray-900">Ready to start preparing?</p>
@@ -699,6 +606,7 @@ const eventTypes = ref<{ value: string, label: string }[]>([])
 let orgId = ''
 // The API's quotation behind a won-but-not-planned event ("start planning").
 let apiQuotation: import('~/composables/useQuotations').OrganizerQuotation | null = null
+const apiQuotationIds = ref<{ inquiry: string, quotation: string } | null>(null)
 
 const activeEditTab =
 	ref('Basic Info')
@@ -969,6 +877,7 @@ async function loadDetails() {
 
 		if (quotationId.value) {
 			apiQuotation = await useOrganizerQuotations().show(orgId, quotationId.value)
+			apiQuotationIds.value = apiQuotation?.inquiry?.id ? { inquiry: String(apiQuotation.inquiry.id), quotation: String(apiQuotation.id) } : null
 			const q = toLegacyQuotation(apiQuotation)
 			const ev = apiQuotation.event_id ? await loadEvent(apiQuotation.event_id) : null
 			quotationData.value = {

@@ -657,7 +657,7 @@
                     <div class="rounded-3xl border border-gray-200/80 bg-white p-5 shadow-xl shadow-slate-900/5">
                         <div class="flex items-center justify-between gap-3"><h3 class="text-sm font-bold text-gray-900">
                             Available Tickets
-                        </h3><span class="rounded-full bg-[#285F6b]/10 px-2.5 py-1 text-[11px] font-bold text-[#285F6b]">{{ availableTicketTypes.length }} types</span></div>
+                        </h3><span class="rounded-full bg-[#285F6b]/10 px-2.5 py-1 text-[11px] font-bold text-[#285F6b]">{{ availableTicketTypes.length }} {{ availableTicketTypes.length === 1 ? 'type' : 'types' }}</span></div>
 
                         <div v-if="availableTicketTypes.length" class="mt-4 space-y-3">
                             <div v-for="ticketType in availableTicketTypes" :key="ticketType.id"
@@ -701,10 +701,10 @@
                                     class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-xs font-bold text-[#285F6b]">
                                     1
                                 </span>
-                                Enter your attendee details and email.
+                                {{ signedIn ? 'Check each attendee’s name (yours is filled in).' : 'Enter your attendee details and email.' }}
                             </li>
 
-                            <li class="flex gap-3">
+                            <li v-if="!signedIn" class="flex gap-3">
                                 <span
                                     class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-xs font-bold text-[#285F6b]">
                                     2
@@ -717,7 +717,7 @@
                                     class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-xs font-bold text-[#285F6b]">
                                     3
                                 </span>
-                                Submit registration and generate the QR ticket.
+                                {{ signedIn ? 'Submit (pay if the ticket costs anything): the QR ticket is created.' : 'Submit registration and generate the QR ticket.' }}
                             </li>
 
                             <li class="flex gap-3">
@@ -725,7 +725,7 @@
                                     class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-xs font-bold text-[#285F6b]">
                                     4
                                 </span>
-                                Download the PDF ticket or send it to the verified email.
+                                {{ signedIn ? 'Find it under My Tickets, or download the PDF.' : 'Download the PDF ticket or send it to the verified email.' }}
                             </li>
                         </ol>
                     </div>
@@ -1528,6 +1528,12 @@ const loadEvent = async () => {
         const detail = (await api.get<PublicEventDetail>(`/public-events/${encodeURIComponent(token.value)}`, { query: linkKey.value ? { key: linkKey.value } : undefined })).data
         isPrivateEvent.value = !!detail.is_private
         rememberEventKey(token.value, linkKey.value)
+        // Signed in: the first attendee is usually the buyer.
+        const first = form.attendees[0]
+        if (user.value && first && !first.name && !first.email) {
+            first.name = [user.value.first_name, user.value.last_name].filter(Boolean).join(' ')
+            first.email = user.value.email ?? ''
+        }
         eventData.value =
             toPublicEvent(detail)
 

@@ -45,8 +45,9 @@
 								</span>
 								<span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-300 px-3 py-1 text-[11px] font-bold text-emerald-950">
 									<IconBase name="check-circle" class="h-3.5 w-3.5" />
-									Awarded
+									{{ stateCopy.badge }}
 								</span>
+								<span v-if="isPrivate" class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold text-white/90">Private</span>
 							</div>
 
 							<h2 class="mt-4 text-2xl font-black tracking-tight sm:text-3xl">
@@ -54,7 +55,7 @@
 							</h2>
 
 							<p class="mt-2 max-w-2xl text-sm leading-6 text-white/70">
-								Your organizer and package are confirmed. Registration tools are ready below.
+								{{ stateCopy.text }}
 							</p>
 						</div>
 
@@ -153,14 +154,20 @@
 						</div>
 					</div>
 
-					<div v-if="eventData.quotation.inclusions?.length" class="mt-5 border-t border-gray-100 pt-5">
+					<div v-if="receipt.items.length" class="mt-5 border-t border-gray-100 pt-5">
 						<p class="text-xs font-bold uppercase tracking-[0.12em] text-gray-400">What's included</p>
-						<div class="mt-3 grid gap-2 sm:grid-cols-2">
-							<div v-for="item in eventData.quotation.inclusions" :key="item.id"
-								class="flex items-start gap-2 rounded-xl bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-700">
-								<IconBase name="check-circle" class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-								{{ item.description }}
+						<div class="mt-3 overflow-hidden rounded-xl border border-gray-100 text-sm">
+							<div v-for="(line, i) in receipt.items" :key="i" class="flex items-start justify-between gap-3 border-b border-gray-100 px-3 py-2">
+								<span class="min-w-0 text-gray-700">{{ line.label }}</span>
+								<span class="shrink-0 font-semibold tabular-nums text-gray-900">{{ formatCurrency(line.amount) }}</span>
 							</div>
+							<template v-if="receipt.charges.length">
+								<div class="flex justify-between gap-3 border-b border-gray-100 bg-gray-50/60 px-3 py-2 text-gray-600"><span>Subtotal</span><span class="tabular-nums">{{ formatCurrency(receipt.subtotal) }}</span></div>
+								<div v-for="(c, i) in receipt.charges" :key="`c${i}`" class="flex justify-between gap-3 border-b border-gray-100 px-3 py-2 text-gray-600">
+									<span>{{ c.label }} <span class="text-gray-400">({{ c.percent }}%)</span></span><span class="tabular-nums">{{ formatCurrency(c.amount) }}</span>
+								</div>
+							</template>
+							<div class="flex justify-between gap-3 bg-gray-50 px-3 py-2.5 font-extrabold text-gray-950"><span>Total</span><span class="tabular-nums">{{ formatCurrency(eventData.quotation.quotation_amount) }}</span></div>
 						</div>
 					</div>
 				</section>
@@ -170,15 +177,17 @@
 			<ClientReviewPanel v-if="eventData.event?.id && eventData.event.status === 'completed' && eventData.organizer"
 				:event-id="String(eventData.event.id)" :organizer="eventData.organizer.company_name || eventData.organizer.name || 'your organizer'" />
 
-			<div class="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+			<div v-if="showRegistrationSection" class="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
 				<div class="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
 					<div>
 						<h3 class="text-lg font-bold text-gray-900">
-							Registration &amp; Tickets
+							{{ isPrivate ? 'Guests & tickets' : 'Registration &amp; Tickets' }}
 						</h3>
 
 						<p class="mt-1 text-sm text-gray-500">
-							Share the registration form with attendees and manage generated tickets.
+							{{ isPrivate
+								? (registrationAvailable ? 'Your organizer invites your guests. Share this private link with people who should get a ticket themselves.' : 'Your organizer invites your guests; each gets a QR invite.')
+								: 'Share the registration form with attendees and manage generated tickets.' }}
 						</p>
 					</div>
 					<div v-if="registrationAvailable"
@@ -245,7 +254,7 @@
 					</div>
 				</div>
 
-				<div v-if="!registrationAvailable" class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+				<div v-if="!registrationAvailable && !isPrivate" class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
 					<div class="flex items-start gap-3">
 						<IconBase name="alert-circle" class="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
 
@@ -985,6 +994,35 @@ const publicRegistrationToken =
 			null,
 	)
 
+// Private events: their link key (from the event payload) opens the ticket page.
+const linkKey = ref<string | null>(null)
+const visibility = ref<string>('public')
+const isPrivate = computed(() => visibility.value === 'private')
+const isOver = computed(() => ['completed', 'cancelled'].includes(String(eventData.value?.event.status ?? '')))
+// After the event the section only matters if the client holds tickets.
+const showRegistrationSection = computed(() => !isOver.value || eventTickets.value.length > 0)
+const stateCopy = computed(() => ({
+	draft: { badge: 'Confirmed', text: 'Your organizer and package are confirmed. Your organizer is setting up the event.' },
+	published: { badge: 'Confirmed', text: 'Your organizer and package are confirmed. Everything for the day is below.' },
+	ongoing: { badge: 'Happening now', text: 'Your event is live. Enjoy it!' },
+	completed: { badge: 'Completed', text: 'Your event is done. Tell others how your organizer did below.' },
+	cancelled: { badge: 'Cancelled', text: 'This event was cancelled.' },
+} as Record<string, { badge: string, text: string }>)[String(eventData.value?.event.status ?? 'published')] ?? { badge: 'Confirmed', text: '' })
+// The accepted offer as a receipt: items, then service charge / VAT on the subtotal.
+const receipt = computed(() => {
+	const lines = (eventData.value?.quotation.inclusions ?? []) as Array<{ description: string, quantity?: number, amount?: number }>
+	const charge = /^(Service charge|VAT) \((\d+(?:\.\d+)?)%\)$/
+	const items = lines.filter(l => !charge.test(l.description)).map(l => ({
+		label: `${l.description}${l.quantity && l.quantity !== 1 ? ` × ${l.quantity.toLocaleString('en-PH')}` : ''}`,
+		amount: l.amount ?? 0,
+	}))
+	const charges = lines.flatMap((l) => {
+		const m = l.description.match(charge)
+		return m ? [{ label: m[1]!, percent: m[2]!, amount: l.amount ?? 0 }] : []
+	})
+	return { items, charges, subtotal: items.reduce((sum, l) => sum + l.amount, 0) }
+})
+
 const publicRegistrationPath =
 	computed<string | null>(() => {
 		if (!publicRegistrationToken.value) {
@@ -993,7 +1031,7 @@ const publicRegistrationPath =
 
 		return `/event-registration/${encodeURIComponent(
 			publicRegistrationToken.value,
-		)}`
+		)}${linkKey.value ? `?key=${encodeURIComponent(linkKey.value)}` : ''}`
 	})
 
 const publicRegistrationUrl =
@@ -1417,14 +1455,17 @@ async function loadEventDetails() {
 			return
 		}
 
+		const privateKey = event.visibility === 'private' ? ((event as { private_link_key?: string | null }).private_link_key ?? null) : null
 		const [quotes, publicEvent] = await Promise.all([
 			event.inquiry_id ? useClientQuotations().forInquiry(event.inquiry_id).catch(() => []) : Promise.resolve([]),
-			event.visibility === 'public' && ['published', 'ongoing'].includes(event.status)
-				? usePublicEvents().show(event.id).catch(() => null)
+			['published', 'ongoing'].includes(event.status) && (event.visibility === 'public' || privateKey)
+				? usePublicEvents().show(event.id, privateKey).catch(() => null)
 				: Promise.resolve(null),
 		])
 		const accepted = quotes.find(q => q.status === 'accepted')
 		const tiers = publicEvent?.tiers ?? []
+		linkKey.value = privateKey
+		visibility.value = event.visibility
 
 		eventData.value = {
 			event: {
@@ -1462,7 +1503,9 @@ async function loadEventDetails() {
 				quotation_details: accepted?.proposal ?? null,
 				inclusions: (accepted?.items ?? []).map((item, i) => ({
 					id: i,
-					description: `${item.description}${Number(item.quantity) !== 1 ? ` × ${item.quantity}` : ''} — ${formatCurrency(item.subtotal ?? Number(item.quantity) * Number(item.unit_price))}`,
+					description: item.description,
+					quantity: Number(item.quantity),
+					amount: Number(item.subtotal ?? Number(item.quantity) * Number(item.unit_price)),
 				})),
 			},
 			organizer: event.organizer

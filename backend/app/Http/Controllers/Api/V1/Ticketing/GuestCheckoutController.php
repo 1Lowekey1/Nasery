@@ -61,7 +61,7 @@ class GuestCheckoutController extends Controller
 
         return ApiResponse::created($result, $result['checkout']
             ? 'Places reserved. Continue to payment.'
-            : 'You\'re registered. The tickets are on their way by e-mail.');
+            : ($user ? 'You\'re registered. Your tickets are in My Tickets.' : 'You\'re registered. The tickets are on their way by e-mail.'));
     }
 
     public function show(Request $request, string $registration): JsonResponse

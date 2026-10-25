@@ -293,7 +293,12 @@ async function loadEvents() {
 		if (!org) throw new Error('Set up your organizer workspace first.')
 		orgId = org.id
 		const list = await allItems(page => useOrganizerEvents().list(orgId, [], page))
-		events.value = list.map(e => ({ id: e.id as unknown as number, name: e.name, status: e.status }))
+		// Live first, then upcoming (soonest), then finished (most recent); drafts aren't live.
+		const rank = (status: string) => ({ ongoing: 0, published: 1, completed: 2, cancelled: 3 } as Record<string, number>)[status] ?? 4
+		const at = (e: { starts_at?: string | null }) => (e.starts_at ? new Date(e.starts_at).getTime() : 0)
+		events.value = list.filter(e => e.status !== 'draft')
+			.sort((a, b) => rank(a.status) - rank(b.status) || (rank(a.status) === 2 || rank(a.status) === 3 ? at(b) - at(a) : at(a) - at(b)))
+			.map(e => ({ id: e.id as unknown as number, name: e.name, status: e.status }))
 		if (!events.value.length) {
 			isLoading.value = false
 			return
@@ -320,7 +325,7 @@ async function loadEventData() {
 		summary.value = {
 			total_registered: data.expected,
 			checked_in: data.checked_in,
-			walk_ins: data.walk_ins,
+			walk_ins: data.walk_ins + (data.door_sales ?? 0),
 			capacity,
 			capacity_percent: capacity ? Math.round((data.arrived / capacity) * 100) : 0,
 		}

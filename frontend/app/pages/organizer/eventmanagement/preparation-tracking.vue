@@ -127,7 +127,7 @@
 								<span class="pt-avatar h-9 w-9 text-xs">{{ initials(memberName(member)) }}</span>
 								<div class="min-w-0 flex-1">
 									<p class="truncate text-sm font-semibold text-gray-950">{{ memberName(member) }}</p>
-									<p class="truncate text-xs text-gray-500">{{ member.position || 'Team member' }}</p>
+									<p class="truncate text-xs text-gray-500">{{ memberRole(member) }}</p>
 								</div>
 								<span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-gray-600" :title="`${openFor(member)} open tasks`">{{ openFor(member) }} open</span>
 							</li>
@@ -572,7 +572,12 @@ const visibleTasks = computed(() => checklist.value.filter((i) => {
 	if (taskFilter.value === 'review') return needsReview(i)
 	return true
 }))
-const assigneeOptions = computed(() => [{ value: null, label: 'Unassigned' }, ...teamMembers.value.map(m => ({ value: m.id, label: `${memberName(m)}${m.position ? ` · ${m.position}` : ''}` }))])
+// Their event position, else their role in the organization (as in the "Add team member" list).
+function memberRole(m: { position?: string | null }) {
+	const orgId = (m as unknown as { organization_member_id?: string }).organization_member_id
+	return m.position || orgMembers.value.find(o => o.id === orgId)?.role || 'Team member'
+}
+const assigneeOptions = computed(() => [{ value: null, label: 'Unassigned' }, ...teamMembers.value.map(m => ({ value: m.id, label: `${memberName(m)} · ${memberRole(m)}` }))])
 function openFor(member: TeamMember) { return checklist.value.filter(i => !i.is_completed && i.assigned_team_member_id === member.id).length }
 function initials(name: string) { const w = name.split(/\s+/).filter(Boolean); return ((w[0]?.[0] ?? '') + (w.length > 1 ? w[w.length - 1]?.[0] ?? '' : '')).toUpperCase() || '?' }
 async function quickAdd() {

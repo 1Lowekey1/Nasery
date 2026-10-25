@@ -279,7 +279,7 @@
                             </span>
 
                             <span v-else>
-                                Find the guest by name or e-mail (for a phone that won't scan).
+                                Find the guest by name, e-mail or ticket ID (for a phone that won't scan).
                             </span>
                         </p>
                     </div>
@@ -295,9 +295,27 @@
                         {{ manualEntryError }}
                     </div>
 
-                    <FormsLabel text="Guest name or e-mail" required />
+                    <FormsLabel text="Name, e-mail or ticket ID" required />
 
-                    <FormsTextField v-model="manualTicketId" placeholder="e.g. Bea Santos or bea@example.com" />
+                    <FormsTextField v-model="manualTicketId" placeholder="e.g. Bea Santos, bea@example.com or 3B8D41D8A6" />
+
+                    <p v-if="manualSearching" class="mt-3 text-xs text-gray-400">Searching…</p>
+                    <p v-else-if="manualTicketId.trim().length >= 2 && !manualMatches.length" class="mt-3 text-xs text-gray-500">No ticket on this event matches “{{ manualTicketId.trim() }}”.</p>
+                    <ul v-else-if="manualMatches.length" class="mt-3 divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+                        <li v-for="g in manualMatches" :key="g.ticket_id">
+                            <button type="button" class="flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition hover:bg-gray-50 disabled:opacity-50"
+                                :disabled="isManualCheckingIn || g.status === 'cancelled'" @click="checkInMatch(g)">
+                                <span class="min-w-0">
+                                    <span class="block truncate text-sm font-bold text-gray-900">{{ g.name }}</span>
+                                    <span class="block truncate text-xs text-gray-500">{{ g.tier }} · {{ shortTicketId(g.ticket_id) }}</span>
+                                </span>
+                                <span class="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
+                                    :class="g.status === 'cancelled' ? 'bg-red-50 text-red-600' : g.last_checked_in_at ? 'bg-gray-100 text-gray-600' : 'bg-[#285F6b] text-white'">
+                                    {{ g.status === 'cancelled' ? 'Cancelled' : g.last_checked_in_at ? 'Already in' : 'Check in' }}
+                                </span>
+                            </button>
+                        </li>
+                    </ul>
                 </div>
 
                 <div class="border-t border-gray-200 px-6 py-4">
@@ -640,7 +658,7 @@ async function refreshTopSummary() {
         ticketingSummary.value = {
             total_registered: data.expected,
             checked_in: data.checked_in,
-            walk_ins: data.walk_ins,
+            walk_ins: data.walk_ins + (data.door_sales ?? 0),
             capacity,
             capacity_percent: capacity ? Math.round((data.arrived / capacity) * 100) : 0,
         }
@@ -945,12 +963,44 @@ function closeManualEntry() {
         ''
 }
 
-/** Manual entry: find the guest by name or e-mail, then check in the one match. */
+// Manual entry: matches appear as you type (name, e-mail or the ticket ID printed on
+// the ticket); tap one to check them in. The button checks in a single match.
+type DoorMatch = { ticket_id: string, name: string, tier: string, status: string, last_checked_in_at: string | null }
+const manualMatches = ref<DoorMatch[]>([])
+const manualSearching = ref(false)
+const shortTicketId = (id: string) => id.replace(/-/g, '').slice(-10).toUpperCase()
+let manualTimer: ReturnType<typeof setTimeout> | undefined
+watch(manualTicketId, (value) => {
+    clearTimeout(manualTimer)
+    const query = value.trim()
+    if (query.length < 2 || !eventId.value) { manualMatches.value = []; manualSearching.value = false; return }
+    manualSearching.value = true
+    manualTimer = setTimeout(async () => {
+        try {
+            const results = await checkInApi.search(await orgIdOf(), eventKey(), query)
+            if (manualTicketId.value.trim() === query) manualMatches.value = results as DoorMatch[]
+        } catch { manualMatches.value = [] } finally { manualSearching.value = false }
+    }, 250)
+})
+async function checkInMatch(g: DoorMatch) {
+    isManualCheckingIn.value = true
+    manualEntryError.value = ''
+    try {
+        await showOutcome(await checkInApi.manual(await orgIdOf(), eventKey(), g.ticket_id))
+        showManualEntry.value = false
+        manualTicketId.value = ''
+    } catch (error: unknown) {
+        manualEntryError.value = authMessage(error) || 'Unable to check in this guest.'
+    } finally {
+        isManualCheckingIn.value = false
+    }
+}
+
 async function submitManualCheckIn() {
     if (!eventId.value) return
     const query = manualTicketId.value.trim()
     if (query.length < 2) {
-        manualEntryError.value = 'Type the guest\'s name or e-mail.'
+        manualEntryError.value = 'Type the guest\'s name, e-mail or ticket ID.'
         return
     }
     isManualCheckingIn.value = true
@@ -959,11 +1009,11 @@ async function submitManualCheckIn() {
         const orgId = await orgIdOf()
         const matches = (await checkInApi.search(orgId, eventKey(), query)).filter(g => g.status !== 'cancelled')
         if (!matches.length) {
-            manualEntryError.value = 'No ticket for that name or e-mail on this event.'
+            manualEntryError.value = 'No ticket on this event matches that.'
             return
         }
         if (matches.length > 1) {
-            manualEntryError.value = `${matches.length} guests match: ${matches.slice(0, 3).map(g => g.name).join(', ')}. Type the full name or e-mail.`
+            manualEntryError.value = `${matches.length} guests match. Tap the right one in the list.`
             return
         }
         await showOutcome(await checkInApi.manual(orgId, eventKey(), matches[0]!.ticket_id))

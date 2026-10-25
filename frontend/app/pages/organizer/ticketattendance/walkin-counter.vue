@@ -690,7 +690,7 @@ async function refreshTopSummary() {
         ticketingSummary.value = {
             total_registered: data.expected,
             checked_in: data.checked_in,
-            walk_ins: data.walk_ins,
+            walk_ins: data.walk_ins + (data.door_sales ?? 0),
             capacity,
             capacity_percent: capacity ? Math.round((data.arrived / capacity) * 100) : 0,
         }
