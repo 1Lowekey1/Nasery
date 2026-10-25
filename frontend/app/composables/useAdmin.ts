@@ -168,6 +168,7 @@ export interface AdminEvent {
   name: string
   status: string
   visibility: 'public' | 'private'
+  event_type: string | null
   organizer: { id: string, name: string }
   venue: string | null
   starts_at: string | null

@@ -125,7 +125,7 @@ export interface AdminClientDetail extends AdminClientSummary {
 export interface AdminPlatformEvent {
     id: number
     name: string
-    event_type: string
+    event_type: string | null
     organizer: string
     organizer_id: number
     client: string
@@ -363,7 +363,7 @@ export const superAdminService = {
             data: items.map(e => ({
                 id: asId(e.id),
                 name: e.name,
-                event_type: e.visibility === 'public' ? 'Public event' : 'Private event',
+                event_type: e.event_type ?? null,
                 organizer: e.organizer.name,
                 organizer_id: asId(e.organizer.id),
                 client: e.visibility === 'public' ? 'Public' : 'Private client',

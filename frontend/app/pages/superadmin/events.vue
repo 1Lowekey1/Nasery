@@ -37,10 +37,11 @@
 
 			<div class="sa-rise rounded-3xl border border-gray-200 bg-white p-6" style="--d: 240ms">
 				<h2 class="text-lg font-extrabold tracking-tight text-gray-950">Events by Type</h2>
-				<p class="mt-0.5 text-sm text-gray-500">What kinds of events are being planned</p>
-				<ClientOnly>
+				<p class="mt-0.5 text-sm text-gray-500">Every event on NaSeRy, private ones included (counts only)</p>
+				<ClientOnly v-if="eventTypes.length">
 					<apexchart type="bar" height="260" :options="typeChartOptions" :series="typeChartSeries" />
 				</ClientOnly>
+				<p v-else class="py-16 text-center text-sm text-gray-400">No events with a type yet.</p>
 			</div>
 		</div>
 
@@ -190,7 +191,7 @@
 
 <script setup lang="ts">
 import type { ApexOptions } from 'apexcharts'
-import { superAdminService, type AdminPlatformEvent } from '~/services/superAdminService'
+import { superAdminService, type AdminEventTag, type AdminPlatformEvent } from '~/services/superAdminService'
 
 definePageMeta({
 	layout: 'superadmin',
@@ -296,27 +297,23 @@ const valueChartOptions = computed<ApexOptions>(() => ({
 	states: { hover: { filter: { type: 'none' } } },
 }))
 
-const eventTypes = computed(() => {
-	const counts = new Map<string, number>()
-
-	for (const event of allEvents.value) {
-		const type = event.event_type || 'Other'
-		counts.set(type, (counts.get(type) ?? 0) + 1)
-	}
-
-	return [...counts.entries()].sort((a, b) => b[1] - a[1])
-})
+// Counts by NaSeRy event type (Wedding, Corporate, Birthday...) across ALL events. The list
+// below only holds public and NaSeRy Access events, so the counts come from the Event Tags
+// totals instead: numbers only, nothing about a private event itself.
+const typeTotals = ref<AdminEventTag[]>([])
+const eventTypes = computed(() =>
+	typeTotals.value.filter(t => (t.events ?? 0) > 0).map(t => [t.name, t.events ?? 0] as [string, number]).sort((a, b) => b[1] - a[1]))
 
 const typeChartSeries = computed(() => [{ name: 'Events', data: eventTypes.value.map(([, count]) => count) }])
 
 const typeChartOptions = computed<ApexOptions>(() => ({
 	chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
 	colors: [CHART_COLORS.soft],
-	plotOptions: { bar: { columnWidth: '46%', borderRadius: 6, borderRadiusApplication: 'end' } },
+	plotOptions: { bar: { horizontal: true, barHeight: '60%', borderRadius: 4, borderRadiusApplication: 'end' } },
 	dataLabels: { enabled: false },
 	grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
-	xaxis: { categories: eventTypes.value.map(([type]) => type), labels: { style: chartText }, axisBorder: { show: false }, axisTicks: { show: false } },
-	yaxis: { labels: { style: { colors: '#9ca3af', fontSize: '11px' }, formatter: (value: number) => String(Math.round(value)) }, forceNiceScale: true },
+	xaxis: { categories: eventTypes.value.map(([type]) => type), labels: { style: { colors: '#9ca3af', fontSize: '11px' }, formatter: (value: string) => String(Math.round(Number(value))) }, axisBorder: { show: false }, axisTicks: { show: false } },
+	yaxis: { labels: { style: chartText, maxWidth: 140 } },
 	tooltip: { y: { formatter: (value: number) => `${value} event${value === 1 ? '' : 's'}` } },
 }))
 
@@ -463,6 +460,7 @@ watch(statusFilter, () => {
 })
 
 onMounted(async () => {
+	superAdminService.getEventTags(token.value).then(r => { typeTotals.value = r.data }).catch(() => {})
 	await loadEvents()
 	allEvents.value = [...events.value]
 })

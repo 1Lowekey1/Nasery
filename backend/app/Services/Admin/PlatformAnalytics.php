@@ -209,12 +209,13 @@ class PlatformAnalytics
                 ->groupBy('rg.event_id')->selectRaw('rg.event_id, sum(p.amount) as sales');
             $rows = DB::table('events as e')->join('organizations as o', 'o.id', '=', 'e.organization_id')
                 ->leftJoinSub($firstSession, 's', 's.event_id', '=', 'e.id')->leftJoinSub($sold, 't', 't.event_id', '=', 'e.id')->leftJoinSub($sales, 'ps', 'ps.event_id', '=', 'e.id')
+                ->leftJoin('event_types as et', 'et.id', '=', 'e.event_type_id')
                 ->whereNull('e.deleted_at')
                 ->where(fn ($q) => $q->where(fn ($p) => $p->where('e.visibility', 'public')->whereNot('e.status', 'draft'))->orWhereIn('e.organization_id', $grantedOrgIds))
                 ->when($status, fn ($q) => $q->where('e.status', $status))
                 ->when($search, fn ($q) => $q->where(fn ($w) => $w->where('e.name', 'ilike', '%'.addcslashes($search, '%_\\').'%')->orWhere('o.display_name', 'ilike', '%'.addcslashes($search, '%_\\').'%')))
                 ->orderByRaw('s.starts_at desc nulls last')->limit(200)
-                ->get(['e.id', 'e.name', 'e.status', 'e.visibility', 'e.overall_capacity', 'e.venue_name', 'o.id as org_id', 'o.display_name', 's.starts_at', 's.ends_at', 't.sold', 'ps.sales']);
+                ->get(['e.id', 'e.name', 'e.status', 'e.visibility', 'e.overall_capacity', 'e.venue_name', 'o.id as org_id', 'o.display_name', 's.starts_at', 's.ends_at', 't.sold', 'ps.sales', 'et.name as event_type']);
 
             return [
                 'counts' => $this->totals()['events'],
@@ -223,6 +224,7 @@ class PlatformAnalytics
                     'name' => $e->name,
                     'status' => $e->status,
                     'visibility' => $e->visibility,
+                    'event_type' => $e->event_type, // Wedding, Corporate, Birthday... (null when not set)
                     'organizer' => ['id' => $e->org_id, 'name' => $e->display_name],
                     'venue' => $e->venue_name,
                     'starts_at' => $e->starts_at ? CarbonImmutable::parse($e->starts_at)->toIso8601String() : null,
