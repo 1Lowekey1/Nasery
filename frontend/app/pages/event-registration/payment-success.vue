@@ -4,7 +4,7 @@
 
         <div class="relative mx-auto max-w-2xl">
             <NuxtLink to="/" class="mb-8 flex w-fit items-center gap-3" aria-label="NaSeRy home">
-                <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#285F6b] font-bold text-white shadow-lg shadow-primary-900/20 ring-1 ring-black/5">N</div>
+                <BrandMark class="h-11 w-11" />
                 <div><p class="font-bold text-slate-900">NaSeRy</p><p class="text-xs text-slate-500">Secure event payment</p></div>
             </NuxtLink>
 

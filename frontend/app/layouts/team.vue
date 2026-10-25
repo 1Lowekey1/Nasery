@@ -2,7 +2,7 @@
   <div class="flex h-dvh overflow-clip bg-gray-50">
     <aside class="shrink-0 overflow-hidden border-r border-gray-200 bg-white transition-all duration-200" :class="asideClass">
       <div class="flex h-full w-64 flex-col overflow-y-auto">
-        <div class="flex items-center gap-2.5 px-5 py-5"><div class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-700 text-sm font-bold text-white">N</div><div><div class="text-base font-bold leading-tight text-gray-900">NaSeRy</div><div class="text-[11px] text-gray-400">Event Management System</div></div></div>
+        <div class="flex items-center gap-2.5 px-5 py-5"><BrandMark class="h-9 w-9 text-sm" /><div><div class="text-base font-bold leading-tight text-gray-900">NaSeRy</div><div class="text-[11px] text-gray-400">Event Management System</div></div></div>
         <div class="px-5 pb-3"><span class="inline-flex items-center gap-1.5 rounded-md bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700"><span class="h-1.5 w-1.5 rounded-full bg-primary-600" />Team Member Portal</span></div>
         <nav class="flex-1 space-y-1 px-3" aria-label="Team member menu">
           <NuxtLink v-for="item in nav" :key="item.to" :to="item.to" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold"

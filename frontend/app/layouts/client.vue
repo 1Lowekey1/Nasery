@@ -6,10 +6,7 @@
 			:class="asideClass">
 			<div class="flex h-full w-64 flex-col overflow-y-auto">
 				<div class="flex items-center gap-2.5 px-5 py-5">
-					<div
-						class="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-700 text-sm font-bold text-white">
-						N
-					</div>
+					<BrandMark class="h-9 w-9 text-sm" />
 					<div>
 						<div class="text-base font-bold leading-tight text-gray-900">
 							NaSeRy

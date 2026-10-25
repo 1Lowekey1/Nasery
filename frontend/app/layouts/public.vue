@@ -41,7 +41,7 @@ async function signOut() {
     <header class="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85" style="padding-top: env(safe-area-inset-top, 0px)">
       <nav aria-label="Main navigation" class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-8 sm:py-4">
         <NuxtLink to="/" aria-label="NaSeRy home" class="flex shrink-0 items-center gap-2.5">
-          <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-700 text-xl font-bold text-white">N</span>
+          <BrandMark class="h-10 w-10 text-xl" />
           <span class="text-xl font-extrabold tracking-tight">NaSeRy<span class="text-primary-600">.</span></span>
         </NuxtLink>
 

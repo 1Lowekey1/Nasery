@@ -38,7 +38,7 @@
 <body>
 <div class="foot">NaSeRy · {{ $r['event']['name'] }} · generated {{ \Carbon\CarbonImmutable::parse($r['generated_at'])->format('M j, Y g:i A') }}@if (! empty($share['version'])) · shared version {{ $share['version'] }}@endif</div>
 
-<div class="brand">NaSeRy <span class="muted" style="font-weight:normal;font-size:8pt">· Post-event attendance report</span></div>
+<div class="brand">@include('pdf.partials.logo')NaSeRy <span class="muted" style="font-weight:normal;font-size:8pt">· Post-event attendance report</span></div>
 <h1>{{ $r['event']['name'] }}</h1>
 <div class="muted">by {{ $r['event']['organizer'] }}@if ($r['event']['venue']) · {{ $r['event']['venue'] }}@endif</div>
 @foreach ($r['event']['sessions'] as $s)

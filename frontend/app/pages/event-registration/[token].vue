@@ -7,10 +7,7 @@
         <header class="relative z-10 border-b border-white/10 bg-[#173d45]/40 text-white backdrop-blur-xl">
             <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
                 <NuxtLink to="/" class="flex items-center gap-3" aria-label="NaSeRy home">
-                    <div
-                        class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sm font-black text-[#285F6b] shadow-lg shadow-black/10">
-                        N
-                    </div>
+                    <BrandMark tile class="h-11 w-11 !rounded-2xl text-sm shadow-lg shadow-black/10" />
 
                     <div>
                         <p class="font-extrabold tracking-tight text-white">

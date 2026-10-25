@@ -17,7 +17,7 @@ const authQuery = computed(() => {
 				style="background-image: radial-gradient(rgba(255,255,255,0.12) 1.5px, transparent 1.5px); background-size: 22px 22px;" />
 
 			<div class="relative z-10 flex items-center gap-3.5">
-				<div class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-xl font-bold">N</div>
+				<BrandMark tile class="h-11 w-11 text-xl" />
 				<div>
 					<div class="text-xl font-bold leading-tight xl:text-2xl">NaSeRy</div>
 					<div class="text-[11px] tracking-[0.12em] text-white/60">EVENT MANAGEMENT</div>

@@ -18,9 +18,7 @@
 					<div class="flex items-center gap-3">
 						<div class="relative flex h-12 w-12 shrink-0 items-center justify-center">
 							<span class="absolute inset-0 animate-ping rounded-2xl bg-primary-500/30" style="animation-duration: 2.4s;" />
-							<span class="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-primary-800 text-lg font-black text-white shadow-lg shadow-primary-900/40">
-								N
-							</span>
+							<BrandMark tile class="relative h-12 w-12 !rounded-2xl text-lg shadow-lg shadow-primary-900/40" />
 						</div>
 						<div>
 							<div class="text-lg font-bold leading-tight text-white">NaSeRy</div>

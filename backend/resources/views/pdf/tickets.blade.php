@@ -26,7 +26,7 @@
 <body>
 @foreach ($cards as $card)
 <div class="page">
-    <div class="brand">NaSeRy <small>· Ticket</small></div>
+    <div class="brand">@include('pdf.partials.logo', ['size' => '16pt'])NaSeRy <small>· Ticket</small></div>
     <div class="event">{{ $card['event'] }}</div>
     <div class="muted">by {{ $card['organizer'] }}</div>
     <div class="tier">{{ $card['tier'] }}@if ($card['zone']) · {{ $card['zone'] }}@endif</div>
