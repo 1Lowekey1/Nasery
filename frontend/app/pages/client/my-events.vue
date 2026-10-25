@@ -464,6 +464,7 @@
 </template>
 
 <script setup lang="ts">
+import type { ClientEvent } from '~/composables/useEvents'
 interface ClientInquiry {
 	id: number
 	awarded_quotation?: { organizer_id: number } | null
@@ -482,6 +483,9 @@ interface ClientInquiry {
 	| 'cancelled'
 	awarded_quotation_id: number | null
 	quotations_count: number
+	// Once the organizer set up the event: its own status (date above follows the event).
+	event_status?: string | null
+	reviewed?: boolean
 	created_at: string
 	updated_at: string
 }
@@ -674,6 +678,8 @@ function eventDay(dateStr: string): string {
 }
 
 function eventStatusLabel(event: ClientInquiry): string {
+	if (event.event_status === 'completed') return 'Completed'
+	if (event.event_status === 'ongoing') return 'Happening now'
 	if (event.status === 'awarded') return 'Confirmed'
 	if (event.status === 'cancelled') return 'Cancelled'
 	if (event.quotations_count > 0) return 'Offers ready'
@@ -688,6 +694,8 @@ function eventStatusClass(event: ClientInquiry): string {
 }
 
 function eventProgressCopy(event: ClientInquiry): string {
+	if (event.event_status === 'completed') return event.reviewed ? 'Event done. Thanks for your review' : 'Event done. Rate your organizer'
+	if (event.event_status === 'ongoing') return 'Your event is live'
 	if (event.status === 'awarded') return 'Organizer selected — continue planning'
 	if (event.status === 'cancelled') return 'This inquiry has been cancelled'
 	if (event.quotations_count > 0) return `${event.quotations_count} organizer offer${event.quotations_count === 1 ? '' : 's'} ready to compare`
@@ -1087,14 +1095,9 @@ async function loadQuotations() {
 }
 
 // Reviews open once an awarded event's date has passed.
+// Reviews open when the organizer marks the event completed (not by date: events move).
 function canRateOrganizer(event: ClientInquiry): boolean {
-	if (event.status !== 'awarded' || !event.event_date) return false
-
-	const day = new Date(event.event_date.includes('T') ? event.event_date : `${event.event_date}T00:00:00`)
-	const today = new Date()
-	today.setHours(0, 0, 0, 0)
-
-	return day.getTime() < today.getTime()
+	return event.status === 'awarded' && event.event_status === 'completed' && !event.reviewed
 }
 
 async function rateOrganizer(event: ClientInquiry) {
@@ -1186,7 +1189,15 @@ async function loadClientInquiries() {
 	errorMessage.value = ''
 	isLoading.value = true
 	try {
-		const inquiries = await allItems(page => useInquiries().list(page))
+		const [inquiries, events] = await Promise.all([
+			allItems(page => useInquiries().list(page)),
+			useClientEvents().list().catch(() => [] as ClientEvent[]),
+		])
+		const eventByInquiry = new Map(events.filter(e => e.inquiry_id).map(e => [String(e.inquiry_id), e]))
+		// Completed events: has the client reviewed the organizer yet?
+		const completed = events.filter(e => e.status === 'completed')
+		const reviewStates = await Promise.all(completed.map(e => useReviews().mine(e.id).catch(() => null)))
+		const reviewedEvents = new Set(completed.filter((_, k) => reviewStates[k]?.review).map(e => e.id))
 		const quotes = await Promise.all(inquiries.map(i => ['draft', 'cancelled'].includes(i.status)
 			? Promise.resolve([] as ApiClientQuotation[])
 			: useClientQuotations().forInquiry(i.id).catch(() => [] as ApiClientQuotation[])))
@@ -1194,6 +1205,9 @@ async function loadClientInquiries() {
 		clientEvents.value = inquiries.map((i, index) => {
 			const list = quotes[index] ?? []
 			const accepted = list.find(q => q.status === 'accepted')
+			const event = eventByInquiry.get(String(i.id))
+			// The event's own date once it exists (the organizer may have moved it).
+			const eventDay = event?.starts_at ? new Intl.DateTimeFormat('en-CA', { timeZone: event.timezone || 'Asia/Manila' }).format(new Date(event.starts_at)) : null
 			const status = i.status === 'cancelled' ? 'cancelled'
 				: ['accepted', 'converted_to_event'].includes(i.status) ? 'awarded'
 					: list.length ? 'receiving_quotations' : 'open'
@@ -1202,7 +1216,7 @@ async function loadClientInquiries() {
 				client_id: 0,
 				event_title: i.event_type ? `${i.event_type}${i.guest_count ? ` · ${i.guest_count} guests` : ''}` : 'Event inquiry',
 				event_type: i.event_type ?? 'Other',
-				event_date: i.requested_date ?? '',
+				event_date: eventDay ?? i.requested_date ?? '',
 				location: i.location_text ?? '',
 				expected_guests: i.guest_count ?? 0,
 				budget_range: [peso(i.budget_min), peso(i.budget_max)].filter(Boolean).join(' – ') || 'Open budget',
@@ -1210,6 +1224,8 @@ async function loadClientInquiries() {
 				status,
 				awarded_quotation_id: (accepted?.id ?? null) as unknown as number | null,
 				quotations_count: list.filter(q => q.status !== 'draft').length,
+				event_status: event?.status ?? null,
+				reviewed: event ? reviewedEvents.has(event.id) : false,
 				created_at: i.created_at,
 				updated_at: i.created_at,
 			} as ClientInquiry

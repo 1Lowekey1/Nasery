@@ -54,9 +54,9 @@
 						</div>
 					</div>
 					<div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-						<div v-if="daysAway !== null" class="text-center">
-							<div class="text-3xl font-extrabold tabular-nums">{{ daysAway }}</div>
-							<div class="text-xs text-white/70">{{ daysAway === 1 ? 'Day away' : 'Days away' }}</div>
+						<div v-if="countdown" class="text-center">
+							<div class="text-3xl font-extrabold tabular-nums">{{ countdown.value }}</div>
+							<div class="text-xs text-white/70">{{ countdown.label }}</div>
 						</div>
 						<div class="border-white/20 text-left sm:border-l sm:pl-6 sm:text-right">
 							<div class="text-xs text-white/70">Organizer</div>
@@ -136,10 +136,17 @@ const venue = computed(() => [event.value?.venue_name, event.value?.venue_addres
 const eventDate = computed(() => event.value?.starts_at
 	? new Date(event.value.starts_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: event.value.timezone })
 	: 'Date to be set')
-const daysAway = computed(() => {
-	if (!event.value?.starts_at) return null
-	const days = Math.ceil((new Date(event.value.starts_at).getTime() - Date.now()) / 86400000)
-	return days >= 0 ? days : null
+// Calendar days, not 24-hour blocks: an event later today is "Today", not "1 day away".
+const countdown = computed(() => {
+	const e = event.value
+	if (!e?.starts_at || ['completed', 'cancelled'].includes(e.status)) return null
+	if (e.status === 'ongoing') return { value: 'Live', label: 'Happening now' }
+	const start = new Date(e.starts_at)
+	const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+	const days = Math.round((midnight(start) - midnight(new Date())) / 86400000)
+	if (days < 0) return null
+	if (days === 0) return { value: 'Today', label: `at ${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` }
+	return { value: String(days), label: days === 1 ? 'Day away' : 'Days away' }
 })
 const readiness = computed(() => Math.round(progress.value?.readiness_percent ?? 0))
 const stageIndex = computed(() => (progress.value?.stage ? progress.value.stages.indexOf(progress.value.stage) : -1))

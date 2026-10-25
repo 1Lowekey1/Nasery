@@ -170,7 +170,9 @@ class EventActivities
             'tag' => $a->tag,
             'person' => $a->person,
             'status' => $a->status,
-            'activity_at' => $a->activity_at ? CarbonImmutable::parse($a->activity_at)->toIso8601String() : CarbonImmutable::parse($a->created_at)->toIso8601String(),
+            // No time chosen stays "no time" (the client sees "Time TBA" too).
+            'activity_at' => $a->activity_at ? CarbonImmutable::parse($a->activity_at)->toIso8601String() : null,
+            'created_at' => CarbonImmutable::parse($a->created_at)->toIso8601String(),
             'visible_to_client' => (bool) $a->visible_to_client,
             'source' => 'organizer',
             'editable' => true,

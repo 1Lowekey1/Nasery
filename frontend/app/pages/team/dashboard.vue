@@ -5,14 +5,14 @@
             <h1 class="mt-1 text-2xl font-extrabold text-gray-900">Hi there, {{ firstName }} 👋</h1>
             <p class="mt-1 text-gray-500">View your assigned event tasks and update your progress.</p>
         </div>
-        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            <div v-for="card in stats" :key="card.label" class="rounded-2xl border border-gray-200 bg-white p-5">
+        <div class="grid grid-cols-2 gap-2.5 sm:gap-5 xl:grid-cols-4">
+            <div v-for="card in stats" :key="card.label" class="rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-5">
                 <div class="flex items-start justify-between">
                     <div>
-                        <p class="text-sm text-gray-500">{{ card.label }}</p>
-                        <p class="mt-4 text-3xl font-extrabold text-gray-900">{{ card.value }}</p>
+                        <p class="text-xs text-gray-500 sm:text-sm">{{ card.label }}</p>
+                        <p class="mt-1 text-xl font-extrabold text-gray-900 sm:mt-4 sm:text-3xl">{{ card.value }}</p>
                     </div>
-                    <div class="flex h-10 w-10 items-center justify-center rounded-xl" :class="card.iconClass">
+                    <div class="hidden h-10 w-10 items-center justify-center rounded-xl sm:flex" :class="card.iconClass">
                         <IconBase :name="card.icon" class="h-5 w-5" />
                     </div>
                 </div>
@@ -60,7 +60,7 @@
                                 </div>
                                 <p v-if="task.review_status === 'changes_requested'"
                                     class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">The
-                                    organizer requested changes<template v-if="task.review_note">: “{{ task.review_note }}”</template>. Update the work and submit it again.</p>
+                                    organizer requested changes<template v-if="task.review_note">: “{{ task.review_note.replace(/[.!?]+$/, '') }}”</template>. Update the work and submit it again.</p>
                                 <div v-if="!task.is_completed" class="mt-3 flex flex-col gap-2 sm:flex-row"><input
                                         v-model="notes[task.id]"
                                         class="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-primary-500"
@@ -90,7 +90,17 @@ definePageMeta({ layout: 'team', middleware: ['team'] })
 const { firstName } = useAuth('team_member')
 const tasks = ref<Task[]>([]), loading = ref(true), errorMessage = ref(''), completingId = ref<string | null>(null), notes = reactive<Record<string, string>>({})
 const orgId = ref<string | null>(null)
-const groupedTasks = computed(() => Object.values(tasks.value.reduce<Record<string, { event: Task['event']; tasks: Task[] }>>((groups, task) => { (groups[task.event.id] ??= { event: task.event, tasks: [] }).tasks.push(task); return groups }, {})))
+// Soonest event first; past events after upcoming ones (most recent first).
+const groupedTasks = computed(() => {
+  const groups = Object.values(tasks.value.reduce<Record<string, { event: Task['event']; tasks: Task[] }>>((acc, task) => { (acc[task.event.id] ??= { event: task.event, tasks: [] }).tasks.push(task); return acc }, {}))
+  const today = new Date().toISOString().slice(0, 10)
+  const day = (g: { event: Task['event'] }) => g.event.event_date ?? '9999-12-31'
+  return groups.sort((a, b) => {
+    const pastA = day(a) < today, pastB = day(b) < today
+    if (pastA !== pastB) return pastA ? 1 : -1
+    return pastA ? day(b).localeCompare(day(a)) : day(a).localeCompare(day(b))
+  })
+})
 const stats = computed(() => [{ label: 'Assigned Tasks', value: tasks.value.length, icon: 'clipboard-list', iconClass: 'bg-gray-100 text-gray-500' }, { label: 'Assigned Events', value: groupedTasks.value.length, icon: 'calendar', iconClass: 'bg-blue-50 text-blue-600' }, { label: 'Ready to Work', value: tasks.value.filter(t => !t.is_completed).length, icon: 'clock', iconClass: 'bg-amber-50 text-amber-600' }, { label: 'Completed', value: tasks.value.filter(t => t.is_completed).length, icon: 'check-circle', iconClass: 'bg-green-50 text-green-600' }])
 async function load() {
   loading.value = true

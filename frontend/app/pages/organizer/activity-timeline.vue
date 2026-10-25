@@ -142,7 +142,7 @@
 												<p class="text-sm font-medium text-gray-700">{{ activity.title }}</p>
 												<p v-if="activity.description" class="mt-0.5 line-clamp-2 text-xs text-gray-500">{{ activity.description }}</p>
 											</div>
-											<span class="shrink-0 text-xs tabular-nums text-gray-400">{{ timeOf(activity.activity_at) }}</span>
+											<span class="shrink-0 text-xs tabular-nums text-gray-400">{{ activity.activity_at ? timeOf(activity.activity_at) : 'Time TBA' }}</span>
 										</div>
 										<div class="mt-2 flex flex-wrap items-center gap-1.5">
 											<span class="at-chip"><IconBase name="clock" class="h-3 w-3" />Recorded by NaSeRy</span>
@@ -156,7 +156,7 @@
 												<p class="text-sm font-semibold text-gray-950" :class="activity.status === 'completed' ? 'text-gray-600' : ''">{{ activity.title }}</p>
 												<p v-if="activity.description" class="mt-1 line-clamp-2 text-sm text-gray-500">{{ activity.description }}</p>
 											</div>
-											<span class="shrink-0 text-xs tabular-nums text-gray-400">{{ timeOf(activity.activity_at) }}</span>
+											<span class="shrink-0 text-xs tabular-nums text-gray-400">{{ activity.activity_at ? timeOf(activity.activity_at) : 'Time TBA' }}</span>
 										</div>
 										<div class="mt-3 flex flex-wrap items-center gap-1.5">
 											<span class="at-chip"><span class="at-node-mini" :class="miniClass(activity.status)" />{{ formatActivityStatus(activity.status) }}</span>
