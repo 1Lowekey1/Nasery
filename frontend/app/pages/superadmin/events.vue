@@ -242,21 +242,10 @@ function percentOf(count: number) {
 }
 
 // One teal palette for every chart: strong = active, deep = finished, soft = in progress, muted = inactive.
-const CHART_COLORS = { strong: '#285F6b', deep: '#103f4d', soft: '#7bacb2', muted: '#cdd9dc' }
+// Colors: utils/chartColors.ts
+const CHART_COLORS = { strong: CHART.brand, soft: CHART.brand }
+const statusColor = eventStatusColor
 
-function statusColor(status: string) {
-	switch (status) {
-		case 'published':
-		case 'ongoing':
-			return CHART_COLORS.strong
-		case 'completed':
-			return CHART_COLORS.deep
-		case 'cancelled':
-			return CHART_COLORS.muted
-		default:
-			return CHART_COLORS.soft
-	}
-}
 
 const chartText = { colors: '#6b7280', fontSize: '12px', fontWeight: 600 }
 
@@ -391,7 +380,7 @@ function ticketRingSeries(event: AdminPlatformEvent): number[] {
 
 const ticketRingOptions: ApexOptions = {
 	chart: { type: 'donut', sparkline: { enabled: true }, animations: { speed: 700 } },
-	colors: [CHART_COLORS.strong, '#e3eaec'],
+	colors: [CHART.brand, CHART.track],
 	labels: ['Sold', 'Available'],
 	dataLabels: { enabled: false },
 	stroke: { width: 0 },

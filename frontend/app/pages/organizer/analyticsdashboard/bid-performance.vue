@@ -117,7 +117,7 @@ const chartSeries = computed(() => [
 
 const chartOptions = computed<ApexOptions>(() => ({
 	chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit' },
-	colors: ['#285F6b', '#d97706'],
+	colors: [CHART.blue, CHART.orange],
 	plotOptions: {
 		bar: {
 			columnWidth: '55%',

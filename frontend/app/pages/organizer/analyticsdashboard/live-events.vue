@@ -77,7 +77,7 @@
 								<span class="font-semibold text-gray-500">{{ summary.checked_in }} / {{ summary.total_registered }}</span>
 							</div>
 							<div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
-								<div class="le-bar h-full rounded-full bg-[#285F6b]" :style="{ width: checkinProgress + '%' }" />
+								<div class="le-bar h-full rounded-full bg-[#2a78d6]" :style="{ width: checkinProgress + '%' }" />
 							</div>
 						</div>
 
@@ -87,7 +87,7 @@
 								<span class="font-semibold text-gray-500">{{ summary.total_registered }} / {{ summary.capacity }}</span>
 							</div>
 							<div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
-								<div class="le-bar h-full rounded-full bg-[#9dbfc6]" :style="{ width: Math.max(summary.capacity_percent, summary.total_registered ? 1.5 : 0) + '%' }" />
+								<div class="le-bar h-full rounded-full bg-[#eb6834]" :style="{ width: Math.max(summary.capacity_percent, summary.total_registered ? 1.5 : 0) + '%' }" />
 							</div>
 						</div>
 
@@ -203,7 +203,7 @@ const gaugeSeries = computed(() => [checkinProgress.value, summary.value.capacit
 const gaugeOptions = computed<ApexOptions>(() => ({
 	chart: { type: 'radialBar', fontFamily: 'inherit' },
 	labels: ['Check-in', 'Capacity'],
-	colors: ['#285F6b', '#9dbfc6'],
+	colors: [CHART.blue, CHART.orange],
 	stroke: { lineCap: 'round' },
 	plotOptions: {
 		radialBar: {

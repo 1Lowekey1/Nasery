@@ -112,7 +112,7 @@
 							class="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600">{{ tag }}</span>
 					</div>
 				</section>
-				<section id="past-events" aria-labelledby="work-heading" class="scroll-mt-6">
+				<section id="past-events" aria-labelledby="work-heading" class="scroll-mt-24">
 					<div class="mb-5 flex items-center justify-between gap-3">
 						<h2 id="work-heading" class="text-xl font-bold">Past events & portfolio</h2>
 						<span class="text-sm text-gray-500">
@@ -195,7 +195,7 @@
 						class="mt-4 inline-flex min-h-10 items-center text-sm font-semibold text-primary-700" @click="moreReviews">Show more reviews</button>
 				</section>
 			</div>
-			<aside class="rounded-2xl border border-primary-100 bg-primary-50 p-7 lg:sticky lg:top-6">
+			<aside class="rounded-2xl border border-primary-100 bg-primary-50 p-7 lg:sticky lg:top-24">
 				<p class="text-xs font-bold uppercase tracking-widest text-primary-700">
 					Your next occasion
 				</p>

@@ -128,11 +128,11 @@ const recentActivity = ref<AnalyticsActivity[]>([])
 const mounted = ref(false)
 const focused = ref('')
 
-// Fixed colours per category (brand teal, amber, neutral grey). Every slice is also labelled in the rows below.
+// Fixed colours per category (shared chart palette, utils/chartColors.ts; grey = passed). Every slice is also labelled in the rows below.
 const categoryMeta: Record<string, { color: string, description: string, order: number }> = {
-	'Bid Submitted': { color: '#285F6b', description: 'You sent a quotation', order: 0 },
-	Received: { color: '#c97f1f', description: 'Waiting for your reply', order: 1 },
-	Ignored: { color: '#7d8796', description: 'Passed or let expire', order: 2 },
+	'Bid Submitted': { color: CHART.blue, description: 'You sent a quotation', order: 0 },
+	Received: { color: CHART.orange, description: 'Waiting for your reply', order: 1 },
+	Ignored: { color: CHART.grey, description: 'Passed or let expire', order: 2 },
 }
 
 // Status keeps a small coloured dot plus a text label; icons stay neutral.

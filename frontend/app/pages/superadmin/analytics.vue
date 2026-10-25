@@ -39,11 +39,11 @@
 						<h2 class="text-lg font-extrabold tracking-tight text-gray-950">Platform Growth</h2>
 						<div class="flex items-center gap-3 text-xs font-semibold text-gray-500">
 							<span class="flex items-center gap-1.5">
-								<span class="h-2.5 w-2.5 rounded-full" style="background-color: #285F6b" />
+								<span class="h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: CHART.blue }" />
 								Organizers
 							</span>
 							<span class="flex items-center gap-1.5">
-								<span class="h-2.5 w-2.5 rounded-full" style="background-color: #7bacb2" />
+								<span class="h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: CHART.orange }" />
 								Clients
 							</span>
 						</div>
@@ -143,7 +143,8 @@ const acceptedQuotations = computed(() =>
 
 // One teal palette for every chart. Same meaning everywhere:
 // strong = active / positive, deep = finished, soft = in progress, muted = inactive / lost.
-const CHART_COLORS = { strong: '#285F6b', deep: '#103f4d', soft: '#7bacb2', muted: '#cdd9dc' }
+// Colors: utils/chartColors.ts (one palette for every chart; status colors from there too).
+const CHART_COLORS = { strong: CHART.brand }
 
 const chartLabelStyle = { colors: '#9ca3af', fontSize: '12px', fontWeight: 600 }
 
@@ -182,7 +183,7 @@ const growthChartSeries = computed(() => [
 
 const growthChartOptions = computed<ApexOptions>(() => ({
 	chart: { type: 'line', toolbar: { show: false }, fontFamily: 'inherit', zoom: { enabled: false } },
-	colors: [CHART_COLORS.strong, CHART_COLORS.soft],
+	colors: [CHART.blue, CHART.orange],
 	dataLabels: { enabled: false },
 	stroke: { curve: 'smooth', width: [2.5, 2.5], dashArray: [0, 5] },
 	legend: { show: false },
@@ -288,31 +289,7 @@ function formatCompactCurrency(amount: number) {
 	return `₱${amount}`
 }
 
-function eventStatusColor(status: string) {
-	switch (status) {
-		case 'published':
-		case 'ongoing':
-			return CHART_COLORS.strong
-		case 'completed':
-			return CHART_COLORS.deep
-		case 'cancelled':
-			return CHART_COLORS.muted
-		default:
-			return CHART_COLORS.soft
-	}
-}
 
-function quotationStatusColor(status: string) {
-	switch (status) {
-		case 'accepted':
-			return CHART_COLORS.strong
-		case 'rejected':
-		case 'withdrawn':
-			return CHART_COLORS.muted
-		default:
-			return CHART_COLORS.soft
-	}
-}
 
 onMounted(() => {
 	loadAnalytics()

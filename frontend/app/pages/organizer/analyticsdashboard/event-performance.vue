@@ -117,7 +117,7 @@ const chartSeries = computed(() => [
 
 const chartOptions = computed<ApexOptions>(() => ({
 	chart: { type: 'line', toolbar: { show: false }, fontFamily: 'inherit' },
-	colors: ['#285F6b', '#d97706'],
+	colors: [CHART.blue, CHART.orange],
 	stroke: { curve: 'smooth', width: 2.5 },
 	markers: { size: 4, strokeWidth: 2, strokeColors: '#fff', hover: { size: 6 } },
 	dataLabels: { enabled: false },

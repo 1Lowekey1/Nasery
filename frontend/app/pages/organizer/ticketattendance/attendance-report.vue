@@ -143,15 +143,15 @@
 
                         <div class="mt-2 grid grid-cols-3 gap-2">
                             <div class="rounded-2xl bg-gray-50 p-3">
-                                <p class="flex items-center gap-2 text-xs font-bold text-gray-500"><span class="h-2 w-2 rounded-full bg-[#285F6b]" />Online</p>
+                                <p class="flex items-center gap-2 text-xs font-bold text-gray-500"><span class="h-2 w-2 rounded-full bg-[#2a78d6]" />Online</p>
                                 <p class="mt-1 text-xl font-extrabold text-gray-950">{{ onlineCount }} <span class="text-xs font-semibold text-gray-400">{{ onlinePercent }}%</span></p>
                             </div>
                             <div class="rounded-2xl bg-gray-50 p-3">
-                                <p class="flex items-center gap-2 text-xs font-bold text-gray-500"><span class="h-2 w-2 rounded-full bg-[#5f9aa6]" />Added by you</p>
+                                <p class="flex items-center gap-2 text-xs font-bold text-gray-500"><span class="h-2 w-2 rounded-full bg-[#eb6834]" />Added by you</p>
                                 <p class="mt-1 text-xl font-extrabold text-gray-950">{{ addedCount }} <span class="text-xs font-semibold text-gray-400">{{ totalRegistered ? Math.round(addedCount / totalRegistered * 100) : 0 }}%</span></p>
                             </div>
                             <div class="rounded-2xl bg-gray-50 p-3">
-                                <p class="flex items-center gap-2 text-xs font-bold text-gray-500"><span class="h-2 w-2 rounded-full bg-[#9dbfc6]" />Walk-ins</p>
+                                <p class="flex items-center gap-2 text-xs font-bold text-gray-500"><span class="h-2 w-2 rounded-full bg-[#1baf7a]" />Walk-ins</p>
                                 <p class="mt-1 text-xl font-extrabold text-gray-950">{{ walkInCount }} <span class="text-xs font-semibold text-gray-400">{{ walkInPercent }}%</span></p>
                             </div>
                         </div>
@@ -626,7 +626,8 @@ const byTicketType =
         },
     )
 
-const COLORS = { primary: '#285F6b', soft: '#9dbfc6', track: '#e5eaec' }
+// Colors: utils/chartColors.ts
+const COLORS = { primary: CHART.blue, soft: CHART.aqua, track: CHART.track }
 
 const statCards = computed(() => [
     { label: 'Total Registered', value: totalRegistered.value, hint: 'Issued attendee tickets', icon: 'users' },
@@ -682,7 +683,7 @@ const typeOptions = computed<ApexOptions>(() => ({
 const sourceOptions = computed<ApexOptions>(() => ({
     chart: { type: 'donut', fontFamily: 'inherit' },
     labels: ['Online', 'Added by you', 'Walk-ins'],
-    colors: [COLORS.primary, '#5f9aa6', COLORS.soft],
+    colors: [CHART.blue, CHART.orange, CHART.aqua],
     dataLabels: { enabled: false },
     stroke: { width: 3, colors: ['#fff'] },
     legend: { show: false },

@@ -218,7 +218,8 @@ const earnings = ref<Earnings | null>(null)
 const isLoading = ref(false)
 const errorMessage = ref('')
 
-const COLORS = { share: '#285F6b', fee: '#d97706', refunded: '#9ca3af', sales: '#a9c9cd' }
+// Colors: utils/chartColors.ts. Your share is blue everywhere; fee orange; refunds grey.
+const COLORS = { share: CHART.blue, fee: CHART.orange, refunded: CHART.grey, sales: CHART.aqua }
 
 function formatMoney(value: number) {
 	return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', minimumFractionDigits: 2 }).format(value)
