@@ -135,16 +135,20 @@
                             How attendees registered
                         </p>
 
-                        <ClientOnly v-if="onlineCount + walkInCount > 0">
-                            <DeferredChart type="donut" :height="250" :options="sourceOptions" :series="[onlineCount, walkInCount]" />
+                        <ClientOnly v-if="onlineCount + addedCount + walkInCount > 0">
+                            <DeferredChart type="donut" :height="250" :options="sourceOptions" :series="[onlineCount, addedCount, walkInCount]" />
                         </ClientOnly>
 
                         <p v-else class="py-16 text-center text-sm text-gray-400">No registrations yet.</p>
 
-                        <div class="mt-2 grid grid-cols-2 gap-3">
+                        <div class="mt-2 grid grid-cols-3 gap-2">
                             <div class="rounded-2xl bg-gray-50 p-3">
                                 <p class="flex items-center gap-2 text-xs font-bold text-gray-500"><span class="h-2 w-2 rounded-full bg-[#285F6b]" />Online</p>
                                 <p class="mt-1 text-xl font-extrabold text-gray-950">{{ onlineCount }} <span class="text-xs font-semibold text-gray-400">{{ onlinePercent }}%</span></p>
+                            </div>
+                            <div class="rounded-2xl bg-gray-50 p-3">
+                                <p class="flex items-center gap-2 text-xs font-bold text-gray-500"><span class="h-2 w-2 rounded-full bg-[#5f9aa6]" />Added by you</p>
+                                <p class="mt-1 text-xl font-extrabold text-gray-950">{{ addedCount }} <span class="text-xs font-semibold text-gray-400">{{ totalRegistered ? Math.round(addedCount / totalRegistered * 100) : 0 }}%</span></p>
                             </div>
                             <div class="rounded-2xl bg-gray-50 p-3">
                                 <p class="flex items-center gap-2 text-xs font-bold text-gray-500"><span class="h-2 w-2 rounded-full bg-[#9dbfc6]" />Walk-ins</p>
@@ -254,7 +258,7 @@
                                                 attendee.status ===
                                                     'checked_in'
                                                     ? 'Checked-in'
-                                                    : 'Registered'
+                                                    : 'Not arrived'
                                             }}
                                         </span>
                                     </td>
@@ -474,6 +478,9 @@ const onlineCount =
         ).length,
     )
 
+// Guests the organizer registered or imported (invites, guest lists).
+const addedCount = computed(() => attendees.value.filter(attendee => attendee.source === 'organizer').length)
+
 const walkInCount =
     computed(() =>
         attendees.value.filter(
@@ -674,8 +681,8 @@ const typeOptions = computed<ApexOptions>(() => ({
 
 const sourceOptions = computed<ApexOptions>(() => ({
     chart: { type: 'donut', fontFamily: 'inherit' },
-    labels: ['Online', 'Walk-ins'],
-    colors: [COLORS.primary, COLORS.soft],
+    labels: ['Online', 'Added by you', 'Walk-ins'],
+    colors: [COLORS.primary, '#5f9aa6', COLORS.soft],
     dataLabels: { enabled: false },
     stroke: { width: 3, colors: ['#fff'] },
     legend: { show: false },
@@ -687,7 +694,7 @@ const sourceOptions = computed<ApexOptions>(() => ({
                     show: true,
                     name: { fontSize: '12px', fontWeight: 700, color: '#6b7280' },
                     value: { fontSize: '26px', fontWeight: 800, color: '#111827' },
-                    total: { show: true, label: 'Registered', color: '#6b7280', fontSize: '12px', fontWeight: 700, formatter: () => String(onlineCount.value + walkInCount.value) },
+                    total: { show: true, label: 'Registered', color: '#6b7280', fontSize: '12px', fontWeight: 700, formatter: () => String(onlineCount.value + addedCount.value + walkInCount.value) },
                 },
             },
         },
@@ -700,7 +707,7 @@ const statusFilter = ref<'all' | 'checked_in' | 'registered'>('all')
 const statusOptions = computed(() => [
     { label: 'All', value: 'all' as const, count: attendees.value.length },
     { label: 'Checked-in', value: 'checked_in' as const, count: attendees.value.filter(a => a.status === 'checked_in').length },
-    { label: 'Registered', value: 'registered' as const, count: attendees.value.filter(a => a.status !== 'checked_in').length },
+    { label: 'Not arrived', value: 'registered' as const, count: attendees.value.filter(a => a.status !== 'checked_in').length },
 ])
 
 const filteredAttendees = computed(() => {
@@ -763,7 +770,7 @@ async function loadAttendanceReport() {
             source: g.source,
             payment_status: g.admission_type === 'paid' ? 'paid' : null,
             status: g.status === 'used' ? 'checked_in' : g.status === 'valid' ? 'registered' : 'rejected',
-            checked_in_at: null,
+            checked_in_at: (g as { checked_in_at?: string | null }).checked_in_at ?? null,
             created_at: g.issued_at ?? '',
         })) as unknown as typeof attendees.value
     } catch (error: unknown) {
@@ -790,6 +797,8 @@ function formatSource(
     ) {
         return 'Online'
     }
+
+    if (source === 'organizer') return 'Added by you'
 
     return source ||
         'Unknown'

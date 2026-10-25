@@ -53,7 +53,7 @@
 							<div class="flex items-center gap-2"><IconBase name="users" class="h-4 w-4 text-gray-400" /><dt class="sr-only">Expected guests</dt><dd class="font-semibold text-gray-900">{{ guestsOf(item) }} <span class="font-normal text-gray-500">guests</span></dd></div>
 							<div class="flex items-center gap-2"><IconBase name="clock" class="h-4 w-4 text-gray-400" /><dt class="sr-only">Time</dt><dd class="font-semibold text-gray-900">{{ timeRange(item) }}</dd></div>
 							<div v-if="item.quotation" class="flex min-w-0 items-center gap-2"><IconBase name="gift" class="h-4 w-4 text-gray-400" /><dt class="sr-only">Package</dt><dd class="truncate font-semibold text-gray-900">{{ item.quotation.package_name || 'Custom package' }}</dd></div>
-							<div v-if="item.quotation" class="flex items-center gap-2"><IconBase name="peso" class="h-4 w-4 text-gray-400" /><dt class="sr-only">{{ item.quotation.quotation_status === 'accepted' ? 'Agreed amount' : 'Offer amount' }}</dt><dd class="font-bold text-primary-700">{{ formatCurrency(item.quotation.quotation_amount) }}</dd></div>
+							<div v-if="item.quotation" class="flex items-center gap-2"><IconBase name="cash" class="h-4 w-4 text-gray-400" /><dt class="sr-only">{{ item.quotation.quotation_status === 'accepted' ? 'Agreed amount' : 'Offer amount' }}</dt><dd class="font-bold text-primary-700">{{ formatCurrency(item.quotation.quotation_amount) }}</dd></div>
 							<div v-if="item.quotation?.timeline" class="flex items-center gap-2"><IconBase name="calendar" class="h-4 w-4 text-gray-400" /><dt class="sr-only">Timeline</dt><dd class="text-gray-600">Timeline: <span class="font-semibold text-gray-900">{{ item.quotation.timeline }}</span></dd></div>
 						</dl>
 					</div>

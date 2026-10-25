@@ -27,7 +27,7 @@
 					</div>
 					<div class="flex flex-wrap items-center gap-2">
 						<span class="rounded-full px-3 py-1 text-xs font-bold" :class="event.status === 'published' ? 'bg-green-400/20 text-green-100 ring-1 ring-green-300/40' : 'bg-white/10 text-white/80 ring-1 ring-white/20'">{{ formatStatus(event.status) }}</span>
-						<button v-if="!isEditMode && event.id" type="button" class="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-primary-800 shadow-sm transition hover:bg-primary-25" @click="enterEditMode"><IconBase name="edit" class="h-4 w-4" /> Edit event</button>
+						<button v-if="!isEditMode && event.id && !isLocked" type="button" class="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-primary-800 shadow-sm transition hover:bg-primary-25" @click="enterEditMode"><IconBase name="edit" class="h-4 w-4" /> Edit event</button>
 					</div>
 				</div>
 			</section>
@@ -36,14 +36,14 @@
 			<section v-if="event && event.id && !isEditMode && canEditCover && showLifecycle" class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-6 py-4">
 				<div class="min-w-0">
 					<p class="text-sm font-bold text-gray-950">{{ event.status === 'ongoing' ? 'The event is live' : 'Event day' }}</p>
-					<p class="mt-0.5 text-sm text-gray-500">{{ event.status === 'ongoing' ? 'Mark it completed when it ends. The client can then leave a review.' : 'Start it when doors open (check-in opens 3 hours before the start time either way), and mark it completed when it ends.' }}</p>
+					<p class="mt-0.5 text-sm text-gray-500">{{ event.status === 'ongoing' ? 'Mark it completed when it ends. The client can then leave a review.' : hasStarted ? 'The start time has passed. Start it now, or mark it completed if it is over.' : 'Start it when doors open. Check-in opens 3 hours before the start time either way.' }}</p>
 					<p v-if="lifecycleError" class="mt-1 text-sm font-semibold text-red-600" role="alert">{{ lifecycleError }}</p>
 				</div>
 				<div class="flex shrink-0 flex-wrap gap-2">
 					<button v-if="event.status === 'published'" type="button" class="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-800 disabled:opacity-50" :disabled="lifecycleBusy" @click="runLifecycle('start')">
 						<span class="h-2 w-2 rounded-full bg-green-300" /> Start event
 					</button>
-					<button type="button" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50" :disabled="lifecycleBusy" @click="runLifecycle('complete')">
+					<button v-if="event.status === 'ongoing' || hasStarted" type="button" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50" :disabled="lifecycleBusy" @click="runLifecycle('complete')">
 						<IconBase name="check-circle" class="h-4 w-4" /> Mark completed
 					</button>
 				</div>
@@ -167,6 +167,11 @@
 									</div>
 								</div>
 
+								<p v-if="editForm.visibility === 'public'" class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+									<span>Shown publicly as <strong class="font-semibold">“{{ editForm.name || 'Untitled event' }}”</strong>. Check it doesn't include private details like the client's name.</span>
+									<button type="button" class="font-semibold text-primary-700 underline" @click="activeEditTab = 'Basic Info'">Change name</button>
+								</p>
+
 								<template v-if="editForm.visibility === 'private'">
 									<div class="space-y-1.5 rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
 										<p class="flex items-center gap-2 font-semibold text-gray-900"><IconBase name="users" class="h-4 w-4 text-primary-700" />Invite your guests</p>
@@ -258,39 +263,39 @@
 			<section class="ed-view rounded-2xl border border-gray-200 bg-white">
 				<div class="flex items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
 					<h3 class="text-base font-bold text-gray-950">Event details</h3>
-					<button type="button" class="ed-btn !h-9" @click="enterEditMode"><IconBase name="edit" class="h-4 w-4" /> Edit</button>
+					<button v-if="!isLocked" type="button" class="ed-btn !h-9" @click="enterEditMode"><IconBase name="edit" class="h-4 w-4" /> Edit</button>
 				</div>
 				<dl class="divide-y divide-gray-100">
 					<div v-for="(row, i) in viewRows" :key="row.label" class="ed-row grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto] items-start gap-3 px-4 py-3.5 xl:grid-cols-[190px_minmax(0,1fr)_auto] sm:gap-4 sm:px-6 sm:py-4" :style="{ '--i': i }">
 						<dt class="flex min-w-0 items-start gap-2.5 text-sm leading-6 text-gray-500"><IconBase :name="row.icon" class="mt-1 h-4 w-4 shrink-0 text-gray-400" /><span class="min-w-0 break-words">{{ row.label }}</span></dt>
 						<dd class="min-w-0 break-words text-sm font-semibold leading-6" :class="row.empty ? 'font-normal text-gray-400' : 'text-gray-950'">{{ row.value }}</dd>
-						<button type="button" class="tap-target -my-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary-700 transition hover:bg-primary-25" :aria-label="`${row.empty ? 'Add' : 'Edit'} ${row.label.toLowerCase()}`" @click="openSection(row.section)">{{ row.empty ? 'Add' : 'Edit' }}</button>
+						<button v-if="!isLocked" type="button" class="tap-target -my-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary-700 transition hover:bg-primary-25" :aria-label="`${row.empty ? 'Add' : 'Edit'} ${row.label.toLowerCase()}`" @click="openSection(row.section)">{{ row.empty ? 'Add' : 'Edit' }}</button>
 					</div>
 				</dl>
 				<div class="border-t border-gray-100 px-6 py-5">
 					<p class="text-sm text-gray-500">Description</p>
 					<p v-if="event.description" class="mt-1.5 whitespace-pre-line text-sm leading-6 text-gray-800">{{ event.description }}</p>
-					<p v-else class="mt-1.5 text-sm text-gray-400">No description yet. <button type="button" class="font-semibold text-primary-700 hover:underline" @click="enterEditMode">Add one</button></p>
+					<p v-else class="mt-1.5 text-sm text-gray-400">No description yet.<template v-if="!isLocked"> <button type="button" class="font-semibold text-primary-700 hover:underline" @click="enterEditMode">Add one</button></template></p>
 				</div>
 			</section>
 
 			<!-- Readiness + shortcuts -->
-			<aside class="space-y-4 lg:sticky lg:top-0" :class="setupLeft ? 'max-lg:order-first' : ''">
+			<aside class="space-y-4 lg:sticky lg:top-0" :class="setupLeft && !isLocked ? 'max-lg:order-first' : ''">
 				<section class="rounded-2xl border border-gray-200 bg-white p-5">
 					<div class="flex items-center gap-4">
 						<div class="relative h-20 w-20 shrink-0">
 							<svg viewBox="0 0 80 80" class="h-full w-full -rotate-90" aria-hidden="true">
 								<circle cx="40" cy="40" r="34" fill="none" stroke="#eef0f2" stroke-width="7" />
-								<circle cx="40" cy="40" r="34" fill="none" stroke="#285F6b" stroke-width="7" stroke-linecap="round" :stroke-dasharray="VIEW_RING" :stroke-dashoffset="VIEW_RING * (1 - (viewReady ? readiness : 0) / 100)" class="transition-[stroke-dashoffset] duration-1000 ease-out" />
+								<circle cx="40" cy="40" r="34" fill="none" stroke="#285F6b" stroke-width="7" stroke-linecap="round" :stroke-dasharray="VIEW_RING" :stroke-dashoffset="VIEW_RING * (1 - (viewReady ? ringPercent : 0) / 100)" class="transition-[stroke-dashoffset] duration-1000 ease-out" />
 							</svg>
-							<span class="absolute inset-0 flex items-center justify-center text-lg font-extrabold tabular-nums text-gray-950">{{ readiness }}%</span>
+							<span class="absolute inset-0 flex items-center justify-center text-lg font-extrabold tabular-nums text-gray-950">{{ ringPercent }}%</span>
 						</div>
 						<div>
-							<p class="text-sm font-bold text-gray-950">{{ setupLeft ? 'Set up this event' : 'Event readiness' }}</p>
-							<p class="mt-0.5 text-xs text-gray-500">{{ setupLeft ? `${setupLeft} ${setupLeft === 1 ? 'step' : 'steps'} left. Tap one to do it.` : 'All set up' }}</p>
+							<p class="text-sm font-bold text-gray-950">{{ isLocked ? (event.status === 'completed' ? 'Event completed' : 'Event cancelled') : setupLeft ? 'Set up this event' : 'Preparation' }}</p>
+							<p class="mt-0.5 text-xs text-gray-500">{{ isLocked ? 'It can no longer be changed.' : setupLeft ? `${setupLeft} ${setupLeft === 1 ? 'step' : 'steps'} left. Tap one to do it.` : 'Set up. The ring shows verified preparation tasks.' }}</p>
 						</div>
 					</div>
-					<ul class="-mx-2 mt-4 space-y-0.5">
+					<ul v-if="!isLocked" class="-mx-2 mt-4 space-y-0.5">
 						<li v-for="check in readinessChecks" :key="check.label">
 							<p v-if="check.done" class="flex items-center gap-2.5 px-2 py-1 text-sm text-gray-500">
 								<span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-600"><IconBase name="check" class="h-3 w-3" /></span>
@@ -1070,9 +1075,16 @@ async function cancelEdit() {
 // A request has a date but no time: the new event starts 9:00–17:00 on that day as a
 // placeholder. The server refuses a start in the past, so for a request dated today
 // (or earlier) it starts at the next full hour instead, for 4 hours.
-function placeholderSession(day: string) {
+function placeholderSession(day: string, requested?: { start: string, end: string } | null) {
 	const pad = (n: number) => String(n).padStart(2, '0')
 	const local = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+	// The client's own time, when they gave one and it hasn't passed (an end before the start runs past midnight).
+	if (requested) {
+		const start = new Date(`${day}T${requested.start}`)
+		let end = new Date(`${day}T${requested.end}`)
+		if (end <= start) end = new Date(end.getTime() + 24 * 3600 * 1000)
+		if (start.getTime() > Date.now() + 5 * 60 * 1000) return { startsAt: local(start), endsAt: local(end) }
+	}
 	const nine = new Date(`${day}T09:00`)
 	if (nine.getTime() > Date.now() + 30 * 60 * 1000) return { startsAt: `${day}T09:00`, endsAt: `${day}T17:00` }
 	const start = new Date()
@@ -1108,9 +1120,15 @@ async function editAwardedEvent() {
 	try {
 		const q = apiQuotation!
 		const day = q.inquiry?.requested_date ?? new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
-		const { startsAt, endsAt } = placeholderSession(day)
+		// The request form writes the client's event name and time as "Event: …" / "Time: HH:MM – HH:MM" lines.
+		const notes = q.inquiry?.id ? ((await useOrganizerInquiries().show(orgId, q.inquiry.id).catch(() => null))?.additional_requirements ?? '') : ''
+		const title = notes.match(/^Event: (.+)$/m)?.[1]?.trim()
+		const time = notes.match(/^Time: (\d{1,2}:\d{2}) [–-] (\d{1,2}:\d{2})$/m)
+		const { startsAt, endsAt } = placeholderSession(day, time ? { start: time[1]!.padStart(5, '0'), end: time[2]!.padStart(5, '0') } : null)
+		// Never the client's full name: event names can end up public (marketplace, portfolio).
+		const firstName = q.client?.name?.trim().split(/\s+/)[0]
 		const created = await useOrganizerEvents().convert(orgId, q.id, {
-			name: `${q.inquiry?.event_type ?? 'Event'}${q.client?.name ? ` for ${q.client.name}` : ''}`,
+			name: title || `${q.inquiry?.event_type ?? 'Event'}${firstName ? ` for ${firstName}` : ''}`,
 			event_type_id: q.inquiry?.event_type_id ?? null,
 			description: q.package_name,
 			overall_capacity: q.inquiry?.guest_count ?? null,
@@ -1499,6 +1517,20 @@ async function copyPrivateLink() {
 	linkCopied.value = true
 	setTimeout(() => { linkCopied.value = false }, 2000)
 }
+const isLocked = computed(() => ['completed', 'cancelled'].includes(String(event.value?.status ?? '')))
+const hasStarted = computed(() => {
+	const e = event.value
+	if (!e?.event_date) return false
+	const start = new Date(`${e.event_date}T${e.start_time || '00:00'}`).getTime()
+	return !Number.isNaN(start) && start <= Date.now()
+})
+// While setting up: share of setup steps done. Afterwards: verified preparation tasks.
+const ringPercent = computed(() => {
+	const checks = readinessChecks.value
+	if (setupLeft.value && checks.length) return Math.round(((checks.length - setupLeft.value) / checks.length) * 100)
+	const pct = (event.value as { readiness_percent?: number | null } | null)?.readiness_percent
+	return typeof pct === 'number' ? Math.round(pct) : 100
+})
 const setupLeft = computed(() => readinessChecks.value.filter(c => !c.done).length)
 async function openSection(section: string) {
 	if (!event.value) return

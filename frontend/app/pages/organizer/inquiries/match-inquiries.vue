@@ -400,7 +400,7 @@
 
 						<!-- With a breakdown the total comes from the lines (change them above to change it) -->
 						<div v-if="offerLines.length" class="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm font-extrabold text-gray-950">
-							<IconBase name="peso" class="h-4 w-4 text-gray-400" />{{ formatPeso(breakdown.total) }}
+							<IconBase name="cash" class="h-4 w-4 text-gray-400" />{{ formatPeso(breakdown.total) }}
 						</div>
 						<FormsTextField v-else v-model="offerForm.budget" icon="peso" placeholder="e.g. 240000" inputmode="decimal" :error="amountError" />
 

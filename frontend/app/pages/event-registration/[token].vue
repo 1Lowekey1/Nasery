@@ -1527,6 +1527,7 @@ const loadEvent = async () => {
         await fetchUser()
         const detail = (await api.get<PublicEventDetail>(`/public-events/${encodeURIComponent(token.value)}`, { query: linkKey.value ? { key: linkKey.value } : undefined })).data
         isPrivateEvent.value = !!detail.is_private
+        rememberEventKey(token.value, linkKey.value)
         eventData.value =
             toPublicEvent(detail)
 

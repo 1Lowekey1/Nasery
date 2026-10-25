@@ -3,6 +3,7 @@
 namespace App\Services\Ticketing;
 
 use App\Enums\AdmissionType;
+use Carbon\CarbonImmutable;
 use App\Enums\RegistrationSource;
 use App\Enums\RegistrationStatus;
 use App\Enums\TicketStatus;
@@ -155,8 +156,29 @@ class GuestList
      */
     public function list(Event $event, array $filters, int $page, int $perPage = 25): LengthAwarePaginator
     {
-        return $this->query($event, $filters)->paginate(perPage: $perPage, page: $page)
-            ->through(fn ($r) => $this->present($r));
+        $page = $this->query($event, $filters)->paginate(perPage: $perPage, page: $page);
+        $times = $this->checkInTimes($page->getCollection()->pluck('id')->all());
+
+        return $page->through(fn ($r) => $this->present($r, $times[$r->id] ?? null));
+    }
+
+    /**
+     * Latest check-in per ticket (the attendance report's "Check-in time"). Attendance
+     * rows are readable only with checkin.perform; the caller already holds attendee
+     * access to this event's list, so read just these tickets' times in system context.
+     *
+     * @param  list<string>  $ticketIds
+     * @return array<string, string>
+     */
+    private function checkInTimes(array $ticketIds): array
+    {
+        if ($ticketIds === []) {
+            return [];
+        }
+
+        return $this->db->system('tickets.checkin_times', fn () => DB::table('attendance_records')->whereIn('ticket_id', $ticketIds)
+            ->groupBy('ticket_id')->selectRaw('ticket_id, max(checked_in_at) as at')->pluck('at', 'ticket_id')
+            ->map(fn ($at) => CarbonImmutable::parse($at)->toIso8601String())->all());
     }
 
     /**
@@ -164,7 +186,10 @@ class GuestList
      */
     public function export(Event $event): Collection
     {
-        return $this->query($event, [])->limit(20000)->get()->map(fn ($r) => $this->present($r));
+        $rows = $this->query($event, [])->limit(20000)->get();
+        $times = $this->checkInTimes($rows->pluck('id')->all());
+
+        return $rows->map(fn ($r) => $this->present($r, $times[$r->id] ?? null));
     }
 
     /**
@@ -255,7 +280,7 @@ class GuestList
     /**
      * @return array<string, mixed>
      */
-    private function present(object $r): array
+    private function present(object $r, ?string $checkedInAt = null): array
     {
         return [
             'id' => $r->id,
@@ -268,6 +293,7 @@ class GuestList
             'admission_type' => $r->admission_type,
             'source' => $r->registration_source,
             'issued_at' => $r->issued_at,
+            'checked_in_at' => $checkedInAt,
             'cancellation_reason' => $r->cancellation_reason,
         ];
     }

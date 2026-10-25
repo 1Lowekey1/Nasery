@@ -3,5 +3,5 @@
 definePageMeta({ layout: false })
 // PayMongo's own page is "back" in the history, so go to the event's registration page instead.
 const route = useRoute()
-const back = () => navigateTo(typeof route.query.event === 'string' ? `/event-registration/${route.query.event}` : '/marketplace')
+const back = () => navigateTo(typeof route.query.event === 'string' ? registrationPath(route.query.event) : '/marketplace')
 </script>

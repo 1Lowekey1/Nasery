@@ -61,7 +61,7 @@
                         </div>
 
                         <div v-if="registrationToken" class="mt-8 border-t border-dashed border-slate-200 pt-6 text-center">
-                            <NuxtLink :to="`/event-registration/${registrationToken}`"
+                            <NuxtLink :to="registrationPath(registrationToken)"
                                 class="inline-flex items-center gap-1.5 rounded-full border border-primary-100 bg-primary-50/60 px-4 py-2 text-sm font-bold text-primary-700 transition hover:bg-primary-100">
                                 <IconBase name="arrow-left" class="h-3.5 w-3.5" />
                                 Return to Event Registration
