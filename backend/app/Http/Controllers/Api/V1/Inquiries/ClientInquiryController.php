@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Inquiries\InquiryRequest;
 use App\Http\Requests\Inquiries\SubmitInquiryRequest;
 use App\Models\Inquiry;
+use App\Models\InquiryInvitation;
 use App\Services\Inquiries\InquiryManager;
 use App\Services\Inquiries\InquiryMatcher;
 use App\Support\Database\DatabaseContext;
@@ -42,7 +43,8 @@ class ClientInquiryController extends Controller
             ->paginate(15);
 
         $types = $this->eventTypeNames($page->getCollection());
-        $page->getCollection()->transform(fn (Inquiry $i) => $this->summary($i, $types));
+        $directTo = $this->directTo($page->getCollection());
+        $page->getCollection()->transform(fn (Inquiry $i) => [...$this->summary($i, $types), 'direct_to' => $directTo[$i->id] ?? null]);
 
         return ApiResponse::success($page);
     }
@@ -117,6 +119,26 @@ class ClientInquiryController extends Controller
         $data = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
 
         return ApiResponse::success($this->detail($this->manager->cancel($inquiry, $data['reason'] ?? null)), 'Inquiry cancelled.');
+    }
+
+    /**
+     * Names of the organizers a direct request went to (the client's dashboard shows
+     * "Direct to …" instead of bidding language). Open postings get none.
+     *
+     * @return array<string, list<string>>
+     */
+    private function directTo($inquiries): array
+    {
+        $direct = $inquiries->filter(fn (Inquiry $i) => ! $i->isOpenPosting() && $i->status->value !== 'draft')->pluck('id');
+        if ($direct->isEmpty()) {
+            return [];
+        }
+        $invitations = InquiryInvitation::query()->whereIn('inquiry_id', $direct)->orderBy('created_at')->get(['inquiry_id', 'organization_id']);
+        $names = $invitations->isEmpty() ? collect() : $this->db->system('inquiry.invitee_names', fn () => DB::table('public_organization_profiles')
+            ->whereIn('organization_id', $invitations->pluck('organization_id')->unique())->pluck('display_name', 'organization_id'));
+
+        return $invitations->groupBy('inquiry_id')
+            ->map(fn ($rows) => $rows->map(fn ($r) => $names[$r->organization_id] ?? 'Organizer')->values()->all())->all();
     }
 
     /**

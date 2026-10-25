@@ -26,6 +26,8 @@ export interface ClientInquiry {
   id: string
   status: InquiryStatus
   via: 'direct' | 'open_posting' | null
+  /** Direct requests: the organizer(s) it went to (dashboard shows "Direct to …"). */
+  direct_to?: string[] | null
   event_type_id: string | null
   event_type: string | null
   requested_date: string | null

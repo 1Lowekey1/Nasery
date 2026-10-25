@@ -306,6 +306,7 @@
 							<div class="flex items-start justify-between gap-3">
 								<div class="min-w-0">
 									<h3 class="truncate text-lg font-extrabold tracking-tight text-gray-950">{{ event.event_title || `${event.event_type} Inquiry` }}</h3>
+									<p v-if="event.direct_to" class="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-bold text-primary-700"><IconBase name="send" class="h-3 w-3 shrink-0" /><span class="truncate">Direct to {{ directName(event) }}</span></p>
 									<p class="mt-1 flex items-start gap-1.5 text-xs leading-5 text-gray-500">
 										<IconBase name="map-pin" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-600" />
 										<span class="line-clamp-1">{{ event.location }}</span>
@@ -324,7 +325,7 @@
 								<span class="flex min-w-0 items-center gap-1.5 font-semibold text-gray-800">
 									<IconBase name="cash" class="h-4 w-4 shrink-0 text-primary-600" /><span class="truncate">{{ event.budget_range }}</span>
 								</span>
-								<span class="flex items-center gap-1.5 font-semibold text-gray-800">
+								<span v-if="!event.direct_to" class="flex items-center gap-1.5 font-semibold text-gray-800">
 									<IconBase name="file-text" class="h-4 w-4 text-primary-600" />{{ event.quotations_count }} offer{{ event.quotations_count === 1 ? '' : 's' }}
 								</span>
 							</div>
@@ -486,6 +487,8 @@ interface ClientInquiry {
 	// Once the organizer set up the event: its own status (date above follows the event).
 	event_status?: string | null
 	reviewed?: boolean
+	// A direct quotation request: who it went to (no bidding language for these, #11).
+	direct_to?: string[] | null
 	created_at: string
 	updated_at: string
 }
@@ -677,11 +680,17 @@ function eventDay(dateStr: string): string {
 	return date.toLocaleDateString('en-US', { day: '2-digit' })
 }
 
+function directName(event: ClientInquiry): string {
+	const names = event.direct_to ?? []
+	return names.length > 1 ? `${names[0]} +${names.length - 1}` : names[0] ?? 'your organizer'
+}
+
 function eventStatusLabel(event: ClientInquiry): string {
 	if (event.event_status === 'completed') return 'Completed'
 	if (event.event_status === 'ongoing') return 'Happening now'
 	if (event.status === 'awarded') return 'Confirmed'
 	if (event.status === 'cancelled') return 'Cancelled'
+	if (event.direct_to) return event.quotations_count > 0 ? 'Quote received' : 'Waiting for quote'
 	if (event.quotations_count > 0) return 'Offers ready'
 	return 'Awaiting offers'
 }
@@ -698,13 +707,14 @@ function eventProgressCopy(event: ClientInquiry): string {
 	if (event.event_status === 'ongoing') return 'Your event is live'
 	if (event.status === 'awarded') return 'Organizer selected — continue planning'
 	if (event.status === 'cancelled') return 'This inquiry has been cancelled'
+	if (event.direct_to) return event.quotations_count > 0 ? `${directName(event)} sent you a quote` : `Sent to ${directName(event)}. Waiting for their quote`
 	if (event.quotations_count > 0) return `${event.quotations_count} organizer offer${event.quotations_count === 1 ? '' : 's'} ready to compare`
 	return 'Shared with matching organizers'
 }
 
 function eventActionLabel(event: ClientInquiry): string {
 	if (event.status === 'awarded') return 'Open event'
-	if (event.quotations_count > 0) return 'Review offers'
+	if (event.quotations_count > 0) return event.direct_to ? 'Review quote' : 'Review offers'
 	return 'View status'
 }
 
@@ -1225,6 +1235,7 @@ async function loadClientInquiries() {
 				awarded_quotation_id: (accepted?.id ?? null) as unknown as number | null,
 				quotations_count: list.filter(q => q.status !== 'draft').length,
 				event_status: event?.status ?? null,
+				direct_to: i.via === 'direct' && i.direct_to?.length ? i.direct_to : null,
 				reviewed: event ? reviewedEvents.has(event.id) : false,
 				created_at: i.created_at,
 				updated_at: i.created_at,

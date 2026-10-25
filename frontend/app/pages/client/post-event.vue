@@ -197,7 +197,7 @@
 								<button type="button" class="rounded-lg bg-primary-700 px-2.5 py-1 font-semibold text-white disabled:opacity-50" :disabled="isLocating" @click="useMyLocation">
 									{{ isLocating ? 'Locating…' : form.latitude !== null ? 'Location pinned ✓' : 'Use my current location' }}
 								</button>
-								<span>so nearby organizers can find it.</span>
+								<span>{{ target ? 'so your organizer knows where it is.' : 'so nearby organizers can find it.' }}</span>
 							</div>
 							<div class="relative">
 								<IconBase name="map-pin"
@@ -235,8 +235,7 @@
 										Search by LocationIQ</div>
 								</div>
 							</div>
-							<p class="mt-1.5 text-xs text-gray-400">Select a result so nearby organizers can be matched
-								accurately.</p>
+							<p class="mt-1.5 text-xs text-gray-400">{{ target ? 'Select a result so your organizer sees the exact venue.' : 'Select a result so nearby organizers can be matched accurately.' }}</p>
 						</div>
 						<div class="border-t border-gray-100 pt-5">
 							<div class="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
@@ -333,7 +332,8 @@
 						class="w-full resize-y rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-sm leading-relaxed text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15" />
 				</section>
 
-				<section v-if="hasSelectedLocation"
+				<!-- A direct request goes to one organizer only: no "organizers near you" (#10) -->
+				<section v-if="hasSelectedLocation && !target"
 					class="pe-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8">
 					<div class="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
 						<div>
@@ -1212,6 +1212,7 @@ async function refreshNearbyOrganizers() {
 
 async function fetchNearbyOrganizers() {
 	if (
+		target.value ||
 		form.latitude === null ||
 		form.longitude === null
 	) {

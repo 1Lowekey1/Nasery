@@ -137,7 +137,7 @@ class PreparationTest extends TestCase
         // test is one transaction, so that row sorts first here; in production
         // each request is its own transaction and the order is chronological.
         $this->assertEqualsCanonicalizing([
-            'You sent your inquiry to organizers',
+            "You sent your request to {$org->display_name}", // a direct request names its organizer
             "You accepted {$org->display_name}'s quotation",
             "{$org->display_name} set up your event",
             'Stage reached: Planning',
