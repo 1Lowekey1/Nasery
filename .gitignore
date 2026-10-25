@@ -6,8 +6,6 @@
 .env.*
 !.env.example
 
-# Dependencies
-node_modules/
 
 # Local AI assistant files and the private context pack
 .claude/
