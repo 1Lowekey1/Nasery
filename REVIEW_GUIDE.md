@@ -71,18 +71,18 @@ As **maria**, for each event:
 
 Then, on either or both events:
 
-9. **Preparation Tracking**: the request panel is at the top (folded). Add tasks, **Add team member** → Ken, assign tasks to Ken; try the filters.
-10. **Activity Timeline**: add program items; switch some to **Client can see**. Things NaSeRy records itself are under **History**, greyed out, and don't count as progress. The ring shows preparation progress.
+9. **Preparation Tracking**: the stage bar is on top, the request panel below it (folded). Add tasks; add Ken to the team with one tap (**+ Ken Aquino**), or pick him straight from a task's assignee list (it adds him). **What's happened** at the bottom is the event's journey.
+10. **Event Program** (the run of show): **Add to program** with times (e.g. Guest arrival 5:00 PM); switch some to **Client can see**. "Person in charge" suggests your team.
 11. **Business Profile**, **Team**, **Price List** (optional look-through).
 
 As **ken**:
 12. My Tasks → complete a task with a note.
 
 As **maria**:
-13. Preparation Tracking → **Verify**, or **Request changes** (the note goes to Ken).
+13. Preparation Tracking → **Verify**, or **Request changes** (the note goes to Ken). Note: Ken is a Coordinator, whose finished tasks verify themselves; assign one to Aira to see the review step.
 
 As **enzo**:
-14. **Preparation Tracking** (readiness, stage, milestones) and **Activity Timeline** (only items marked Client can see) for both events.
+14. **Event Journey**: stage bar, **Coming up** (only program items marked Client can see) and **What's happened**, for both events.
 15. Event Marketplace: **A** is listed, **B** is not. Opening B's page without the private link says it isn't open to the public.
 
 ## 3. Guests get in
@@ -103,7 +103,7 @@ As **maria**:
 2. Ticketing & Attendance → **Walk-in Counter** (A: sell at the door), **Attendance Report**, **Payments** (A).
 
 As **ken** (door):
-3. **QR Check-in**: scan A's tickets (from carl/faith/gino's My Tickets) and B's downloaded invites (or **Manual Entry** with the ticket ID). Scan one again: "Already checked in". A ticket from A scanned at B's door is refused.
+3. **QR Check-in**: scan A's tickets (from carl/faith/gino's My Tickets) and B's downloaded invites (or **Manual Entry**: type part of a name, an e-mail or the ticket ID, then tap the guest). Scan one again: "Already checked in". A ticket from A scanned at B's door is refused.
 
 As **maria**:
 4. Analytics → **Live Events**: check-ins and capacity update for both.
@@ -114,7 +114,7 @@ As **maria** (after the start time has passed):
 1. Event Details → **Mark completed** (both).
 
 As **enzo**:
-2. My Events → each event → **Event Details** → the review box at the bottom (stars + comment). (The **Rate** shortcut on My Events only appears from the day after the event.)
+2. My Events → each event → **Event Details** → the review box at the bottom (stars + comment). (My Events shows **Rate** once Maria marks the event completed.)
 
 As **maria**:
 3. **Reviews**: reply publicly, try the filters; **Report to NaSeRy** (optional).
@@ -128,3 +128,7 @@ As **admin** (optional):
 ---
 
 Also available any time: **NaSeRy Live Demo Night** (Davao Dream Events), a public event whose door is always open, for a quick "get a ticket → scan it" check.
+
+---
+
+Pages refresh on their own: about every minute, every 20 seconds on event-day screens, and right away when a notification arrives. No need to reload to see another account's changes.
