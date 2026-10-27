@@ -24,7 +24,8 @@ class InquiryRequest extends FormRequest
     {
         return [
             'event_type_id' => ['sometimes', 'nullable', 'uuid'],
-            'requested_date' => ['sometimes', 'nullable', 'date_format:Y-m-d', 'after_or_equal:today', 'before_or_equal:'.self::lastDate()],
+            // "today" in Philippine time: the app clock is UTC, which is still yesterday until 08:00 in Manila.
+            'requested_date' => ['sometimes', 'nullable', 'date_format:Y-m-d', 'after_or_equal:'.now('Asia/Manila')->toDateString(), 'before_or_equal:'.self::lastDate()],
             'guest_count' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100000'],
             'budget_min' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:9999999999.99', 'decimal:0,2'],
             'budget_max' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:9999999999.99', 'decimal:0,2'],

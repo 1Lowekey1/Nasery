@@ -2,9 +2,11 @@
 	<div>
 		<label class="block max-w-xs">
 			<span class="text-sm font-semibold text-gray-700">Expected guests</span>
-			<input :value="guests" type="number" min="1" max="100000" inputmode="numeric"
+			<!-- Whole guests, 1–100,000 (the inquiry limit), so the estimate and the request agree. -->
+			<input :value="guests" type="number" min="1" :max="MAX_GUESTS" step="1" inputmode="numeric"
 				class="mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm focus:border-primary-500 focus:outline-none"
-				@input="guests = Math.max(1, Number(($event.target as HTMLInputElement).value) || 1)">
+				@input="guests = clampGuests(($event.target as HTMLInputElement).value)"
+				@blur="($event.target as HTMLInputElement).value = String(guests)">
 		</label>
 
 		<p v-if="!groups.length" class="mt-5 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-500">No price options yet.</p>
@@ -100,7 +102,11 @@ const props = withDefaults(defineProps<{
 }>(), { services: () => [], settings: null, initialGuests: 100, compact: false })
 
 const uid = useId()
-const guests = ref(props.initialGuests)
+const MAX_GUESTS = 100000
+function clampGuests(raw: string | number) {
+	return Math.min(MAX_GUESTS, Math.max(1, Math.floor(Number(raw)) || 1))
+}
+const guests = ref(clampGuests(props.initialGuests))
 const chosen = reactive<Record<string, number>>({})
 
 const groups = computed(() => {

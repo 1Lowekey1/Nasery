@@ -346,7 +346,8 @@ class InquiryManager
             }
         }
 
-        if ($inquiry->requested_date !== null && $inquiry->requested_date->isPast() && ! $inquiry->requested_date->isToday()) {
+        // Dates are Philippine calendar days: compare with today in Manila, not the UTC app clock.
+        if ($inquiry->requested_date !== null && $inquiry->requested_date->toDateString() < now('Asia/Manila')->toDateString()) {
             $missing['requested_date'] = 'The event date has already passed.';
         }
 
