@@ -41,6 +41,7 @@ class AuthCodeMail extends Mailable
         return new Envelope(subject: match ($this->purpose) {
             AuthCodePurpose::EmailVerification => 'Your NaSeRy verification code',
             AuthCodePurpose::PasswordReset => 'Your NaSeRy password reset code',
+            AuthCodePurpose::AccountConversion => 'Your NaSeRy code to reuse your account',
         });
     }
 
@@ -55,6 +56,7 @@ class AuthCodeMail extends Mailable
                 'firstName' => $this->firstName,
                 'minutes' => config('nasery.auth.codes.ttl_minutes'),
                 'isReset' => $this->purpose === AuthCodePurpose::PasswordReset,
+                'isConversion' => $this->purpose === AuthCodePurpose::AccountConversion,
                 'invitedBy' => $this->invitedBy,
                 'resetUrl' => rtrim((string) config('nasery.auth.frontend_url'), '/').'/forgot-password',
                 // Admin invitations: one link straight to the account set-up page, with the

@@ -24,6 +24,8 @@
             <p style="margin:0 0 8px;color:#6b7280;font-size:14px;">It expires in {{ $minutes }} minutes. Never share it with anyone, including NaSeRy staff.</p>
             @if ($isReset)
                 <p style="margin:0;color:#6b7280;font-size:14px;">If you didn't ask to reset your password, you can ignore this email; your password stays the same.</p>
+            @elseif ($isConversion)
+                <p style="margin:0;color:#6b7280;font-size:14px;">Someone signed up with this e-mail, which already has a NaSeRy account that isn't in use. The code switches that account to the new type with the new password; your photo and history stay. If this wasn't you, ignore this email and nothing changes.</p>
             @else
                 <p style="margin:0;color:#6b7280;font-size:14px;">If you didn't create a NaSeRy account, you can ignore this email.</p>
             @endif

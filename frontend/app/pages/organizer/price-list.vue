@@ -23,7 +23,7 @@
 
 		<div v-if="loading" class="rounded-3xl border border-gray-200 bg-white py-16 text-center text-sm text-gray-500">Loading your price list…</div>
 
-		<div v-else class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
+		<div v-else class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
 			<div class="space-y-6">
 				<!-- Add / edit -->
 				<section v-if="editing" ref="editorEl" class="pl-rise rounded-3xl border-2 border-primary-200 bg-white p-6 sm:p-7">
@@ -170,11 +170,12 @@
 			</div>
 
 			<!-- Live preview -->
-			<aside class="pl-rise rounded-3xl border border-gray-200 bg-white p-6 xl:sticky xl:top-6">
-				<p class="text-xs font-bold uppercase tracking-widest text-primary-700">Live preview</p>
-				<h2 class="mt-1 text-base font-bold text-gray-900">What clients see</h2>
-				<p class="mt-1 text-xs text-gray-500">Only options you show. Try it like a client would.</p>
-				<PricingPriceCalculator :key="previewKey" class="mt-4" :options="visibleOptions" :services="services" :settings="previewSettings" />
+			<!-- Small and sticky: stays beside the editor and scrolls inside itself when long. -->
+			<aside class="pl-rise rounded-3xl border border-gray-200 bg-white p-4 xl:sticky xl:top-0 xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:overscroll-contain">
+				<p class="text-[11px] font-bold uppercase tracking-widest text-primary-700">Live preview</p>
+				<h2 class="mt-0.5 text-sm font-bold text-gray-900">What clients see</h2>
+				<p class="mt-0.5 text-xs text-gray-500">Only options you show. Try it like a client would.</p>
+				<PricingPriceCalculator :key="previewKey" compact class="mt-3" :options="visibleOptions" :services="services" :settings="previewSettings" />
 			</aside>
 		</div>
 	</div>

@@ -4,8 +4,10 @@ namespace App\Services\Auth;
 
 use App\Enums\AccountType;
 use App\Enums\AuthCodePurpose;
+use App\Enums\MembershipStatus;
 use App\Enums\UserStatus;
 use App\Exceptions\ApiException;
+use App\Models\OrganizationMember;
 use App\Models\User;
 use App\Support\Audit\AuditLogger;
 use App\Support\Database\DatabaseContext;
@@ -39,9 +41,16 @@ class AccountService
     /**
      * @param  array{first_name: string, middle_name?: ?string, last_name: string, email: string, phone?: ?string, password: string, account_type: string}  $data
      */
-    public function register(#[\SensitiveParameter] array $data, Request $request): User
+    /** @return User|null null: the e-mail belongs to an account no longer in use and a conversion code was sent. */
+    public function register(#[\SensitiveParameter] array $data, Request $request): ?User
     {
         $email = self::normalizeEmail($data['email']);
+        $type = AccountType::from($data['account_type']);
+
+        $existing = $this->db->system('auth.register', fn () => $this->findByEmail($email));
+        if ($existing !== null && $this->convertible($existing, $type)) {
+            return $this->convert($existing, $type, $data, $request);
+        }
 
         $user = $this->db->system('auth.register', function () use ($data, $email) {
             if ($this->findByEmail($email) !== null) {
@@ -69,6 +78,73 @@ class AccountService
         // Re-read DB defaults (status, timestamps). This request's RLS
         // identity is still the guest it started as, so read via system.
         return $this->db->system('auth.register', fn () => $user->refresh());
+    }
+
+    /**
+     * An account no longer in use can be signed up again as another type, keeping its
+     * photo and history: a business account with no team left (removed, left, or never
+     * set up) becoming a client, or a deactivated account. Never suspended or admin
+     * accounts, and not while a team invitation is still open.
+     */
+    private function convertible(User $user, AccountType $to): bool
+    {
+        if ($user->deleted_at !== null || $user->status === UserStatus::Suspended || $user->account_type === AccountType::Admin) {
+            return false;
+        }
+        if ($user->status === UserStatus::Deactivated) {
+            return true;
+        }
+
+        return $user->account_type === AccountType::Business && $to === AccountType::Client
+            && ! $this->db->system('auth.register', fn () => OrganizationMember::query()->where('user_id', $user->id)
+                ->whereIn('status', [MembershipStatus::Active->value, MembershipStatus::Invited->value])->whereNull('deleted_at')->exists());
+    }
+
+    /**
+     * First call: e-mail a code and return null (the controller answers "code sent"; an
+     * error here would roll the code back). Second call (same form plus the code): the
+     * code proves the mailbox, so the account switches type and takes the new password.
+     * Without the code nobody can take over an old account.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function convert(User $user, AccountType $to, #[\SensitiveParameter] array $data, Request $request): ?User
+    {
+        $code = trim((string) ($data['code'] ?? ''));
+        if ($code === '') {
+            try {
+                $this->db->system('auth.convert_code', fn () => $this->codes->issue($user, AuthCodePurpose::AccountConversion));
+            } catch (ApiException $e) {
+                // Cooldown: the code sent a moment ago is still valid.
+                if ($e->errorCode !== ErrorCode::ResendCooldown) {
+                    throw $e;
+                }
+            }
+
+            return null;
+        }
+
+        $this->db->system('auth.convert', fn () => $this->codes->consume($user, AuthCodePurpose::AccountConversion, $code));
+
+        $from = $user->account_type->value;
+        $this->db->system('auth.convert', fn () => $user->forceFill([
+            'account_type' => $to,
+            'password_hash' => $data['password'],
+            'first_name' => $data['first_name'],
+            'middle_name' => $data['middle_name'] ?? null,
+            'last_name' => $data['last_name'],
+            'phone' => $data['phone'] ?? $user->phone,
+            'status' => UserStatus::Active,
+            // Receiving the code proves the user controls the mailbox.
+            'email_verified_at' => $user->email_verified_at ?? now(),
+        ])->save());
+
+        $this->sessions->revokeAll($user);
+        $this->audit->record('user.converted', $user, old: ['account_type' => $from], new: ['account_type' => $to->value], actorUserId: $user->id);
+        Log::channel('security')->info('auth.account_converted', ['user_id' => $user->id, 'from' => $from, 'to' => $to->value]);
+        $this->startSession($user, $request);
+
+        return $this->db->system('auth.convert', fn () => $user->refresh());
     }
 
     public function login(string $email, #[\SensitiveParameter] string $password, Request $request): User

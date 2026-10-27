@@ -75,8 +75,9 @@ const { user } = useAuth()
 const api = useNotifications()
 const unread = useUnreadCount()
 
-type PortalLayout = 'dashboard' | 'client' | 'superadmin' | 'public'
-const layout = computed<PortalLayout>(() => ({ business: 'dashboard', client: 'client', admin: 'superadmin' } as Record<string, PortalLayout>)[user.value?.account_type ?? ''] ?? 'public')
+// Each role keeps its own portal frame here (team members were getting the public one).
+type PortalLayout = 'dashboard' | 'client' | 'superadmin' | 'team' | 'public'
+const layout = computed<PortalLayout>(() => ({ organizer: 'dashboard', team_member: 'team', client: 'client', superadmin: 'superadmin' } as Record<string, PortalLayout>)[user.value?.role ?? ''] ?? 'public')
 type Tab = 'all' | 'unread' | 'settings'
 const tabs: { key: Tab, label: string }[] = [{ key: 'all', label: 'All' }, { key: 'unread', label: 'Unread' }, { key: 'settings', label: 'E-mail settings' }]
 const tab = ref<Tab>((['all', 'unread', 'settings'] as Tab[]).includes(route.query.tab as Tab) ? route.query.tab as Tab : 'all')

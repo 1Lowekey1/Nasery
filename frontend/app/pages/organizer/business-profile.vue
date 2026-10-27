@@ -843,23 +843,36 @@ function discard() {
 
 // ---------- Section navigation ----------
 const activeSection = ref<SectionId>('details')
-let observer: IntersectionObserver | null = null
+let scroller: HTMLElement | null = null
 
 function goTo(id: SectionId) {
 	activeSection.value = id
 	scrollToElement(document.getElementById(id))
 }
 
-function observeSections() {
-	const root = document.querySelector('main')
-	observer = new IntersectionObserver((entries) => {
-		const visible = entries.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
-		if (visible[0]) activeSection.value = visible[0].target.id as SectionId
-	}, { root, rootMargin: '0px 0px -65% 0px', threshold: 0 })
+// The highlighted section is the last one whose top has passed the upper third of the
+// content area (the one being read), or the last section at the very bottom. An edge-based
+// IntersectionObserver kept a 3px sliver of the previous section highlighted.
+function updateActiveSection() {
+	if (!scroller) return
+	const box = scroller.getBoundingClientRect()
+	if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4) {
+		activeSection.value = sections[sections.length - 1]!.id
+		return
+	}
+	const line = box.top + box.height / 3
+	let current: SectionId = sections[0]!.id
 	for (const s of sections) {
 		const el = document.getElementById(s.id)
-		if (el) observer.observe(el)
+		if (el && el.getBoundingClientRect().top <= line) current = s.id
 	}
+	activeSection.value = current
+}
+function observeSections() {
+	scroller = document.querySelector('main')
+	// Seven position checks per scroll event: cheap enough to run directly.
+	scroller?.addEventListener('scroll', updateActiveSection, { passive: true })
+	updateActiveSection()
 }
 
 // ---------- Unsaved-changes guard ----------
@@ -878,7 +891,7 @@ onMounted(() => {
 	window.addEventListener('beforeunload', beforeUnload)
 })
 onBeforeUnmount(() => {
-	observer?.disconnect()
+	scroller?.removeEventListener('scroll', updateActiveSection)
 	window.removeEventListener('beforeunload', beforeUnload)
 })
 </script>

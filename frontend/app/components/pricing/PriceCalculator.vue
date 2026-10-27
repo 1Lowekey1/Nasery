@@ -12,22 +12,22 @@
 		<fieldset v-for="group in groups" :key="group.key" class="mt-5">
 			<legend class="text-sm font-bold text-gray-900">{{ group.label }}
 				<span class="font-normal text-gray-400">· {{ group.single ? 'choose one' : 'choose any' }}</span></legend>
-			<div class="mt-2 grid gap-2 sm:grid-cols-2">
+			<div class="mt-2 grid gap-2" :class="compact ? '' : 'sm:grid-cols-2'">
 				<div v-for="o in group.options" :key="o.id"
-					class="rounded-xl border px-3.5 py-2.5 text-sm transition"
-					:class="o.id in chosen ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-primary-200'">
-					<label class="flex cursor-pointer items-start justify-between gap-3">
-						<span class="flex items-start gap-2.5">
+					class="min-w-0 rounded-xl border text-sm transition" :class="[compact ? 'px-3 py-2' : 'px-3.5 py-2.5', o.id in chosen ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-primary-200']">
+					<!-- Compact (narrow panels): price goes under the name so nothing spills out. -->
+					<label class="flex cursor-pointer items-start justify-between gap-3" :class="compact ? 'flex-wrap gap-y-0.5' : ''">
+						<span class="flex min-w-0 items-start gap-2.5">
 							<input :type="group.single ? 'radio' : 'checkbox'" :name="`${uid}-${group.key}`" :checked="o.id in chosen" class="mt-1 accent-[#285F6b]"
 								:aria-label="`${group.label}: ${o.name}`" @click="toggle(group, o)">
-							<span>
+							<span class="min-w-0 break-words">
 								<span class="font-semibold">{{ o.name }}</span>
 								<span v-if="o.description" class="block text-xs text-gray-500">{{ o.description }}</span>
 								<span v-if="o.pricing_unit === 'per_guest' && o.min_guests" class="block text-xs text-gray-400">Minimum {{ o.min_guests }} guests</span>
 								<span v-else-if="picksQuantity(o) && (o.min_quantity || o.max_quantity)" class="block text-xs text-gray-400">{{ rangeText(o) }}</span>
 							</span>
 						</span>
-						<span class="shrink-0 text-right font-semibold text-gray-700">{{ formatPeso(o.price) }}<span class="font-normal text-gray-500">{{ priceSuffix(o) }}</span></span>
+						<span class="font-semibold text-gray-700" :class="compact ? 'basis-full pl-6' : 'shrink-0 whitespace-nowrap text-right'">{{ formatPeso(o.price) }}<span class="font-normal text-gray-500">{{ priceSuffix(o) }}</span></span>
 					</label>
 					<div v-if="o.id in chosen && picksQuantity(o)" class="mt-2 flex items-center gap-2 pl-6">
 						<span class="text-xs text-gray-500">How many {{ unitName(o, 2) }}?</span>
@@ -95,7 +95,9 @@ const props = withDefaults(defineProps<{
 	services?: { id: string, name: string }[]
 	settings?: EstimateSettings | null
 	initialGuests?: number
-}>(), { services: () => [], settings: null, initialGuests: 100 })
+	/** Narrow side panel: one option per row, price under the name. */
+	compact?: boolean
+}>(), { services: () => [], settings: null, initialGuests: 100, compact: false })
 
 const uid = useId()
 const guests = ref(props.initialGuests)

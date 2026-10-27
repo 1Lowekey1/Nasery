@@ -113,6 +113,14 @@
 			</p>
 
 
+			<div v-if="conversion.active" class="mb-4 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3" data-field="code">
+				<p class="text-sm font-semibold text-primary-900">This e-mail already has a NaSeRy account that isn’t in use.</p>
+				<p class="mt-1 text-xs leading-relaxed text-primary-800/80">We sent a 6-digit code to {{ conversion.email }}. Enter it to turn that account into your new {{ role === 'organizer' ? 'organizer' : 'client' }} account with the password above. Its photo and history stay.</p>
+				<label for="reg-conversion-code" class="mt-3 block text-xs font-semibold text-gray-700">Code from the e-mail</label>
+				<input id="reg-conversion-code" v-model="conversion.code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"
+					class="mt-1 w-40 rounded-lg border border-gray-200 bg-white px-3 py-2 text-center text-lg font-bold tracking-[0.3em] focus:border-primary-500 focus:outline-none">
+			</div>
+
 			<div v-if="check.summary.value || errorMessage"
 				class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
 				{{ check.summary.value || errorMessage }}
@@ -122,11 +130,11 @@
 			<button type="submit" :disabled="isLoading"
 				class="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 py-4 text-[15px] font-bold text-white transition hover:bg-primary-900 disabled:cursor-not-allowed disabled:opacity-60">
 				<template v-if="isLoading">
-					Creating Account...
+					{{ conversion.active ? 'Switching account...' : 'Creating Account...' }}
 				</template>
 
 				<template v-else>
-					Create My Account
+					{{ conversion.active ? 'Use my old account' : 'Create My Account' }}
 
 					<svg viewBox="0 0 20 20" class="h-4 w-4">
 						<path fill="currentColor"
@@ -230,6 +238,13 @@ const form = reactive({
 })
 
 const draft = useDraft(() => 'register', form, { omit: ['password'] })
+
+// Signing up again with the e-mail of an account no longer in use (removed team member):
+// the server e-mails a code; with it, that account becomes the new one (photo, history stay).
+const conversion = reactive({ active: false, email: '', code: '' })
+watch(() => form.email.trim().toLowerCase(), (now) => {
+	if (conversion.active && now !== conversion.email) Object.assign(conversion, { active: false, code: '' })
+})
 
 const serviceRadiusOptions = [5, 10, 15, 25, 50, 75, 100, 150, 200]
 const serviceRadiusSelectOptions = serviceRadiusOptions.map(radius => ({
@@ -404,15 +419,29 @@ async function handleSubmit() {
 			role.value,
 	}
 
+	if (conversion.active && !/^\d{6}$/.test(conversion.code.trim())) {
+		errorMessage.value = 'Enter the 6-digit code we e-mailed you.'
+		return
+	}
+
 	try {
-		await register(
-			registrationPayload
-		)
+		const created = await register(registrationPayload, conversion.active ? conversion.code.trim() : undefined)
+		if (!created) {
+			// An old NaSeRy account uses this e-mail: ask for the code we just sent to it.
+			conversion.active = true
+			conversion.email = email
+			return
+		}
 
 		registeredContact.value =
 			email
 		draft.clear()
 
+		if (conversion.active) {
+			// The code already confirmed the e-mail: straight into the new account.
+			await navigateTo(role.value === 'organizer' ? '/organizer/home' : '/client/my-events')
+			return
+		}
 		showSuccessModal.value =
 			true
 	} catch (error: unknown) {

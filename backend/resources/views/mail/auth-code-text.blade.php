@@ -19,6 +19,8 @@ It expires in {{ $minutes }} minutes. Never share it with anyone, including NaSe
 
 @if ($isReset)
 If you didn't ask to reset your password, you can ignore this email; your password stays the same.
+@elseif ($isConversion)
+Someone signed up with this e-mail, which already has a NaSeRy account that isn't in use. The code switches that account to the new type with the new password; your photo and history stay. If this wasn't you, ignore this email and nothing changes.
 @else
 If you didn't create a NaSeRy account, you can ignore this email.
 @endif

@@ -38,6 +38,8 @@ class RegisterRequest extends FormRequest
             'password' => ['required', 'string', 'confirmed', Password::defaults()],
             // Admin accounts are never self-registered.
             'account_type' => ['required', Rule::in(['client', 'business'])],
+            // The e-mailed code that confirms reusing an old account (202 conversion_required).
+            'code' => ['nullable', 'string', 'max:12'],
         ];
     }
 

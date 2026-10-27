@@ -190,7 +190,11 @@ export const useAuth = (requiredRole?: AuthRole) => {
       return user.value!
     })
 
-  const register = (payload: RegisterPayload | LegacyRegisterPayload) => tracked(async () => {
+  /**
+   * Returns null when the e-mail belongs to an account no longer in use (e.g. a removed
+   * team member): a code went to that e-mail; call again with `code` to convert it.
+   */
+  const register = (payload: RegisterPayload | LegacyRegisterPayload, code?: string) => tracked(async (): Promise<SessionUser | null> => {
     const body: RegisterPayload = 'first_name' in payload
       ? payload
       : {
@@ -203,7 +207,9 @@ export const useAuth = (requiredRole?: AuthRole) => {
           password_confirmation: payload.password_confirmation ?? payload.password,
           account_type: payload.role === 'organizer' ? 'business' : 'client',
         }
-    await setUser((await api.post<AuthUser>('/auth/register', body)).data)
+    const created = (await api.post<AuthUser | { conversion_required: true }>('/auth/register', code ? { ...body, code } : body)).data
+    if ('conversion_required' in created) return null
+    await setUser(created)
     return user.value!
   })
 

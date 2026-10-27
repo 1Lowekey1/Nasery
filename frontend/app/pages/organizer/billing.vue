@@ -32,21 +32,21 @@
 			</section>
 
 			<!-- Hero -->
-			<section class="hero fade-up relative overflow-hidden rounded-[2rem] px-6 py-8 text-white shadow-xl shadow-primary-900/10 sm:px-10 sm:py-10" style="--d: 0ms">
+			<section class="hero fade-up relative overflow-hidden rounded-3xl px-5 py-6 text-white shadow-xl shadow-primary-900/10 sm:px-8 sm:py-7" style="--d: 0ms">
 				<span class="orb orb-a" />
 				<span class="orb orb-b" />
 				<span class="grid-sheen" />
 
-				<div class="relative grid gap-8 lg:grid-cols-5 lg:items-center">
+				<div class="relative grid gap-6 lg:grid-cols-5 lg:items-center">
 					<div class="lg:col-span-2">
 						<div class="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white/85 ring-1 ring-white/20 backdrop-blur">
 							<IconBase name="sparkles" class="h-3.5 w-3.5" />
 							Plan &amp; Billing
 						</div>
-						<p class="mt-6 text-sm font-semibold text-white/65">Your current plan</p>
+						<p class="mt-4 text-sm font-semibold text-white/65">Your current plan</p>
 						<div class="mt-1 flex flex-wrap items-end gap-3">
-							<h1 class="text-4xl font-extrabold tracking-tight sm:text-6xl">{{ data.plan.name }}</h1>
-							<span v-if="data.subscription" class="mb-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold capitalize ring-1 ring-white/25">{{ data.subscription.cycle }}</span>
+							<h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">{{ data.plan.name }}</h1>
+							<span v-if="data.subscription" class="mb-1 rounded-full bg-white/15 px-3 py-1 text-xs font-bold capitalize ring-1 ring-white/25">{{ data.subscription.cycle }}</span>
 						</div>
 						<template v-if="data.subscription">
 							<p class="mt-4 text-sm leading-6 text-white/80">
@@ -74,22 +74,24 @@
 					</div>
 
 					<!-- Usage rings -->
-					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-3">
+					<!-- Usage: the count sits in the ring. A limit fills the ring by how much is used;
+					     no limit = a dashed ring (no fake progress arc). -->
+					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:col-span-3">
 						<div v-for="(item, index) in usageItems" :key="item.key"
-							class="fade-up rounded-2xl bg-white/10 p-5 ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/15"
+							class="fade-up rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/20 backdrop-blur-md transition hover:bg-white/15"
 							:style="{ '--d': 120 + index * 90 + 'ms' }">
-							<div class="flex items-center gap-4 sm:flex-col sm:items-start">
-								<div class="relative h-[72px] w-[72px] shrink-0">
-									<svg viewBox="0 0 64 64" class="h-full w-full -rotate-90">
-										<circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="6" />
-										<circle cx="32" cy="32" r="26" fill="none" :stroke="item.color" stroke-width="6" stroke-linecap="round"
+							<div class="flex items-center gap-3">
+								<div class="relative h-12 w-12 shrink-0">
+									<svg viewBox="0 0 64 64" class="h-full w-full -rotate-90" aria-hidden="true">
+										<circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="6" :stroke-dasharray="item.unlimited ? '4 6' : undefined" />
+										<circle v-if="!item.unlimited" cx="32" cy="32" r="26" fill="none" :stroke="item.color" stroke-width="6" stroke-linecap="round"
 											:stroke-dasharray="CIRCUMFERENCE" :stroke-dashoffset="ringsReady ? item.offset : CIRCUMFERENCE" class="ring-stroke" />
 									</svg>
-									<span class="absolute inset-0 flex items-center justify-center text-base font-extrabold">{{ item.unlimited ? '∞' : item.used }}</span>
+									<span class="absolute inset-0 flex items-center justify-center text-sm font-extrabold tabular-nums">{{ item.used }}</span>
 								</div>
-								<div>
+								<div class="min-w-0">
 									<p class="text-sm font-bold">{{ item.label }}</p>
-									<p class="mt-0.5 text-xs text-white/65">{{ item.unlimited ? `${item.used} used · unlimited` : `${item.used} of ${item.limit} used` }}</p>
+									<p class="mt-0.5 text-xs text-white/65">{{ item.unlimited ? `${item.used} used · no limit` : `${item.used} of ${item.limit} used` }}</p>
 									<p v-if="item.full" class="mt-1.5 inline-block rounded-full bg-red-400/25 px-2 py-0.5 text-[11px] font-bold text-red-100">Limit reached</p>
 									<p v-else-if="item.warn" class="mt-1.5 inline-block rounded-full bg-amber-300/25 px-2 py-0.5 text-[11px] font-bold text-amber-100">Almost full</p>
 								</div>
@@ -372,7 +374,7 @@ const periodProgress = computed(() => {
 const usageItems = computed(() => (data.value?.usage ?? []).filter(u => u.used !== null).slice(0, 4).map((u) => {
 	const used = u.used ?? 0
 	const unlimited = u.limit === null
-	const ratio = unlimited ? (used ? 0.12 : 0) : Math.min(1, used / Math.max(1, u.limit!))
+	const ratio = unlimited ? 0 : Math.min(1, used / Math.max(1, u.limit!))
 	const full = !unlimited && used >= u.limit!
 	const warn = !unlimited && !full && ratio >= 0.8
 	return {

@@ -51,6 +51,13 @@
 			<footer v-if="page < lastPage" class="border-t border-gray-100 bg-gray-50 px-4 py-3 text-center">
 				<button type="button" class="text-xs font-bold text-primary-700" :disabled="loading" @click="load(page + 1, true)">{{ loading ? 'Loading…' : 'Load older notifications' }}</button>
 			</footer>
+			<!-- Every portal reaches the full list and its e-mail settings from the bell. -->
+			<nav class="grid grid-cols-2 border-t border-gray-100 text-xs font-bold" aria-label="Notification pages">
+				<NuxtLink to="/notifications" class="flex items-center justify-center gap-1.5 px-4 py-3 text-primary-700 hover:bg-gray-50">See all</NuxtLink>
+				<NuxtLink :to="{ path: '/notifications', query: { tab: 'settings' } }" class="flex items-center justify-center gap-1.5 border-l border-gray-100 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900">
+					<IconBase name="settings" class="h-3.5 w-3.5" />E-mail settings
+				</NuxtLink>
+			</nav>
 		</div>
 	</div>
 </template>
