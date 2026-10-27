@@ -102,11 +102,12 @@
 			<p class="mb-5 text-[13px] leading-relaxed text-gray-500">
 				By creating an account, you agree to our
 
-				<!-- New tab, so the half-filled form stays where it is. -->
-				<NuxtLink to="/terms" target="_blank" class="font-semibold text-primary-600 underline-offset-2 hover:underline">Terms of Service</NuxtLink>
+				<!-- Opens over the form, so what was typed stays (a middle-click still opens the page). -->
+				<a href="/terms" class="font-semibold text-primary-600 underline-offset-2 hover:underline" @click.prevent="legalDoc = 'terms'">Terms of Service</a>
 				and
-				<NuxtLink to="/privacy" target="_blank" class="font-semibold text-primary-600 underline-offset-2 hover:underline">Privacy Policy</NuxtLink>.
+				<a href="/privacy" class="font-semibold text-primary-600 underline-offset-2 hover:underline" @click.prevent="legalDoc = 'privacy'">Privacy Policy</a>.
 			</p>
+			<LegalDialog v-model="legalDoc" />
 
 
 			<div v-if="conversion.active" class="mb-4 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3" data-field="code">
@@ -209,6 +210,7 @@ interface SelectedLocation {
 	longitude: number
 }
 
+const legalDoc = ref<'terms' | 'privacy' | null>(null)
 const role = ref<'client' | 'organizer'>(inquiryRedirect(authRoute.query.redirect) ? 'client' : 'organizer')
 const showSuccessModal = ref(false)
 const registeredContact = ref('')
