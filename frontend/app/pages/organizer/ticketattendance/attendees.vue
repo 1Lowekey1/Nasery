@@ -738,7 +738,6 @@ interface Attendee {
 
 interface RegisteredTicket
 	extends Attendee {
-	qr_token?: string
 	qr_value?: string
 }
 

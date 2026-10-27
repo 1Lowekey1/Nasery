@@ -63,8 +63,10 @@ class BackupDatabase extends Command
 
     private function prune(string $directory): void
     {
-        $keep = max(1, (int) config('nasery.backup.keep', 10));
-        $files = collect(File::glob($directory.DIRECTORY_SEPARATOR.'nasery-*.dump'))->sort()->values();
+        $keep = max(1, (int) config('nasery.backup.keep', 1));
+        // The main demo backup (--reason=main-…) is never pruned; only safety dumps rotate.
+        $files = collect(File::glob($directory.DIRECTORY_SEPARATOR.'nasery-*.dump'))
+            ->reject(fn (string $file) => str_contains(basename($file), '-main'))->sort()->values();
 
         $files->slice(0, max(0, $files->count() - $keep))->each(fn (string $old) => File::delete($old));
     }

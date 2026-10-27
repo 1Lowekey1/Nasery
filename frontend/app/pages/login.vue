@@ -111,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import type { User } from '~/types/auth'
+import type { SessionUser } from '~/composables/useAuth'
 
 definePageMeta({
 	layout: 'auth',
@@ -123,7 +123,7 @@ const nextInquiry = computed(() => inquiryRedirect(route.query.redirect))
 onMounted(() => {
 	if (typeof route.query.social_error === 'string') errorMessage.value = route.query.social_error
 })
-async function finishLogin(user: User) {
+async function finishLogin(user: SessionUser) {
 	if (user.role === 'client' && nextInquiry.value) {
 		return await navigateTo(nextInquiry.value)
 	}

@@ -33,7 +33,7 @@ onMounted(async () => {
 		if (!org) return
 		events.value = (await api.list(org.id, ['draft', 'published', 'ongoing', 'completed'])).items
 		// Default to the first event so the page isn't empty.
-		if (!route.query.event && events.value.length) choose(events.value[0].id)
+		if (!route.query.event && events.value[0]) choose(events.value[0].id)
 	} finally {
 		loading.value = false
 	}

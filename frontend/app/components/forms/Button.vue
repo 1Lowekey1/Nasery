@@ -7,10 +7,12 @@
 </template>
 
 <script setup lang="ts">
+import type { PropType } from 'vue'
+
 const props = defineProps({
 	variant: { type: String, default: 'primary' },
 	size: { type: String, default: 'md' },
-	type: { type: String, default: 'button' },
+	type: { type: String as PropType<'button' | 'submit' | 'reset'>, default: 'button' },
 	disabled: { type: Boolean, default: false }
 })
 

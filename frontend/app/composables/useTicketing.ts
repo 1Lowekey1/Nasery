@@ -85,7 +85,8 @@ export interface PublicTier {
   availability: 'available' | 'sold_out' | 'not_yet' | 'ended'
 }
 
-export interface PublicEventDetail extends PublicEventCard {
+// The card has a tier count; the detail page has the tiers themselves.
+export interface PublicEventDetail extends Omit<PublicEventCard, 'tiers'> {
   is_private?: boolean
   description: string | null
   latitude: number | null

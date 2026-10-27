@@ -91,6 +91,7 @@
 // freely; hour/day/item options get a quantity within the organizer's limits.
 import type { PriceOption } from '~/composables/useQuotations'
 import type { EstimateSettings } from '~/utils/priceCalc'
+import { MAX_GUESTS, clampGuests } from '~/utils/priceCalc'
 
 const props = withDefaults(defineProps<{
 	options: PriceOption[]
@@ -102,10 +103,6 @@ const props = withDefaults(defineProps<{
 }>(), { services: () => [], settings: null, initialGuests: 100, compact: false })
 
 const uid = useId()
-const MAX_GUESTS = 100000
-function clampGuests(raw: string | number) {
-	return Math.min(MAX_GUESTS, Math.max(1, Math.floor(Number(raw)) || 1))
-}
 const guests = ref(clampGuests(props.initialGuests))
 const chosen = reactive<Record<string, number>>({})
 

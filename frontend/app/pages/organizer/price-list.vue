@@ -226,7 +226,7 @@ const visibleOptions = computed(() => options.value.filter(o => o.is_active))
 const blank = (): Draft => ({ id: null, name: '', organization_service_id: null, pricing_unit: 'flat', price: '', unit_label: '', min_guests: '', min_quantity: '', max_quantity: '', description: '', is_active: true })
 const num = (v: string) => (String(v).trim() === '' ? null : Number(v))
 
-const check = useFormCheck(() => {
+const check = useFormCheck((): Record<string, string> => {
 	const d = editing.value
 	if (!d) return {}
 	const minQ = num(d.min_quantity)

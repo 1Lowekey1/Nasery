@@ -113,7 +113,9 @@ return [
     'backup' => [
         'pg_dump_path' => env('PG_DUMP_PATH', 'pg_dump'),
         'directory' => storage_path('backups'),
-        'keep' => (int) env('BACKUP_KEEP', 10),
+        // Only the newest safety dump is kept (one backup at a time); the main
+        // demo backup is taken separately, by hand, when the demo is ready.
+        'keep' => (int) env('BACKUP_KEEP', 1),
     ],
 
     /*

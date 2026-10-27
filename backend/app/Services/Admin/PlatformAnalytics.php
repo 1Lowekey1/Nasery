@@ -106,6 +106,12 @@ class PlatformAnalytics
      */
     public function organizerTotals(?array $ids, int $limit = 200, string $sort = 'sales'): Collection
     {
+        // $sort goes into the SQL as a column name, so only these are accepted.
+        $sort = match ($sort) {
+            'sales' => 's.sales', 'tickets' => 't.tickets', 'events' => 'e.events',
+            'rating' => 'r.rating', 'reviews' => 'r.reviews', 'plans' => 'pl.plans',
+            default => throw new \InvalidArgumentException("Unknown organizer sort: {$sort}"),
+        };
         $sales = DB::table('payments as p')->join('registrations as rg', 'rg.id', '=', 'p.registration_id')->join('events as e', 'e.id', '=', 'rg.event_id')
             ->where('p.status', 'paid')->groupBy('e.organization_id')->selectRaw('e.organization_id, sum(p.amount) as sales');
         $tickets = DB::table('tickets as t')->join('events as e', 'e.id', '=', 't.event_id')->whereIn('t.status', ['valid', 'used'])

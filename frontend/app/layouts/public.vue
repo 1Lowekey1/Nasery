@@ -96,7 +96,11 @@ async function signOut() {
     <footer class="mt-16 border-t border-gray-200">
       <div class="mx-auto flex max-w-7xl flex-col justify-between gap-3 px-5 py-8 text-sm text-gray-500 sm:flex-row sm:px-8">
         <span class="font-bold text-primary-800">NaSeRy · Bring your event to life.</span>
-        <span>Explore freely. Sign in when you’re ready to plan.</span>
+        <span class="flex flex-wrap gap-x-4 gap-y-1">
+          <span>Explore freely. Sign in when you’re ready to plan.</span>
+          <NuxtLink to="/terms" class="font-semibold text-gray-600 hover:text-primary-700">Terms</NuxtLink>
+          <NuxtLink to="/privacy" class="font-semibold text-gray-600 hover:text-primary-700">Privacy</NuxtLink>
+        </span>
       </div>
     </footer>
   </div>

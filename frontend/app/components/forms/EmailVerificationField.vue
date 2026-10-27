@@ -70,7 +70,7 @@ const config = useRuntimeConfig()
 
 const resolvedSendUrl = computed(() => props.sendUrl || `${config.public.apiBaseURL}/auth/email-verification/send`)
 const resolvedVerifyUrl = computed(() => props.verifyUrl || `${config.public.apiBaseURL}/auth/email-verification/verify`)
-const authHeaders = computed(() => props.authToken ? { Authorization: `Bearer ${props.authToken}` } : {})
+const authHeaders = computed((): Record<string, string> => props.authToken ? { Authorization: `Bearer ${props.authToken}` } : {})
 const code = ref('')
 const codeSent = ref(false)
 const sending = ref(false)

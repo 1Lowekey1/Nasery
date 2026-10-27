@@ -28,7 +28,7 @@
 				<nav class="flex-1 space-y-1 px-3">
 					<NuxtLink v-for="item in navItems" :key="item.label" :to="item.to"
 						class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold"
-						:class="activeItem.label === item.label ? 'bg-primary-700 text-white' : 'text-gray-600 hover:bg-gray-100'">
+						:class="activeItem?.label === item.label ? 'bg-primary-700 text-white' : 'text-gray-600 hover:bg-gray-100'">
 						<IconBase :name="item.icon" class="h-[18px] w-[18px] shrink-0" />
 						{{ item.label }}
 					</NuxtLink>

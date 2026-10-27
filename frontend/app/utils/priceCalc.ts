@@ -36,6 +36,12 @@ export function unitSuffix(option: Pick<PriceOption, 'pricing_unit' | 'unit_labe
   return option.pricing_unit === 'flat' ? '' : ` (per ${unitName(option)})`
 }
 
+/** Guest counts the calculator accepts: whole numbers, 1 to 100,000 (the inquiry limit). */
+export const MAX_GUESTS = 100000
+export function clampGuests(raw: string | number): number {
+  return Math.min(MAX_GUESTS, Math.max(1, Math.floor(Number(raw)) || 1))
+}
+
 export function quantityBounds(option: Pick<PriceOption, 'min_quantity' | 'max_quantity'>): { min: number, max: number | null } {
   const min = Math.max(1, option.min_quantity ?? 1)
   const max = option.max_quantity ? Math.max(min, option.max_quantity) : null

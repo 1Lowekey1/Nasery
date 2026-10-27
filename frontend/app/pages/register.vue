@@ -72,9 +72,10 @@
 				</ul>
 			</div>
 			<div class="mb-5" data-field="phone">
-				<FormsLabel text="Phone No" required />
+				<!-- Optional (the API allows none); with one, you can also sign in by phone. -->
+				<FormsLabel text="Mobile number" hint="(optional, lets you sign in by phone)" />
 
-				<FormsTextField v-model="form.phone" type="tel" placeholder="+63 912 345 6789" size="lg" required :error="check.err('phone')">
+				<FormsTextField v-model="form.phone" type="tel" placeholder="0917 123 4567" size="lg" :error="check.err('phone')">
 					<template #icon>
 						<svg viewBox="0 0 20 20"
 							class="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400">
@@ -101,15 +102,10 @@
 			<p class="mb-5 text-[13px] leading-relaxed text-gray-500">
 				By creating an account, you agree to our
 
-				<span class="cursor-pointer font-semibold text-primary-600">
-					Terms of Service
-				</span>
-
+				<!-- New tab, so the half-filled form stays where it is. -->
+				<NuxtLink to="/terms" target="_blank" class="font-semibold text-primary-600 underline-offset-2 hover:underline">Terms of Service</NuxtLink>
 				and
-
-				<span class="cursor-pointer font-semibold text-primary-600">
-					Privacy Policy
-				</span>.
+				<NuxtLink to="/privacy" target="_blank" class="font-semibold text-primary-600 underline-offset-2 hover:underline">Privacy Policy</NuxtLink>.
 			</p>
 
 
@@ -200,10 +196,7 @@ const loginLocation = computed(() => {
 	const redirect = inquiryRedirect(authRoute.query.redirect)
 	return { path: '/login', query: redirect ? { redirect } : {} }
 })
-import type {
-	RegisterPayload,
-	UserRole,
-} from '~/types/auth'
+import type { LegacyRegisterPayload } from '~/composables/useAuth'
 
 definePageMeta({
 	layout: 'auth',
@@ -216,7 +209,7 @@ interface SelectedLocation {
 	longitude: number
 }
 
-const role = ref<UserRole>(inquiryRedirect(authRoute.query.redirect) ? 'client' : 'organizer')
+const role = ref<'client' | 'organizer'>(inquiryRedirect(authRoute.query.redirect) ? 'client' : 'organizer')
 const showSuccessModal = ref(false)
 const registeredContact = ref('')
 const emailVerificationToken = ref('')
@@ -384,7 +377,7 @@ const check = useFormCheck(() => {
 		fullName: !form.fullName.trim() ? 'Enter your full name.' : (!firstname || !lastname) ? 'Enter both your first and last name.' : '',
 		email: !email ? 'Enter your e-mail address.' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'Enter a valid e-mail address (like name@example.com).' : '',
 		password: !form.password ? 'Create a password.' : passwordRules.value.every(r => r.ok) ? '' : 'Your password needs 8+ characters with a letter and a number.',
-		phone: !form.phone.trim() ? 'Enter your mobile number.' : !/^\+639\d{9}$/.test(phone) ? 'Enter a Philippine mobile number, e.g. 0917 123 4567.' : '',
+		phone: form.phone.trim() && !/^\+639\d{9}$/.test(phone) ? 'Enter a Philippine mobile number, e.g. 0917 123 4567, or leave it blank.' : '',
 	}
 })
 
@@ -397,8 +390,7 @@ async function handleSubmit() {
 	const email = form.email.trim().toLowerCase()
 	const phone = normalizePhone(form.phone)
 
-	const registrationPayload:
-		RegisterPayload = {
+	const registrationPayload: LegacyRegisterPayload = {
 		firstname,
 
 		...(middlename

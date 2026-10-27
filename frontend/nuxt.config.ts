@@ -31,8 +31,6 @@ export default defineNuxtConfig({
     public: {
       apiBase: 'http://localhost:8000/api/v1',
       backendUrl: 'http://localhost:8000',
-      supabaseUrl: '',
-      supabaseKey: '',
       // Used by the redesigned pages (frontend update, 2026-09-28).
       appName: 'NaSeRy',
       apiBaseURL: 'http://localhost:8000/api/v1',

@@ -7,7 +7,7 @@
 					:class="size === 'lg' ? 'left-3.5 h-[18px] w-[18px]' : ''" />
 			</slot>
 			<input :id="fieldId" v-bind="inputAttrs" :value="modelValue" :type="inputType" :placeholder="placeholder"
-				:required="required" :class="inputClasses" :aria-invalid="error ? 'true' : undefined" :aria-describedby="error ? `${fieldId}-error` : undefined" @input="$emit('update:modelValue', $event.target.value)" />
+				:required="required" :class="inputClasses" :aria-invalid="error ? 'true' : undefined" :aria-describedby="error ? `${fieldId}-error` : undefined" @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)" />
 			<button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
 				:class="size === 'lg' ? 'right-3.5' : ''" @click="showPassword = !showPassword">
 				<svg v-if="showPassword" viewBox="0 0 20 20" :class="size === 'lg' ? 'h-[18px] w-[18px]' : 'h-4 w-4'">

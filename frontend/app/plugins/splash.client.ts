@@ -38,5 +38,5 @@ export default defineNuxtPlugin((nuxtApp) => {
   })
 
   // An error page counts as "ready" too.
-  nuxtApp.hook('app:error', () => window.setTimeout(hide, SETTLE_MS))
+  nuxtApp.hook('app:error', () => { window.setTimeout(hide, SETTLE_MS) })
 })

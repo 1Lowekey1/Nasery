@@ -7,17 +7,19 @@
 					:class="size === 'lg' ? 'left-3.5 h-[18px] w-[18px]' : ''" />
 			</slot>
 			<input :id="fieldId" v-bind="inputAttrs" :value="modelValue" :type="type" :placeholder="placeholder"
-				:required="required" :class="inputClasses" :aria-invalid="error ? 'true' : undefined" :aria-describedby="error ? `${fieldId}-error` : undefined" @input="$emit('update:modelValue', $event.target.value)" />
+				:required="required" :class="inputClasses" :aria-invalid="error ? 'true' : undefined" :aria-describedby="error ? `${fieldId}-error` : undefined" @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)" />
 		</div>
 		<p v-if="error" :id="`${fieldId}-error`" class="mt-1.5 text-xs font-semibold text-rose-600" role="alert">{{ error }}</p>
 	</div>
 </template>
 
 <script setup lang="ts">
+import type { PropType } from 'vue'
 defineOptions({ inheritAttrs: false })
 
 const props = defineProps({
-	modelValue: { type: [String, Number], default: '' },
+	// null = empty (nullable API fields bind straight to the input).
+	modelValue: { type: [String, Number] as PropType<string | number | null | undefined>, default: '' },
 	required: { type: Boolean, default: false },
 	type: { type: String, default: 'text' },
 	placeholder: { type: String, default: '' },

@@ -195,8 +195,9 @@ export const useAuth = (requiredRole?: AuthRole) => {
    * team member): a code went to that e-mail; call again with `code` to convert it.
    */
   const register = (payload: RegisterPayload | LegacyRegisterPayload, code?: string) => tracked(async (): Promise<SessionUser | null> => {
+    // The legacy shape has an index signature, so `in` can't narrow it by itself.
     const body: RegisterPayload = 'first_name' in payload
-      ? payload
+      ? payload as RegisterPayload
       : {
           first_name: payload.firstname.trim(),
           middle_name: payload.middlename?.trim() || null,

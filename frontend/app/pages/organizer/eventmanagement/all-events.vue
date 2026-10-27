@@ -100,9 +100,9 @@
 
 <script setup lang="ts">
 interface OrganizerEvent {
-	id: number
-	inquiry_id: number | null
-	quotation_id: number | null
+	id: string // UUIDs, like every NaSeRy id
+	inquiry_id: string | null
+	quotation_id: string | null
 
 	name: string
 	event_type: string
@@ -120,7 +120,7 @@ interface OrganizerEvent {
 }
 
 interface OfferInquiry {
-	id: number
+	id: string
 
 	event_title: string | null
 	event_type: string
@@ -134,9 +134,9 @@ interface OfferInquiry {
 }
 
 interface OrganizerQuotation {
-	id: number
-	inquiry_id: number
-	organizer_id: number
+	id: string
+	inquiry_id: string
+	organizer_id: string
 
 	quotation_amount: string | number
 
@@ -183,8 +183,8 @@ interface PlanningItem {
 
 interface ActivityTimelineEvent {
 	key: string
-	eventId: number | null
-	quotationId: number | null
+	eventId: string | null
+	quotationId: string | null
 	name: string
 	eventType: string
 	eventDate: string | null
