@@ -117,6 +117,8 @@ interface OrganizerEvent {
 	end_time: string | null
 
 	status: string
+	/** Share of preparation tasks done; null until the event has tasks. */
+	readiness_percent: number | null
 }
 
 interface OfferInquiry {
@@ -420,61 +422,10 @@ function formatEventStatus(
 	)
 }
 
-function readiness(
-	item: PlanningItem,
-): number {
-	if (!item.event) {
-		return 20
-	}
-
-	let score = 20
-
-	if (
-		item.event.name
-	) {
-		score += 10
-	}
-
-	if (
-		item.event.event_date
-	) {
-		score += 10
-	}
-
-	if (
-		item.event.location
-	) {
-		score += 15
-	}
-
-	if (
-		item.event.expected_guests
-	) {
-		score += 10
-	}
-
-	if (
-		item.event.start_time
-	) {
-		score += 10
-	}
-
-	if (
-		item.event.end_time
-	) {
-		score += 10
-	}
-
-	if (
-		item.event.description
-	) {
-		score += 5
-	}
-
-	return Math.min(
-		score,
-		100,
-	)
+/** Real readiness: the share of preparation tasks done (B7). 0 until the event has tasks. */
+function readiness(item: PlanningItem): number {
+	if (item.event?.status === 'completed') return 100
+	return Math.round(item.event?.readiness_percent ?? 0)
 }
 
 
@@ -712,7 +663,8 @@ function timeRange(item: PlanningItem) {
 	return start || end || 'Time not set'
 }
 function readinessHint(item: PlanningItem) {
-	if (!item.event) return 'Create the event to start planning'
+	if (!item.event) return 'Start preparing to create the event'
+	if (['completed', 'cancelled'].includes(item.event.status)) return item.event.status === 'completed' ? 'Event finished' : 'Event cancelled'
 	const missing = [
 		!item.event.location && 'location',
 		!item.event.expected_guests && 'guest count',
@@ -721,7 +673,10 @@ function readinessHint(item: PlanningItem) {
 		!item.event.description && 'description',
 	].filter(Boolean) as string[]
 	if (missing.length) return `Add ${missing.slice(0, 2).join(' and ')}`
-	return ['published', 'confirmed', 'ongoing', 'completed'].includes(item.event.status) ? 'Everything is set' : 'Ready to publish'
+	// The ring counts preparation tasks; say so when there are none yet.
+	if (item.event.readiness_percent === null) return 'No preparation tasks yet'
+	if ((item.event.readiness_percent ?? 0) >= 100) return 'All preparation tasks done'
+	return 'Preparation tasks done'
 }
 onMounted(() => { setTimeout(() => { ringsReady.value = true }, 150) })
 </script>

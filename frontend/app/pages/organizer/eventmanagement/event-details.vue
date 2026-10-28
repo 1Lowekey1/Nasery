@@ -36,12 +36,16 @@
 			<section v-if="event && event.id && !isEditMode && canEditCover && showLifecycle" class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-6 py-4">
 				<div class="min-w-0">
 					<p class="text-sm font-bold text-gray-950">{{ event.status === 'ongoing' ? 'The event is live' : 'Event day' }}</p>
-					<p class="mt-0.5 text-sm text-gray-500">{{ event.status === 'ongoing' ? 'Mark it completed when it ends. The client can then leave a review.' : hasStarted ? 'The start time has passed. Start it now, or mark it completed if it is over.' : 'Start it when doors open. Check-in opens 3 hours before the start time either way.' }}</p>
+					<p class="mt-0.5 text-sm text-gray-500">{{ event.status === 'ongoing' ? 'Mark it completed when it ends. The client can then leave a review. Started by mistake? Stop it.' : hasStarted ? 'The start time has passed. Start it now, or mark it completed if it is over.' : 'Start it when doors open. Check-in opens 3 hours before the start time either way.' }}</p>
 					<p v-if="lifecycleError" class="mt-1 text-sm font-semibold text-red-600" role="alert">{{ lifecycleError }}</p>
 				</div>
 				<div class="flex shrink-0 flex-wrap gap-2">
 					<button v-if="event.status === 'published'" type="button" class="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-primary-800 disabled:opacity-50" :disabled="lifecycleBusy" @click="runLifecycle('start')">
 						<span class="h-2 w-2 rounded-full bg-green-300" /> Start event
+					</button>
+					<!-- Started too early, an emergency, or the client disagrees: back to "not started", with a reason. -->
+					<button v-if="event.status === 'ongoing'" type="button" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50" :disabled="lifecycleBusy" @click="runLifecycle('stop')">
+						<IconBase name="x-circle" class="h-4 w-4" /> Stop event
 					</button>
 					<button v-if="event.status === 'ongoing' || hasStarted" type="button" class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50" :disabled="lifecycleBusy" @click="runLifecycle('complete')">
 						<IconBase name="check-circle" class="h-4 w-4" /> Mark completed
@@ -176,7 +180,9 @@
 									<div class="space-y-1.5 rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
 										<p class="flex items-center gap-2 font-semibold text-gray-900"><IconBase name="users" class="h-4 w-4 text-primary-700" />Invite your guests</p>
 										<p>After saving, add guests in <strong class="font-semibold text-gray-900">Ticketing &amp; Attendance → Attendees</strong>, one by one or with <strong class="font-semibold text-gray-900">Bulk Import</strong> from a spreadsheet. Each guest gets a QR invite your team scans at the door.</p>
-										<p class="text-xs text-gray-500">Room for {{ guestListCapacity }} invited guests (Expected guests under Venue).</p>
+										<p class="text-xs text-gray-500">
+											Room for {{ guestListCapacity }} invited guests<template v-if="editForm.privateTickets && ticketSeats"> ({{ roomSize }} expected guests − {{ ticketSeats }} ticket seats)</template><template v-else> (Expected guests under Venue)</template>.<template v-if="invitedSoFar"> {{ invitedSoFar }} invited so far.</template>
+										</p>
 									</div>
 									<button type="button" role="switch" :aria-checked="editForm.privateTickets" class="group flex w-full items-center justify-between gap-4 rounded-2xl border border-gray-200 px-4 py-3.5 text-left transition hover:border-gray-300" @click="togglePrivateTickets">
 										<span class="flex items-start gap-3">
@@ -198,7 +204,9 @@
 									</div>
 									<div class="rounded-xl bg-gray-50 px-4 py-3"><p class="text-xs text-gray-500">If all sell</p><p class="text-lg font-extrabold tabular-nums text-primary-700">{{ formatCurrency(ticketSummary.revenue) }}</p></div>
 								</div>
-								<p v-if="ticketSummary.guests && ticketSummary.capacity < ticketSummary.guests" class="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"><IconBase name="sparkles" class="h-3.5 w-3.5" />You have {{ ticketSummary.guests - ticketSummary.capacity }} fewer seats than expected guests.</p>
+								<p v-if="privateSeatProblem" class="flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700" role="alert"><IconBase name="x-circle" class="mt-px h-3.5 w-3.5 shrink-0" />{{ privateSeatProblem }}</p>
+								<p v-else-if="editForm.visibility === 'private' && roomSize" class="text-xs text-gray-500">{{ ticketSeats }} of {{ roomSize }} seats go to tickets; the other {{ Math.max(0, roomSize - ticketSeats) }} stay for invited guests.</p>
+								<p v-else-if="ticketSummary.guests && ticketSummary.capacity < ticketSummary.guests" class="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"><IconBase name="sparkles" class="h-3.5 w-3.5" />You have {{ ticketSummary.guests - ticketSummary.capacity }} fewer seats than expected guests.</p>
 
 								<TransitionGroup tag="div" name="ed-card" class="space-y-3">
 									<div v-for="(type, index) in editForm.ticketTypes" :key="ticketKey(type, index)" class="relative scroll-mt-24 overflow-hidden rounded-2xl border border-gray-200 p-4 pl-5" data-ticket-card>
@@ -288,11 +296,12 @@
 								<circle cx="40" cy="40" r="34" fill="none" stroke="#eef0f2" stroke-width="7" />
 								<circle cx="40" cy="40" r="34" fill="none" stroke="#285F6b" stroke-width="7" stroke-linecap="round" :stroke-dasharray="VIEW_RING" :stroke-dashoffset="VIEW_RING * (1 - (viewReady ? ringPercent : 0) / 100)" class="transition-[stroke-dashoffset] duration-1000 ease-out" />
 							</svg>
-							<span class="absolute inset-0 flex items-center justify-center text-lg font-extrabold tabular-nums text-gray-950">{{ ringPercent }}%</span>
+							<!-- Set-up shows steps (4/6), not a percentage, so it never reads as "90% ready". -->
+							<span class="absolute inset-0 flex items-center justify-center text-lg font-extrabold tabular-nums text-gray-950">{{ setupLeft && !isLocked ? `${readinessChecks.length - setupLeft}/${readinessChecks.length}` : `${ringPercent}%` }}</span>
 						</div>
 						<div>
 							<p class="text-sm font-bold text-gray-950">{{ isLocked ? (event.status === 'completed' ? 'Event completed' : 'Event cancelled') : setupLeft ? 'Set up this event' : 'Preparation' }}</p>
-							<p class="mt-0.5 text-xs text-gray-500">{{ isLocked ? 'It can no longer be changed.' : setupLeft ? `${setupLeft} ${setupLeft === 1 ? 'step' : 'steps'} left. Tap one to do it.` : 'Set up. The ring shows verified preparation tasks.' }}</p>
+							<p class="mt-0.5 text-xs text-gray-500">{{ isLocked ? 'It can no longer be changed.' : setupLeft ? `${setupLeft} ${setupLeft === 1 ? 'step' : 'steps'} left. Tap one to do it.` : prepHint }}</p>
 						</div>
 					</div>
 					<ul v-if="!isLocked" class="-mx-2 mt-4 space-y-0.5">
@@ -394,6 +403,8 @@ interface EventTicketType {
 	price: string | number
 	capacity: number
 	status?: string
+	/** Tickets issued (for the guest list: guests invited). */
+	sold?: number
 }
 
 // Event cover: anyone who may edit the event (the server checks event.update again).
@@ -420,16 +431,25 @@ async function saveCover(file: File) {
 // Going live and finishing the event (no other screen does this).
 const lifecycleBusy = ref(false)
 const lifecycleError = ref('')
-async function runLifecycle(action: 'start' | 'complete') {
+async function runLifecycle(action: 'start' | 'stop' | 'complete') {
 	if (!event.value) return
-	const ask = action === 'start'
-		? { text: 'Start the event now? It shows as live to you and your team.', label: 'Start event' }
-		: { text: 'Mark the event completed? It can no longer be changed after this, and the client can leave a review.', label: 'Mark completed' }
-	if (!(await confirmDialog(ask.text, { confirmLabel: ask.label }))) return
+	let reason: string | undefined
+	if (action === 'stop') {
+		// Kept in the activity log, so the team (and later the panel) can see why.
+		const why = await promptDialog('Stop the event and set it back to not started? Check-ins already made are kept. Say why, e.g. started too early, an emergency, or the client asked to wait.',
+			{ title: 'Stop the event', confirmLabel: 'Stop event', placeholder: 'Reason', minLength: 3, danger: true })
+		if (why === null) return
+		reason = why.trim()
+	} else {
+		const ask = action === 'start'
+			? { text: 'Start the event now? It shows as live to you and your team.', label: 'Start event' }
+			: { text: 'Mark the event completed? It can no longer be changed after this, and the client can leave a review.', label: 'Mark completed' }
+		if (!(await confirmDialog(ask.text, { confirmLabel: ask.label }))) return
+	}
 	lifecycleBusy.value = true
 	lifecycleError.value = ''
 	try {
-		await useOrganizerEvents().transition(coverOrgId.value, String(event.value.id), action)
+		await useOrganizerEvents().transition(coverOrgId.value, String(event.value.id), action, reason)
 		event.value = await loadEvent(String(event.value.id)) as unknown as typeof event.value
 	} catch (e: unknown) {
 		lifecycleError.value = authMessage(e) || 'That didn’t work. Try again.'
@@ -657,56 +677,6 @@ const editForm =
 		contactPhone: '',
 	})
 
-const readiness =
-	computed(() => {
-		if (!event.value) {
-			return 0
-		}
-
-		let score = 20
-
-		if (event.value.name) {
-			score += 10
-		}
-
-		if (event.value.event_date) {
-			score += 10
-		}
-
-		if (event.value.location) {
-			score += 15
-		}
-
-		if (
-			event.value.expected_guests
-		) {
-			score += 10
-		}
-
-		if (
-			event.value.start_time
-		) {
-			score += 10
-		}
-
-		if (
-			event.value.end_time
-		) {
-			score += 10
-		}
-
-		if (
-			event.value.description
-		) {
-			score += 5
-		}
-
-		return Math.min(
-			score,
-			100,
-		)
-	})
-
 function fillEditForm() {
 	if (!event.value) {
 		return
@@ -920,10 +890,10 @@ async function loadDetails() {
 async function loadEvent(id: string) {
 	const [apiEvent, tiers] = await Promise.all([
 		useOrganizerEvents().show(orgId, id),
-		useApi().get<{ tiers: { id: string, name: string, price: string, capacity: number, status: string }[] }>(`/organizations/${orgId}/events/${id}/ticket-types`)
+		useApi().get<{ tiers: { id: string, name: string, price: string, capacity: number, status: string, sold: number }[] }>(`/organizations/${orgId}/events/${id}/ticket-types`)
 			.then(r => r.data.tiers).catch(() => []),
 	])
-	return { ...toLegacyEvent(apiEvent), private_link_key: (apiEvent as { private_link_key?: string | null }).private_link_key ?? null, ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity, status: t.status })) }
+	return { ...toLegacyEvent(apiEvent), private_link_key: (apiEvent as { private_link_key?: string | null }).private_link_key ?? null, ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity, status: t.status, sold: t.sold })) }
 }
 
 function addTicketType() {
@@ -1109,6 +1079,12 @@ async function saveEvent() {
 		return
 	}
 
+	if (privateSeatProblem.value) {
+		saveError.value = privateSeatProblem.value
+		activeEditTab.value = 'Ticket Types'
+		return
+	}
+
 	isSaving.value = true
 
 	saveError.value = ''
@@ -1156,17 +1132,22 @@ async function saveEvent() {
 				await useApi().post(base, body)
 			}
 		}
-		for (const type of tiers.filter(t => t.name.trim())) {
+		// Order matters for a private event's seat limit (the server checks each step): remove
+		// tiers first, then lower seats, then raise seats and add new tiers.
+		const named = tiers.filter(t => t.name.trim())
+		for (const type of named) if (type.id) kept.add(String(type.id))
+		for (const old of current.ticket_types ?? []) {
+			if (!kept.has(old.id)) await useApi().delete(`${base}/${old.id}`).catch(() => null)
+		}
+		const oldSeats = new Map((current.ticket_types ?? []).map(t => [String(t.id), Number((t as { capacity?: number }).capacity ?? 0)]))
+		const seatChange = (t: TicketTypeForm) => t.id ? (Number(t.capacity || 0) || 1) - (oldSeats.get(String(t.id)) ?? 0) : Number.POSITIVE_INFINITY
+		for (const type of [...named].sort((a, b) => seatChange(a) - seatChange(b))) {
 			const body = { name: type.name.trim(), price: Number(type.price || 0), capacity: Number(type.capacity || 0) || 1 }
 			if (type.id) {
-				kept.add(String(type.id))
 				await useApi().patch(`${base}/${type.id}`, body)
 			} else {
 				await useApi().post(base, { ...body, status: current.status === 'draft' ? 'draft' : 'on_sale' })
 			}
-		}
-		for (const old of current.ticket_types ?? []) {
-			if (!kept.has(old.id)) await useApi().delete(`${base}/${old.id}`).catch(() => null)
 		}
 
 		// Status: publish / unpublish / complete through the event lifecycle.
@@ -1269,7 +1250,24 @@ const privacyOptions = [
 	{ value: 'private' as const, title: 'Private', hint: 'Invited guests only, e.g. birthdays and weddings. Not listed on NaSeRy.', icon: 'shield-check' },
 	{ value: 'public' as const, title: 'Public', hint: 'Listed on the Event Marketplace. Anyone can get a ticket, e.g. concerts and fairs.', icon: 'globe' },
 ]
-const guestListCapacity = computed(() => Math.max(1, Number(editForm.expectedGuests) || 100))
+// Private events: Expected guests is the room. Ticket seats come out of it and the rest
+// is kept for invitations, so ticket sales never take an invited guest's seat.
+const roomSize = computed(() => Number(editForm.expectedGuests) || 0)
+const ticketSeats = computed(() => editForm.privateTickets ? editForm.ticketTypes.filter(t => t.name.trim()).reduce((s, t) => s + (Number(t.capacity) || 0), 0) : 0)
+const invitedSoFar = computed(() => Number((event.value?.ticket_types ?? []).find(t => isGuestTier(t))?.sold ?? 0))
+const guestListCapacity = computed(() => {
+	if (!roomSize.value) return Math.max(1, 100, invitedSoFar.value)
+	return Math.max(1, invitedSoFar.value, roomSize.value - ticketSeats.value)
+})
+/** Why a private event's ticket seats don't fit (empty when they do). */
+const privateSeatProblem = computed(() => {
+	if (editForm.visibility !== 'private' || !editForm.privateTickets || !roomSize.value) return ''
+	const free = roomSize.value - invitedSoFar.value
+	if (ticketSeats.value <= free) return ''
+	return invitedSoFar.value
+		? `Only ${Math.max(0, free)} seats are free after the ${invitedSoFar.value} guests you invited. Lower the ticket seats or raise Expected guests.`
+		: `Ticket seats (${ticketSeats.value}) are more than Expected guests (${roomSize.value}). Lower the ticket seats or raise Expected guests.`
+})
 function setVisibility(value: Visibility) {
 	editForm.visibility = value
 	if (value === 'public' && !editForm.ticketTypes.length) addTicketType()
@@ -1433,13 +1431,18 @@ const hasStarted = computed(() => {
 	const start = new Date(`${e.event_date}T${e.start_time || '00:00'}`).getTime()
 	return !Number.isNaN(start) && start <= Date.now()
 })
-// While setting up: share of setup steps done. Afterwards: verified preparation tasks.
+// While setting up: share of setup steps done (shown as 4/6). Afterwards: preparation
+// tasks done, 0 while there are none (never a made-up 100%).
+const prepPercent = computed(() => (event.value as { readiness_percent?: number | null } | null)?.readiness_percent ?? null)
 const ringPercent = computed(() => {
 	const checks = readinessChecks.value
-	if (setupLeft.value && checks.length) return Math.round(((checks.length - setupLeft.value) / checks.length) * 100)
-	const pct = (event.value as { readiness_percent?: number | null } | null)?.readiness_percent
-	return typeof pct === 'number' ? Math.round(pct) : 100
+	if (setupLeft.value && checks.length && !isLocked.value) return Math.round(((checks.length - setupLeft.value) / checks.length) * 100)
+	if (event.value?.status === 'completed') return 100
+	return Math.round(prepPercent.value ?? 0)
 })
+const prepHint = computed(() => prepPercent.value === null
+	? 'Set up. No preparation tasks yet: add them in Preparation tracking.'
+	: `${Math.round(prepPercent.value)}% of preparation tasks done.`)
 const setupLeft = computed(() => readinessChecks.value.filter(c => !c.done).length)
 async function openSection(section: string) {
 	if (!event.value) return

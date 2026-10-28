@@ -122,6 +122,7 @@ class ActivityTimeline
             'event.published' => 'Event published',
             'event.unpublished' => 'Event moved back to draft',
             'event.started' => 'Event started',
+            'event.stopped' => 'Event stopped and set back to not started'.($r->reason ? ': '.$r->reason : ''),
             'event.completed' => 'Event completed',
             'event.cancelled' => 'Event cancelled',
             'event.session_added' => 'Session added to the schedule',

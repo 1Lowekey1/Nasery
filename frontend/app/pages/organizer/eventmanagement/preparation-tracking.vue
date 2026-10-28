@@ -325,22 +325,10 @@ const completedCount =
 		).length,
 	)
 
-const readinessPercent =
-	computed(() => {
-		if (
-			!checklist.value.length
-		) {
-			return 0
-		}
-
-		return Math.round(
-			(
-				completedCount.value /
-				checklist.value.length
-			) *
-			100,
-		)
-	})
+// The server's readiness (verified done ÷ tasks still needed, or the manual override),
+// so this ring matches Event details, All events and the client's view.
+const serverReadiness = ref<number | null>(null)
+const readinessPercent = computed(() => Math.round(serverReadiness.value ?? 0))
 
 /*
  * ============================================================
@@ -373,6 +361,7 @@ function extractEvent(
  */
 
 type ApiPreparation = {
+	readiness_percent?: number | null
 	stage?: string | null
 	stages?: string[]
 	event_status?: string
@@ -393,6 +382,7 @@ async function loadJourney() {
 
 function applyPreparation(prep: ApiPreparation) {
 	stageInfo.value = { stage: prep.stage ?? null, stages: prep.stages ?? [], status: prep.event_status ?? null }
+	serverReadiness.value = prep.readiness_percent ?? null
 	teamMembers.value = prep.team.map(m => {
 		const [firstname, ...rest] = m.name.split(' ')
 		return { id: m.id as unknown as number, position: m.label, organization_member_id: m.organization_member_id,

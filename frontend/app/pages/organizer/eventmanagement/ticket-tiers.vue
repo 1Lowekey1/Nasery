@@ -22,6 +22,11 @@
 				</div>
 			</section>
 
+			<p v-if="actionError" class="flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+				<span>{{ actionError }}</span>
+				<button type="button" class="tap-target shrink-0 font-semibold" aria-label="Dismiss" @click="actionError = ''"><IconBase name="x" class="h-4 w-4" /></button>
+			</p>
+
 			<!-- Summary -->
 			<section v-if="event.ticket_types?.length" class="rounded-2xl border border-gray-200 bg-white p-6">
 
@@ -35,7 +40,7 @@
 						</div>
 					</div>
 
-					<dl class="mt-6 grid grid-cols-2 divide-gray-100 border-t border-gray-100 pt-5 sm:grid-cols-5 sm:divide-x">
+					<dl class="mt-6 grid grid-cols-2 divide-gray-100 border-t border-gray-100 pt-5 sm:divide-x" :class="summaryStats.length > 4 ? 'sm:grid-cols-5' : 'sm:grid-cols-4'">
 						<div v-for="stat in summaryStats" :key="stat.label" class="py-1 sm:px-5 sm:first:pl-0">
 							<dt class="text-xs text-gray-500">{{ stat.label }}</dt>
 							<dd class="mt-1 text-xl font-bold tabular-nums" :class="stat.accent ? 'text-primary-700' : 'text-gray-950'">{{ stat.value }}</dd>
@@ -108,6 +113,8 @@ interface TicketType {
 	price: string | number
 	capacity: number
 	sold?: number
+	/** Seats still on sale: capacity − issued − held at checkout (the server's count). */
+	remaining?: number
 }
 
 interface OrganizerEvent {
@@ -170,8 +177,10 @@ const totalCapacity = computed(() =>
 )
 
 const totalAvailable = computed(() =>
-	Math.max(totalCapacity.value - totalSold.value, 0),
+	(event.value?.ticket_types ?? []).reduce((total, ticket) => total + getAvailability(ticket), 0),
 )
+/** Money actually received for this event: paid payments minus refunds. Null without finance access. */
+const revenue = ref<number | null>(null)
 
 const eventId =
 	computed(() => routeId(route.query.event))
@@ -210,10 +219,13 @@ async function loadTicketTypes() {
 	try {
 		const org = await useOrganization().fetchOrganization()
 		if (!org) throw new Error('Set up your organizer workspace first.')
-		const [apiEvent, tiers] = await Promise.all([
+		const [apiEvent, tiers, payments] = await Promise.all([
 			useOrganizerEvents().show(org.id, eventId.value),
 			useOrganizerTicketing().tiers(org.id, eventId.value),
+			useApi().get<{ totals: { gross: string, refunds: string } }>(`/organizations/${org.id}/events/${eventId.value}/payments`)
+				.then(r => r.data.totals).catch(() => null),
 		])
+		revenue.value = payments ? Number(payments.gross) - Number(payments.refunds) : null
 		event.value = {
 			id: apiEvent.id as unknown as number,
 			name: apiEvent.name,
@@ -222,7 +234,7 @@ async function loadTicketTypes() {
 			invitations: null,
 		}
 		for (const t of tiers.tiers) {
-			const row = { id: t.id as unknown as number, event_id: apiEvent.id as unknown as number, name: t.name, price: t.price, capacity: t.capacity, sold: t.sold } as TicketType
+			const row = { id: t.id as unknown as number, event_id: apiEvent.id as unknown as number, name: t.name, price: t.price, capacity: t.capacity, sold: t.sold, remaining: t.remaining } as TicketType
 			if (isGuestTier(t)) event.value.invitations = row
 			else event.value.ticket_types!.push(row)
 		}
@@ -277,17 +289,8 @@ function formatCurrency(
 	)
 }
 
-function getAvailability(
-	ticket: TicketType,
-): number {
-	const sold =
-		ticket.sold ?? 0
-
-	return Math.max(
-		ticket.capacity -
-		sold,
-		0,
-	)
+function getAvailability(ticket: TicketType): number {
+	return ticket.remaining ?? Math.max(ticket.capacity - (ticket.sold ?? 0), 0)
 }
 
 function getSoldPercentage(
@@ -366,42 +369,21 @@ async function editTicketType(
 	})
 }
 
-/*
- * ============================================================
- * DELETE TICKET TYPE
- * ============================================================
- *
- * Your current EventController updates
- * all ticket types together.
- *
- * So for now it is safer to edit/remove
- * the ticket type inside Edit Event.
- *
- * Later we can create:
- *
- * DELETE /organizer/events/{event}/ticket-types/{ticketType}
- */
-
-async function deleteTicketType(
-	ticket: TicketType,
-) {
-	if (!event.value) {
-		return
+/** Removes a ticket type nobody has bought yet (the server refuses one that has tickets: close it instead). */
+async function deleteTicketType(ticket: TicketType) {
+	if (!event.value || !(await confirmDialog(`Remove the ticket type “${ticket.name}”?`, { confirmLabel: 'Remove' }))) return
+	actionError.value = ''
+	try {
+		const org = await useOrganization().fetchOrganization()
+		if (!org) return
+		await useOrganizerTicketing().removeTier(org.id, String(event.value.id), String(ticket.id))
+		await loadTicketTypes()
+	} catch (error: unknown) {
+		actionError.value = authMessage(error) || 'Unable to remove this ticket type.'
 	}
-
-	await navigateTo({
-		path:
-			'/organizer/eventmanagement/event-details',
-
-		query: {
-			event:
-				event.value.id,
-
-			mode:
-				'edit',
-		},
-	})
 }
+// A failed action shows as a banner; only a failed load replaces the page.
+const actionError = ref('')
 
 watch(
 	eventId,
@@ -417,7 +399,6 @@ onMounted(() => {
 // ---------- Minimal view helpers ----------
 const ready = ref(false)
 const overallPercent = computed(() => totalCapacity.value ? Math.round((totalSold.value / totalCapacity.value) * 100) : 0)
-const revenueSoFar = computed(() => (event.value?.ticket_types ?? []).reduce((sum: number, t: any) => sum + (Number(t.price) || 0) * (Number(t.sold) || 0), 0))
 // Numbers count up once when the page loads.
 const tick = ref(0)
 function eased(target: number) { return Math.round(target * tick.value) }
@@ -426,7 +407,8 @@ const summaryStats = computed(() => [
 	{ label: 'Issued', value: eased(totalSold.value) },
 	{ label: 'Capacity', value: eased(totalCapacity.value) },
 	{ label: 'Available', value: eased(totalAvailable.value) },
-	{ label: 'Revenue so far', value: formatCurrency(eased(revenueSoFar.value)), accent: true },
+	// Paid minus refunded (free tickets and unpaid holds don't count as money).
+	...(revenue.value !== null ? [{ label: 'Received so far', value: formatCurrency(eased(revenue.value)), accent: true }] : []),
 ])
 function runCountUp() {
 	if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { tick.value = 1; return }

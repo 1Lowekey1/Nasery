@@ -20,8 +20,9 @@
 			</button>
 		</div>
 
-		<!-- Phones: three equal tabs with short labels, so none is cut off. -->
-		<nav v-if="hasSelectedEvent" class="mb-5 grid w-full grid-cols-3 gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 shadow-sm sm:mb-6 sm:flex sm:w-fit" aria-label="Event management sections">
+		<!-- Phones: three equal tabs with short labels, so none is cut off.
+		     Only once the event exists: an awarded bid has no tickets or preparation until "Start preparing". -->
+		<nav v-if="selectedEventId" class="mb-5 grid w-full grid-cols-3 gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 shadow-sm sm:mb-6 sm:flex sm:w-fit" aria-label="Event management sections">
 			<template v-for="tab in tabs" :key="tab.label">
 				<NuxtLink :to="tab.to" :aria-label="tab.label"
 					class="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[13px] font-bold transition sm:shrink-0 sm:gap-2 sm:px-4 sm:text-sm" :class="route.path === tab.path

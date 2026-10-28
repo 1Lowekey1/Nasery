@@ -44,6 +44,8 @@ export interface LegacyEvent {
   event_type_id: string | null
   first_session_id: string | null
   public_registration: boolean
+  /** Uploaded cover picture (MediaController). */
+  cover_url: string | null
   ticket_types?: { id: string, name: string, price: string | number, capacity: number }[]
 }
 
@@ -82,6 +84,7 @@ export function toLegacyEvent(e: NaseryEvent | ApiOrganizerEvent, quotationId: s
     event_type_id: e.event_type_id,
     first_session_id: first?.id ?? null,
     public_registration: e.visibility === 'public',
+    cover_url: e.cover_url ?? null,
   }
 }
 

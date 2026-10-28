@@ -42,7 +42,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
                 Route::post('{event}/cover', [MediaController::class, 'storeEventCover'])->middleware('throttle:sensitive')->name('cover.store');
                 Route::delete('{event}/cover', [MediaController::class, 'destroyEventCover'])->middleware('throttle:sensitive')->name('cover.destroy');
                 Route::post('{event}/{action}', [OrganizerEventController::class, 'transition'])
-                    ->whereIn('action', ['publish', 'unpublish', 'start', 'complete', 'cancel'])
+                    ->whereIn('action', ['publish', 'unpublish', 'start', 'stop', 'complete', 'cancel'])
                     ->middleware('throttle:sensitive')->name('transition');
 
                 Route::post('{event}/sessions', [OrganizerEventController::class, 'storeSession'])->middleware('throttle:sensitive')->name('sessions.store');

@@ -1,7 +1,7 @@
 // Events (B6): organizer management and the client's read-only view.
 
 export type EventStatus = 'draft' | 'published' | 'ongoing' | 'completed' | 'cancelled'
-export type EventAction = 'publish' | 'unpublish' | 'start' | 'complete' | 'cancel'
+export type EventAction = 'publish' | 'unpublish' | 'start' | 'stop' | 'complete' | 'cancel'
 
 export interface EventSession {
   id: string
@@ -53,6 +53,8 @@ export interface NaseryEvent extends EventFields {
   readiness_manual: boolean
   stage: string | null
   created_at: string
+  /** Uploaded cover picture (MediaController). */
+  cover_url?: string | null
 }
 
 export type TaskStatus = 'pending' | 'in_progress' | 'done' | 'blocked' | 'cancelled'

@@ -34,6 +34,8 @@ use Illuminate\Validation\ValidationException;
  *   publish    draft → published          [event.publish] needs ≥1 session
  *   unpublish  published → draft          [event.publish]
  *   start      published → ongoing        [event.update]
+ *   stop       ongoing → published        [event.update] with a reason: started too early,
+ *              an emergency, or the client disagrees; check-ins already made are kept
  *   complete   published|ongoing → completed [event.complete] after the first session began
  *   cancel     draft|published|ongoing → cancelled [event.cancel] with a reason
  */
@@ -43,6 +45,7 @@ class EventManager
         'publish' => [[EventStatus::Draft], EventStatus::Published],
         'unpublish' => [[EventStatus::Published], EventStatus::Draft],
         'start' => [[EventStatus::Published], EventStatus::Ongoing],
+        'stop' => [[EventStatus::Ongoing], EventStatus::Published],
         'complete' => [[EventStatus::Published, EventStatus::Ongoing], EventStatus::Completed],
         'cancel' => [[EventStatus::Draft, EventStatus::Published, EventStatus::Ongoing], EventStatus::Cancelled],
     ];
@@ -328,7 +331,7 @@ class EventManager
     {
         return match ($action) {
             'publish' => 'published', 'unpublish' => 'unpublished', 'start' => 'started',
-            'complete' => 'completed', 'cancel' => 'cancelled',
+            'stop' => 'stopped', 'complete' => 'completed', 'cancel' => 'cancelled',
         };
     }
 }

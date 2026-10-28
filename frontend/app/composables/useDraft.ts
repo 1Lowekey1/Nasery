@@ -90,7 +90,8 @@ export function useDraft<T extends Record<string, any>>(
 	const snapshot = (): Record<string, unknown> => {
 		const out: Record<string, unknown> = {}
 		for (const [k, v] of Object.entries(toRaw(state))) {
-			if (!omit.has(k)) out[k] = JSON.parse(JSON.stringify(v ?? null))
+			// toRaw keeps refs (e.g. reactive({ text: draftRef })); a ref in use is circular.
+			if (!omit.has(k)) out[k] = JSON.parse(JSON.stringify(unref(v) ?? null))
 		}
 		return out
 	}

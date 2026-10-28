@@ -29,7 +29,7 @@ class OrganizerEventController extends Controller
 {
     private const TRANSITION_PERMISSIONS = [
         'publish' => 'event.publish', 'unpublish' => 'event.publish', 'start' => 'event.update',
-        'complete' => 'event.complete', 'cancel' => 'event.cancel',
+        'stop' => 'event.update', 'complete' => 'event.complete', 'cancel' => 'event.cancel',
     ];
 
     public function __construct(
@@ -94,7 +94,8 @@ class OrganizerEventController extends Controller
     public function transition(Request $request, Organization $organization, Event $event, string $action): JsonResponse
     {
         $this->member($request, $organization, self::TRANSITION_PERMISSIONS[$action], $event);
-        $reason = $action === 'cancel'
+        // Cancelling, and taking a started event back to "not started", always say why (audit log).
+        $reason = in_array($action, ['cancel', 'stop'], true)
             ? $request->validate(['reason' => ['required', 'string', 'min:3', 'max:500']])['reason']
             : null;
 
