@@ -34,8 +34,8 @@ class EventTypesTest extends TestCase
         $base = "/api/v1/organizations/{$org->id}/event-types";
 
         $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'wedding'])->assertUnprocessable();
-        $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'Reunion'])->assertCreated();
-        $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'REUNION'])->assertUnprocessable();
+        $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'Homecoming'])->assertCreated();
+        $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'HOMECOMING'])->assertUnprocessable();
     }
 
     public function test_platform_defaults_and_other_tenants_types_cannot_be_edited(): void

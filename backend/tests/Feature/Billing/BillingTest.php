@@ -74,7 +74,7 @@ class BillingTest extends TestCase
         $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/team/invitations",
             ['email' => $this->businessUser()->email, 'preset' => 'coordinator'])->assertStatus(402)->assertJsonPath('error.details.feature', 'staff_limit');
 
-        foreach (['Reunion', 'Blessing'] as $type) {
+        foreach (['Homecoming', 'Blessing'] as $type) {
             $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/event-types", ['name' => $type])->assertCreated();
         }
         $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/event-types", ['name' => 'Gala'])->assertStatus(402);
