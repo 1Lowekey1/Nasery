@@ -158,6 +158,7 @@ class AdminTest extends TestCase
 
         // Counts are platform-wide (other data may exist): compare against a baseline.
         $open = $this->actingAs($admin)->spaJson('GET', '/api/v1/admin/moderation/reviews')->json('data.counts.open');
+        $inReview = (int) DB::table('reviews')->where('status', 'disputed')->count();
         $this->actingAs($reporter)->spaJson('POST', "/api/v1/reviews/{$review}/report", ['reason' => 'Fake review, never booked.'])->assertOk();
         $this->assertSame(1, $this->notified($admin, 'admin.report'));
         $this->actingAs($admin)->spaJson('GET', '/api/v1/admin/moderation/reviews')->assertOk()
@@ -165,7 +166,7 @@ class AdminTest extends TestCase
 
         // Take the case: disputed, hidden meanwhile, the client is told.
         $this->actingAs($admin)->spaJson('POST', "/api/v1/admin/moderation/reviews/{$review}/start", ['note' => 'Checking the booking'])->assertOk()
-            ->assertJsonPath('data.in_review', 1);
+            ->assertJsonPath('data.in_review', $inReview + 1);
         $this->assertSame('disputed', DB::table('reviews')->where('id', $review)->value('status'));
         $this->assertSame(0, $public());
         $this->assertSame(1, $this->notified($client, 'review.moderated'));
