@@ -102,6 +102,20 @@ class OrganizerEventController extends Controller
         return ApiResponse::success($this->show($this->events->transition($event, $action, $reason)));
     }
 
+    /** 0055: the final agreed price (organizer-only; null = the accepted quotation's total). */
+    public function agreedAmount(Request $request, Organization $organization, Event $event): JsonResponse
+    {
+        $this->member($request, $organization, 'quotation.manage', $event);
+        $data = $request->validate([
+            'agreed_amount' => ['present', 'nullable', 'numeric', 'min:0', 'max:9999999999.99', 'decimal:0,2'],
+            'agreed_amount_note' => ['nullable', 'string', 'max:500'],
+        ]);
+        $amount = $data['agreed_amount'] === null ? null : (float) $data['agreed_amount'];
+
+        return ApiResponse::success($this->show($this->events->setAgreedAmount($event, $amount, $data['agreed_amount_note'] ?? null)),
+            $amount === null ? 'Back to the accepted offer’s total.' : 'Final agreed price saved.');
+    }
+
     public function destroy(Request $request, Organization $organization, Event $event): JsonResponse
     {
         $this->member($request, $organization, 'event.update', $event);
@@ -154,14 +168,26 @@ class OrganizerEventController extends Controller
         $user = request()->user();
         $can = fn (string $permission) => $this->access->canOnEvent($user, $event, $permission);
 
+        // 0055: the price, for members who handle quotations or see finances (never the client API).
+        $seesPrice = $can('quotation.manage') || $this->access->can($user, $event->organization_id, 'finance.view');
+        $offer = $seesPrice && $event->accepted_quotation_id
+            ? DB::table('quotations')->where('id', $event->accepted_quotation_id)->value('total_amount') : null;
+
         // What the signed-in member may do here (B8: organization-wide or on this event), for the UI.
-        return [...$this->presenter->forOrganizer(collect([$event]))->first(), 'can' => [
-            'update' => $can('event.update'),
-            'publish' => $can('event.publish'),
-            'complete' => $can('event.complete'),
-            'cancel' => $can('event.cancel'),
-            'manage_team' => $this->access->can($user, $event->organization_id, 'staff.manage'),
-        ]];
+        return [...$this->presenter->forOrganizer(collect([$event]))->first(),
+            ...($seesPrice ? ['price' => [
+                'offer_amount' => $offer,
+                'agreed_amount' => $event->agreed_amount,
+                'agreed_amount_note' => $event->agreed_amount_note,
+            ]] : []),
+            'can' => [
+                'update' => $can('event.update'),
+                'publish' => $can('event.publish'),
+                'complete' => $can('event.complete'),
+                'cancel' => $can('event.cancel'),
+                'manage_team' => $this->access->can($user, $event->organization_id, 'staff.manage'),
+                'set_price' => $can('quotation.manage'),
+            ]];
     }
 
     private function member(Request $request, Organization $organization, ?string $permission = null, ?Event $event = null): OrganizationMember

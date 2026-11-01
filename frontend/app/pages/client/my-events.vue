@@ -1212,6 +1212,9 @@ async function loadClientInquiries(quiet = false) {
 			? Promise.resolve([] as ApiClientQuotation[])
 			: useClientQuotations().forInquiry(i.id).catch(() => [] as ApiClientQuotation[])))
 		const peso = (v: string | null) => (v ? `₱${Number(v).toLocaleString('en-PH')}` : null)
+		// As organizers see it: "Nicole D." (for the default "Wedding for Nicole D." name).
+		const me = useAuth().user.value
+		const myShortName = `${me?.first_name ?? ''} ${me?.last_name ? `${me.last_name[0]}.` : ''}`.trim() || 'you'
 		clientEvents.value = inquiries.map((i, index) => {
 			const list = quotes[index] ?? []
 			const accepted = list.find(q => q.status === 'accepted')
@@ -1224,8 +1227,9 @@ async function loadClientInquiries(quiet = false) {
 			return {
 				id: i.id as unknown as number,
 				client_id: 0,
-				// The name they gave the event; else the type and guest count.
-				event_title: i.event_name || (i.event_type ? `${i.event_type}${i.guest_count ? ` · ${i.guest_count} guests` : ''}` : 'Event inquiry'),
+				// The event's name once the organizer set it up (they may rename it), else the name the
+				// client gave, else "Wedding for Nicole D.".
+				event_title: event?.name || i.event_name || `${i.event_type ?? 'Event'} for ${myShortName}`,
 				event_type: i.event_type ?? 'Other',
 				event_date: eventDay ?? i.requested_date ?? '',
 				location: i.location_text ?? '',

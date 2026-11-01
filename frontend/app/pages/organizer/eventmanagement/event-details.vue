@@ -319,6 +319,34 @@
 					</ul>
 				</section>
 
+				<!-- 0055: what the client and organizer finally agreed (keeps the won value in Analytics accurate) -->
+				<section v-if="event.price && (event.price.offer_amount || event.price.agreed_amount || event.can_set_price)" class="rounded-2xl border border-gray-200 bg-white p-5">
+					<div class="flex items-start justify-between gap-3">
+						<p class="flex items-center gap-2 text-sm font-bold text-gray-950"><IconBase name="cash" class="h-4 w-4 text-primary-700" />Final agreed price</p>
+						<button v-if="event.can_set_price && event.status !== 'cancelled' && !priceForm" type="button" class="text-xs font-semibold text-primary-700 hover:underline" @click="openPriceForm">{{ event.price.agreed_amount ? 'Change' : 'Set' }}</button>
+					</div>
+					<template v-if="!priceForm">
+						<p class="mt-2 text-2xl font-extrabold tabular-nums text-gray-950">{{ agreedShown !== null ? formatCurrency(agreedShown) : 'Not set' }}</p>
+						<p class="mt-0.5 text-xs text-gray-500">
+							<template v-if="event.price.agreed_amount && event.price.offer_amount">Accepted offer was {{ formatCurrency(event.price.offer_amount) }}.</template>
+							<template v-else-if="event.price.offer_amount">The accepted offer’s total. Change it if the price changed, or after your accounting.</template>
+							<template v-else>Set what the client is paying for this event.</template>
+						</p>
+						<p v-if="event.price.agreed_amount_note" class="mt-2 rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-600">{{ event.price.agreed_amount_note }}</p>
+					</template>
+					<form v-else class="mt-3 space-y-2" @submit.prevent="savePrice(false)">
+						<div class="relative"><span class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">₱</span>
+							<input v-model="priceForm.amount" type="number" min="0" step="0.01" required class="ed-field !pl-8" aria-label="Final agreed price"></div>
+						<input v-model="priceForm.note" type="text" maxlength="500" class="ed-field" placeholder="What changed? e.g. Added photo booth, less 5%" aria-label="What changed">
+						<p v-if="priceError" class="text-xs font-semibold text-red-600" role="alert">{{ priceError }}</p>
+						<div class="flex flex-wrap gap-2">
+							<button type="submit" class="ed-btn ed-btn-primary !h-10" :disabled="priceBusy">{{ priceBusy ? 'Saving…' : 'Save' }}</button>
+							<button type="button" class="ed-btn !h-10" :disabled="priceBusy" @click="priceForm = null">Cancel</button>
+							<button v-if="event.price.agreed_amount && event.price.offer_amount" type="button" class="ed-btn !h-10" :disabled="priceBusy" @click="savePrice(true)">Use the offer total</button>
+						</div>
+					</form>
+				</section>
+
 				<section v-if="privateLink" class="rounded-2xl border border-gray-200 bg-white p-5">
 					<p class="flex items-center gap-2 text-sm font-bold text-gray-950"><IconBase name="link" class="h-4 w-4 text-primary-700" />Private ticket link</p>
 					<p class="mt-1 text-xs text-gray-500">Send it to the people who may get tickets. Anyone with the link can open the event, so share it only with your guests.</p>
@@ -492,7 +520,11 @@ interface OrganizerEvent {
 	contact_phone: string | null
 
 	ticket_types?: EventTicketType[]
+	/** 0055: offer total and final agreed price (members who handle quotations or finances). */
+	price?: EventPrice | null
+	can_set_price?: boolean
 }
+interface EventPrice { offer_amount: string | null, agreed_amount: string | null, agreed_amount_note: string | null }
 
 type EventResponse =
 	| OrganizerEvent
@@ -893,7 +925,8 @@ async function loadEvent(id: string) {
 		useApi().get<{ tiers: { id: string, name: string, price: string, capacity: number, status: string, sold: number }[] }>(`/organizations/${orgId}/events/${id}/ticket-types`)
 			.then(r => r.data.tiers).catch(() => []),
 	])
-	return { ...toLegacyEvent(apiEvent), private_link_key: (apiEvent as { private_link_key?: string | null }).private_link_key ?? null, ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity, status: t.status, sold: t.sold })) }
+	const extra = apiEvent as { private_link_key?: string | null, price?: EventPrice, can?: { set_price?: boolean } }
+	return { ...toLegacyEvent(apiEvent), private_link_key: extra.private_link_key ?? null, price: extra.price ?? null, can_set_price: !!extra.can?.set_price, ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity, status: t.status, sold: t.sold })) }
 }
 
 function addTicketType() {
@@ -1418,6 +1451,37 @@ const privateLink = computed(() => {
 	if (!e?.private_link_key || !(e.ticket_types ?? []).some(t => !isGuestTier(t)) || !import.meta.client) return ''
 	return `${window.location.origin}/event-registration/${e.id}?key=${encodeURIComponent(e.private_link_key)}`
 })
+// ---- Final agreed price (0055) ----
+const agreedShown = computed(() => {
+	const p = event.value?.price
+	const v = p?.agreed_amount ?? p?.offer_amount
+	return v !== null && v !== undefined ? Number(v) : null
+})
+const priceForm = ref<{ amount: string, note: string } | null>(null)
+const priceBusy = ref(false)
+const priceError = ref('')
+function openPriceForm() {
+	const p = event.value?.price
+	priceForm.value = { amount: String(p?.agreed_amount ?? p?.offer_amount ?? ''), note: p?.agreed_amount_note ?? '' }
+	priceError.value = ''
+}
+/** Save the final price, or go back to the accepted offer's total (reset = true). */
+async function savePrice(reset: boolean) {
+	if (!event.value || !priceForm.value) return
+	const amount = reset ? null : Number(priceForm.value.amount)
+	if (!reset && (!Number.isFinite(amount) || amount! < 0)) { priceError.value = 'Enter the price, e.g. 250000.'; return }
+	priceBusy.value = true
+	priceError.value = ''
+	try {
+		await useApi().put(`/organizations/${coverOrgId.value}/events/${event.value.id}/agreed-amount`, { agreed_amount: amount, agreed_amount_note: reset ? null : priceForm.value.note.trim() || null })
+		event.value = await loadEvent(String(event.value.id)) as unknown as typeof event.value
+		priceForm.value = null
+	} catch (e: unknown) {
+		priceError.value = Object.values(fieldErrors(e))[0] || authMessage(e) || 'That didn’t save. Try again.'
+	} finally {
+		priceBusy.value = false
+	}
+}
 const linkCopied = ref(false)
 async function copyPrivateLink() {
 	try { await navigator.clipboard.writeText(privateLink.value) } catch { window.prompt('Copy this link', privateLink.value); return }

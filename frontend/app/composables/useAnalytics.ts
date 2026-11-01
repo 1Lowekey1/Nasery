@@ -9,7 +9,7 @@ export interface BidAnalytics {
     inquiries: number, open: number, bids: number, won: number, lost: number, pending: number, declined: number, missed: number
     win_rate: number | null, response_rate: number | null, median_response_hours: number | null, won_value: string, average_bid: string | null
   }
-  trend: { key: string, label: string, inquiries: number, bids: number, won: number, lost: number }[]
+  trend: { key: string, label: string, inquiries: number, bids: number, won: number, lost: number, won_value?: string }[]
   by_event_type: { event_type: string, inquiries: number, bids: number, won: number, win_rate: number | null }[]
   history: { inquiry_id: string, event_type: string, guest_count: number | null, requested_date: string | null, invited_at: string, first_sent_at: string | null, amount: string | null, outcome: BidOutcome }[]
 }

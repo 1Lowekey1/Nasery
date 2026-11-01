@@ -28,7 +28,7 @@
 				</p>
 			</div>
 
-			<div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
+			<div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
 					<div class="flex items-start justify-between gap-3">
 						<div>
@@ -73,6 +73,22 @@
 						{{ bidsLost }}
 					</div>
 				</div>
+
+				<!-- What the won bids are worth: the final agreed price where the organizer set one, else the accepted offer -->
+				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+					<div class="flex items-start justify-between gap-3">
+						<div>
+							<div class="text-sm font-semibold text-gray-900">Won value</div>
+							<div class="text-xs text-gray-400">Final agreed prices</div>
+						</div>
+						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50">
+							<IconBase name="cash" class="h-5 w-5 text-primary-700" />
+						</span>
+					</div>
+					<div class="mt-3 text-3xl font-extrabold tracking-tight text-gray-950">
+						{{ new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(wonValue) }}
+					</div>
+				</div>
 			</div>
 		</template>
 	</div>
@@ -107,6 +123,7 @@ const monthly = ref<MonthlyBidRow[]>([])
 const totalBids = ref(0)
 const bidsWon = ref(0)
 const bidsLost = ref(0)
+const wonValue = ref(0)
 
 const hasMonthlyActivity = computed(() => monthly.value.some(row => row.won > 0 || row.lost > 0))
 
@@ -156,6 +173,7 @@ async function loadBidPerformance() {
 		totalBids.value = response.data.total_bids
 		bidsWon.value = response.data.bids_won
 		bidsLost.value = response.data.bids_lost
+		wonValue.value = response.data.won_value
 	} catch (error: unknown) {
 		errorMessage.value = authMessage(error) || getApiErrorMessage(error, 'Unable to load your bid performance.')
 	} finally {

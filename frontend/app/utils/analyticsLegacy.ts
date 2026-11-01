@@ -27,6 +27,13 @@ export async function legacyAnalyticsOverview() {
       avg_attendance_rate: pct(o?.events?.totals.average_attendance_rate),
       active_inquiries: bids?.open ?? 0,
     },
+    // Money the API already works out (the redesign had dropped it): won bids at their final
+    // agreed price, and ticket revenue for members who may see finances.
+    money: {
+      won_value: bids ? Number(bids.won_value) : null,
+      won_count: bids?.won ?? 0,
+      revenue: o?.can.revenue && o.events?.totals.revenue !== undefined ? Number(o.events.totals.revenue) : null,
+    },
     distribution: bids
       ? [
           { label: 'Received', value: bids.open },
@@ -51,10 +58,11 @@ export async function legacyBidPerformance() {
   const o = await overviewFor()
   const t = o?.bids?.totals
   return {
-    monthly: (o?.bids?.trend ?? []).map(r => ({ label: r.label, won: r.won, lost: r.lost })),
+    monthly: (o?.bids?.trend ?? []).map(r => ({ label: r.label, won: r.won, lost: r.lost, won_value: Number(r.won_value ?? 0) })),
     total_bids: t?.bids ?? 0,
     bids_won: t?.won ?? 0,
     bids_lost: t?.lost ?? 0,
+    won_value: t ? Number(t.won_value) : 0,
   }
 }
 

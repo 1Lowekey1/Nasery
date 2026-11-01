@@ -29,6 +29,26 @@
 				</div>
 			</div>
 
+			<!-- Money: won bids (at the final agreed price when one is set) and ticket sales -->
+			<div v-if="money && (money.won_value !== null || money.revenue !== null)" class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+				<div v-if="money.won_value !== null" class="rounded-2xl border border-gray-200 bg-white p-5">
+					<div class="flex items-start justify-between gap-3">
+						<span class="text-sm font-medium text-gray-500">Won value</span>
+						<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><IconBase name="cash" class="h-[18px] w-[18px]" /></span>
+					</div>
+					<p class="mt-2 text-3xl font-extrabold tabular-nums tracking-tight text-gray-950">{{ peso(money.won_value) }}</p>
+					<p class="mt-2.5 text-xs text-gray-500">{{ money.won_count }} won {{ money.won_count === 1 ? 'bid' : 'bids' }} in this period, at the final agreed price where you set one</p>
+				</div>
+				<div v-if="money.revenue !== null" class="rounded-2xl border border-gray-200 bg-white p-5">
+					<div class="flex items-start justify-between gap-3">
+						<span class="text-sm font-medium text-gray-500">Ticket revenue</span>
+						<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><IconBase name="ticket" class="h-[18px] w-[18px]" /></span>
+					</div>
+					<p class="mt-2 text-3xl font-extrabold tabular-nums tracking-tight text-gray-950">{{ peso(money.revenue) }}</p>
+					<p class="mt-2.5 text-xs text-gray-500">Paid ticket sales for your events in this period. <NuxtLink to="/organizer/earnings" class="font-semibold text-primary-700 hover:underline">Earnings</NuxtLink></p>
+				</div>
+			</div>
+
 			<div class="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
 				<!-- How you respond -->
 				<section class="rounded-2xl border border-gray-200 bg-white p-6">
@@ -125,6 +145,8 @@ const errorMessage = ref('')
 const analyticsStats = ref<AnalyticsStats | null>(null)
 const distribution = ref<DistributionRow[]>([])
 const recentActivity = ref<AnalyticsActivity[]>([])
+const money = ref<{ won_value: number | null, won_count: number, revenue: number | null } | null>(null)
+const peso = (v: number) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(v)
 const mounted = ref(false)
 const focused = ref('')
 
@@ -203,6 +225,7 @@ async function loadAnalytics() {
 		analyticsStats.value = response.data.stats
 		distribution.value = response.data.distribution
 		recentActivity.value = response.data.recent_activity
+		money.value = response.data.money
 	} catch (error: unknown) {
 		errorMessage.value = authMessage(error) || 'Your analytics couldn’t be loaded. Refresh the page to try again.'
 	} finally {

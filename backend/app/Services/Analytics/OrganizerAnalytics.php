@@ -77,8 +77,11 @@ class OrganizerAnalytics
                 ->where('status', '!=', 'draft')->whereNull('deleted_at')
                 ->orderBy('created_at')->get(['id', 'inquiry_id', 'status', 'total_amount', 'submitted_at', 'decided_at', 'created_at'])
                 ->groupBy('inquiry_id');
+            // 0055: a won bid is worth the final agreed price once the organizer records one.
+            $agreed = DB::table('events')->where('organization_id', $org->id)->whereIn('inquiry_id', $invites->pluck('inquiry_id'))
+                ->whereNull('deleted_at')->whereNotNull('agreed_amount')->pluck('agreed_amount', 'inquiry_id');
 
-            $rows = $invites->map(function ($inv) use ($quotes) {
+            $rows = $invites->map(function ($inv) use ($quotes, $agreed) {
                 $history = $quotes->get($inv->inquiry_id, collect());
                 $final = $history->last();
                 $firstSent = $history->pluck('submitted_at')->filter()->min();
@@ -98,7 +101,8 @@ class OrganizerAnalytics
                     'first_sent_at' => $firstSent ? $this->local($firstSent) : null,
                     'decided_at' => $final?->decided_at ? $this->local($final->decided_at) : null,
                     'outcome' => $outcome,
-                    'amount' => $final?->total_amount,
+                    'amount' => $outcome === 'won' && isset($agreed[$inv->inquiry_id]) ? $agreed[$inv->inquiry_id] : $final?->total_amount,
+                    'offer_amount' => $final?->total_amount,
                     'event_type' => $inv->event_type ?? 'Other',
                     'guest_count' => $inv->guest_count,
                     'requested_date' => $inv->requested_date,
@@ -124,7 +128,8 @@ class OrganizerAnalytics
                     'response_rate' => $this->rate($sent->count(), $rows->count()),
                     'median_response_hours' => $hours->isEmpty() ? null : round((float) $hours[intdiv($hours->count(), 2)], 1),
                     'won_value' => $this->money($won->sum(fn ($r) => (float) $r->amount)),
-                    'average_bid' => $sent->count() ? $this->money($sent->avg(fn ($r) => (float) $r->amount)) : null,
+                    // What the bids said (offers as sent), so a later price change doesn't rewrite it.
+                    'average_bid' => $sent->count() ? $this->money($sent->avg(fn ($r) => (float) $r->offer_amount)) : null,
                 ],
                 'trend' => collect($p['keys'])->map(fn ($key, $i) => [
                     'key' => $key,
@@ -133,6 +138,7 @@ class OrganizerAnalytics
                     'bids' => $sent->filter(fn ($r) => $this->bucket($r->first_sent_at, $p['group']) === $key)->count(),
                     'won' => $won->filter(fn ($r) => $r->decided_at && $this->bucket($r->decided_at, $p['group']) === $key)->count(),
                     'lost' => $lost->filter(fn ($r) => $r->decided_at && $this->bucket($r->decided_at, $p['group']) === $key)->count(),
+                    'won_value' => $this->money($won->filter(fn ($r) => $r->decided_at && $this->bucket($r->decided_at, $p['group']) === $key)->sum(fn ($r) => (float) $r->amount)),
                 ])->values()->all(),
                 'by_event_type' => $rows->groupBy('event_type')->map(fn ($g, $type) => [
                     'event_type' => $type,

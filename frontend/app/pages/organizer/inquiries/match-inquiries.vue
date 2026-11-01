@@ -720,8 +720,8 @@ async function loadMatchingInquiries(quiet = false) {
 				return {
 					id: i.inquiry_id as unknown as number,
 					client_id: 0,
-					// The client's own event name ("Marlo & Rena Wedding"); "Posted by" shows who.
-					event_title: i.event_name || i.event_type || 'Event',
+					// The client's own event name ("Marlo & Rena Wedding"), else "Wedding for Nicole D.".
+					event_title: i.event_name || `${i.event_type ?? 'Event'} for ${i.client}`,
 					event_type: i.event_type ?? 'Other',
 					event_date: i.requested_date ?? '',
 					// Post an Event writes "Time: 16:00 – 21:00" into the notes.

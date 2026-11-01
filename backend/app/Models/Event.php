@@ -51,6 +51,7 @@ class Event extends Model
             'latitude' => 'decimal:6',
             'longitude' => 'decimal:6',
             'cancelled_at' => 'datetime',
+            'agreed_amount' => 'decimal:2',
         ];
     }
 

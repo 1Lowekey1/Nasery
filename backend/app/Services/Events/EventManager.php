@@ -199,6 +199,29 @@ class EventManager
         return $event;
     }
 
+    /**
+     * The final agreed price (0055), when it differs from the accepted quotation:
+     * extra services, discounts, or the final figure after the event's accounting.
+     * Allowed at any time except on a cancelled event (completed ones included);
+     * null goes back to the quotation's total. Audited with the old and new amount.
+     */
+    public function setAgreedAmount(Event $event, ?float $amount, ?string $note): Event
+    {
+        $this->lock($event);
+
+        if ($event->status === EventStatus::Cancelled) {
+            throw new ApiException(ErrorCode::InvalidStateTransition, 'This event was cancelled; its price can no longer change.', 409);
+        }
+
+        $old = ['agreed_amount' => $event->agreed_amount, 'agreed_amount_note' => $event->agreed_amount_note];
+        $note = $note !== null && trim($note) !== '' ? trim($note) : null;
+        $event->forceFill(['agreed_amount' => $amount, 'agreed_amount_note' => $amount === null ? null : $note])->save();
+        $this->audit->record('event.agreed_amount_set', $event, old: $old,
+            new: ['agreed_amount' => $amount, 'agreed_amount_note' => $note, 'event_id' => $event->id], organizationId: $event->organization_id);
+
+        return $event;
+    }
+
     /** Independent drafts only; a converted or started event is cancelled instead. */
     public function deleteDraft(Event $event): void
     {
