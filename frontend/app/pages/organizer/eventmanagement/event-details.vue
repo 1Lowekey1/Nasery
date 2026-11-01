@@ -357,6 +357,8 @@
 					</div>
 				</section>
 
+				<OrganizerEventTeam v-if="coverOrgId" :organization-id="coverOrgId" :event-id="String(event.id)" :editable="!isLocked" />
+
 				<nav class="overflow-hidden rounded-2xl border border-gray-200 bg-white" aria-label="More for this event">
 					<NuxtLink v-for="link in viewLinks" :key="link.to" :to="{ path: link.to, query: { event: event.id } }" class="group flex items-center gap-3 border-b border-gray-100 px-5 py-3.5 transition last:border-b-0 hover:bg-gray-50">
 						<span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><IconBase :name="link.icon" class="h-4 w-4" /></span>

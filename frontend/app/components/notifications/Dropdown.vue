@@ -150,7 +150,7 @@ function onKey(e: KeyboardEvent) {
 }
 watch(() => route.fullPath, closePanel)
 
-// Close to live (review #12): check the count every minute while the tab is visible and
+// Close to live (review #12): check the count every 20 seconds while the tab is visible and
 // when it comes back; new notices reload the list. Pages using useLiveRefresh watch the
 // same count, so they refresh together with the bell.
 let poll: ReturnType<typeof setInterval> | undefined
@@ -168,7 +168,7 @@ onMounted(() => {
 	window.addEventListener('keydown', onKey)
 	document.addEventListener('visibilitychange', onVisible)
 	load()
-	poll = setInterval(checkForNew, 60_000)
+	poll = setInterval(checkForNew, 20_000)
 })
 
 onBeforeUnmount(() => {

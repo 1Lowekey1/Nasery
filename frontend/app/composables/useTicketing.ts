@@ -112,14 +112,6 @@ export interface MyTicket {
   cancellable: boolean
 }
 
-export const tierStatusLabels: Record<TierStatus, string> = {
-  draft: 'Not on sale', on_sale: 'On sale', paused: 'Paused', closed: 'Closed',
-}
-
-export const guestStatusLabels: Record<GuestRow['status'], string> = {
-  valid: 'Valid', used: 'Checked in', cancelled: 'Cancelled', invalidated: 'Invalidated',
-}
-
 export function priceLabel(price: string | number | null | undefined): string {
   return Number(price ?? 0) === 0 ? 'Free' : formatPeso(price ?? 0)
 }
@@ -134,9 +126,6 @@ export const useOrganizerTicketing = () => {
   return {
     tiers: async (orgId: string, eventId: string) =>
       (await api.get<{ tiers: TicketTier[], summary: TicketSummary, overall_capacity: number | null, can_manage: boolean, can_manage_guests: boolean }>(`${base(orgId, eventId)}/ticket-types`)).data,
-    createTier: async (orgId: string, eventId: string, body: TierInput) => (await api.post<TicketTier[]>(`${base(orgId, eventId)}/ticket-types`, body)).data,
-    updateTier: async (orgId: string, eventId: string, id: string, body: Partial<TierInput>) =>
-      (await api.patch<TicketTier[]>(`${base(orgId, eventId)}/ticket-types/${id}`, body)).data,
     removeTier: async (orgId: string, eventId: string, id: string) => (await api.delete<TicketTier[]>(`${base(orgId, eventId)}/ticket-types/${id}`)).data,
 
     guests: async (orgId: string, eventId: string, filters: { search?: string, status?: string, ticket_type_id?: string, page?: number }): Promise<Page<GuestRow>> => {

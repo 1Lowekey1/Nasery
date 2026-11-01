@@ -92,7 +92,7 @@ async function signOut() {
         <NuxtLink v-if="canPostEvent" to="/client/post-event" class="mt-2 block rounded-lg bg-primary-700 px-3 py-3 text-center text-white">Post an event <span aria-hidden="true">↗</span></NuxtLink>
       </div>
     </header>
-    <main id="main-content"><slot /></main>
+    <main id="main-content"><AnnouncementBanner class="mx-auto max-w-7xl px-4 pt-4 sm:px-6" /><slot /></main>
     <footer class="mt-16 border-t border-gray-200">
       <div class="mx-auto flex max-w-7xl flex-col justify-between gap-3 px-5 py-8 text-sm text-gray-500 sm:flex-row sm:px-8">
         <span class="font-bold text-primary-800">NaSeRy · Bring your event to life.</span>

@@ -299,6 +299,17 @@
 										<IconBase :name="emailingAttendeeId === attendee.id ? 'refresh-cw' : (emailedAttendeeIds.has(attendee.id) ? 'check-circle' : 'send')"
 											class="h-4 w-4" :class="{ 'animate-spin': emailingAttendeeId === attendee.id, 'text-green-600': emailedAttendeeIds.has(attendee.id) }" />
 									</button>
+									<!-- A lost or shared QR: issue a new one (the old code stops working) -->
+									<button type="button" title="New QR code" :aria-label="`New QR code for ${attendee.name}`"
+										class="rounded-lg border border-gray-200 bg-white p-2 text-gray-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 disabled:opacity-40"
+										:disabled="ticketActionId === attendee.id" @click="reissueAttendeeQr(attendee)">
+										<IconBase name="refresh-cw" class="h-4 w-4" />
+									</button>
+									<button v-if="attendee.status === 'registered'" type="button" title="Cancel ticket" :aria-label="`Cancel ${attendee.name}'s ticket`"
+										class="rounded-lg border border-gray-200 bg-white p-2 text-gray-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+										:disabled="ticketActionId === attendee.id" @click="cancelAttendeeTicket(attendee)">
+										<IconBase name="x-circle" class="h-4 w-4" />
+									</button>
 								</div>
 								<span v-else class="text-xs text-gray-300">—</span>
 							</td>
@@ -1252,6 +1263,40 @@ async function emailAttendeeTicket(attendee: Attendee) {
 	}
 }
 
+// One guest's ticket: a new QR code, or cancel it (with a reason the guest is told).
+const ticketActionId = ref<number | null>(null)
+
+async function reissueAttendeeQr(attendee: Attendee) {
+	if (!(await confirmDialog(`Give ${attendee.name} a new QR code? Their current code stops working at the door right away. Download or email the new ticket after.`, { confirmLabel: 'Issue new QR code' }))) return
+	ticketActionId.value = attendee.id
+	errorMessage.value = ''
+	try {
+		await ticketingApi.reissueQr(await orgIdOf(), eventKey(), String(attendee.id))
+		emailedAttendeeIds.value.delete(attendee.id)
+		successMessage.value = `New QR code issued for ${attendee.name}. The old one no longer works.`
+	} catch (error: unknown) {
+		errorMessage.value = authMessage(error) || 'Unable to issue a new QR code.'
+	} finally {
+		ticketActionId.value = null
+	}
+}
+
+async function cancelAttendeeTicket(attendee: Attendee) {
+	const reason = await promptDialog(`Cancel ${attendee.name}'s ticket? Their QR code stops working and the seat opens up again. Say why.`, { title: 'Cancel ticket', placeholder: 'At least 3 characters', minLength: 3, confirmLabel: 'Cancel ticket' })
+	if (!reason) return
+	ticketActionId.value = attendee.id
+	errorMessage.value = ''
+	try {
+		await ticketingApi.cancelTicket(await orgIdOf(), eventKey(), String(attendee.id), reason)
+		successMessage.value = `${attendee.name}'s ticket was cancelled.`
+		await loadAttendees(true)
+	} catch (error: unknown) {
+		errorMessage.value = authMessage(error) || 'Unable to cancel this ticket.'
+	} finally {
+		ticketActionId.value = null
+	}
+}
+
 const registerAmount = computed(() =>
 	registerForm.attendeeCategory === 'paid' ? Number(selectedTicketType.value?.price ?? 0) : 0,
 )
@@ -1552,8 +1597,9 @@ function formatStatus(
 		return 'Needs approval'
 	}
 
+	// Guest-list tickets that were cancelled or invalidated
 	if (status === 'rejected') {
-		return 'Rejected'
+		return 'Cancelled'
 	}
 
 	return 'Registered'

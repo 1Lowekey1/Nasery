@@ -24,7 +24,24 @@
 						<p class="mt-1 text-gray-500">Client since {{ formatDate(client.joined) }}</p>
 					</div>
 				</div>
+				<!-- Account access: suspend (signs them out everywhere) or reactivate -->
+				<div v-if="client.account_status && client.account_status !== 'deactivated'" class="flex flex-wrap items-center gap-2">
+					<span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold"
+						:class="client.account_status === 'suspended' ? 'bg-rose-50 text-rose-700' : 'bg-green-50 text-green-700'">
+						<span class="h-1.5 w-1.5 rounded-full" :class="client.account_status === 'suspended' ? 'bg-rose-500' : 'bg-green-500'" />
+						{{ client.account_status === 'suspended' ? 'Suspended' : 'Active' }}
+					</span>
+					<button type="button" :disabled="statusBusy"
+						class="inline-flex min-h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition disabled:opacity-50"
+						:class="client.account_status === 'suspended' ? 'border-green-200 text-green-700 hover:bg-green-50' : 'border-rose-200 text-rose-700 hover:bg-rose-50'"
+						@click="changeStatus">
+						<IconBase :name="client.account_status === 'suspended' ? 'check-circle' : 'x-circle'" class="h-4 w-4" />
+						{{ client.account_status === 'suspended' ? 'Reactivate account' : 'Suspend account' }}
+					</button>
+				</div>
 			</div>
+			<p v-if="statusNotice" class="mb-4 rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-800">{{ statusNotice }}</p>
+			<p v-if="statusError" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ statusError }}</p>
 
 			<div class="mb-6 stat-grid grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 				<SuperadminStatCard label="Inquiries Posted" :value="client.inquiries_count" icon="file-text"
@@ -110,6 +127,36 @@ async function loadClient() {
 		errorMessage.value = getApiErrorMessage(error, 'Client not found.')
 	} finally {
 		isLoading.value = false
+	}
+}
+
+const statusBusy = ref(false)
+const statusNotice = ref('')
+const statusError = ref('')
+
+async function changeStatus() {
+	if (!client.value) return
+	const suspend = client.value.account_status !== 'suspended'
+	const reason = await promptDialog(suspend
+		? `Suspend ${client.value.name}? They are signed out everywhere and can't sign in until reactivated. They are notified with your reason.`
+		: `Reactivate ${client.value.name}? They can sign in again right away.`, {
+		title: suspend ? 'Suspend account' : 'Reactivate account',
+		placeholder: 'Reason (at least 5 characters, kept in the activity log)',
+		minLength: 5,
+		confirmLabel: suspend ? 'Suspend account' : 'Reactivate',
+	})
+	if (!reason) return
+	statusBusy.value = true
+	statusNotice.value = ''
+	statusError.value = ''
+	try {
+		await useAdmin().setUserStatus(String(client.value.id), suspend ? 'suspended' : 'active', reason)
+		client.value.account_status = suspend ? 'suspended' : 'active'
+		statusNotice.value = suspend ? 'Account suspended and signed out everywhere.' : 'Account reactivated.'
+	} catch (error: unknown) {
+		statusError.value = getApiErrorMessage(error, 'Unable to change this account.')
+	} finally {
+		statusBusy.value = false
 	}
 }
 

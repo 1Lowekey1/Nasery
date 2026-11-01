@@ -18,9 +18,6 @@ export const CHART = {
   gap: '#ffffff', // 2px surface gap between slices
 } as const
 
-/** Two or three series in one chart, always in this order. */
-export const SERIES = [CHART.blue, CHART.orange, CHART.aqua, CHART.yellow] as const
-
 export function eventStatusColor(status: string): string {
   return ({
     draft: CHART.yellow,

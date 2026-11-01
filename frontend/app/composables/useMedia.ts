@@ -39,9 +39,8 @@ export const useMedia = () => {
 }
 
 // Pictures picked inside a form wait for that form's own Save button.
-// A page form calls provideMediaBatch(); a layout's profile panel calls
-// createMediaBatch() and wraps the panel in <MediaBatchScope :batch> so the
-// pages under that layout aren't affected. On Save the form calls flush().
+// A layout's profile panel calls createMediaBatch() and wraps the panel in
+// <MediaBatchScope :batch> so the pages under that layout aren't affected. On Save the form calls flush().
 // Uploaders outside such a form (super admin menu, event page) upload on pick.
 export interface PendingPicture {
 	file: File
@@ -64,12 +63,6 @@ export interface MediaBatch {
 }
 
 export const mediaBatchKey: InjectionKey<MediaBatch> = Symbol('media-batch')
-
-export function provideMediaBatch(): MediaBatch {
-	const batch = createMediaBatch()
-	provide(mediaBatchKey, batch)
-	return batch
-}
 
 export function createMediaBatch(): MediaBatch {
 	const pending = ref<Record<string, PendingPicture>>({})

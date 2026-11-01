@@ -54,7 +54,7 @@ const classes = {
 </script>
 
 <style>
-/* Brand teal for every multiselect (also used by SelectMultiple). */
+/* Brand teal for every multiselect. */
 .multiselect {
     --ms-option-bg-selected: #285F6b;
     --ms-option-bg-selected-pointed: #1c4f5c;

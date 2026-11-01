@@ -144,14 +144,6 @@ export const eventStatusLabels: Record<EventStatus, string> = {
   cancelled: 'Cancelled',
 }
 
-export const eventStatusClasses: Record<EventStatus, string> = {
-  draft: 'border border-gray-200 text-gray-600',
-  published: 'bg-gray-900 text-white',
-  ongoing: 'bg-green-600 text-white',
-  completed: 'bg-green-50 text-green-700',
-  cancelled: 'bg-rose-50 text-rose-700',
-}
-
 /** "Sat, Feb 14, 2027 · 5:00 PM – 10:00 PM" in the event's own timezone. */
 export function sessionLabel(s: Pick<EventSession, 'starts_at' | 'ends_at'>, timeZone: string): string {
   const start = new Date(s.starts_at)
@@ -187,25 +179,11 @@ export const useOrganizerEvents = () => {
     addSession: async (orgId: string, id: string, s: SessionInput) => (await api.post<OrganizerEvent>(`${base(orgId)}/${id}/sessions`, s)).data,
     updateSession: async (orgId: string, id: string, sessionId: string, s: SessionInput) =>
       (await api.patch<OrganizerEvent>(`${base(orgId)}/${id}/sessions/${sessionId}`, s)).data,
-    removeSession: async (orgId: string, id: string, sessionId: string) =>
-      (await api.delete<OrganizerEvent>(`${base(orgId)}/${id}/sessions/${sessionId}`)).data,
 
     // B7 preparation + timeline (every call returns the whole preparation state)
     preparation: async (orgId: string, id: string) => (await api.get<Preparation>(`${base(orgId)}/${id}/preparation`)).data,
-    addChecklist: async (orgId: string, id: string, body: { name?: string, description?: string | null, starter?: boolean }) =>
-      (await api.post<Preparation>(`${base(orgId)}/${id}/checklists`, body)).data,
-    updateChecklist: async (orgId: string, id: string, checklistId: string, body: { name?: string, description?: string | null }) =>
-      (await api.patch<Preparation>(`${base(orgId)}/${id}/checklists/${checklistId}`, body)).data,
-    removeChecklist: async (orgId: string, id: string, checklistId: string) =>
-      (await api.delete<Preparation>(`${base(orgId)}/${id}/checklists/${checklistId}`)).data,
-    addTask: async (orgId: string, id: string, checklistId: string, body: Partial<PrepTask> & { name: string }) =>
-      (await api.post<Preparation>(`${base(orgId)}/${id}/checklists/${checklistId}/tasks`, body)).data,
     updateTask: async (orgId: string, id: string, taskId: string, body: Partial<Omit<PrepTask, 'id'>>) =>
       (await api.patch<Preparation>(`${base(orgId)}/${id}/tasks/${taskId}`, body)).data,
-    removeTask: async (orgId: string, id: string, taskId: string) =>
-      (await api.delete<Preparation>(`${base(orgId)}/${id}/tasks/${taskId}`)).data,
-    setReadiness: async (orgId: string, id: string, percent: number | null) =>
-      (await api.put<Preparation>(`${base(orgId)}/${id}/readiness`, { readiness_percent: percent })).data,
     timeline: async (orgId: string, id: string) => (await api.get<TimelineEntry[]>(`${base(orgId)}/${id}/timeline`)).data,
   }
 }

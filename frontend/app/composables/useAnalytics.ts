@@ -50,10 +50,6 @@ export interface LiveEvent {
   tiers: { name: string, expected: number, checked_in: number }[]
 }
 
-export const outcomeLabels: Record<BidOutcome, string> = {
-  won: 'Won', lost: 'Lost', pending: 'Awaiting client', declined: 'You declined', missed: 'Missed', open: 'Not answered yet', withdrawn: 'Withdrawn', cancelled: 'Inquiry cancelled',
-}
-
 export const rangeOptions: { value: AnalyticsRange, label: string }[] = [
   { value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: '12m', label: 'Last 12 months' },
   { value: 'ytd', label: 'This year' }, { value: '24m', label: 'Last 2 years' },
@@ -89,39 +85,3 @@ export const useAnalytics = () => {
 
 /** B18: the plan's analytics allowance, from the last overview response. */
 export const useAnalyticsPlan = () => useState<AnalyticsOverview['plan'] | null>('analyticsPlan', () => null)
-
-/** Load the overview for the current filters, re-fetching when they change. */
-export function useAnalyticsOverview() {
-  const { organization, fetchOrganization } = useOrganization()
-  const route = useRoute()
-  const { range, group } = useAnalyticsFilters()
-  const api = useAnalytics()
-  const data = ref<AnalyticsOverview | null>(null)
-  const error = ref('')
-  const loading = ref(false)
-
-  async function load(fresh = false) {
-    loading.value = true
-    error.value = ''
-    try {
-      const org = organization.value ?? await fetchOrganization()
-      if (org) data.value = await api.overview(org.id, range.value, group.value, fresh)
-    } catch (e) {
-      // Members without bid or event-wide access still get the live view.
-      if (e instanceof ApiError && e.status === 403) return navigateTo('/organizer/analyticsdashboard/live-events', { replace: true })
-      // A range or view the plan doesn't include (e.g. an old link): fall back to the plan's default.
-      if (e instanceof ApiError && e.status === 402 && (range.value || group.value === 'quarter')) {
-        return navigateTo({ query: { ...route.query, range: undefined, group: undefined } }, { replace: true })
-      }
-      error.value = authMessage(e)
-    } finally {
-      loading.value = false
-    }
-  }
-
-  watch([range, group], () => load())
-  onMounted(() => load())
-  return { data, error, loading, reload: () => load(true) }
-}
-
-export const pctLabel = (v: number | null | undefined) => (v === null || v === undefined ? '—' : `${Math.round(v * 10) / 10}%`)

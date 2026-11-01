@@ -22,7 +22,7 @@
 		<div v-if="isMobile && sidebarOpen" class="fixed inset-0 z-[85] bg-gray-900/40" aria-hidden="true" @click="closeSidebar" />
     <div class="flex min-w-0 flex-1 flex-col">
       <header class="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-3.5"><div class="flex items-center gap-4"><button type="button" class="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700" :aria-label="sidebarOpen ? 'Close menu' : 'Open menu'" :aria-expanded="sidebarOpen" @click="sidebarOpen = !sidebarOpen"><IconBase :name="sidebarOpen ? 'x' : 'menu'" class="h-5 w-5" /></button><div><div class="text-xs text-gray-400">Team Member Portal</div><div class="text-sm font-bold text-gray-900">{{ currentLabel }}</div></div></div><div class="flex items-center gap-3"><span class="hidden items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 sm:inline-flex"><span class="h-1.5 w-1.5 rounded-full bg-green-500" />System Online</span><NotificationsDropdown /></div></header>
-      <main class="flex-1 overflow-y-auto p-4 sm:p-6"><slot /></main>
+      <main class="flex-1 overflow-y-auto p-4 sm:p-6"><AnnouncementBanner class="mb-4" /><slot /></main>
     </div>
 
     <Transition name="fade"><div v-if="showProfilePanel" class="fixed inset-0 z-40 bg-gray-900/40" @click="closeProfilePanel" /></Transition>

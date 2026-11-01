@@ -121,6 +121,8 @@ export interface AdminClientDetail extends AdminClientSummary {
     tickets_count?: number
     reviews_count?: number
     verified?: boolean
+    /** Account state: suspended accounts can't sign in. */
+    account_status?: 'active' | 'suspended' | 'deactivated'
 }
 export interface AdminPlatformEvent {
     id: number
@@ -353,6 +355,7 @@ export const superAdminService = {
                 tickets_count: u.tickets,
                 reviews_count: u.reviews,
                 verified: u.verified,
+                account_status: u.status,
             },
         }
     },

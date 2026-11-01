@@ -67,15 +67,6 @@ export interface PriceOption {
   sort_order?: number
 }
 
-export const quotationStatusLabels: Record<QuotationStatus, string> = {
-  draft: 'Draft',
-  submitted: 'Sent',
-  accepted: 'Won',
-  rejected: 'Not selected',
-  withdrawn: 'Withdrawn',
-  cancelled: 'Closed',
-}
-
 export const quotationStatusClasses: Record<QuotationStatus, string> = {
   draft: 'bg-gray-100 text-gray-600',
   submitted: 'bg-primary-50 text-primary-700',

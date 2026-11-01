@@ -99,8 +99,6 @@ export const useTeam = () => {
     reactivate: async (orgId: string, memberId: string) => (await api.post<TeamMember[]>(`${base(orgId)}/team/${memberId}/reactivate`)).data,
     createRole: async (orgId: string, body: { name: string, description?: string | null, permissions: string[] }) =>
       (await api.post<TeamRole[]>(`${base(orgId)}/roles`, body)).data,
-    updateRole: async (orgId: string, roleId: string, body: { name?: string, description?: string | null, permissions?: string[] }) =>
-      (await api.patch<TeamRole[]>(`${base(orgId)}/roles/${roleId}`, body)).data,
     removeRole: async (orgId: string, roleId: string) => (await api.delete<TeamRole[]>(`${base(orgId)}/roles/${roleId}`)).data,
 
     myInvitations: async () => (await api.get<MyInvitation[]>('/me/invitations')).data,
@@ -114,8 +112,6 @@ export const useTeam = () => {
       (await api.post<EventTeamMember[]>(`${base(orgId)}/events/${eventId}/team`, body)).data,
     removeFromEvent: async (orgId: string, eventId: string, eventMemberId: string) =>
       (await api.delete<EventTeamMember[]>(`${base(orgId)}/events/${eventId}/team/${eventMemberId}`)).data,
-    assignTask: (orgId: string, eventId: string, taskId: string, eventMemberIds: string[]) =>
-      api.put(`${base(orgId)}/events/${eventId}/tasks/${taskId}/assignees`, { event_member_ids: eventMemberIds }),
     myTasks: async (orgId: string) => (await api.get<MyTask[]>(`${base(orgId)}/my-tasks`)).data,
   }
 }

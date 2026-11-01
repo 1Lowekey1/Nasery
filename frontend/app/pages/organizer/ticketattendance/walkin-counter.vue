@@ -168,11 +168,11 @@
                 <div class="mb-5 flex items-start justify-between gap-3">
                     <div>
                         <h3 class="text-lg font-extrabold tracking-tight text-gray-950">
-                            Paid at the counter
+                            Recorded at the door
                         </h3>
 
                         <p class="mt-0.5 text-sm text-gray-500">
-                            Latest completed walk-in payments
+                            Latest door sales and free entries
                         </p>
                     </div>
 
@@ -197,9 +197,16 @@
                             </div>
                         </div>
 
-                        <div class="shrink-0 text-right">
-                            <p class="text-sm font-bold text-gray-900">{{ formatCurrency(entry.amount) }}</p>
-                            <p class="text-[11px] font-semibold text-gray-400">{{ formatTime(entry.paid_at) }}</p>
+                        <div class="flex shrink-0 items-center gap-1">
+                            <div class="text-right">
+                                <p class="text-sm font-bold text-gray-900">{{ Number(entry.amount) ? formatCurrency(entry.amount) : 'Free' }}</p>
+                                <p class="text-[11px] font-semibold text-gray-400">{{ formatTime(entry.paid_at) }}</p>
+                            </div>
+                            <button v-if="canUndoWalkIns" type="button" title="Undo this entry" :aria-label="`Undo the entry for ${entry.name}`"
+                                class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                                :disabled="undoingId === entry.id" @click="undoWalkIn(entry)">
+                                <IconBase name="x-circle" class="h-4 w-4" />
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -257,10 +264,21 @@
                         {{ walkInFormError }}
                     </div>
 
+                    <!-- Paid ticket (sold at the door) or a free entry recorded by name -->
+                    <div class="mb-4 grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1 text-sm font-bold" role="radiogroup" aria-label="Kind of walk-in">
+                        <button v-for="m in walkInModes" :key="m.value" type="button" role="radio" :aria-checked="walkInForm.mode === m.value"
+                            class="min-h-10 rounded-lg px-2 transition" :class="walkInForm.mode === m.value ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                            @click="walkInForm.mode = m.value">{{ m.label }}</button>
+                    </div>
+                    <p v-if="walkInForm.mode === 'free'" class="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-xs leading-5 text-gray-600">
+                        Lets someone in without a ticket (e.g. a performer or a guest of the client). They count toward capacity.
+                    </p>
+
                     <FormsLabel text="Full Name" required />
 
                     <FormsTextField v-model="walkInForm.name" icon="user" placeholder="e.g. Robert Brown" required />
 
+                    <template v-if="walkInForm.mode === 'ticket'">
                     <label class="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">
                         Ticket Type *
                     </label>
@@ -290,6 +308,7 @@
                             </span>
                         </div>
                     </div>
+                    </template>
 
                     <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
@@ -315,7 +334,7 @@
 
                     <FormsButton class="flex-1" :disabled="isSubmittingWalkIn ||
                         !walkInForm.name.trim() ||
-                        !walkInForm.ticketTypeId
+                        (walkInForm.mode === 'ticket' && !walkInForm.ticketTypeId)
                         " @click="submitWalkIn">
                         <IconBase v-if="isSubmittingWalkIn" name="refresh-cw" class="h-4 w-4 animate-spin" />
 
@@ -324,7 +343,7 @@
                         {{
                             isSubmittingWalkIn
                                 ? 'Adding...'
-                                : 'Add to Queue'
+                                : walkInForm.mode === 'free' ? 'Record entry' : 'Add to Queue'
                         }}
                     </FormsButton>
                 </div>
@@ -525,6 +544,8 @@ const pendingQueue =
         ),
     )
 
+const canUndoWalkIns = ref(false)
+
 const paidEntries =
     computed(() =>
         walkIns.value
@@ -561,8 +582,14 @@ function getInitials(name: string): string {
     )
 }
 
+const walkInModes = [
+    { value: 'ticket' as const, label: 'Paid ticket' },
+    { value: 'free' as const, label: 'Free entry' },
+]
+
 function emptyWalkInForm() {
     return {
+        mode: 'ticket' as 'ticket' | 'free',
         name: '',
 
         ticketTypeId:
@@ -668,6 +695,7 @@ async function loadWalkIns(quiet = false) {
             created_at: w.recorded_at,
             ticket_type: w.tier ? { id: 0, name: w.tier, price: w.amount ?? 0, capacity: 0 } : null,
         }))
+        canUndoWalkIns.value = data.can.undo
         walkInSummary.value = {
             pending: 0,
             paid: data.totals.walk_ins,
@@ -760,6 +788,11 @@ async function submitWalkIn() {
         return
     }
 
+    if (walkInForm.mode === 'free') {
+        await recordFreeEntry()
+        return
+    }
+
     if (
         !walkInForm.ticketTypeId
     ) {
@@ -797,6 +830,44 @@ async function submitWalkIn() {
         walkInFormError.value = authMessage(error) || 'Unable to add walk-in.'
     } finally {
         isSubmittingWalkIn.value = false
+    }
+}
+
+/** A free entry by name: no ticket, counted toward capacity. */
+async function recordFreeEntry() {
+    isSubmittingWalkIn.value = true
+    walkInFormError.value = ''
+    try {
+        await walkInApi.logName(await orgIdOf(), eventKey(), {
+            full_name: walkInForm.name.trim(),
+            email: walkInForm.email.trim() || null,
+            contact_number: walkInForm.phone.trim() || null,
+        })
+        showWalkInForm.value = false
+        Object.assign(walkInForm, emptyWalkInForm())
+        await Promise.all([loadWalkIns(), refreshTopSummary()])
+    } catch (error: unknown) {
+        walkInFormError.value = authMessage(error) || 'Unable to record this entry.'
+    } finally {
+        isSubmittingWalkIn.value = false
+    }
+}
+
+/** Remove a door entry recorded by mistake (the reason is kept in the activity log). */
+const undoingId = ref<number | null>(null)
+async function undoWalkIn(entry: WalkIn) {
+    const sale = Number(entry.amount) ? ' and the door sale is reversed' : ''
+    const reason = await promptDialog(`Undo the entry for ${entry.name}? It no longer counts toward attendance${sale}. Say why.`, { title: 'Undo walk-in', placeholder: 'At least 3 characters', minLength: 3, confirmLabel: 'Undo entry' })
+    if (!reason) return
+    undoingId.value = entry.id
+    errorMessage.value = ''
+    try {
+        await walkInApi.undoWalkIn(await orgIdOf(), eventKey(), String(entry.id), reason)
+        await Promise.all([loadWalkIns(true), refreshTopSummary()])
+    } catch (error: unknown) {
+        errorMessage.value = authMessage(error) || 'Unable to undo this entry.'
+    } finally {
+        undoingId.value = null
     }
 }
 

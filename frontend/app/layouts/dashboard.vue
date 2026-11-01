@@ -85,6 +85,10 @@
 			</header>
 
 			<main class="flex-1 overflow-y-auto p-4 sm:p-6">
+				<!-- NaSeRy-wide notices, then the organization's approval state (hidden once approved) -->
+				<AnnouncementBanner class="mb-4" />
+				<OrganizerApprovalBanner />
+
 				<AnalyticsTabs v-if="isAnalyticsRoute" />
 
 				<InquiryTabs v-else-if="isInquiryRoute" />
