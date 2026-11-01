@@ -1440,9 +1440,10 @@ function clockTime(iso: string | null, timeZone: string): string | null {
 }
 
 /** The client's event (made from their accepted quotation), in this page's shape. */
-async function loadEventDetails() {
+/** quiet: a background refresh (no skeleton). */
+async function loadEventDetails(quiet = false) {
 	errorMessage.value = ''
-	isLoading.value = true
+	if (!quiet) isLoading.value = true
 	try {
 		const events = await useClientEvents().list()
 		const event = events.find(e => e.id === eventParam.value)
@@ -1693,6 +1694,8 @@ onMounted(async () => {
 
 	if (route.query.chat) showChat.value = true
 })
+// The organizer's changes (date, venue, status, tickets) show without a reload.
+useLiveRefresh(() => loadEventDetails(true), { interval: 60000 })
 
 onBeforeUnmount(() => {
 	if (registrationVerificationTimer) {

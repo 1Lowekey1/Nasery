@@ -198,7 +198,8 @@ function extractEvent(
 	return response as OrganizerEvent
 }
 
-async function loadTicketTypes() {
+/** quiet: a background refresh (no skeleton, no count-up). */
+async function loadTicketTypes(quiet = false) {
 	errorMessage.value =
 		''
 
@@ -213,8 +214,7 @@ async function loadTicketTypes() {
 		return
 	}
 
-	isLoading.value =
-		true
+	if (!quiet) isLoading.value = true
 
 	try {
 		const org = await useOrganization().fetchOrganization()
@@ -395,6 +395,8 @@ watch(
 onMounted(() => {
 	loadTicketTypes()
 })
+// Sales and seats left move while tickets sell.
+useLiveRefresh(() => loadTicketTypes(true), { interval: 30000 })
 
 // ---------- Minimal view helpers ----------
 const ready = ref(false)

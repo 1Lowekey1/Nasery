@@ -83,7 +83,7 @@ onMounted(() => {
 	api.refreshCount().catch(() => {})
 	timer = setInterval(() => {
 		if (!document.hidden) api.refreshCount().catch(() => {})
-	}, 60000)
+	// Every 20 s: pages with live refresh also reload as soon as the count goes up.
 	document.addEventListener('click', onDocClick)
 	document.addEventListener('keydown', onKey)
 })

@@ -75,38 +75,9 @@
 				</div>
 			</section>
 
-			<!-- Events + reviews -->
-			<section class="grid grid-cols-1 gap-5 lg:grid-cols-12">
-				<aside class="fade-up lg:col-span-3" style="--d: 220ms">
-					<div class="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm lg:sticky lg:top-0">
-						<p class="px-3 pb-2 pt-2 text-xs font-bold uppercase tracking-[0.1em] text-gray-400">By event</p>
-
-						<button type="button" class="event-row flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition"
-							:class="selectedEvent === null ? 'bg-primary-700 text-white shadow-md shadow-primary-700/20' : 'text-gray-700 hover:bg-gray-50'"
-							@click="selectedEvent = null">
-							<span class="font-bold">All events</span>
-							<span class="rounded-full px-2 py-0.5 text-xs font-bold" :class="selectedEvent === null ? 'bg-white/20' : 'bg-gray-100 text-gray-500'">{{ data.summary.reviews_count }}</span>
-						</button>
-
-						<div class="mt-1 max-h-[420px] space-y-1 overflow-y-auto">
-							<button v-for="event in data.events" :key="event.id" type="button"
-								class="event-row flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition"
-								:class="selectedEvent === event.id ? 'bg-primary-700 text-white shadow-md shadow-primary-700/20' : 'text-gray-700 hover:bg-gray-50'"
-								@click="selectedEvent = event.id">
-								<span class="min-w-0">
-									<span class="block truncate text-sm font-bold">{{ event.name }}</span>
-									<span class="mt-0.5 flex items-center gap-1 text-xs" :class="selectedEvent === event.id ? 'text-white/75' : 'text-gray-400'">
-										<svg viewBox="0 0 20 20" class="h-3 w-3" :class="selectedEvent === event.id ? 'text-amber-300' : 'text-amber-400'" fill="currentColor"><path d="M10 1.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 14.9l-5.2 2.7 1-5.8L1.5 7.7l5.9-.9L10 1.5z" /></svg>
-										{{ event.average_rating.toFixed(1) }}
-									</span>
-								</span>
-								<span class="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold" :class="selectedEvent === event.id ? 'bg-white/20' : 'bg-gray-100 text-gray-500'">{{ event.reviews_count }}</span>
-							</button>
-						</div>
-					</div>
-				</aside>
-
-				<div class="space-y-4 lg:col-span-9">
+			<!-- Reviews: one list, filtered by event in the toolbar; each review opens on tap -->
+			<section>
+				<div class="space-y-4">
 					<!-- Toolbar -->
 					<div class="fade-up flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm xl:flex-row xl:items-center" style="--d: 260ms">
 						<div class="relative flex-1">
@@ -116,6 +87,10 @@
 						</div>
 
 						<div class="flex flex-wrap items-center gap-2">
+							<select v-model="selectedEvent" aria-label="Filter by event" class="max-w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-bold text-gray-700 focus:border-primary-500 focus:outline-none sm:max-w-[16rem]">
+								<option :value="null">All events ({{ data.summary.reviews_count }})</option>
+								<option v-for="event in data.events" :key="event.id" :value="event.id">{{ event.name }} · ★ {{ event.average_rating.toFixed(1) }} ({{ event.reviews_count }})</option>
+							</select>
 							<div class="flex rounded-xl bg-gray-100 p-1 text-xs font-bold">
 								<button v-for="option in ratingOptions" :key="option.value" type="button" class="min-h-9 rounded-lg px-3 py-1.5 transition"
 									:class="ratingFilter === option.value ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
@@ -142,8 +117,27 @@
 
 					<TransitionGroup name="list" tag="div" class="space-y-4">
 						<article v-for="review in filteredReviews" :key="review.id"
-							class="review-card rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-primary-200 hover:shadow-md sm:p-6">
-							<div class="flex items-start gap-4">
+							class="review-card rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:border-primary-200 hover:shadow-md">
+							<!-- Compact by default: who, stars, event, date, reply state and the start of the comment -->
+							<button v-if="!isOpen(review)" type="button" class="flex w-full items-center gap-3 px-4 py-3.5 text-left sm:gap-4 sm:px-5" :aria-expanded="false" @click="toggleReview(review.id)">
+								<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-700 to-[#3b8693] text-xs font-extrabold text-white">{{ initials(review.reviewer) }}</span>
+								<span class="min-w-0 flex-1">
+									<span class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+										<span class="text-sm font-extrabold text-gray-950">{{ review.reviewer }}</span>
+										<span class="flex gap-0.5" :aria-label="`${review.rating} of 5 stars`">
+											<svg v-for="n in 5" :key="n" viewBox="0 0 20 20" class="h-3.5 w-3.5" :class="n <= review.rating ? 'text-amber-400' : 'text-gray-200'" fill="currentColor"><path d="M10 1.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 14.9l-5.2 2.7 1-5.8L1.5 7.7l5.9-.9L10 1.5z" /></svg>
+										</span>
+										<span v-if="review.event" class="truncate text-xs font-semibold text-primary-700">{{ review.event.name }}</span>
+									</span>
+									<span class="mt-0.5 block truncate text-xs text-gray-500">{{ review.review || `Rated ${review.rating} star${review.rating === 1 ? '' : 's'}, no comment` }}</span>
+								</span>
+								<span class="hidden shrink-0 text-xs text-gray-400 sm:inline">{{ formatDate(review.created_at) }}</span>
+								<span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold" :class="review.status === 'hidden' ? 'bg-gray-100 text-gray-600' : review.open_reports ? 'bg-amber-50 text-amber-700' : review.reply ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'">
+									{{ review.status === 'hidden' ? 'Hidden' : review.open_reports ? 'Reported' : review.reply ? 'Replied' : 'Needs reply' }}
+								</span>
+								<IconBase name="chevron-down" class="h-4 w-4 shrink-0 text-gray-400" />
+							</button>
+							<div v-else class="flex items-start gap-4 p-5 sm:p-6">
 								<span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-700 to-[#3b8693] text-sm font-extrabold text-white">
 									{{ initials(review.reviewer) }}
 								</span>
@@ -162,6 +156,9 @@
 											<span v-if="review.status === 'hidden'" class="rounded-full bg-gray-100 px-2 py-0.5 font-bold text-gray-600">Hidden by NaSeRy</span>
 											<span v-else-if="review.open_reports" class="rounded-full bg-amber-50 px-2 py-0.5 font-bold text-amber-700">Reported</span>
 											{{ formatDate(review.created_at) }}
+											<button v-if="replyingId !== review.id" type="button" class="-my-1 flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700" :aria-expanded="true" aria-label="Collapse review" @click="toggleReview(review.id)">
+												<IconBase name="chevron-down" class="h-4 w-4 rotate-180" />
+											</button>
 										</span>
 									</div>
 
@@ -318,6 +315,16 @@ const distributionOptions = computed<ApexOptions>(() => ({
 	tooltip: { y: { formatter: (value: number) => `${value} review${value === 1 ? '' : 's'}` } },
 	states: { hover: { filter: { type: 'none' } } },
 }))
+
+// Reviews start compact; tapping one opens the full review, the reply and the actions.
+const expanded = ref(new Set<string>())
+function toggleReview(id: string) {
+	const next = new Set(expanded.value)
+	if (!next.delete(id)) next.add(id)
+	expanded.value = next
+}
+// A review being replied to always stays open.
+function isOpen(review: Review) { return expanded.value.has(review.id) || replyingId.value === review.id }
 
 const filteredReviews = computed(() => {
 	const query = search.value.trim().toLowerCase()

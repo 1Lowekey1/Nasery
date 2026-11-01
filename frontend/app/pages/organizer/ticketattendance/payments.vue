@@ -114,10 +114,11 @@ const totals = computed(() => {
 	]
 })
 
-async function load() {
+/** quiet: a background refresh (keeps what's on screen). */
+async function load(quiet = false) {
 	if (!eventId.value) return
 	error.value = ''
-	data.value = null
+	if (!quiet) data.value = null
 	try {
 		const org = organization.value ?? await fetchOrganization()
 		if (org) data.value = await api.eventPayments(org.id, eventId.value)
@@ -155,6 +156,8 @@ async function refund() {
 	}
 }
 
-watch(eventId, load)
-onMounted(load)
+watch(eventId, () => load())
+onMounted(() => load())
+// New payments come in while tickets sell; paused while a refund is being filled in.
+useLiveRefresh(() => load(true), { interval: 30000, paused: () => !!refunding.value || busy.value })
 </script>

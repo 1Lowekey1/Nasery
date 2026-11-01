@@ -597,6 +597,8 @@ onMounted(async () => {
 			true,
 	})
 })
+// Teammates' changes (new events, status, readiness) show without a reload.
+useLiveRefresh(() => loadEvents({ silent: true }), { interval: 60000 })
 
 // ---------- Ticket view: filters, search and display helpers ----------
 type EventFilter = 'all' | 'upcoming' | 'drafts' | 'offers'

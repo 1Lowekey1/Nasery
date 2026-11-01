@@ -119,8 +119,9 @@ const error = ref('')
 
 const currentLabel = computed(() => statuses.find(s => s.value === filters.status)?.label ?? 'All organizers')
 
-async function load(page = 1) {
-	loading.value = true
+/** quiet: a background refresh (no loading state). */
+async function load(page = 1, quiet = false) {
+	if (!quiet) loading.value = true
 	error.value = ''
 	try {
 		const result = await list({ status: filters.status, search: filters.search.trim(), page })
@@ -151,4 +152,6 @@ function formatDate(value: string) {
 }
 
 onMounted(() => load())
+// New and resubmitted applications appear on their own (same page and filters).
+useLiveRefresh(() => load(pagination.value?.current_page ?? 1, true), { interval: 60000 })
 </script>

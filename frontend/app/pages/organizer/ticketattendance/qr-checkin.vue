@@ -931,7 +931,7 @@ async function loadCheckInSummary(quiet = false) {
     }
 }
 // Close to live during the event (review #12): check-ins and sales appear on their own.
-useLiveRefresh(() => loadCheckInSummary(true), { interval: 20000 })
+// Event day: other doors check people in too, so the counts stay close to live.
 
 function openManualEntry() {
     if (!eventId.value) {

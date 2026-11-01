@@ -398,12 +398,13 @@ function relativeDay(value: string | null) {
 	return days > 0 ? `In ${days} days` : `${Math.abs(days)} days ago`
 }
 
-async function loadEvents() {
+/** quiet: a background refresh (no loading state). */
+async function loadEvents(quiet = false) {
 	if (!token.value) {
 		return
 	}
 
-	isLoading.value = true
+	if (!quiet) isLoading.value = true
 	errorMessage.value = ''
 
 	try {
@@ -452,7 +453,7 @@ function statusClass(status: string) {
 
 watch(search, () => {
 	if (searchTimeout) clearTimeout(searchTimeout)
-	searchTimeout = setTimeout(loadEvents, 350)
+	searchTimeout = setTimeout(() => loadEvents(), 350)
 })
 
 watch(statusFilter, () => {
@@ -464,6 +465,8 @@ onMounted(async () => {
 	await loadEvents()
 	allEvents.value = [...events.value]
 })
+// New and changing events across NaSeRy, with the current search and filter.
+useLiveRefresh(() => loadEvents(true), { interval: 60000 })
 </script>
 
 <style scoped>

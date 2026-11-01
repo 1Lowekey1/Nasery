@@ -351,7 +351,7 @@ onMounted(() => {
 	loadEvents()
 })
 // Close to live (review #12): other people's changes appear without a reload.
-useLiveRefresh(() => loadEventData(true), { interval: 20000 })
+// Live arrivals and capacity on event day.
 </script>
 
 <style scoped>

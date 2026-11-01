@@ -322,6 +322,8 @@ onMounted(() => {
 	loadTags()
 	loadSuggestions()
 })
+// Organizers' new suggestions appear on their own (never while one is being decided or a tag edited).
+useLiveRefresh(() => loadSuggestions(), { interval: 60000, paused: () => !!deciding.value || isDeciding.value || editingId.value !== null })
 </script>
 
 <style scoped>

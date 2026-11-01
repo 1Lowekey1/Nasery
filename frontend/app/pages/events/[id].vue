@@ -155,4 +155,8 @@ onMounted(async () => {
 		loading.value = false
 	}
 })
+// Seats left change as others buy (the selected tier and names typed stay as they are).
+useLiveRefresh(async () => {
+	if (event.value) event.value = await api.show(event.value.id, linkKey.value)
+}, { interval: 30000, paused: () => busy.value || !event.value })
 </script>

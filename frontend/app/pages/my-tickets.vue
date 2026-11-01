@@ -132,4 +132,6 @@ async function cancel(t: MyTicket) {
 }
 
 onMounted(load)
+// A payment settling turns a reservation into tickets; the organizer may cancel or reissue one.
+useLiveRefresh(load, { interval: 30000, paused: () => busy.value })
 </script>

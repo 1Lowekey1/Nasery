@@ -56,12 +56,13 @@ const activity = ref<AdminActivityItem[]>([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 
-async function loadActivity() {
+/** quiet: a background refresh (no loading state). */
+async function loadActivity(quiet = false) {
 	if (!token.value) {
 		return
 	}
 
-	isLoading.value = true
+	if (!quiet) isLoading.value = true
 	errorMessage.value = ''
 
 	try {
@@ -105,4 +106,6 @@ function activityStyle(type: string) {
 onMounted(() => {
 	loadActivity()
 })
+// The latest actions across NaSeRy, as they happen.
+useLiveRefresh(() => loadActivity(true), { interval: 30000 })
 </script>

@@ -682,7 +682,7 @@ async function loadWalkIns(quiet = false) {
     }
 }
 // Close to live during the event (review #12): check-ins and sales appear on their own.
-useLiveRefresh(() => loadWalkIns(true), { interval: 20000 })
+// Event day: other staff count walk-ins too, so the totals stay close to live.
 
 async function refreshTopSummary() {
     if (!selectedEventId.value) return

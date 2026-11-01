@@ -1271,6 +1271,10 @@ watch(
 onMounted(() => {
 	loadDetails()
 })
+// The event as teammates change it (status, readiness, price), quietly; never while editing.
+useLiveRefresh(async () => {
+	if (event.value?.id) event.value = await loadEvent(String(event.value.id)) as unknown as typeof event.value
+}, { interval: 60000, paused: () => isEditMode.value || !!priceForm.value || lifecycleBusy.value || !event.value?.id })
 
 // ---------- Edit view helpers ----------
 const statusChoices = [

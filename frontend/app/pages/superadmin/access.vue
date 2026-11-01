@@ -115,4 +115,6 @@ const end = async (id: string) => (await confirmDialog('End this access now?', {
 const withdraw = (id: string) => run(() => admin.cancelRequest(id), 'Request withdrawn.')
 
 onMounted(load)
+// Owners' answers and support invites arrive on their own.
+useLiveRefresh(load, { interval: 60000, paused: () => busy.value })
 </script>

@@ -175,12 +175,13 @@ function conversionClass(client: AdminClientSummary) {
 	return 'bg-gray-100 text-gray-500'
 }
 
-async function loadClients() {
+/** quiet: a background refresh (no loading state). */
+async function loadClients(quiet = false) {
 	if (!token.value) {
 		return
 	}
 
-	isLoading.value = true
+	if (!quiet) isLoading.value = true
 	errorMessage.value = ''
 
 	try {
@@ -210,12 +211,13 @@ function formatDate(value: string) {
 
 watch(search, () => {
 	if (searchTimeout) clearTimeout(searchTimeout)
-	searchTimeout = setTimeout(loadClients, 350)
+	searchTimeout = setTimeout(() => loadClients(), 350)
 })
 
 onMounted(() => {
 	loadClients()
 })
+useLiveRefresh(() => loadClients(true), { interval: 60000 })
 </script>
 
 <style scoped>
