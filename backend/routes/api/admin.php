@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\Admin\AdminController;
+use App\Http\Controllers\Api\V1\Organizations\EventTypeSuggestionController;
 use App\Http\Controllers\Api\V1\Organizations\NaseryAccessController;
 use App\Http\Controllers\Api\V1\Payments\EarningsController;
 use Illuminate\Support\Facades\Route;
@@ -63,6 +64,10 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])->where($ids)->group(fu
         Route::post('event-types', [AdminController::class, 'saveEventType'])->middleware('throttle:sensitive')->name('event-types.store');
         Route::patch('event-types/{eventType}', [AdminController::class, 'saveEventType'])->middleware('throttle:sensitive')->name('event-types.update');
         Route::delete('event-types/{eventType}', [AdminController::class, 'removeEventType'])->middleware('throttle:sensitive')->name('event-types.destroy');
+        // 0054: organizers' event type suggestions (one row per name): approve, merge or reject.
+        Route::get('event-type-suggestions', [EventTypeSuggestionController::class, 'pending'])->name('event-type-suggestions');
+        Route::post('event-type-suggestions/{suggestion}/{decision}', [EventTypeSuggestionController::class, 'decide'])
+            ->whereUuid('suggestion')->whereIn('decision', ['approve', 'merge', 'reject'])->middleware('throttle:sensitive')->name('event-type-suggestions.decide');
         Route::get('services', [AdminController::class, 'services'])->name('services');
         Route::post('services', [AdminController::class, 'saveService'])->middleware('throttle:sensitive')->name('services.store');
         Route::patch('services/{service}', [AdminController::class, 'saveService'])->middleware('throttle:sensitive')->name('services.update');

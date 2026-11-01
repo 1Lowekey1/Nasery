@@ -31,6 +31,7 @@ final class NotificationTypes
         'billing.update' => ['label' => 'Your plan, payments and renewals', 'group' => 'organizer', 'critical' => true, 'email' => true],
         'payout.update' => ['label' => 'Payouts of your ticket earnings', 'group' => 'organizer', 'critical' => true, 'email' => true],
         'refund.claim_reviewed' => ['label' => 'NaSeRy reviewed a refund fee claim', 'group' => 'organizer', 'critical' => true, 'email' => true],
+        'event_type.decided' => ['label' => 'Decisions on event types you suggested', 'group' => 'organizer', 'critical' => false, 'email' => true],
         // Clients
         'quotation.received' => ['label' => 'Quotations from organizers', 'group' => 'client', 'critical' => false, 'email' => true],
         'event.created' => ['label' => 'Your organizer set up your event', 'group' => 'client', 'critical' => false, 'email' => true],
@@ -50,6 +51,7 @@ final class NotificationTypes
         'admin.application' => ['label' => 'Organizer applications to review', 'group' => 'admin', 'critical' => false, 'email' => true],
         'admin.report' => ['label' => 'Reported reviews', 'group' => 'admin', 'critical' => false, 'email' => true],
         'admin.access' => ['label' => 'Workspace access answers and support invites', 'group' => 'admin', 'critical' => false, 'email' => true],
+        'admin.event_type' => ['label' => 'Event types suggested by organizers', 'group' => 'admin', 'critical' => false, 'email' => true],
     ];
 
     public static function exists(string $type): bool

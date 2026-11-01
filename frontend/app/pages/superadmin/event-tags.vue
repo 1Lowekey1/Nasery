@@ -14,6 +14,51 @@
 				:hint="mostPopular ? `${mostPopular.organizers ?? 0} organizer${mostPopular.organizers === 1 ? '' : 's'} offer it` : 'No tags in use yet'" />
 		</div>
 
+		<!-- Organizers' suggestions waiting for a decision (one row per name, every organization that asked) -->
+		<section v-if="suggestions.length" class="sa-rise mb-6 rounded-3xl border-2 border-amber-200 bg-white p-6 sm:p-8" style="--d: 120ms">
+			<h2 class="text-base font-extrabold text-gray-950">Suggested by organizers <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">{{ suggestions.length }}</span></h2>
+			<p class="mt-1 text-sm text-gray-500">Approve a new type (fix its spelling if needed), merge it into one that already exists, or reject it. The organizers who asked are told, and approved or merged types are added to their profiles.</p>
+			<p v-if="suggestionError" class="mt-3 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-700" role="alert">{{ suggestionError }}</p>
+			<ul class="mt-4 divide-y divide-gray-100">
+				<li v-for="s in suggestions" :key="s.id" class="py-4">
+					<div class="flex flex-wrap items-start justify-between gap-3">
+						<div class="min-w-0">
+							<p class="text-sm font-bold text-gray-950">{{ s.name }}</p>
+							<p class="mt-0.5 text-xs text-gray-500">From {{ s.organizations.map(o => o.name).join(', ') }}</p>
+							<p v-if="s.similar_to" class="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">
+								<IconBase name="sparkles" class="h-3 w-3" /> Looks like “{{ s.similar_to }}”
+							</p>
+						</div>
+						<div v-if="deciding?.id !== s.id" class="flex flex-wrap gap-2">
+							<button type="button" class="rounded-lg bg-[#285F6b] px-3 py-1.5 text-xs font-bold text-white" @click="startDecision(s, 'approve')">Approve</button>
+							<button type="button" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700" @click="startDecision(s, 'merge')">Merge into…</button>
+							<button type="button" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-red-600" @click="startDecision(s, 'reject')">Reject</button>
+						</div>
+					</div>
+					<form v-if="deciding?.id === s.id" class="mt-3 flex flex-col gap-2 rounded-2xl bg-gray-50 p-3 sm:flex-row sm:items-end" @submit.prevent="submitDecision">
+						<label v-if="deciding.action === 'approve'" class="min-w-0 flex-1 text-xs font-semibold text-gray-600">Name on the list
+							<input v-model="deciding.name" required minlength="2" maxlength="80" class="mt-1 h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-normal text-gray-900">
+						</label>
+						<label v-else-if="deciding.action === 'merge'" class="min-w-0 flex-1 text-xs font-semibold text-gray-600">Existing event type
+							<select v-model="deciding.eventTypeId" required class="mt-1 h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-normal text-gray-900">
+								<option value="" disabled>Choose…</option>
+								<option v-for="t in tags" :key="t.id" :value="String(t.id)">{{ t.name }}</option>
+							</select>
+						</label>
+						<label class="min-w-0 flex-1 text-xs font-semibold text-gray-600">{{ deciding.action === 'reject' ? 'Reason (sent to the organizers)' : 'Note to the organizers (optional)' }}
+							<input v-model="deciding.note" :required="deciding.action === 'reject'" :minlength="deciding.action === 'reject' ? 3 : undefined" maxlength="500" class="mt-1 h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-normal text-gray-900">
+						</label>
+						<div class="flex gap-2">
+							<button type="button" class="h-10 rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-600" @click="deciding = null">Cancel</button>
+							<button type="submit" class="h-10 rounded-xl px-4 text-xs font-bold text-white disabled:opacity-60" :class="deciding.action === 'reject' ? 'bg-red-600' : 'bg-[#285F6b]'" :disabled="isDeciding">
+								{{ isDeciding ? 'Saving…' : deciding.action === 'approve' ? 'Add to the list' : deciding.action === 'merge' ? 'Merge' : 'Reject' }}
+							</button>
+						</div>
+					</form>
+				</li>
+			</ul>
+		</section>
+
 		<div class="sa-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8" style="--d: 200ms">
 			<!-- Add + search -->
 			<div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -235,8 +280,47 @@ async function removeTag(tag: AdminEventTag) {
 	}
 }
 
+// ---- Organizers' suggestions (0054) ----------------------------------------------
+interface TypeSuggestionRow { id: string, name: string, organizations: { id: string, name: string }[], similar_to: string | null }
+const suggestions = ref<TypeSuggestionRow[]>([])
+const suggestionError = ref('')
+const deciding = ref<{ id: string, action: 'approve' | 'merge' | 'reject', name: string, eventTypeId: string, note: string } | null>(null)
+const isDeciding = ref(false)
+
+async function loadSuggestions() {
+	try {
+		suggestions.value = (await useApi().get<TypeSuggestionRow[]>('/admin/event-type-suggestions')).data
+	} catch (error: unknown) {
+		suggestionError.value = authMessage(error) || 'Unable to load suggestions.'
+	}
+}
+function startDecision(s: TypeSuggestionRow, action: 'approve' | 'merge' | 'reject') {
+	const similar = action === 'merge' && s.similar_to ? tags.value.find(t => t.name === s.similar_to) : undefined
+	deciding.value = { id: s.id, action, name: s.name, eventTypeId: similar ? String(similar.id) : '', note: '' }
+	suggestionError.value = ''
+}
+async function submitDecision() {
+	const d = deciding.value
+	if (!d) return
+	isDeciding.value = true
+	suggestionError.value = ''
+	try {
+		const body = d.action === 'approve' ? { name: d.name.trim(), note: d.note.trim() || null }
+			: d.action === 'merge' ? { event_type_id: d.eventTypeId, note: d.note.trim() || null }
+				: { note: d.note.trim() }
+		suggestions.value = (await useApi().post<TypeSuggestionRow[]>(`/admin/event-type-suggestions/${d.id}/${d.action}`, body)).data
+		deciding.value = null
+		await loadTags() // approved types show up in the list below, with their organizers
+	} catch (error: unknown) {
+		suggestionError.value = Object.values(fieldErrors(error))[0] || authMessage(error) || 'That didn’t work. Try again.'
+	} finally {
+		isDeciding.value = false
+	}
+}
+
 onMounted(() => {
 	loadTags()
+	loadSuggestions()
 })
 </script>
 

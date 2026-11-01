@@ -327,6 +327,37 @@
 							</button>
 						</div>
 
+						<!-- Not on the list: suggest it. Exact names and likely typos are caught here; the rest NaSeRy reviews. -->
+						<div class="mt-5 rounded-2xl bg-gray-50 p-4">
+							<p class="text-sm font-semibold text-gray-900">Don’t see yours? Suggest an event type</p>
+							<p class="mt-0.5 text-xs text-gray-500">Check the list above first. NaSeRy reviews new ones and adds them for every organizer.</p>
+							<form class="mt-3 flex flex-col gap-2 sm:flex-row" @submit.prevent="suggestType(false)">
+								<input v-model="suggestName" type="text" maxlength="80" placeholder="e.g. Gender reveal" aria-label="New event type"
+									class="h-11 min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3.5 text-sm outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10" @input="suggestReply = null">
+								<button type="submit" class="h-11 shrink-0 rounded-xl bg-primary-700 px-4 text-sm font-bold text-white disabled:opacity-50" :disabled="suggestBusy || suggestName.trim().length < 2">
+									{{ suggestBusy ? 'Checking…' : 'Suggest' }}
+								</button>
+							</form>
+							<div v-if="suggestReply" class="mt-2 rounded-xl px-3 py-2.5 text-sm" :class="suggestReply.kind === 'error' ? 'bg-red-50 text-red-700' : 'bg-white text-gray-700 ring-1 ring-gray-200'" role="status">
+								<template v-if="suggestReply.kind === 'similar'">
+									<p>Did you mean <strong>{{ suggestReply.eventType }}</strong>? It’s already on the list.</p>
+									<div class="mt-2 flex flex-wrap gap-2">
+										<button type="button" class="rounded-lg bg-primary-700 px-3 py-1.5 text-xs font-bold text-white" @click="useExistingType(suggestReply.eventType!)">Use {{ suggestReply.eventType }}</button>
+										<button type="button" class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700" :disabled="suggestBusy" @click="suggestType(true)">No, “{{ suggestName.trim() }}” is different</button>
+									</div>
+								</template>
+								<p v-else>{{ suggestReply.text }}</p>
+							</div>
+							<ul v-if="mySuggestions.length" class="mt-3 space-y-1.5">
+								<li v-for="s in mySuggestions" :key="s.id" class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+									<span class="font-semibold text-gray-800">{{ s.name }}</span>
+									<span class="rounded-full px-2 py-0.5 font-semibold" :class="suggestionBadge[s.status].cls">{{ suggestionBadge[s.status].label }}</span>
+									<span v-if="s.status === 'merged' && s.event_type" class="text-gray-500">→ {{ s.event_type }}</span>
+									<span v-if="s.note" class="text-gray-500">· {{ s.note }}</span>
+								</li>
+							</ul>
+						</div>
+
 						<div class="mt-6 border-t border-gray-100 pt-5">
 							<p class="bp-label">Your own event types</p>
 							<p class="mb-3 text-xs text-gray-400">For anything else you organize; you can pick them when you create an event. Saved straight away.</p>
@@ -611,8 +642,51 @@ async function loadEventTypes() {
 		eventTypeOptions.value = (await useMarketplace().eventTypes()).map(type => type.name)
 		const org = await orgApi.fetchOrganization()
 		if (org) ownTypes.value = (await api.get<{ id: string, name: string, is_platform_default: boolean }[]>(`/organizations/${org.id}/event-types`)).data.filter(t => !t.is_platform_default)
+		void loadSuggestions()
 	} catch {
 		eventTypeOptions.value = []
+	}
+}
+
+// ---------- Suggest a new standard event type (0054) ----------
+interface TypeSuggestion { id: string, name: string, status: 'pending' | 'approved' | 'merged' | 'rejected', event_type: string | null, note: string | null }
+const suggestName = ref('')
+const suggestBusy = ref(false)
+const suggestReply = ref<{ kind: 'similar' | 'info' | 'error', text?: string, eventType?: string } | null>(null)
+const mySuggestions = ref<TypeSuggestion[]>([])
+const suggestionBadge: Record<TypeSuggestion['status'], { label: string, cls: string }> = {
+	pending: { label: 'Waiting for NaSeRy', cls: 'bg-amber-50 text-amber-800' },
+	approved: { label: 'Added', cls: 'bg-green-50 text-green-700' },
+	merged: { label: 'Matched', cls: 'bg-primary-50 text-primary-700' },
+	rejected: { label: 'Not added', cls: 'bg-gray-100 text-gray-600' },
+}
+async function loadSuggestions() {
+	const org = await orgApi.fetchOrganization()
+	if (org) mySuggestions.value = (await api.get<TypeSuggestion[]>(`/organizations/${org.id}/event-type-suggestions`).catch(() => ({ data: [] }))).data.slice(0, 6)
+}
+/** Pick a type that's already on the list (kept when the profile is saved). */
+function useExistingType(name: string) {
+	if (!eventTypeOptions.value.includes(name)) eventTypeOptions.value = [...eventTypeOptions.value, name]
+	if (!form.tags.includes(name)) form.tags.push(name)
+	suggestReply.value = { kind: 'info', text: `“${name}” is picked above. Save your profile to keep it.` }
+	suggestName.value = ''
+}
+async function suggestType(confirmNew: boolean) {
+	const org = await orgApi.fetchOrganization()
+	if (!org || suggestName.value.trim().length < 2) return
+	suggestBusy.value = true
+	try {
+		const r = await api.post<{ result: 'exists' | 'similar' | 'already_suggested' | 'pending', event_type?: string }>(`/organizations/${org.id}/event-type-suggestions`,
+			{ name: suggestName.value.trim(), confirm_new: confirmNew })
+		if (r.data.result === 'exists' && r.data.event_type) return useExistingType(r.data.event_type)
+		if (r.data.result === 'similar') { suggestReply.value = { kind: 'similar', eventType: r.data.event_type }; return }
+		suggestReply.value = { kind: 'info', text: r.message ?? 'Thanks! NaSeRy will review it and let you know.' }
+		suggestName.value = ''
+		await loadSuggestions()
+	} catch (e: unknown) {
+		suggestReply.value = { kind: 'error', text: Object.values(fieldErrors(e))[0] || authMessage(e) || 'That didn’t work. Try again.' }
+	} finally {
+		suggestBusy.value = false
 	}
 }
 

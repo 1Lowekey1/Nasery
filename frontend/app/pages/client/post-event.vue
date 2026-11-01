@@ -617,40 +617,34 @@ let leafletMapContainer:
 let leafletMarkers:
 	any[] = []
 
-const eventTypes = [
-	{
-		value: 'Wedding',
-		icon: 'heart',
-	},
-	{
-		value: 'Corporate',
-		icon: 'briefcase',
-	},
-	{
-		value: 'Birthday',
-		icon: 'gift',
-	},
-	{
-		value: 'Debut',
-		icon: 'star',
-	},
-	{
-		value: 'Concert',
-		icon: 'music',
-	},
-	{
-		value: 'Conference',
-		icon: 'users',
-	},
-	{
-		value: 'Reunion',
-		icon: 'users',
-	},
-	{
-		value: 'Seminar',
-		icon: 'award',
-	},
+// Shown at once, then replaced by NaSeRy's live list (types admins approve from organizers' suggestions appear too).
+const eventTypes = ref([
+	{ value: 'Wedding', icon: 'heart' },
+	{ value: 'Corporate Event', icon: 'briefcase' },
+	{ value: 'Birthday Party', icon: 'gift' },
+	{ value: 'Debut', icon: 'star' },
+	{ value: 'Concert', icon: 'music' },
+	{ value: 'Conference', icon: 'users' },
+	{ value: 'Reunion', icon: 'users' },
+	{ value: 'Seminar', icon: 'award' },
+])
+const typeIcons: [RegExp, string][] = [
+	[/wedding/i, 'heart'], [/corporate|business/i, 'briefcase'], [/birthday|party|gender/i, 'gift'], [/debut|gala|anniversary/i, 'star'],
+	[/concert|music|festival/i, 'music'], [/seminar|workshop|training|graduation/i, 'award'],
 ]
+async function loadEventTypeChoices() {
+	const list = await useMarketplace().eventTypes().catch(() => [])
+	if (!list.length) return
+	eventTypes.value = [...list]
+		.sort((a, b) => Number(a.name === 'Other') - Number(b.name === 'Other'))
+		.map(t => ({ value: t.name, icon: typeIcons.find(([re]) => re.test(t.name))?.[1] ?? (t.name === 'Other' ? 'sparkles' : 'users') }))
+	// A draft saved with an older short name ("Birthday") picks the full one ("Birthday Party").
+	if (form.eventType && !eventTypes.value.some(t => t.value === form.eventType)) {
+		const match = eventTypes.value.find(t => t.value.toLowerCase().startsWith(form.eventType.toLowerCase()))
+		if (match) form.eventType = match.value
+	}
+}
+onMounted(loadEventTypeChoices)
 
 const budgetOptions = [
 	{ value: 'Under ₱50,000', tier: 'Essential', label: 'Under ₱50K', hint: 'For simple, meaningful occasions' },

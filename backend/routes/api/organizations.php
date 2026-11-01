@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\MediaController;
 use App\Http\Controllers\Api\V1\Admin\OrganizerApplicationController;
 use App\Http\Controllers\Api\V1\Organizations\ApprovalController;
 use App\Http\Controllers\Api\V1\Organizations\EventTypeController;
+use App\Http\Controllers\Api\V1\Organizations\EventTypeSuggestionController;
 use App\Http\Controllers\Api\V1\Organizations\OfferedServiceController;
 use App\Http\Controllers\Api\V1\Organizations\PriceOptionController;
 use App\Http\Controllers\Api\V1\Organizations\OrganizationController;
@@ -54,6 +55,9 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
             Route::post('event-types', [EventTypeController::class, 'store'])->middleware('throttle:sensitive')->name('event-types.store');
             Route::patch('event-types/{eventType}', [EventTypeController::class, 'update'])->middleware('throttle:sensitive')->name('event-types.update');
             Route::delete('event-types/{eventType}', [EventTypeController::class, 'destroy'])->middleware('throttle:sensitive')->name('event-types.destroy');
+            // 0054: suggest a new event type for NaSeRy's standard list (admins decide).
+            Route::get('event-type-suggestions', [EventTypeSuggestionController::class, 'index'])->name('event-type-suggestions.index');
+            Route::post('event-type-suggestions', [EventTypeSuggestionController::class, 'store'])->middleware('throttle:sensitive')->name('event-type-suggestions.store');
 
             Route::get('approval', [ApprovalController::class, 'show'])->name('approval.show');
             Route::post('approval/resubmit', [ApprovalController::class, 'resubmit'])->middleware('throttle:sensitive')->name('approval.resubmit');
