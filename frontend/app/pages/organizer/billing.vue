@@ -60,7 +60,7 @@
 								<div class="bar-fill h-full rounded-full bg-gradient-to-r from-amber-300 to-white" :style="{ width: periodProgress + '%' }" />
 							</div>
 							<div v-if="data.can.manage && data.subscription.status === 'active'" class="mt-4">
-								<button v-if="!data.subscription.cancel_at_period_end" type="button" :disabled="busy" class="text-xs font-bold text-white/70 underline hover:text-white" @click="cancel">Cancel plan</button>
+								<button v-if="!data.subscription.cancel_at_period_end" type="button" :disabled="busy" class="tap-target text-xs font-bold text-white/70 underline hover:text-white" @click="cancel">Cancel plan</button>
 								<button v-else-if="!data.scheduled_change" type="button" :disabled="busy" class="rounded-xl bg-white px-4 py-2 text-sm font-bold text-primary-800" @click="resume">Keep my plan (resume)</button>
 							</div>
 						</template>

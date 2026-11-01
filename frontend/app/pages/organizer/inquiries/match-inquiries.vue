@@ -215,7 +215,7 @@
 							<IconBase name="message" class="h-4 w-4" />
 							Ask Question
 							<span v-if="threads.unread.value[String(inquiry.id)]"
-								class="rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{{ threads.unread.value[String(inquiry.id)] }}</span>
+								class="rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{{ threads.unread.value[String(inquiry.id)] }}</span>
 						</button>
 
 						<button type="button"

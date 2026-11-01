@@ -91,7 +91,7 @@
 						<p class="text-sm md:text-right">
 							<span class="font-semibold tabular-nums text-gray-950">{{ getAvailability(ticket) }}</span>
 							<span class="ml-1 text-gray-500">left</span>
-							<span v-if="getAvailability(ticket) === 0" class="ml-2 rounded-full bg-gray-900 px-2 py-0.5 text-[10px] font-bold text-white">Sold out</span>
+							<span v-if="getAvailability(ticket) === 0" class="ml-2 rounded-full bg-gray-900 px-2 py-0.5 text-[11px] font-bold text-white">Sold out</span>
 						</p>
 						<div class="flex justify-end gap-1 opacity-100 transition md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
 							<button type="button" class="tt-icon" :aria-label="`Edit ${ticket.name}`" title="Edit" @click="editTicketType(ticket)"><IconBase name="edit" class="h-4 w-4" /></button>

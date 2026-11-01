@@ -1,15 +1,15 @@
 <template>
 	<div class="w-full space-y-6">
-		<header class="fade-up relative overflow-hidden rounded-3xl border border-primary-100 bg-white px-6 py-7 shadow-sm sm:px-8" style="--d: 0ms">
+		<header class="fade-up relative overflow-hidden rounded-3xl border border-primary-100 bg-white px-5 py-5 shadow-sm sm:px-8 sm:py-7" style="--d: 0ms">
 			<span class="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-amber-200/40 blur-3xl" />
 			<span class="pointer-events-none absolute -bottom-20 left-1/3 h-56 w-56 rounded-full bg-primary-100/70 blur-3xl" />
 			<div class="relative">
-				<div class="mb-3 inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-primary-700">
+				<div class="mb-3 hidden items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-primary-700 sm:inline-flex">
 					<IconBase name="star" class="h-3.5 w-3.5" />
 					Reviews
 				</div>
 				<h1 class="text-2xl font-extrabold tracking-tight text-gray-950 sm:text-3xl">What your clients are saying</h1>
-				<p class="mt-2 max-w-2xl text-sm leading-6 text-gray-500 sm:text-base">
+				<p class="mt-2 hidden max-w-2xl text-sm leading-6 text-gray-500 sm:block sm:text-base">
 					Every review from clients who booked you through NaSeRy, with the event it was for. Reply publicly to say thanks.
 				</p>
 			</div>
@@ -38,37 +38,40 @@
 
 		<template v-else-if="data">
 			<!-- Summary -->
-			<section class="grid grid-cols-1 gap-5 lg:grid-cols-12">
-				<div class="fade-up rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-3" style="--d: 60ms">
-					<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Overall rating</p>
-					<div class="mt-3 flex items-end gap-2">
-						<span class="text-5xl font-extrabold leading-none tracking-tight text-gray-950 sm:text-6xl">{{ data.summary.average_rating.toFixed(1) }}</span>
+			<!-- Phones: one compact rating row and the three tiles; the breakdown chart is for wider screens -->
+			<section class="grid grid-cols-1 gap-3 sm:gap-5 lg:grid-cols-12">
+				<div class="fade-up rounded-2xl border border-gray-200 bg-white p-4 shadow-sm max-sm:flex max-sm:items-center max-sm:gap-4 sm:p-6 lg:col-span-3" style="--d: 60ms">
+					<p class="text-xs font-bold max-sm:hidden uppercase tracking-[0.1em] text-gray-400">Overall rating</p>
+					<div class="flex items-end gap-2 sm:mt-3">
+						<span class="text-4xl font-extrabold leading-none tracking-tight text-gray-950 sm:text-6xl">{{ data.summary.average_rating.toFixed(1) }}</span>
 						<span class="mb-1 text-sm font-semibold text-gray-400">/ 5</span>
 					</div>
-					<div class="mt-3 flex gap-0.5">
+					<div>
+					<div class="flex gap-0.5 sm:mt-3">
 						<svg v-for="n in 5" :key="n" viewBox="0 0 20 20" class="h-5 w-5" :class="n <= Math.round(data.summary.average_rating) ? 'text-amber-400' : 'text-gray-200'" fill="currentColor">
 							<path d="M10 1.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 14.9l-5.2 2.7 1-5.8L1.5 7.7l5.9-.9L10 1.5z" />
 						</svg>
 					</div>
-					<p class="mt-3 text-sm text-gray-500">
+					<p class="mt-1 text-sm text-gray-500 sm:mt-3">
 						{{ data.summary.reviews_count }} published review{{ data.summary.reviews_count === 1 ? '' : 's' }}
 					</p>
+					</div>
 				</div>
 
-				<div class="fade-up rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-6" style="--d: 120ms">
+				<div class="fade-up hidden rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:block lg:col-span-6" style="--d: 120ms">
 					<p class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Rating breakdown</p>
 					<ClientOnly>
 						<apexchart type="bar" height="190" :options="distributionOptions" :series="distributionSeries" />
 					</ClientOnly>
 				</div>
 
-				<div class="grid grid-cols-3 gap-4 lg:col-span-3 lg:grid-cols-1">
-					<div v-for="(tile, index) in tiles" :key="tile.label" class="fade-up rounded-2xl border border-gray-200 bg-white p-4 shadow-sm lg:flex lg:items-center lg:gap-4" :style="{ '--d': 180 + index * 70 + 'ms' }">
+				<div class="grid grid-cols-3 gap-3 sm:gap-4 lg:col-span-3 lg:grid-cols-1">
+					<div v-for="(tile, index) in tiles" :key="tile.label" class="fade-up rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4 lg:flex lg:items-center lg:gap-4" :style="{ '--d': 180 + index * 70 + 'ms' }">
 						<span class="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl lg:flex" :class="tile.bg">
 							<IconBase :name="tile.icon" class="h-5 w-5" :class="tile.color" />
 						</span>
 						<div>
-							<p class="text-2xl font-extrabold tracking-tight text-gray-950">{{ tile.value }}</p>
+							<p class="text-xl font-extrabold tracking-tight text-gray-950 sm:text-2xl">{{ tile.value }}</p>
 							<p class="text-xs font-semibold text-gray-500">{{ tile.label }}</p>
 						</div>
 					</div>

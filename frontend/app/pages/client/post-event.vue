@@ -58,7 +58,7 @@
 						<div class="flex items-center gap-3"><span
 								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-700 text-sm font-extrabold text-white">1</span>
 							<div>
-								<p class="text-[10px] font-extrabold uppercase tracking-[.16em] text-primary-600">
+								<p class="text-[11px] font-extrabold uppercase tracking-[.16em] text-primary-600">
 									Getting started</p>
 								<h2 class="mt-0.5 text-xl font-extrabold text-gray-900">Event basics</h2>
 								<p class="mt-1 text-sm text-gray-500">Tell us what you are planning and when it will
@@ -260,7 +260,7 @@
 									<span aria-hidden="true"
 										class="absolute -bottom-7 -right-7 h-20 w-20 rounded-full transition"
 										:class="form.budget === option.value ? 'bg-white/10' : 'bg-primary-50 group-hover:bg-primary-100/70'" />
-									<span class="block text-[10px] font-extrabold uppercase tracking-[.14em]"
+									<span class="block text-[11px] font-extrabold uppercase tracking-[.14em]"
 										:class="form.budget === option.value ? 'text-primary-100' : 'text-primary-600'">{{
 											option.tier }}</span>
 									<span class="mt-2 block pr-7 text-base font-extrabold tracking-tight"

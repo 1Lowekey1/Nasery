@@ -41,7 +41,7 @@
 
 				<div class="border-t border-gray-100 px-4 py-4">
 					<button type="button"
-						class="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-700"
+						class="-mx-2 flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
 						@click="handleLogout">
 						<IconBase name="log-out" class="h-4 w-4" />
 
@@ -79,7 +79,7 @@
 						<span class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary-700 text-xs font-bold text-white">
 							<img v-if="user?.avatar_url" :src="user.avatar_url" alt="" class="h-full w-full object-cover" /><span v-else>{{ sidebarInitials }}</span>
 						</span>
-						<span class="hidden min-w-0 sm:block"><span class="block truncate text-xs font-bold text-gray-900">{{ sidebarName }}</span><span class="block text-[10px] text-gray-400">Edit profile</span></span>
+						<span class="hidden min-w-0 sm:block"><span class="block truncate text-xs font-bold text-gray-900">{{ sidebarName }}</span><span class="block text-[11px] text-gray-400">Edit profile</span></span>
 					</button>
 				</div>
 			</header>
@@ -686,6 +686,8 @@ const activeItem = computed(() => {
 // Pages outside the menu still get their own title in the header.
 const pageTitles: Record<string, string> = { '/notifications': 'Notifications', '/my-tickets': 'My Tickets' }
 const headerTitle = computed(() => pageTitles[route.path] ?? activeItem.value?.label ?? '')
+// The browser tab shows the page name too; a page's own title wins.
+useSeoMeta({ title: () => headerTitle.value ? `${headerTitle.value} | NaSeRy` : 'NaSeRy' })
 
 const profileTabs = [
 	{

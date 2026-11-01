@@ -6,7 +6,7 @@
 			{{ errorMessage }}
 		</div>
 
-		<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+		<div class="mb-6 stat-grid grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 			<SuperadminStatCard label="Total Events" :value="allEvents.length" icon="calendar"
 				:hint="`${countByStatus('draft')} drafts, ${countByStatus('published')} published`" />
 			<SuperadminStatCard label="Published" :value="countByStatus('published')" icon="check-circle"
@@ -93,7 +93,7 @@
 			</div>
 
 			<div v-else class="overflow-x-auto">
-				<table class="w-full text-left text-sm">
+				<table v-table-cards class="w-full text-left text-sm">
 					<thead>
 						<tr
 							class="bg-gray-50/80 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400 [&>th]:py-3 [&>th:first-child]:rounded-l-xl [&>th:first-child]:pl-3 [&>th:last-child]:rounded-r-xl [&>th:last-child]:pr-3">
@@ -110,7 +110,7 @@
 					<tbody class="divide-y divide-gray-100">
 						<tr v-for="event in pagedEvents" :key="event.id" class="sa-row group cursor-pointer transition-colors hover:bg-primary-50/40"
 							@click="navigateTo(`/superadmin/organizers/${event.organizer_id}`)">
-							<td class="py-4 pl-3 pr-4">
+							<td data-card-title class="py-4 pl-3 pr-4">
 								<div class="font-bold text-gray-950 transition group-hover:text-primary-700">{{ event.name }}</div>
 								<div class="mt-1 flex items-center gap-2">
 									<span v-if="event.event_type" class="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-bold text-primary-700">{{ event.event_type }}</span>

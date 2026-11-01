@@ -15,16 +15,17 @@
 
 		<template v-else-if="counts.all > 0">
 			<!-- Summary -->
-			<div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-				<div v-for="(tile, index) in tiles" :key="tile.label" class="of-card of-rise group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5" :style="{ '--d': index * 60 + 'ms' }">
+			<div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+				<div v-for="(tile, index) in tiles" :key="tile.label" class="of-card of-rise group relative min-w-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 sm:p-5" :style="{ '--d': index * 60 + 'ms' }">
 					<span class="of-line absolute inset-x-0 top-0 h-[2px] bg-[#285F6b]" />
 					<div class="flex items-start justify-between gap-3">
 						<span class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">{{ tile.label }}</span>
-						<span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-700 transition group-hover:scale-105">
+						<span class="hidden h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-700 transition group-hover:scale-105 sm:flex">
 							<IconBase :name="tile.icon" class="h-4 w-4" />
 						</span>
 					</div>
-					<div class="mt-2 truncate text-3xl font-extrabold tracking-tight text-gray-950">{{ tile.value }}</div>
+					<!-- Long peso amounts wrap instead of being cut off -->
+					<div class="mt-2 text-xl font-extrabold leading-tight tracking-tight text-gray-950 [overflow-wrap:anywhere] sm:text-3xl">{{ tile.value }}</div>
 				</div>
 			</div>
 
@@ -50,7 +51,7 @@
 					<div class="p-6 sm:p-7">
 						<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 							<div class="min-w-0">
-								<h3 class="truncate text-xl font-extrabold tracking-tight text-gray-950">
+								<h3 class="line-clamp-2 break-words text-lg font-extrabold tracking-tight text-gray-950 sm:text-xl">
 									{{ offer.inquiry?.event_title || `${offer.inquiry?.event_type || 'Event'} Inquiry` }}
 								</h3>
 								<p class="mt-1 flex items-center gap-2 text-sm text-gray-500">

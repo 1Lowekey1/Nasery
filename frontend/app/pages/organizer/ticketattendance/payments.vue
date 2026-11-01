@@ -17,13 +17,13 @@
 			<div class="rounded-2xl border border-gray-200 bg-white p-6">
 				<h3 class="mb-3 text-base font-bold text-gray-900">Online payments</h3>
 				<div class="overflow-x-auto">
-					<table class="w-full min-w-[720px] text-left text-sm">
+					<table v-table-cards class="w-full min-w-[720px] text-left text-sm">
 						<thead class="text-xs uppercase text-gray-400">
 							<tr><th class="py-2">Buyer</th><th>Tickets</th><th>Amount</th><th>Fee</th><th>Refunded</th><th>Status</th><th class="text-right" /></tr>
 						</thead>
 						<tbody class="divide-y divide-gray-100">
 							<tr v-for="p in data.payments" :key="p.id">
-								<td class="py-2.5"><p class="font-semibold text-gray-900">{{ p.buyer }}</p><p class="text-xs text-gray-500">{{ p.email }}</p></td>
+								<td data-card-title class="py-2.5"><p class="font-semibold text-gray-900">{{ p.buyer }}</p><p class="text-xs text-gray-500">{{ p.email }}</p></td>
 								<td>{{ p.status === 'paid' ? p.tickets : '—' }}</td>
 								<td>{{ formatPeso(p.amount) }}</td>
 								<td class="text-gray-500">{{ p.fee ? formatPeso(p.fee) : '—' }}</td>
@@ -36,7 +36,7 @@
 									<span v-if="p.failure_reason && p.status === 'failed'" class="block text-xs text-gray-400">{{ p.failure_reason }}</span>
 								</td>
 								<td class="text-right">
-									<button v-if="p.status === 'paid' && Number(p.refunded) < Number(p.amount)" type="button" class="text-xs font-semibold text-rose-700"
+									<button v-if="p.status === 'paid' && Number(p.refunded) < Number(p.amount)" type="button" class="rounded-lg px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50"
 										@click="startRefund(p)">Refund</button>
 								</td>
 							</tr>

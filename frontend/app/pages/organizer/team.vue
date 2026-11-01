@@ -104,7 +104,7 @@
 							<div class="flex min-w-0 items-center gap-3" :class="m.status === 'deactivated' ? 'opacity-60' : ''">
 								<span class="tm-avatar h-9 w-9 overflow-hidden text-xs" :style="avatarStyle">{{ initialsOf(m.name) }}</span>
 								<div class="min-w-0">
-									<p class="truncate text-sm font-semibold text-gray-950">{{ m.name }} <span v-if="m.user_id === myUserId" class="ml-1 rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-bold text-primary-700">You</span></p>
+									<p class="truncate text-sm font-semibold text-gray-950">{{ m.name }} <span v-if="m.user_id === myUserId" class="ml-1 rounded bg-primary-50 px-1.5 py-0.5 text-[11px] font-bold text-primary-700">You</span></p>
 									<p class="truncate text-xs text-gray-500">{{ m.email }}</p>
 								</div>
 							</div>
@@ -146,8 +146,8 @@
 				<input v-model="roleForm.name" type="text" maxlength="60" placeholder="Role name, e.g. Stage Crew" aria-label="Role name" class="tm-input mt-2 !w-full sm:!w-80" />
 				<fieldset class="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
 					<legend class="sr-only">Permissions</legend>
-					<label v-for="p in team.permissions" :key="p.key" class="flex items-start gap-2 text-sm text-gray-700">
-						<input v-model="roleForm.permissions" type="checkbox" :value="p.key" class="mt-1 accent-[#285F6b]">
+					<label v-for="p in team.permissions" :key="p.key" class="flex min-h-10 cursor-pointer items-start gap-2.5 py-1.5 text-sm text-gray-700">
+						<input v-model="roleForm.permissions" type="checkbox" :value="p.key" class="mt-0.5 accent-[#285F6b]">
 						<span>{{ p.description }}</span>
 					</label>
 				</fieldset>
@@ -511,7 +511,7 @@ onMounted(async () => {
 .tm-btn-secondary { @apply inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-semibold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600 disabled:cursor-not-allowed disabled:opacity-50; }
 .tm-group { @apply space-y-4 px-6 py-5; }
 .tm-group-title { @apply text-xs font-bold text-primary-800; }
-.tm-optional { @apply ml-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500; }
+.tm-optional { @apply ml-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold text-gray-500; }
 .tm-hint { @apply mt-1.5 text-xs text-gray-500; }
 .tm-field { @apply h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 outline-none transition placeholder:font-sans placeholder:tracking-normal placeholder:text-gray-400 hover:border-gray-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10; }
 .tm-field-icon { @apply pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400; }

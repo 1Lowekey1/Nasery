@@ -11,7 +11,7 @@
 		</div>
 
 		<template v-else-if="analytics">
-			<div class="mb-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+			<div class="mb-5 stat-grid grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 				<SuperadminStatCard label="NaSeRy Revenue (12 months)" :value="formatCompactCurrency(sixMonthRevenue)" icon="cash" hint="Ticket fees + plan subscriptions" />
 				<SuperadminStatCard label="New Signups" :value="sixMonthSignups" icon="users"
 					hint="Organizers + clients, last 12 months" />

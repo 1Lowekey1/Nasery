@@ -29,7 +29,7 @@
 							<span class="relative inline-flex h-2.5 w-2.5 rounded-full" :class="selectedEvent.status === 'ongoing' ? 'bg-emerald-300' : 'bg-white/70'" />
 						</span>
 						<span class="truncate">{{ selectedEvent.name }}</span>
-						<span v-if="selectedEvent.status === 'ongoing'" class="rounded-full bg-emerald-300/25 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-100">Live</span>
+						<span v-if="selectedEvent.status === 'ongoing'" class="rounded-full bg-emerald-300/25 px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wider text-emerald-100">Live</span>
 					</div>
 
 					<button type="button"
@@ -42,8 +42,9 @@
 		</div>
 
 		<!-- Event selector -->
-		<div class="tk-rise relative z-30 mb-6" style="--d: 80ms">
-			<div class="mb-2 flex items-center justify-between gap-3">
+		<div class="tk-rise relative z-30 mb-3 sm:mb-6" style="--d: 80ms">
+			<!-- Phones: the selector itself is the control; the label row is for wider screens -->
+			<div class="mb-2 hidden items-center justify-between gap-3 sm:flex">
 				<label class="block text-xs font-bold uppercase tracking-[0.12em] text-gray-400">
 					Select Event
 				</label>
@@ -59,10 +60,10 @@
 
 			<div ref="eventSelectorRef" class="relative">
 				<button type="button"
-					class="group flex w-full items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-left shadow-sm transition hover:border-[#285F6b]/40 hover:shadow-md focus:border-[#285F6b] focus:outline-none focus:ring-4 focus:ring-[#285F6b]/10"
+					class="group flex w-full items-center justify-between rounded-2xl border border-gray-200 bg-white px-3 py-2.5 text-left sm:px-4 sm:py-3.5 shadow-sm transition hover:border-[#285F6b]/40 hover:shadow-md focus:border-[#285F6b] focus:outline-none focus:ring-4 focus:ring-[#285F6b]/10"
 					@click="showEventSelector = !showEventSelector">
 					<div v-if="selectedEvent" class="flex min-w-0 items-center gap-3">
-						<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#285F6b] text-white">
+						<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#285F6b] text-white sm:h-11 sm:w-11">
 							<IconBase name="calendar" class="h-5 w-5" />
 						</div>
 
@@ -77,7 +78,7 @@
 									{{ formatEventDate(selectedEvent.event_date) }}
 								</span>
 
-								<span v-if="selectedEvent.location" class="flex items-center gap-1">
+								<span v-if="selectedEvent.location" class="hidden items-center gap-1 sm:flex">
 									<IconBase name="map-pin" class="h-3.5 w-3.5" />
 									{{ selectedEvent.location }}
 								</span>
@@ -129,7 +130,7 @@
 										{{ event.name }}
 									</p>
 
-									<span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="eventStatusClass(
+									<span class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="eventStatusClass(
 										event.status,
 									)
 										">
@@ -195,10 +196,10 @@
 		<template v-if="selectedEventId">
 			<!-- Stats -->
 			<!-- Phones: the four numbers in one compact row -->
-			<div class="mb-4 grid grid-cols-4 divide-x divide-gray-100 rounded-2xl border border-gray-200 bg-white py-3 sm:hidden">
+			<div class="mb-3 grid grid-cols-4 divide-x divide-gray-100 rounded-2xl border border-gray-200 bg-white py-2 sm:hidden">
 				<div v-for="card in statCards" :key="card.key" class="min-w-0 px-1 text-center">
-					<div class="text-lg font-extrabold leading-tight tracking-tight text-gray-950">{{ card.value }}<span v-if="card.suffix" class="text-sm text-gray-400">{{ card.suffix }}</span></div>
-					<div class="mt-0.5 truncate text-[10px] font-bold uppercase tracking-wide text-gray-400">{{ card.short }}</div>
+					<div class="text-base font-extrabold leading-tight tracking-tight text-gray-950">{{ card.value }}<span v-if="card.suffix" class="text-sm text-gray-400">{{ card.suffix }}</span></div>
+					<div class="mt-0.5 truncate text-[11px] font-bold uppercase tracking-wide text-gray-400">{{ card.short }}</div>
 				</div>
 			</div>
 
@@ -237,9 +238,9 @@
 
 			<!-- Tabs -->
 			<!-- Phones: an icon bar of five equal buttons; wider screens: pill tabs -->
-			<div class="mb-5 grid w-full grid-cols-5 gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 sm:mb-6 sm:inline-flex sm:w-auto sm:max-w-full sm:flex-wrap">
+			<div class="mb-4 grid w-full grid-cols-5 gap-1 rounded-2xl border border-gray-200 bg-white p-1 sm:mb-6 sm:p-1.5 sm:inline-flex sm:w-auto sm:max-w-full sm:flex-wrap">
 				<NuxtLink v-for="tab in tabs" :key="tab.label" :to="tab.to" :aria-label="tab.label"
-					class="flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[11px] font-bold transition duration-200 active:scale-[0.97] sm:min-h-0 sm:flex-row sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
+					class="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[11px] font-bold transition duration-200 active:scale-[0.97] sm:min-h-0 sm:flex-row sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm"
 					:class="route.path === tab.path
 						? 'bg-[#285F6b] text-white shadow-sm'
 						: 'text-gray-500 hover:bg-primary-50 hover:text-primary-700'">

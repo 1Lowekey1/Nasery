@@ -32,7 +32,8 @@
 
 		<template v-else-if="earnings">
 			<div class="grid grid-cols-1 gap-5 lg:grid-cols-5">
-				<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
+				<!-- Phones: the numbers first (two per row), then a smaller chart -->
+				<div class="order-2 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:order-none lg:col-span-2">
 					<h2 class="text-base font-bold text-gray-900">Money flow</h2>
 					<p class="text-sm text-gray-500">How each peso of ticket sales is split, all events, all time</p>
 
@@ -44,16 +45,16 @@
 					<p v-else class="py-16 text-center text-sm text-gray-400">No online ticket sales yet.</p>
 				</div>
 
-				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-3">
+				<div class="grid grid-cols-2 gap-3 sm:gap-4 lg:col-span-3">
 					<div v-for="card in statCards" :key="card.label"
-						class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+						class="min-w-0 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-5">
 						<div class="flex items-start justify-between gap-3">
 							<span class="text-xs font-bold uppercase tracking-[0.1em] text-gray-400">{{ card.label }}</span>
-							<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" :class="card.iconBg">
+							<span class="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl sm:flex" :class="card.iconBg">
 								<IconBase :name="card.icon" class="h-5 w-5" :class="card.iconColor" />
 							</span>
 						</div>
-						<div class="mt-3 text-2xl font-extrabold tracking-tight sm:text-3xl" :class="card.valueClass">{{ card.value }}</div>
+						<div class="mt-2 break-words text-xl font-extrabold tracking-tight sm:mt-3 sm:text-3xl" :class="card.valueClass">{{ card.value }}</div>
 						<p class="mt-2 text-xs leading-5 text-gray-500">{{ card.hint }}</p>
 					</div>
 				</div>
@@ -63,7 +64,7 @@
 				Money paid outside NaSeRy (like a client paying you for a booked event) isn't here — NaSeRy only handles online ticket sales.
 			</p>
 
-			<div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+			<div class="stat-grid grid grid-cols-1 gap-5 sm:grid-cols-2">
 				<div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
 					<p class="text-sm font-semibold text-gray-500">Paid out to you</p>
 					<p class="mt-2 text-2xl font-extrabold tracking-tight text-gray-950 sm:text-3xl">{{ formatMoney(earnings.paid_out) }}</p>
@@ -106,7 +107,7 @@
 				<p class="mb-4 text-sm text-gray-500">Every transfer NaSeRy has sent you</p>
 
 				<div v-if="earnings.payouts.length" class="overflow-x-auto">
-					<table class="w-full text-left text-sm">
+					<table v-table-cards class="w-full text-left text-sm">
 						<thead>
 							<tr class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">
 								<th class="pb-3 pr-4">Date</th>
@@ -118,7 +119,7 @@
 						</thead>
 						<tbody class="divide-y divide-gray-100">
 							<tr v-for="payout in earnings.payouts" :key="payout.id">
-								<td class="py-3.5 pr-4 text-gray-900">{{ formatDate(payout.paid_at) }}</td>
+								<td data-card-title class="py-3.5 pr-4 text-gray-900">{{ formatDate(payout.paid_at) }}</td>
 								<td class="py-3.5 pr-4 text-gray-700">{{ payout.method }}</td>
 								<td class="py-3.5 pr-4 font-mono text-xs text-gray-500">{{ payout.reference || '—' }}</td>
 								<td class="py-3.5 pr-4 text-right font-bold text-gray-900">{{ formatMoney(payout.amount) }}</td>
@@ -144,7 +145,7 @@
 					<NuxtLink to="/organizer/billing" class="mt-3 inline-flex rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white">See plans</NuxtLink>
 				</div>
 				<div v-else-if="earnings.events.length" class="overflow-x-auto">
-					<table class="w-full text-left text-sm">
+					<table v-table-cards class="w-full text-left text-sm">
 						<thead>
 							<tr class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">
 								<th class="pb-3 pr-4">Event</th>
@@ -156,7 +157,7 @@
 						</thead>
 						<tbody class="divide-y divide-gray-100">
 							<tr v-for="event in earnings.events" :key="event.event_id">
-								<td class="py-3.5 pr-4">
+								<td data-card-title class="py-3.5 pr-4">
 									<div class="font-semibold text-gray-900">{{ event.name }}</div>
 									<div class="text-xs text-gray-400">{{ event.payments_count }} payment{{ event.payments_count === 1 ? '' : 's' }}</div>
 								</td>
@@ -290,6 +291,7 @@ const flowOptions = computed<ApexOptions>(() => ({
 		},
 	},
 	tooltip: { y: { formatter: (value: number) => formatMoney(value) } },
+	responsive: [{ breakpoint: 640, options: { chart: { height: 230 } } }],
 }))
 
 const hasMonthlyActivity = computed(() => (earnings.value?.monthly ?? []).some(row => row.ticket_sales > 0))

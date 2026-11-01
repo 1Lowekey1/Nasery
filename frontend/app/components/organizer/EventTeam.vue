@@ -25,7 +25,7 @@
 			</div>
 			<fieldset class="mt-3 grid grid-cols-1 gap-1 sm:grid-cols-2">
 				<legend class="mb-1 text-xs font-semibold text-gray-500">Extra permissions on this event only</legend>
-				<label v-for="(label, key) in eventPermissionLabels" :key="key" class="flex items-center gap-2 text-sm">
+				<label v-for="(label, key) in eventPermissionLabels" :key="key" class="flex min-h-10 cursor-pointer items-center gap-2.5 text-sm">
 					<input v-model="form.permissions" type="checkbox" :value="key"> {{ label }}
 				</label>
 			</fieldset>

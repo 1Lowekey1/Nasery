@@ -62,7 +62,7 @@
 						<div class="flex shrink-0 items-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
 							<IconBase name="calendar" class="h-5 w-5 text-white/80" />
 							<div>
-								<p class="text-[10px] font-bold uppercase tracking-[0.14em] text-white/60">Event date</p>
+								<p class="text-[11px] font-bold uppercase tracking-[0.14em] text-white/60">Event date</p>
 								<p class="mt-0.5 text-sm font-bold">{{ formatDate(eventData.event.event_date) }}</p>
 							</div>
 						</div>
@@ -149,7 +149,7 @@
 							</div>
 						</div>
 						<div class="rounded-2xl bg-[#285F6b]/8 px-4 py-3 text-left sm:text-right">
-							<p class="text-[10px] font-bold uppercase tracking-[0.12em] text-[#285F6b]/70">Agreed amount</p>
+							<p class="text-[11px] font-bold uppercase tracking-[0.12em] text-[#285F6b]/70">Agreed amount</p>
 							<p class="mt-1 text-xl font-black text-[#285F6b]">{{ formatCurrency(eventData.quotation.quotation_amount) }}</p>
 						</div>
 					</div>
@@ -318,7 +318,7 @@
 
 									<div class="relative flex items-start justify-between gap-4">
 										<div class="min-w-0">
-											<p class="text-[10px] font-bold uppercase tracking-[0.22em] text-white/65">
+											<p class="text-[11px] font-bold uppercase tracking-[0.22em] text-white/65">
 												NaSeRy Event Pass
 											</p>
 
@@ -352,7 +352,7 @@
 										<div class="flex items-end justify-between gap-3">
 											<div>
 												<p
-													class="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
+													class="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400">
 													Pass Price
 												</p>
 
@@ -362,7 +362,7 @@
 											</div>
 
 											<span
-												class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+												class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
 												<span class="h-1.5 w-1.5 rounded-full bg-emerald-500" />
 												Available
 											</span>
@@ -377,7 +377,7 @@
 													<path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
 													<circle cx="10" cy="7" r="4" />
 												</svg>
-												<span class="text-[10px] font-bold uppercase tracking-wide">
+												<span class="text-[11px] font-bold uppercase tracking-wide">
 													Capacity
 												</span>
 											</div>
@@ -394,7 +394,7 @@
 													<path d="M20 6 9 17l-5-5" />
 												</svg>
 
-												<span class="text-[10px] font-bold uppercase tracking-wide">
+												<span class="text-[11px] font-bold uppercase tracking-wide">
 													Registration
 												</span>
 											</div>
@@ -418,7 +418,7 @@
 										</div>
 
 										<span
-											class="text-[10px] font-bold uppercase tracking-[0.12em] text-[#285F6b]/70">
+											class="text-[11px] font-bold uppercase tracking-[0.12em] text-[#285F6b]/70">
 											Select Pass
 										</span>
 									</div>
@@ -566,7 +566,7 @@
 					<div class="relative flex items-start justify-between gap-4">
 						<div>
 							<span
-								class="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/85">
+								class="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-white/85">
 								<span class="h-1.5 w-1.5 rounded-full bg-emerald-300" />
 								Official Event Pass
 							</span>
@@ -601,7 +601,7 @@
 								</div>
 
 								<div class="min-w-0 flex-1">
-									<p class="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400">
+									<p class="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-400">
 										Ticket Holder
 									</p>
 
@@ -632,7 +632,7 @@
 
 							<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 								<div class="rounded-2xl bg-gray-50 px-4 py-3.5">
-									<p class="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">
+									<p class="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">
 										Ticket ID
 									</p>
 									<p class="mt-1.5 font-mono text-sm font-black text-gray-900">
@@ -641,7 +641,7 @@
 								</div>
 
 								<div class="rounded-2xl bg-gray-50 px-4 py-3.5">
-									<p class="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">
+									<p class="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">
 										Event Date
 									</p>
 									<p class="mt-1.5 text-sm font-bold text-gray-900">
@@ -654,7 +654,7 @@
 								</div>
 
 								<div v-if="activeTicket.email" class="rounded-2xl bg-gray-50 px-4 py-3.5">
-									<p class="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">
+									<p class="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">
 										Email
 									</p>
 									<p class="mt-1.5 break-all text-xs font-semibold text-gray-800">
@@ -663,7 +663,7 @@
 								</div>
 
 								<div class="rounded-2xl bg-gray-50 px-4 py-3.5">
-									<p class="text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">
+									<p class="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">
 										Location
 									</p>
 									<p class="mt-1.5 text-sm font-bold text-gray-900">
@@ -682,7 +682,7 @@
 							class="pointer-events-none absolute -right-4 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full bg-[#f4f8f8]" />
 
 						<div class="text-center">
-							<p class="text-[10px] font-bold uppercase tracking-[0.18em] text-[#285F6b]">
+							<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-[#285F6b]">
 								Scan to Verify
 							</p>
 
@@ -737,13 +737,13 @@
 								Secure QR Value
 							</span>
 
-							<span class="text-[10px] font-semibold text-gray-400">
+							<span class="text-[11px] font-semibold text-gray-400">
 								Tap to view
 							</span>
 						</summary>
 
 						<div class="border-t border-gray-100 px-4 py-3">
-							<p class="break-all font-mono text-[10px] leading-5 text-gray-500">
+							<p class="break-all font-mono text-[11px] leading-5 text-gray-500">
 								{{ activeTicket.qr_value }}
 							</p>
 						</div>
@@ -775,7 +775,7 @@
 						</div>
 
 						<span
-							class="rounded-full bg-[#285F6b]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#285F6b]">
+							class="rounded-full bg-[#285F6b]/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-[#285F6b]">
 							{{ activeTicket.ticket_type?.name || 'Ticket' }}
 						</span>
 					</div>

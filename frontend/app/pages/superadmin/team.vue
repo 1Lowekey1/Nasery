@@ -35,10 +35,10 @@
 							<span v-if="a.invited" class="rounded-full bg-amber-50 px-2.5 py-0.5 text-amber-800">Invited · no password yet</span>
 							<span v-else-if="a.status === 'active'" class="rounded-full bg-green-50 px-2.5 py-0.5 text-green-700">Active</span>
 							<span v-else class="rounded-full bg-rose-50 px-2.5 py-0.5 text-rose-700">Disabled</span>
-							<button v-if="a.invited && a.status === 'active'" type="button" :disabled="busy" class="text-primary-700" @click="resend(a.id)">Resend code</button>
+							<button v-if="a.invited && a.status === 'active'" type="button" :disabled="busy" class="min-h-9 rounded-lg px-2 text-primary-700 hover:bg-primary-50" @click="resend(a.id)">Resend code</button>
 							<template v-if="a.id !== user?.id">
-								<button v-if="a.status === 'active'" type="button" class="text-rose-700" @click="startStatus(a.id, 'suspended')">Disable</button>
-								<button v-else type="button" class="text-green-700" @click="startStatus(a.id, 'active')">Enable</button>
+								<button v-if="a.status === 'active'" type="button" class="min-h-9 rounded-lg px-2 text-rose-700 hover:bg-rose-50" @click="startStatus(a.id, 'suspended')">Disable</button>
+								<button v-else type="button" class="min-h-9 rounded-lg px-2 text-green-700 hover:bg-green-50" @click="startStatus(a.id, 'active')">Enable</button>
 							</template>
 						</div>
 					</div>

@@ -12,7 +12,7 @@
 		</div>
 
 		<template v-else-if="overview">
-			<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+			<div class="mb-6 stat-grid grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
 				<SuperadminStatCard label="Total Organizers" :value="overview.organizer_count" icon="users"
 					:hint="monthHint(overview.new_organizers_this_month, 'organizer')" />
 				<SuperadminStatCard label="Total Clients" :value="overview.client_count" icon="user"
@@ -48,7 +48,7 @@
 										}}</span>
 								</div>
 								<span
-									class="mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+									class="mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide"
 									:class="[activityStyle(item.type).bg, activityStyle(item.type).text]">
 									{{ activityStyle(item.type).label }}
 								</span>

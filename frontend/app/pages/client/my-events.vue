@@ -252,7 +252,7 @@
 
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0">
-							<p class="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400 sm:text-xs sm:tracking-[0.1em]">{{ stat.label }}</p>
+							<p class="text-[11px] font-bold uppercase tracking-[0.08em] text-gray-400 sm:text-xs sm:tracking-[0.1em]">{{ stat.label }}</p>
 							<p class="mt-1 text-xl font-extrabold tracking-tight text-gray-950 sm:mt-2 sm:text-4xl">{{ stat.value }}</p>
 						</div>
 						<div class="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 transition duration-200 group-hover:scale-105 sm:flex">
@@ -296,16 +296,16 @@
 					class="me-event me-rise group flex flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white"
 					:style="{ '--d': 340 + Math.min(index, 8) * 50 + 'ms' }">
 					<div class="flex flex-1 items-stretch">
-						<div class="flex w-20 shrink-0 flex-col items-center justify-center border-r border-gray-100 bg-primary-50/60 px-2 py-5 text-center sm:w-24">
+						<div class="flex w-16 shrink-0 flex-col items-center justify-center border-r border-gray-100 bg-primary-50/60 px-1.5 py-5 text-center sm:w-24 sm:px-2">
 							<span class="text-[11px] font-extrabold uppercase tracking-[0.15em] text-primary-700">{{ eventMonth(event.event_date) }}</span>
 							<span class="mt-1 text-3xl font-black leading-none text-gray-950">{{ eventDay(event.event_date) }}</span>
-							<span class="mt-2 text-[11px] font-semibold text-gray-500">{{ event.event_type }}</span>
+							<span class="mt-2 break-words text-[11px] font-semibold leading-tight text-gray-500">{{ event.event_type }}</span>
 						</div>
 
-						<div class="flex min-w-0 flex-1 flex-col p-5">
+						<div class="flex min-w-0 flex-1 flex-col p-4 sm:p-5">
 							<div class="flex items-start justify-between gap-3">
 								<div class="min-w-0">
-									<h3 class="truncate text-lg font-extrabold tracking-tight text-gray-950">{{ event.event_title || `${event.event_type} Inquiry` }}</h3>
+									<h3 class="line-clamp-2 break-words text-base font-extrabold tracking-tight text-gray-950 sm:text-lg">{{ event.event_title || `${event.event_type} Inquiry` }}</h3>
 									<p v-if="event.direct_to" class="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-bold text-primary-700"><IconBase name="send" class="h-3 w-3 shrink-0" /><span class="truncate">Direct to {{ directName(event) }}</span></p>
 									<p class="mt-1 flex items-start gap-1.5 text-xs leading-5 text-gray-500">
 										<IconBase name="map-pin" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-600" />

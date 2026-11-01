@@ -134,11 +134,11 @@
 						<span class="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-600">{{ group.options.length }}</span>
 					</div>
 					<ul class="divide-y divide-gray-100">
-						<li v-for="(o, i) in group.options" :key="o.id" class="pl-row group flex flex-wrap items-center gap-3 px-6 py-4 transition-colors hover:bg-gray-50/70" :class="o.is_active ? '' : 'bg-gray-50/80'">
+						<li v-for="(o, i) in group.options" :key="o.id" class="pl-row group flex flex-wrap items-center gap-x-3 gap-y-2 px-6 py-4 transition-colors hover:bg-gray-50/70" :class="o.is_active ? '' : 'bg-gray-50/80'">
 							<div class="min-w-0 flex-1">
-								<p class="flex flex-wrap items-center gap-2 text-sm font-bold" :class="o.is_active ? 'text-gray-900' : 'text-gray-400'">
+								<p class="flex flex-wrap items-center gap-2 break-words text-sm font-bold" :class="o.is_active ? 'text-gray-900' : 'text-gray-400'">
 									{{ o.name }}
-									<span v-if="!o.is_active" class="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-bold text-gray-600">Hidden</span>
+									<span v-if="!o.is_active" class="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-600">Hidden</span>
 								</p>
 								<p v-if="o.description" class="mt-0.5 truncate text-xs text-gray-500">{{ o.description }}</p>
 								<p v-if="o.pricing_unit === 'per_guest' && o.min_guests" class="mt-0.5 text-xs text-gray-400">min {{ o.min_guests }} guests</p>
@@ -147,9 +147,10 @@
 							</div>
 							<div class="shrink-0 text-right">
 								<p class="text-sm font-extrabold tabular-nums text-gray-950">{{ formatPeso(o.price) }}</p>
-								<span class="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold" :class="o.pricing_unit === 'flat' ? 'bg-gray-100 text-gray-500' : 'bg-primary-50 text-primary-700'">{{ o.pricing_unit === 'flat' ? 'flat' : `per ${unitName(o)}` }}</span>
+								<span class="mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold" :class="o.pricing_unit === 'flat' ? 'bg-gray-100 text-gray-500' : 'bg-primary-50 text-primary-700'">{{ o.pricing_unit === 'flat' ? 'flat' : `per ${unitName(o)}` }}</span>
 							</div>
-							<div class="flex shrink-0 items-center gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+							<!-- Phones: the actions get their own row under the name and price -->
+							<div class="flex shrink-0 items-center gap-1 opacity-100 transition max-sm:-mr-2 max-sm:w-full max-sm:justify-end sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
 								<button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 disabled:opacity-30" :disabled="i === 0 || busy" :aria-label="`Move ${o.name} up`" @click="move(group.options, i, -1)"><IconBase name="chevron-down" class="h-4 w-4 rotate-180" /></button>
 								<button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 disabled:opacity-30" :disabled="i === group.options.length - 1 || busy" :aria-label="`Move ${o.name} down`" @click="move(group.options, i, 1)"><IconBase name="chevron-down" class="h-4 w-4" /></button>
 								<button type="button" class="rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-500 transition hover:bg-gray-100" :disabled="busy" @click="toggleActive(o)">{{ o.is_active ? 'Hide' : 'Show' }}</button>

@@ -16,7 +16,7 @@ withDefaults(defineProps<{ color: string; label: string; compact?: boolean; imag
       <path d="M530 55v30m-15-15h30M250 80v16m-8-8h16" stroke="white" stroke-opacity=".65" stroke-width="2" />
     </svg>
     <div class="absolute bottom-5 left-6 right-6">
-      <p v-if="!image" class="mb-2 text-[10px] font-semibold uppercase tracking-[.22em] text-white/75">Spaces for connection</p>
+      <p v-if="!image" class="mb-2 text-[11px] font-semibold uppercase tracking-[.22em] text-white/75">Spaces for connection</p>
       <p class="max-w-xs font-serif text-3xl leading-tight">{{ label }}</p>
     </div>
   </div>

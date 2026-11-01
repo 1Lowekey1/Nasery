@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<div v-if="isLoading" class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+		<div v-if="isLoading" class="stat-grid grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 			<div v-for="n in 4" :key="n" class="h-36 animate-pulse rounded-2xl bg-white ring-1 ring-gray-200" />
 		</div>
 
@@ -10,7 +10,7 @@
 
 		<template v-else>
 			<!-- Headline numbers -->
-			<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+			<div class="mb-6 stat-grid grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 				<div v-for="(stat, i) in stats" :key="stat.label" class="an-tile group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 transition hover:border-primary-200 hover:shadow-[0_12px_28px_-18px_rgba(16,63,77,0.35)]" :style="{ '--i': i }">
 					<div class="flex items-start justify-between gap-3">
 						<span class="text-sm font-medium text-gray-500">{{ stat.label }}</span>
@@ -30,7 +30,7 @@
 			</div>
 
 			<!-- Money: won bids (at the final agreed price when one is set) and ticket sales -->
-			<div v-if="money && (money.won_value !== null || money.revenue !== null)" class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+			<div v-if="money && (money.won_value !== null || money.revenue !== null)" class="mb-6 stat-grid grid grid-cols-1 gap-5 sm:grid-cols-2">
 				<div v-if="money.won_value !== null" class="rounded-2xl border border-gray-200 bg-white p-5">
 					<div class="flex items-start justify-between gap-3">
 						<span class="text-sm font-medium text-gray-500">Won value</span>

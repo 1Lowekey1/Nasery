@@ -26,7 +26,7 @@
 				</div>
 			</div>
 
-			<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+			<div class="mb-6 stat-grid grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 				<SuperadminStatCard label="Inquiries Posted" :value="client.inquiries_count" icon="file-text"
 					hint="As a client hiring organizers" />
 				<SuperadminStatCard label="Booked Events" :value="client.events_count" icon="calendar"

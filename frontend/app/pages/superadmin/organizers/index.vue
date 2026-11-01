@@ -6,7 +6,7 @@
 			{{ errorMessage }}
 		</div>
 
-		<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+		<div class="mb-6 stat-grid grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 			<SuperadminStatCard label="Total Organizers" :value="organizers.length" icon="briefcase"
 				:hint="`${organizersWithEvents} with at least one event`" />
 			<SuperadminStatCard label="Events Managed" :value="totalEvents" icon="calendar"
@@ -53,7 +53,7 @@
 			</div>
 
 			<div v-else class="overflow-x-auto">
-				<table class="w-full text-left text-sm">
+				<table v-table-cards class="w-full text-left text-sm">
 					<thead>
 						<tr
 							class="bg-gray-50/80 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400 [&>th]:py-3 [&>th:first-child]:rounded-l-xl [&>th:first-child]:pl-3 [&>th:last-child]:rounded-r-xl [&>th:last-child]:pr-3">
@@ -76,7 +76,7 @@
 									{{ index + 1 }}
 								</span>
 							</td>
-							<td class="py-3.5 pr-4">
+							<td data-card-title class="py-3.5 pr-4">
 								<div class="flex items-center gap-3">
 									<SuperadminAvatar :name="org.name" size="sm" />
 									<div class="min-w-0">

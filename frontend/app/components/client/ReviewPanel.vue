@@ -16,9 +16,9 @@
 				<p class="text-xs font-bold uppercase tracking-wide text-gray-400">Reply from {{ organizer }}</p>
 				<p class="mt-1 whitespace-pre-line text-gray-700">{{ state.review.reply.text }}</p>
 			</div>
-			<div v-if="canChange" class="mt-3 flex gap-3 text-xs font-semibold">
-				<button type="button" class="text-primary-700" @click="startEdit">Edit</button>
-				<button type="button" class="text-rose-700" @click="remove">Remove</button>
+			<div v-if="canChange" class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold">
+				<button type="button" class="-mx-1 min-h-9 rounded-lg px-2 text-primary-700 hover:bg-primary-50" @click="startEdit">Edit</button>
+				<button type="button" class="min-h-9 rounded-lg px-2 text-rose-700 hover:bg-rose-50" @click="remove">Remove</button>
 				<span class="font-normal text-gray-400">You can change it until {{ date(state.review.editable_until) }}.</span>
 			</div>
 		</template>

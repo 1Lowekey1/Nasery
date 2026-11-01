@@ -86,11 +86,11 @@
 				</select>
 			</div>
 			<div class="mt-3 overflow-x-auto">
-				<table class="w-full min-w-[560px] text-left text-sm">
+				<table v-table-cards class="w-full min-w-[560px] text-left text-sm">
 					<thead class="text-xs uppercase text-gray-400"><tr><th class="py-2">Name</th><th>Tier</th><th>Status</th><th>First check-in</th></tr></thead>
 					<tbody class="divide-y divide-gray-100">
 						<tr v-for="(a, i) in rows" :key="i">
-							<td class="py-2 font-medium text-gray-900">{{ a.name }}</td>
+							<td data-card-title class="py-2 font-medium text-gray-900">{{ a.name }}</td>
 							<td class="text-gray-600">{{ a.tier ?? '—' }}</td>
 							<td><span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="statusTone[a.status]">{{ a.label }}</span></td>
 							<td class="text-gray-600">{{ a.at ?? '—' }}</td>

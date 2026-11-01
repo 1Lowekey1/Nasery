@@ -14,7 +14,7 @@
         <div class="border-t border-gray-100 px-4 py-4">
           <button type="button" class="mb-1 flex w-full items-center gap-3 rounded-lg p-1.5 text-left hover:bg-gray-50" @click="openProfilePanel"><div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-700 text-sm font-bold text-white"><img v-if="user?.avatar_url" :src="user.avatar_url" alt="" class="h-full w-full object-cover" /><span v-else>{{ initials }}</span></div><div class="min-w-0"><div class="truncate text-sm font-semibold text-gray-900">{{ fullName }}</div><div class="text-xs text-gray-400">Team Member</div></div></button>
           <p class="mb-3 px-1.5 text-[11px] text-gray-400">Click profile to customise</p>
-          <button type="button" class="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-700" @click="signOut"><IconBase name="log-out" class="h-4 w-4" />Sign out</button>
+          <button type="button" class="-mx-2 flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700" @click="signOut"><IconBase name="log-out" class="h-4 w-4" />Sign out</button>
           <button type="button" class="mt-2 text-xs font-semibold text-rose-600 hover:text-rose-800" @click="leaveTeam">Leave this team</button>
         </div>
       </div>
@@ -56,6 +56,8 @@ const { nav } = useTeamNav()
 const orgName = computed(() => organization.value?.display_name ?? '')
 const isActive = (item: { to: string, matches?: string[] }) => (item.matches ?? [item.to]).some(p => route.path === p || route.path.startsWith(`${p}/`))
 const currentLabel = computed(() => nav.value.find(isActive)?.label ?? 'My Assignments')
+// The browser tab shows the page name too.
+useSeoMeta({ title: () => `${currentLabel.value} | NaSeRy` })
 onMounted(() => { if (!organization.value) fetchOrganization().catch(() => {}) })
 
 async function leaveTeam() {

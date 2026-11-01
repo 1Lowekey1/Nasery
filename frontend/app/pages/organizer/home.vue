@@ -63,7 +63,7 @@
 
 					<div class="flex items-start justify-between gap-3">
 						<div class="min-w-0">
-							<p class="text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400 sm:text-xs sm:tracking-[0.1em]">
+							<p class="text-[11px] font-bold uppercase tracking-[0.08em] text-gray-400 sm:text-xs sm:tracking-[0.1em]">
 								{{ stat.label }}
 							</p>
 							<p class="mt-1 text-xl font-extrabold tracking-tight text-gray-950 sm:mt-2 sm:text-4xl">
@@ -212,7 +212,7 @@
 				Common tasks to help you get started
 			</p>
 
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+			<div class="stat-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 				<button v-for="action in quickActions" :key="action.label" type="button"
 					class="hm-action group relative rounded-2xl border border-gray-200 p-5 text-left"
 					@click="navigateTo(action.route)">

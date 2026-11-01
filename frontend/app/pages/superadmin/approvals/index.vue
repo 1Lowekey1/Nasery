@@ -34,7 +34,7 @@
 			</div>
 
 			<div class="overflow-x-auto">
-				<table class="w-full text-left text-sm">
+				<table v-table-cards class="w-full text-left text-sm">
 					<thead>
 						<tr class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">
 							<th class="pb-3 pr-4">Organizer</th>
@@ -55,7 +55,7 @@
 						</tr>
 						<tr v-for="org in items" v-else :key="org.id" class="cursor-pointer hover:bg-gray-50"
 							@click="navigateTo(`/superadmin/approvals/${org.id}`)">
-							<td class="py-3.5 pr-4">
+							<td data-card-title class="py-3.5 pr-4">
 								<div class="font-semibold text-gray-900">{{ org.display_name }}</div>
 								<div class="text-xs text-gray-500">{{ org.legal_name }}<template v-if="org.location_text"> · {{ org.location_text }}</template></div>
 							</td>

@@ -216,7 +216,7 @@
                                         </span>
 
                                         <span v-if="entry.ticket.source"
-                                            class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-600">
+                                            class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">
                                             {{
                                                 formatTicketSource(
                                                     entry.ticket.source,
@@ -236,7 +236,7 @@
                                     }}
                                 </span>
 
-                                <span class="mt-0.5 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-primary-700">
+                                <span class="mt-0.5 inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-primary-700">
                                     <IconBase name="check-circle" class="h-3 w-3" />
                                     QR Scan
                                 </span>

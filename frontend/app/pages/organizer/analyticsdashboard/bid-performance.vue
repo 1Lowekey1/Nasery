@@ -28,7 +28,7 @@
 				</p>
 			</div>
 
-			<div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+			<div class="mt-5 stat-grid grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 				<div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
 					<div class="flex items-start justify-between gap-3">
 						<div>

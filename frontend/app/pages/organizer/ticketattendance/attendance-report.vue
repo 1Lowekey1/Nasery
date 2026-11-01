@@ -73,7 +73,7 @@
                         </p>
                     </section>
 
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:col-span-8">
+                    <div class="stat-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:col-span-8">
                         <div v-for="(card, index) in statCards" :key="card.label"
                             class="ar-rise ar-card group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5"
                             :style="{ '--d': 100 + index * 60 + 'ms' }">
@@ -181,7 +181,7 @@
                     </div>
 
                     <div v-if="filteredAttendees.length" class="overflow-x-auto">
-                        <table class="w-full whitespace-nowrap text-left text-sm">
+                        <table v-table-cards class="w-full whitespace-nowrap text-left text-sm">
                             <thead>
                                 <tr class="bg-gray-50/80 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400 [&>th]:py-3 [&>th:first-child]:rounded-l-xl [&>th:first-child]:pl-3 [&>th:last-child]:rounded-r-xl [&>th:last-child]:pr-3">
                                     <th class="pr-4">Attendee</th>
@@ -195,7 +195,7 @@
 
                             <tbody class="divide-y divide-gray-100">
                                 <tr v-for="attendee in filteredAttendees" :key="attendee.id" class="ar-row transition-colors hover:bg-gray-50">
-                                    <td class="py-3.5 pl-3 pr-4">
+                                    <td data-card-title class="py-3.5 pl-3 pr-4">
                                         <div class="flex items-center gap-3">
                                             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
                                                 {{ getInitials(attendee.name) }}

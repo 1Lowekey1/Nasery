@@ -27,7 +27,7 @@
 								<circle cx="48" cy="48" r="40" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8" />
 								<circle cx="48" cy="48" r="40" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" :stroke-dasharray="PT_RING" :stroke-dashoffset="PT_RING * (1 - (ringReady ? readinessPercent : 0) / 100)" class="transition-[stroke-dashoffset] duration-700 ease-out" />
 							</svg>
-							<span class="absolute inset-0 flex flex-col items-center justify-center"><span class="text-xl font-extrabold tabular-nums">{{ readinessPercent }}%</span><span class="text-[10px] text-white/60">ready</span></span>
+							<span class="absolute inset-0 flex flex-col items-center justify-center"><span class="text-xl font-extrabold tabular-nums">{{ readinessPercent }}%</span><span class="text-[11px] text-white/60">ready</span></span>
 						</div>
 						<div class="text-sm">
 							<p><strong class="text-lg font-extrabold tabular-nums">{{ completedCount }}</strong><span class="text-white/60"> / {{ checklist.length }} done</span></p>
@@ -83,7 +83,7 @@
 								<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
 									<!-- Everyone on the task (several people can share one), each removable -->
 									<span v-for="member in item.assignees" :key="member.id" class="pt-chip min-h-9 !py-1.5">
-										<span class="pt-avatar h-4 w-4 text-[8px]">{{ initials(memberName(member)) }}</span>{{ memberName(member) }}
+										<span class="pt-avatar h-6 w-6 text-[11px]" aria-hidden="true">{{ initials(memberName(member)) }}</span>{{ memberName(member) }}
 										<button v-if="!isFinished" type="button" class="-mr-1 ml-0.5 flex h-5 w-5 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-rose-700"
 											:disabled="updatingItemId === item.id" :aria-label="`Remove ${memberName(member)} from ${item.label}`" @click="removeAssignee(item, String(member.id))">
 											<IconBase name="x" class="h-3 w-3" />

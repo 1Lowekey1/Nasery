@@ -124,7 +124,7 @@
 								<p class="sa-label">What's it about?</p>
 								<div class="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Topic">
 									<button v-for="t in topics" :key="t.label" type="button" role="radio" class="sa-chip" :class="topic === t.label ? 'is-on' : ''" :aria-checked="topic === t.label" @click="topic = topic === t.label ? '' : t.label">
-										<IconBase :name="t.icon" class="h-4 w-4" />{{ t.label }}
+										<IconBase :name="t.icon" class="h-4 w-4 shrink-0" />{{ t.label }}
 									</button>
 								</div>
 							</div>
@@ -339,7 +339,7 @@ onBeforeUnmount(() => { if (clock) clearInterval(clock) })
 .sa-label { @apply mb-2 block text-sm font-semibold text-gray-800; }
 .sa-field { @apply w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 hover:border-gray-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10; }
 .sa-invalid { @apply border-red-300 focus:border-red-400 focus:ring-red-500/10; }
-.sa-chip { @apply inline-flex h-11 w-full items-center gap-2.5 rounded-xl border border-gray-200 bg-white px-3.5 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600; }
+.sa-chip { @apply inline-flex min-h-11 w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-left text-sm font-medium leading-tight sm:gap-2.5 sm:px-3.5 text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600; }
 .sa-chip.is-on { @apply border-primary-600 bg-primary-25 text-primary-800 ring-1 ring-primary-600; }
 
 .sa-seg { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-radius: 0.875rem; background: #f3f4f6; padding: 0.25rem; }

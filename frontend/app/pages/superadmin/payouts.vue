@@ -19,7 +19,7 @@
 			<div v-if="!rows" class="py-8 text-center text-sm text-gray-400">Loading…</div>
 			<p v-else-if="!rows.length" class="py-8 text-center text-sm text-gray-400">No ticket sales yet.</p>
 			<div v-else class="mt-4 overflow-x-auto">
-				<table class="w-full text-left text-sm">
+				<table v-table-cards class="w-full text-left text-sm">
 					<thead>
 						<tr class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">
 							<th class="pb-3 pr-4">Organizer</th><th class="pb-3 pr-4">Ticket sales</th><th class="pb-3 pr-4">Refunded</th><th class="pb-3 pr-4">NaSeRy fee</th>
@@ -29,7 +29,7 @@
 					<tbody class="divide-y divide-gray-100">
 						<template v-for="r in rows" :key="r.organization.id">
 							<tr>
-								<td class="py-3.5 pr-4">
+								<td data-card-title class="py-3.5 pr-4">
 									<p class="font-semibold text-gray-900">{{ r.organization.name }}</p>
 									<p class="text-xs text-gray-400">{{ r.last_payout_at ? `Last payout ${dateLabel(r.last_payout_at)}` : 'Never paid out' }}</p>
 								</td>

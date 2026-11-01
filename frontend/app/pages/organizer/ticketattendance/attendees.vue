@@ -137,7 +137,7 @@
 			<div v-else-if="
 				filteredAttendees.length
 			" class="overflow-x-auto">
-				<table class="w-full whitespace-nowrap text-left text-sm">
+				<table v-table-cards class="w-full whitespace-nowrap text-left text-sm">
 					<thead>
 						<tr
 							class="bg-gray-50/80 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400 [&>th]:py-3 [&>th:first-child]:rounded-l-xl [&>th:first-child]:pl-3 [&>th:last-child]:rounded-r-xl [&>th:last-child]:pr-3">
@@ -180,7 +180,7 @@
 					<tbody class="divide-y divide-gray-100">
 						<tr v-for="attendee in filteredAttendees" :key="attendee.id"
 							class="row-in group transition-colors hover:bg-gray-50">
-							<td class="py-3.5 pl-3 pr-4">
+							<td data-card-title class="py-3.5 pl-3 pr-4">
 								<div class="flex items-center gap-3">
 									<div
 										class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
@@ -507,7 +507,7 @@
 					<div class="relative flex items-start justify-between gap-4">
 						<div>
 							<span
-								class="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/85">
+								class="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-white/85">
 								<span class="h-1.5 w-1.5 rounded-full bg-emerald-300" /> Official Event Pass
 							</span>
 							<h2 class="mt-3 text-2xl font-black tracking-tight">
@@ -558,21 +558,21 @@
 
 						<div class="grid grid-cols-2 gap-2.5">
 							<div class="rounded-xl bg-gray-50 px-3.5 py-3">
-								<p class="text-[10px] font-bold uppercase tracking-wide text-gray-400">Category</p>
+								<p class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Category</p>
 								<span class="mt-1.5 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
 									:class="categoryClass(registeredTicket.attendee_category)">{{
 										formatCategory(registeredTicket.attendee_category) }}</span>
 							</div>
 
 							<div class="rounded-xl bg-gray-50 px-3.5 py-3">
-								<p class="text-[10px] font-bold uppercase tracking-wide text-gray-400">Ticket ID</p>
+								<p class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Ticket ID</p>
 								<p class="mt-1.5 font-mono text-sm font-bold text-gray-900">
 									{{ registeredTicket.ticket_id }}
 								</p>
 							</div>
 
 							<div class="col-span-2 rounded-xl bg-gray-50 px-3.5 py-3">
-								<p class="text-[10px] font-bold uppercase tracking-wide text-gray-400">Ticket Type</p>
+								<p class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Ticket Type</p>
 								<p class="mt-1.5 text-sm font-semibold text-gray-900">
 									{{
 										registeredTicket.ticket_type
@@ -583,7 +583,7 @@
 							</div>
 
 							<div class="rounded-xl bg-gray-50 px-3.5 py-3">
-								<p class="text-[10px] font-bold uppercase tracking-wide text-gray-400">Source</p>
+								<p class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Source</p>
 								<span
 									class="mt-1.5 inline-flex rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
 									Organizer
@@ -591,7 +591,7 @@
 							</div>
 
 							<div class="rounded-xl bg-gray-50 px-3.5 py-3">
-								<p class="text-[10px] font-bold uppercase tracking-wide text-gray-400">Status</p>
+								<p class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Status</p>
 								<span
 									class="mt-1.5 inline-flex rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600">
 									Registered
@@ -599,7 +599,7 @@
 							</div>
 
 							<div class="col-span-2 rounded-xl bg-gray-50 px-3.5 py-3">
-								<p class="text-[10px] font-bold uppercase tracking-wide text-gray-400">Payment</p>
+								<p class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Payment</p>
 								<span class="mt-1.5 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold" :class="paymentClass(
 									registeredTicket.payment_status,
 								)
@@ -644,7 +644,7 @@
 						<summary class="cursor-pointer px-4 py-3.5 text-xs font-bold text-gray-600">Secure QR Value
 						</summary>
 						<p
-							class="break-all border-t border-gray-100 px-4 py-3 font-mono text-[10px] leading-5 text-gray-500">
+							class="break-all border-t border-gray-100 px-4 py-3 font-mono text-[11px] leading-5 text-gray-500">
 							{{
 								registeredTicket.qr_value }}</p>
 					</details>

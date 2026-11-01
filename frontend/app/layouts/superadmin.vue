@@ -40,7 +40,7 @@
 						View public site
 					</NuxtLink>
 					<button type="button"
-						class="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-700"
+						class="-mx-2 flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-700"
 						@click="signOut">
 						<IconBase name="log-out" class="h-4 w-4" />
 						Sign out
@@ -52,25 +52,26 @@
 
 		<div class="flex min-w-0 flex-1 flex-col">
 			<header class="flex shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-3 sm:px-6 sm:py-3.5">
-				<div class="flex items-center gap-4">
+				<div class="flex min-w-0 items-center gap-2 sm:gap-4">
 					<button type="button" class="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700" :aria-label="sidebarOpen ? 'Close menu' : 'Open menu'" :aria-expanded="sidebarOpen" @click="sidebarOpen = !sidebarOpen">
 						<IconBase :name="sidebarOpen ? 'x' : 'menu'" class="h-5 w-5" />
 					</button>
-					<div>
-						<div class="text-xs text-gray-400">Super Admin Portal</div>
-						<div class="text-sm font-bold text-gray-900">{{ headerTitle }}</div>
+					<div class="min-w-0">
+						<div class="truncate text-xs text-gray-400">Super Admin Portal</div>
+						<div class="truncate text-sm font-bold text-gray-900">{{ headerTitle }}</div>
 					</div>
 				</div>
-				<div class="flex items-center gap-3">
+				<div class="flex shrink-0 items-center gap-3">
 					<NotificationsDropdown portal="superadmin" />
 
 					<div ref="profileMenuRef" class="relative">
 						<button type="button"
-							class="flex items-center gap-2.5 rounded-xl border border-gray-200 bg-white py-1.5 pl-1.5 pr-3 transition hover:border-primary-200 hover:bg-primary-50"
+							class="flex items-center gap-2.5 rounded-xl border border-gray-200 bg-white p-1.5 transition sm:pr-3 hover:border-primary-200 hover:bg-primary-50"
 							@click="toggleProfileMenu">
 							<SuperadminAvatar :name="fullName || 'Super Admin'" :src="user?.avatar_url" size="sm" />
-							<span class="text-sm font-semibold text-gray-700">Profile</span>
-							<IconBase name="chevron-down" class="h-3.5 w-3.5 text-gray-400" />
+							<!-- Phones: just the avatar, so the page title has room -->
+							<span class="hidden text-sm font-semibold text-gray-700 sm:inline">Profile</span>
+							<IconBase name="chevron-down" class="hidden h-3.5 w-3.5 text-gray-400 sm:block" />
 						</button>
 
 						<div v-if="profileMenuOpen"
@@ -129,6 +130,8 @@ const activeItem = computed(
 // Pages outside the menu still get their own title in the header.
 const pageTitles: Record<string, string> = { '/notifications': 'Notifications', '/my-tickets': 'My Tickets' }
 const headerTitle = computed(() => pageTitles[route.path] ?? activeItem.value?.label ?? '')
+// The browser tab shows the page name too; a page's own title wins.
+useSeoMeta({ title: () => headerTitle.value ? `${headerTitle.value} | NaSeRy Admin` : 'NaSeRy Admin' })
 
 const { fullName, logout, user } = useAuth('superadmin')
 

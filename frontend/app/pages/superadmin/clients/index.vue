@@ -6,7 +6,7 @@
 			{{ errorMessage }}
 		</div>
 
-		<div class="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+		<div class="mb-6 stat-grid grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 			<SuperadminStatCard label="Total Clients" :value="clients.length" icon="user"
 				:hint="`${clientsWithEvents} with a confirmed event`" />
 			<SuperadminStatCard label="Inquiries (as clients)" :value="totalInquiries" icon="file-text"
@@ -53,16 +53,16 @@
 			</div>
 
 			<div v-else class="overflow-x-auto">
-				<table class="w-full text-left text-sm">
+				<table v-table-cards class="w-full text-left text-sm">
 					<thead>
 						<tr
 							class="bg-gray-50/80 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400 [&>th]:py-3 [&>th:first-child]:rounded-l-xl [&>th:first-child]:pl-3 [&>th:last-child]:rounded-r-xl [&>th:last-child]:pr-3">
 							<th class="pr-4">Rank</th>
 							<th class="pr-4">Client</th>
 							<th class="pr-4">Email</th>
-							<th class="pr-4">Inquiries <span class="ml-1 rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-primary-700">Client</span></th>
-							<th class="pr-4">Booked <span class="ml-1 rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-primary-700">Client</span></th>
-							<th class="pr-4">Ticket purchases <span class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal text-gray-600">Attendee</span></th>
+							<th class="pr-4" data-label="Inquiries">Inquiries <span class="ml-1 rounded bg-primary-50 px-1.5 py-0.5 text-[11px] font-bold normal-case tracking-normal text-primary-700">Client</span></th>
+							<th class="pr-4" data-label="Booked">Booked <span class="ml-1 rounded bg-primary-50 px-1.5 py-0.5 text-[11px] font-bold normal-case tracking-normal text-primary-700">Client</span></th>
+							<th class="pr-4" data-label="Ticket purchases">Ticket purchases <span class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-bold normal-case tracking-normal text-gray-600">Attendee</span></th>
 							<th>Joined</th>
 						</tr>
 					</thead>
@@ -76,7 +76,7 @@
 									{{ index + 1 }}
 								</span>
 							</td>
-							<td class="py-3.5 pr-4">
+							<td data-card-title class="py-3.5 pr-4">
 								<div class="flex items-center gap-3">
 									<SuperadminAvatar :name="client.name" size="sm" />
 									<div class="min-w-0">

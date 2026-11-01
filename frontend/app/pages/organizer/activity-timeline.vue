@@ -14,20 +14,25 @@
 		<p v-if="errorMessage" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ errorMessage }}</p>
 
 		<!-- Status summary = filters -->
-		<div class="grid grid-cols-2 gap-3 lg:grid-cols-4" role="tablist" aria-label="Filter by status">
+		<!-- Phones: four compact counters in one row -->
+		<div class="grid grid-cols-4 gap-2 sm:gap-3" role="tablist" aria-label="Filter by status">
 			<button v-for="(card, i) in statusCards" :key="card.value" type="button" role="tab" :aria-selected="selectedStatus === card.value" class="at-stat group" :class="selectedStatus === card.value ? 'is-on' : ''" :style="{ '--i': i }" @click="selectedStatus = card.value">
 				<div class="flex items-center justify-between">
-					<span class="flex items-center gap-2 text-sm font-medium text-gray-600"><span class="at-node-mini" :class="card.node" />{{ card.label }}</span>
-					<IconBase v-if="selectedStatus === card.value" name="check" class="h-4 w-4 text-primary-700" />
+					<span class="flex items-center gap-2 text-sm font-medium text-gray-600 max-sm:w-full max-sm:justify-center max-sm:text-[11px] max-sm:leading-tight"><span class="at-node-mini max-sm:hidden" :class="card.node" />{{ card.label }}</span>
+					<IconBase v-if="selectedStatus === card.value" name="check" class="h-4 w-4 text-primary-700 max-sm:hidden" />
 				</div>
-				<p class="mt-2 text-2xl font-extrabold tabular-nums text-gray-950">{{ card.count }}</p>
-				<div class="mt-2 h-1 overflow-hidden rounded-full bg-gray-100"><div class="h-full rounded-full transition-[width] duration-700 ease-out" :class="card.bar" :style="{ width: (ready ? card.percent : 0) + '%' }" /></div>
+				<p class="mt-0.5 text-lg font-extrabold tabular-nums text-gray-950 sm:mt-2 sm:text-2xl">{{ card.count }}</p>
+				<div class="mt-2 hidden h-1 overflow-hidden sm:block rounded-full bg-gray-100"><div class="h-full rounded-full transition-[width] duration-700 ease-out" :class="card.bar" :style="{ width: (ready ? card.percent : 0) + '%' }" /></div>
 			</button>
 		</div>
 
 		<div class="grid items-start gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-			<!-- Events -->
-			<aside class="min-w-0 lg:sticky lg:top-0">
+			<!-- Events: a dropdown on phones and tablets, the side list on wide screens -->
+			<select v-model="eventChoice" aria-label="Choose an event" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm font-semibold text-gray-800 focus:border-primary-500 focus:outline-none lg:hidden">
+				<option value="">All events ({{ totalActivities }} {{ totalActivities === 1 ? 'item' : 'items' }})</option>
+				<option v-for="event in timelineEvents" :key="event.key" :value="event.key">{{ event.name }} · {{ monthOf(event.eventDate) }} {{ dayOf(event.eventDate) }} · {{ eventProgress(event).done }}/{{ eventProgress(event).total }}</option>
+			</select>
+			<aside class="hidden min-w-0 lg:sticky lg:top-0 lg:block">
 				<div class="rounded-2xl border border-gray-200 bg-white">
 					<div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
 						<p class="text-sm font-bold text-gray-950">Events</p>
@@ -48,13 +53,13 @@
 
 						<button v-for="event in timelineEvents" v-else :key="event.key" type="button" class="at-event" :class="selectedEventKey === event.key ? 'is-on' : ''" @click="selectEvent(event)">
 							<span class="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-xl text-center leading-none" :class="selectedEventKey === event.key ? 'bg-primary-700 text-white' : 'bg-gray-100 text-gray-600'">
-								<span class="text-[9px] font-bold uppercase">{{ monthOf(event.eventDate) }}</span>
+								<span class="text-[11px] font-bold uppercase">{{ monthOf(event.eventDate) }}</span>
 								<span class="text-sm font-extrabold">{{ dayOf(event.eventDate) }}</span>
 							</span>
 							<span class="min-w-0 flex-1">
 								<span class="flex items-center gap-2">
 									<span class="truncate text-sm font-semibold text-gray-950">{{ event.name }}</span>
-									<span class="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" :class="eventBadgeClass(event.status)">{{ formatEventStatus(event.status) }}</span>
+									<span class="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold" :class="eventBadgeClass(event.status)">{{ formatEventStatus(event.status) }}</span>
 								</span>
 								<span class="mt-0.5 flex items-center gap-1 text-xs text-gray-500" :title="event.location || undefined"><IconBase name="map-pin" class="h-3 w-3 shrink-0" /><span class="truncate">{{ shortLocation(event.location) }}</span></span>
 								<span class="mt-2 flex items-center gap-2">
@@ -379,6 +384,15 @@ async function loadTimeline(quiet = false) {
 // ---------- Selection & filters ----------
 function selectAllEvents() { selectedEventId.value = null; selectedEventKey.value = null }
 function selectEvent(event: ActivityTimelineEvent) { selectedEventKey.value = event.key; selectedEventId.value = event.eventId }
+// The phone/tablet dropdown: '' means all events.
+const eventChoice = computed({
+	get: () => selectedEventKey.value ?? '',
+	set: (key: string) => {
+		const event = timelineEvents.value.find(e => e.key === key)
+		if (event) selectEvent(event)
+		else selectAllEvents()
+	},
+})
 const selectedEventData = computed(() => selectedEventKey.value ? timelineEvents.value.find(e => e.key === selectedEventKey.value) ?? null : null)
 const realEvents = computed(() => timelineEvents.value.filter(e => e.hasRealEvent && e.eventId))
 const eventOptions = computed(() => realEvents.value.map(e => ({ value: e.eventId as number, label: e.name })))
@@ -603,7 +617,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 <style scoped>
 .at-label { @apply mb-1.5 block text-sm font-semibold text-gray-800; }
-.at-optional { @apply ml-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500; }
+.at-optional { @apply ml-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold text-gray-500; }
 .at-group { @apply space-y-4 px-6 py-5; }
 .at-group-title { @apply text-xs font-bold text-primary-800; }
 .at-field { @apply h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 hover:border-gray-300 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10; }
@@ -619,6 +633,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 /* Status cards */
 .at-stat { @apply rounded-2xl border border-gray-200 bg-white p-4 text-left transition hover:border-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600; animation: at-rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 50ms); }
 .at-stat.is-on { @apply border-primary-600 bg-primary-25 ring-1 ring-primary-600; }
+/* Phones: four compact counters in one row */
+@media (max-width: 639.98px) {
+	.at-stat { @apply p-2 text-center; }
+}
 
 /* Event list */
 .at-event { @apply flex w-full items-start gap-3 rounded-xl border border-transparent p-2.5 text-left transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary-600; }
