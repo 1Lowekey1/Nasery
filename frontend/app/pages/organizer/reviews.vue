@@ -38,7 +38,7 @@
 
 		<template v-else-if="data">
 			<!-- Summary -->
-			<!-- Phones: one compact rating row and the three tiles; the breakdown chart is for wider screens -->
+			<!-- Phones: one compact rating row, slim breakdown bars and the three tiles -->
 			<section class="grid grid-cols-1 gap-3 sm:gap-5 lg:grid-cols-12">
 				<div class="fade-up rounded-2xl border border-gray-200 bg-white p-4 shadow-sm max-sm:flex max-sm:items-center max-sm:gap-4 sm:p-6 lg:col-span-3" style="--d: 60ms">
 					<p class="text-xs font-bold max-sm:hidden uppercase tracking-[0.1em] text-gray-400">Overall rating</p>
@@ -55,6 +55,18 @@
 					<p class="mt-1 text-sm text-gray-500 sm:mt-3">
 						{{ data.summary.reviews_count }} published review{{ data.summary.reviews_count === 1 ? '' : 's' }}
 					</p>
+					</div>
+				</div>
+
+				<!-- Phones: the breakdown as five slim bars instead of the chart -->
+				<div class="fade-up rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:hidden" style="--d: 120ms">
+					<p class="mb-2 text-xs font-bold uppercase tracking-[0.1em] text-gray-400">Rating breakdown</p>
+					<div v-for="star in [5, 4, 3, 2, 1]" :key="star" class="flex items-center gap-2.5 py-0.5 text-xs">
+						<span class="w-7 shrink-0 font-semibold text-gray-600">{{ star }}★</span>
+						<span class="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+							<span class="block h-full rounded-full bg-primary-700" :style="{ width: starShare(star) + '%' }" />
+						</span>
+						<span class="w-6 shrink-0 text-right tabular-nums text-gray-500">{{ data.summary.distribution[String(star)] ?? 0 }}</span>
 					</div>
 				</div>
 
@@ -295,6 +307,13 @@ const tiles = computed(() => {
 		{ label: 'Awaiting reply', value: String(awaitingCount.value), icon: 'clock', bg: 'bg-gray-100', color: 'text-gray-600' },
 	]
 })
+
+/** Share of all reviews with this many stars, for the phone breakdown bars. */
+function starShare(star: number) {
+	const summary = data.value?.summary
+	if (!summary?.reviews_count) return 0
+	return Math.round(((summary.distribution[String(star)] ?? 0) / summary.reviews_count) * 100)
+}
 
 const distributionSeries = computed(() => [{
 	name: 'Reviews',

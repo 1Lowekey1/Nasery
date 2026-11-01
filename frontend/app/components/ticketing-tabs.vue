@@ -43,8 +43,7 @@
 
 		<!-- Event selector -->
 		<div class="tk-rise relative z-30 mb-3 sm:mb-6" style="--d: 80ms">
-			<!-- Phones: the selector itself is the control; the label row is for wider screens -->
-			<div class="mb-2 hidden items-center justify-between gap-3 sm:flex">
+			<div class="mb-2 flex items-center justify-between gap-3">
 				<label class="block text-xs font-bold uppercase tracking-[0.12em] text-gray-400">
 					Select Event
 				</label>
@@ -54,7 +53,7 @@
 					@click="clearSelectedEvent">
 					<IconBase name="arrow-left" class="h-3.5 w-3.5" />
 
-					Choose another event
+					<span class="sm:hidden">Change event</span><span class="hidden sm:inline">Choose another event</span>
 				</button>
 			</div>
 
