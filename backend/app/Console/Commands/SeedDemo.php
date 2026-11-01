@@ -24,6 +24,7 @@ use App\Services\Events\EventManager;
 use App\Services\Inquiries\InquiryManager;
 use App\Services\Inquiries\InquiryThreads;
 use App\Services\Inquiries\OrganizerInquiries;
+use App\Services\Marketplace\EventTypeSuggestions;
 use App\Services\Organizations\ApprovalWorkflow;
 use App\Services\Organizations\OfferedServices;
 use App\Services\Organizations\OrganizerOnboarding;
@@ -258,14 +259,23 @@ class SeedDemo extends Command
         // years, service radius (km), event tags, specialties, banner color, website (example.com: reserved, goes nowhere)
         $details = [
             'dream' => ['5–10 years', 40, ['Wedding', 'Debut', 'Corporate Event'], ['Full Event Coordination', 'Decor & Styling'], '#be123c', 'https://davaodreamevents.example.com'],
-            'grand' => ['10+ years', 60, ['Corporate Event', 'Conference', 'Birthday Party', 'Christening'], ['Catering Services', 'Full Event Coordination', 'Venue Sourcing'], '#1d4ed8', null],
+            'grand' => ['10+ years', 60, ['Corporate Event', 'Conference', 'Seminar', 'Birthday Party', 'Christening'], ['Catering Services', 'Full Event Coordination', 'Venue Sourcing'], '#1d4ed8', null],
             'samal' => ['3–5 years', 30, ['Wedding'], ['Decor & Styling', 'Photography & Videography'], '#15803d', null],
-            'matina' => ['5–10 years', 35, ['Wedding', 'Birthday Party', 'Christening', 'Debut'], ['Catering Services'], '#b45309', null],
+            'matina' => ['5–10 years', 35, ['Wedding', 'Birthday Party', 'Christening', 'Debut', 'Reunion'], ['Catering Services'], '#b45309', null],
             'lanang' => ['3–5 years', 80, ['Concert', 'Corporate Event', 'Wedding'], ['Lights & Sound'], '#4338ca', 'https://lananglights.example.com'],
             'bajada' => ['3–5 years', 60, ['Wedding', 'Debut', 'Birthday Party'], ['Photography & Videography'], '#0f766e', null],
-            'calinan' => ['5–10 years', 25, ['Wedding', 'Christening', 'Corporate Event'], ['Venue Sourcing', 'Decor & Styling', 'Catering Services'], '#4d7c0f', null],
+            'calinan' => ['5–10 years', 25, ['Wedding', 'Christening', 'Corporate Event', 'Reunion'], ['Venue Sourcing', 'Decor & Styling', 'Catering Services'], '#4d7c0f', null],
             'tagum' => ['1–3 years', 50, ['Birthday Party', 'Christening', 'Wedding'], ['Full Event Coordination'], '#c2410c', null],
-            'ushers' => ['5–10 years', 60, ['Concert', 'Conference', 'Corporate Event'], ['Security & Crowd Control'], '#334155', null],
+            'ushers' => ['5–10 years', 60, ['Concert', 'Conference', 'Seminar', 'Corporate Event'], ['Security & Crowd Control'], '#334155', null],
+        ];
+
+        // 0052: price options meant for certain event types (option name => tags); unlisted = every event type.
+        $optionTags = [
+            'dream' => ['Full wedding coordination' => ['Wedding'], 'Garden styling' => ['Wedding', 'Debut'], 'Grand ballroom styling' => ['Wedding', 'Debut', 'Corporate Event']],
+            'grand' => ['Conference setup and coordination' => ['Conference', 'Seminar', 'Corporate Event'], 'International buffet' => ['Corporate Event', 'Conference']],
+            'samal' => ['Beach wedding package' => ['Wedding'], 'Sunset proposal setup' => ['Wedding']],
+            'matina' => ['Premium buffet (7 dishes)' => ['Wedding', 'Debut', 'Reunion']],
+            'lanang' => ['Concert sound and lights' => ['Concert']],
         ];
 
         // Price list (B: 0048): service => [name, unit, price, unit label, min qty, max qty, min guests]
@@ -359,7 +369,7 @@ class SeedDemo extends Command
                 $offered[$service] = DB::table('organization_services')->where('organization_id', $org->id)->where('service_id', $serviceId)->whereNull('deleted_at')->value('id');
             }
             if (isset($prices[$key])) {
-                $this->as($owner, function () use ($org, $prices, $key, $offered) {
+                $this->as($owner, function () use ($org, $prices, $key, $offered, $optionTags) {
                     $sort = 0;
                     foreach ($prices[$key] as $service => $options) {
                         foreach ($options as $o) {
@@ -368,6 +378,7 @@ class SeedDemo extends Command
                                 'organization_service_id' => $service === '' ? null : ($offered[$service] ?? null),
                                 'name' => $label, 'pricing_unit' => $unit, 'price' => $price, 'is_active' => true, 'sort_order' => $sort++,
                                 'unit_label' => $o[3] ?? null, 'min_quantity' => $o[4] ?? null, 'max_quantity' => $o[5] ?? null, 'min_guests' => $o[6] ?? null,
+                                'event_tags' => $optionTags[$key][$label] ?? [],
                             ]);
                         }
                     }
@@ -491,7 +502,7 @@ class SeedDemo extends Command
         [$dream, $grand, $samal] = [$this->orgs['dream'], $this->orgs['grand'], $this->orgs['samal']];
 
         // 1. Ella's wedding with Davao Dream: completed, guests checked in, report shared, 5★ with a reply.
-        $wedding = $this->won('ella', 'Wedding', 120, [$dream], $dream, 'maria', 'Garden Wedding Package', 185000, daysAgo: 75);
+        $wedding = $this->won('ella', 'Wedding', 120, [$dream], $dream, 'maria', 'Garden Wedding Package', 185000, daysAgo: 75, eventName: 'Reyes–Santos Garden Wedding');
         $weddingEvent = $this->eventFrom($dream, 'maria', $wedding, 'Reyes–Santos Garden Wedding', 'Pearl Farm Pavilion, Davao City', 8);
         $this->eventAt = CarbonImmutable::now('Asia/Manila')->subDays(21);
         $this->prepare($weddingEvent, 'dream');
@@ -501,9 +512,11 @@ class SeedDemo extends Command
         $review = $this->as($this->u('ella'), fn () => app(ReviewManager::class)->create($this->u('ella'), $weddingEvent->refresh(), 5,
             'Maria and her team handled everything, from the rain plan to the last dance. Our guests are still talking about the styling.'));
         $this->as($this->u('maria'), fn () => app(ReviewManager::class)->reply($dream, $this->member($dream, 'maria'), $review['id'], 'Thank you, Ella! It was an honor to be part of your day.'));
+        // After the accounting: 15 more guests and an extra band hour than the accepted offer.
+        $this->as($this->u('maria'), fn () => app(EventManager::class)->setAgreedAmount($weddingEvent->refresh(), 197500, 'Added 15 guests and one more hour of the band on the day.'));
 
         // 2. Andrea's christening with Mindanao Grand: completed, 3★ review that the organizer reported.
-        $christening = $this->won('andrea', 'Christening', 60, [$grand], $grand, 'carlo', 'Christening Reception', 48000, daysAgo: 40);
+        $christening = $this->won('andrea', 'Christening', 60, [$grand], $grand, 'carlo', 'Christening Reception', 48000, daysAgo: 40, eventName: 'Baby Liam\'s Christening');
         $christeningEvent = $this->eventFrom($grand, 'carlo', $christening, 'Villanueva Christening Reception', 'Grand Regal Hotel, Lanang', 6);
         $this->eventAt = CarbonImmutable::now('Asia/Manila')->subDays(9);
         $this->prepare($christeningEvent, 'grand');
@@ -512,26 +525,27 @@ class SeedDemo extends Command
         $cReview = $this->as($this->u('andrea'), fn () => app(ReviewManager::class)->create($this->u('andrea'), $christeningEvent->refresh(), 3,
             'Nice venue, but the food came out 40 minutes late and the host mispronounced our baby\'s name.'));
         $this->as($this->u('carlo'), fn () => app(ReviewManager::class)->report($this->u('carlo'), $cReview['id'], 'The delay was caused by the client extending the ceremony; we have the timeline.'));
+        $this->as($this->u('carlo'), fn () => app(EventManager::class)->setAgreedAmount($christeningEvent->refresh(), 45000, 'Discount for the late food service.'));
 
         // 3. Joshua's 18th birthday with Mindanao Grand: upcoming, preparation under way.
-        $birthday = $this->won('joshua', 'Birthday', 80, [$grand, $dream], $grand, 'carlo', 'Debut & Birthday Package', 62000, daysAgo: 12, loserOrg: $dream, loserOwner: 'maria', loserAmount: 70000);
+        $birthday = $this->won('joshua', 'Birthday Party', 80, [$grand, $dream], $grand, 'carlo', 'Debut & Birthday Package', 62000, daysAgo: 12, loserOrg: $dream, loserOwner: 'maria', loserAmount: 70000, eventName: 'Joshua\'s 18th Birthday');
         $birthdayEvent = $this->eventFrom($grand, 'carlo', $birthday, 'Joshua\'s 18th Birthday', 'Seda Abreeza, Davao City', 5, inDays: 25);
         $this->as($this->u('carlo'), fn () => app(EventManager::class)->transition($birthdayEvent->refresh(), 'publish'));
         $this->prepare($birthdayEvent, 'grand');
 
         // 3b. Bea's wedding with Davao Dream in 40 days, and a corporate night in 9 days: the team is busy.
-        $beaWedding = $this->won('bea', 'Wedding', 150, [$dream], $dream, 'maria', 'Grand Ballroom Wedding', 215000, daysAgo: 70);
+        $beaWedding = $this->won('bea', 'Wedding', 150, [$dream], $dream, 'maria', 'Grand Ballroom Wedding', 215000, daysAgo: 70, eventName: 'Santos–Lim Wedding');
         $beaEvent = $this->eventFrom($dream, 'maria', $beaWedding, 'Santos–Lim Wedding', 'Marco Polo Davao', 8, inDays: 40);
         $this->as($this->u('maria'), fn () => app(EventManager::class)->transition($beaEvent->refresh(), 'publish'));
         $this->prepare($beaEvent, 'dream');
         $corpNight = $this->won('dana', 'Corporate Event', 180, [$dream, $grand], $dream, 'maria', 'Corporate Anniversary Night', 260000, daysAgo: 65,
-            loserOrg: $grand, loserOwner: 'carlo', loserAmount: 245000);
+            loserOrg: $grand, loserOwner: 'carlo', loserAmount: 245000, eventName: 'Mintal Agri 25th Anniversary Night');
         $corpEvent = $this->eventFrom($dream, 'maria', $corpNight, 'Mintal Agri 25th Anniversary Night', 'The Pinnacle Hotel', 8, inDays: 9);
         $this->as($this->u('maria'), fn () => app(EventManager::class)->transition($corpEvent->refresh(), 'publish'));
         $this->prepare($corpEvent, 'dream');
 
         // 4. Miguel's corporate event: two bids in, still deciding, messages both ways.
-        $corporate = $this->inquiry('miguel', 'Corporate Event', 200, [$dream, $grand], daysAgo: 4);
+        $corporate = $this->inquiry('miguel', 'Corporate Event', 200, [$dream, $grand], daysAgo: 4, eventName: 'Northwind Davao 10th Anniversary');
         $this->quote($dream, 'maria', $corporate, 'Corporate Anniversary Night', 240000);
         $this->quote($grand, 'carlo', $corporate, 'Conference + Dinner', 215000);
         $this->message($corporate, $dream, 'miguel', 'Hi! Can you handle a stage program with a live band for our anniversary?');
@@ -539,12 +553,12 @@ class SeedDemo extends Command
         $this->message($corporate, $grand, 'miguel', 'Is the buffet halal-friendly? A few of our guests need that.');
 
         // 5. Sofia's debut: Samal quoted, Davao Dream declined (fully booked).
-        $debut = $this->inquiry('sofia', 'Debut', 150, [$samal, $dream], daysAgo: 2);
+        $debut = $this->inquiry('sofia', 'Debut', 150, [$samal, $dream], daysAgo: 2, eventName: 'Sofia\'s Sunset Debut');
         $this->quote($samal, 'liza', $debut, 'Sunset Debut on the Beach', 98000);
         $this->as($this->u('maria'), fn () => app(OrganizerInquiries::class)->decline($dream, Inquiry::query()->findOrFail($debut), 'We are fully booked on that date. Congratulations in advance!'));
 
-        // 6. Rafael's anniversary (months ago): Davao Dream lost to Mindanao Grand (analytics history).
-        $this->won('rafael', 'Anniversary', 50, [$dream, $grand], $grand, 'carlo', 'Anniversary Dinner', 42000, daysAgo: 100, loserOrg: $dream, loserOwner: 'maria', loserAmount: 55000);
+        // 6. Rafael's family reunion dinner (months ago): Davao Dream lost to Mindanao Grand (analytics history).
+        $this->won('rafael', 'Reunion', 50, [$dream, $grand], $grand, 'carlo', 'Family Reunion Dinner', 42000, daysAgo: 100, loserOrg: $dream, loserOwner: 'maria', loserAmount: 55000);
     }
 
     // ---- Public ticketed events ------------------------------------------------
@@ -604,6 +618,16 @@ class SeedDemo extends Command
             'title' => 'Welcome to NaSeRy', 'audience' => 'all',
             'body' => 'Kadayawan season is here! Organizers: publish your events early. Clients: post your inquiry and compare quotations in one place.',
         ], $admin);
+        // Event types organizers suggested (0054): one approved, one merged into Birthday Party, one waiting on Event Tags.
+        $types = app(EventTypeSuggestions::class);
+        $types->suggest($this->orgs['bajada'], $this->u('tess'), 'Gender Reveal', true);
+        $types->suggest($this->orgs['tagum'], $this->u('ramon'), 'Kiddie Party', true);
+        $types->suggest($this->orgs['grand'], $this->u('carlo'), 'Product Launch', true);
+        foreach (['Gender Reveal' => ['approve', null, 'Added. Thanks for the suggestion!'], 'Kiddie Party' => ['merge', 'Birthday Party', 'Kiddie parties are listed under Birthday Party.']] as $name => [$decision, $into, $note]) {
+            $id = DB::table('event_type_suggestions')->where('name', $name)->value('id');
+            $types->decide($admin, $id, $decision, $decision === 'approve' ? $name : null, $into ? $this->typeId($into) : null, $note);
+        }
+
         // Mindanao Grand asked NaSeRy support to look at their workspace (waiting for an admin).
         $this->as($this->u('carlo'), fn () => app(AccessRequests::class)->invite($this->u('carlo'), $this->orgs['grand'],
             'Our Workshop Pass sales look lower than our bank deposits; please check the payment list.', 24));
@@ -967,7 +991,7 @@ class SeedDemo extends Command
             ],
             'Event day' => [
                 ['Brief the ushers and security team', 'high', 1, 'checkin'],
-                ['Set up the check-in gates and QR scanners', 'urgent', 0, 'checkin'],
+                ['Set up the check-in gates and QR scanners', 'urgent', 0, 'checkin+coordinator'],
             ],
         ] : [
             'Planning & suppliers' => [
@@ -981,12 +1005,12 @@ class SeedDemo extends Command
                 ['Prepare the guest list and send invitations', 'medium', 35, 'coordinator'],
                 ['Draft the program and send it to the emcee', 'medium', 14, 'owner'],
                 ['Print table numbers and place cards', 'low', 7, 'coordinator'],
-                ['Brief the ushers and check-in team', 'medium', 3, 'checkin'],
+                ['Brief the ushers and check-in team', 'medium', 3, 'coordinator+checkin'],
             ],
             'Event day' => [
                 ['Collect the final payment', 'high', 7, 'finance'],
                 ['Final walkthrough with the client', 'medium', 2, 'owner'],
-                ['Set up the check-in desk and QR scanner', 'urgent', 0, 'checkin'],
+                ['Set up the check-in desk and QR scanner', 'urgent', 0, 'checkin+coordinator'],
             ],
         ];
         $program = $public ? [
@@ -1038,7 +1062,8 @@ class SeedDemo extends Command
                 foreach ($tasks as [$taskName, $priority, $daysBefore, $role]) {
                     $due = $start->subDays($daysBefore)->setTime($daysBefore === 0 ? max(8, $start->hour - 2) : 17, 0);
                     $task = $prep->createTask($event->refresh(), $checklist, ['name' => $taskName, 'priority' => $priority, 'due_at' => $due->format('Y-m-d H:i')], $owner->id);
-                    $team->assignTask($event->refresh(), $task, array_values(array_unique([$members[$roles[$role]]])));
+                    // "checkin+coordinator": a task shared by several people.
+                    $team->assignTask($event->refresh(), $task, array_values(array_unique(array_map(fn ($r) => $members[$roles[$r]], explode('+', $role)))));
                     $all[] = [$task, $due];
                 }
             }
@@ -1118,14 +1143,16 @@ class SeedDemo extends Command
     }
 
     /** @param  list<Organization>  $orgs */
-    private function inquiry(string $client, string $type, int $guests, array $orgs, int $daysAgo): string
+    /** $eventName: the client's own name for the event; without one the app shows "{type} for {client}". */
+    private function inquiry(string $client, string $type, int $guests, array $orgs, int $daysAgo, ?string $eventName = null): string
     {
         $user = $this->u($client);
-        $id = $this->as($user, function () use ($user, $type, $guests, $orgs) {
+        $id = $this->as($user, function () use ($user, $type, $guests, $orgs, $eventName) {
             $m = app(InquiryManager::class);
             $inquiry = $m->createDraft($user, [
                 'event_type_id' => $this->typeId($type), 'requested_date' => now()->addMonths(3)->toDateString(), 'guest_count' => $guests,
                 'location_text' => 'Davao City', 'services' => [['custom_service_name' => 'Event coordination']],
+                'additional_requirements' => $eventName !== null ? "Event: {$eventName}" : null,
             ]);
 
             return $m->submit($inquiry, ['mode' => 'direct', 'organization_ids' => array_map(fn ($o) => $o->id, $orgs)])->id;
@@ -1147,9 +1174,9 @@ class SeedDemo extends Command
 
     /** An inquiry the client awarded to $winner (optionally beating $loserOrg); returns the accepted quotation id. */
     private function won(string $client, string $type, int $guests, array $orgs, Organization $winner, string $winnerOwner, string $package, int $amount, int $daysAgo,
-        ?Organization $loserOrg = null, ?string $loserOwner = null, ?int $loserAmount = null): string
+        ?Organization $loserOrg = null, ?string $loserOwner = null, ?int $loserAmount = null, ?string $eventName = null): string
     {
-        $inquiry = $this->inquiry($client, $type, $guests, $orgs, $daysAgo);
+        $inquiry = $this->inquiry($client, $type, $guests, $orgs, $daysAgo, $eventName);
         if ($loserOrg) {
             $this->quote($loserOrg, $loserOwner, $inquiry, "{$type} Package", $loserAmount);
         }

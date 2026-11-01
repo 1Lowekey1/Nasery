@@ -1,6 +1,6 @@
 # Demo data and admin accounts (handoff)
 
-Status: **2026-09-26**. For the advisor check and the final presentation.
+Status: **2026-11-02**. For the advisor check and the final presentation.
 
 ## Commands
 | Command | What it does |
@@ -45,6 +45,14 @@ Run them with PHP 8.5.10: `C:\xampp\php8.5.10\php.exe artisan …`
   - Davao Tech Summit (**live now**: doors open, check-ins and walk-ins)
   - Sunset Acoustic Night (upcoming)
   - Davao Food Expo (last month, completed)
+- **Newer features (2026-11):**
+  - requests carry the client's event name ("Northwind Davao 10th Anniversary", "Sofia's Sunset Debut"); Rafael's has none, so it shows the default "Reunion for Rafael …"
+  - event tags include **Seminar** (Mindanao Grand, Davao Ushers) and **Reunion** (Matina Kitchen, Calinan Garden)
+  - some price options are for certain event types (e.g. Davao Dream's "Full wedding coordination" = Wedding); the rest show "All events"
+  - **final agreed price** on the completed wedding (₱197,500, more than the ₱185,000 offer) and christening (₱45,000, a discount)
+  - **shared tasks**: the check-in briefing and check-in setup have two assignees
+  - **event type suggestions**: Gender Reveal (approved), Kiddie Party (merged into Birthday Party), Product Launch (waiting on Admin → Event Tags)
+  - Quick Party PH is **rejected** (its owner sees the reviewer's note and "Resubmit for review")
 - **Platform:** a welcome announcement, a pending support invite, a pending fee claim, a reported review, 2 organizer applications, and subscription revenue (Pro yearly + Starter monthly).
 
 "Live now" and "upcoming" are relative to when you run the seeder: **run `--fresh` on the day of the presentation** (it takes several minutes against Supabase).
