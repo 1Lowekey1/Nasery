@@ -11,8 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * organization's services (clients pick one option per service). Priced
  * flat, per guest, per hour, per day or per unit (0048: with an optional unit
  * label and min/max quantity a client may pick); estimates are not binding.
+ * 0052: event_tags = the event types it's for (empty = every event type).
  */
-#[Fillable(['organization_service_id', 'name', 'description', 'pricing_unit', 'price', 'min_guests', 'is_active', 'sort_order', 'unit_label', 'min_quantity', 'max_quantity'])]
+#[Fillable(['organization_service_id', 'name', 'description', 'pricing_unit', 'price', 'min_guests', 'is_active', 'sort_order', 'unit_label', 'min_quantity', 'max_quantity', 'event_tags'])]
 class OrganizationPriceOption extends Model
 {
     use SoftDeletes;
@@ -30,6 +31,7 @@ class OrganizationPriceOption extends Model
         'unit_label' => null,
         'min_quantity' => null,
         'max_quantity' => null,
+        'event_tags' => '[]',
         'is_active' => true,
         'sort_order' => 0,
         'deleted_at' => null,
@@ -42,6 +44,7 @@ class OrganizationPriceOption extends Model
             'min_guests' => 'integer',
             'min_quantity' => 'integer',
             'max_quantity' => 'integer',
+            'event_tags' => 'array',
             'is_active' => 'boolean',
             'sort_order' => 'integer',
         ];
@@ -61,6 +64,7 @@ class OrganizationPriceOption extends Model
             'unit_label' => $this->unit_label,
             'min_quantity' => $this->min_quantity,
             'max_quantity' => $this->max_quantity,
+            'event_tags' => $this->event_tags ?? [],
             'is_active' => $this->is_active,
             'sort_order' => $this->sort_order,
         ];

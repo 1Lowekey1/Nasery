@@ -22,6 +22,7 @@ class MarketplaceController extends Controller
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'service' => ['nullable', 'string', 'max:100'],
+            'event_type' => ['nullable', 'string', 'max:100'],
             'lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:lng'],
             'lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:lat'],
             'radius_km' => ['nullable', 'numeric', 'min:1', 'max:'.MarketplaceDirectory::MAX_RADIUS_KM],

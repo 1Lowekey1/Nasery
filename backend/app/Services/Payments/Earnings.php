@@ -88,6 +88,7 @@ class Earnings
     {
         $rows = $this->db->system('earnings.csv', fn () => $this->paymentRows($organizationId));
         $out = fopen('php://temp', 'r+');
+        fwrite($out, "\xEF\xBB\xBF"); // Excel-friendly UTF-8 (names like "Niño" stay readable)
         fputcsv($out, ['Paid at', 'Event', 'Buyer', 'Payment ID', 'Ticket sales', 'Refunded to buyer', 'NaSeRy fee', 'Your share']);
         foreach ($rows as $r) {
             $fee = (float) $r->fee - (float) $r->fee_returned;

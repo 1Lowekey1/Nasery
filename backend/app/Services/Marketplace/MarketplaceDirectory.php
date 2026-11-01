@@ -57,6 +57,12 @@ class MarketplaceDirectory
                     ->where('s.name', 'ilike', $this->like($filters['service'])));
             }
 
+            // Organizers who handle this kind of event (their profile's event tags), as inquiry matching does.
+            if (filled($filters['event_type'] ?? null)) {
+                $query->whereRaw('exists (select 1 from jsonb_array_elements_text(p.event_tags) as tag where lower(trim(tag)) = ?)',
+                    [mb_strtolower(trim($filters['event_type']))]);
+            }
+
             if ($near) {
                 $distance = $this->distanceSql();
                 $bindings = [$filters['lat'], $filters['lng'], $filters['lat']];

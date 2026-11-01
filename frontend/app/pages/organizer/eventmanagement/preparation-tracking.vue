@@ -81,16 +81,26 @@
 							<div class="min-w-0 flex-1">
 								<p class="text-sm font-medium transition" :class="item.is_completed ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-950'">{{ item.label }}</p>
 								<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-									<label class="pt-chip min-h-9 cursor-pointer !py-1.5" :class="item.assigned_team_member ? '' : (item.is_completed ? 'text-gray-400' : 'border-amber-200 bg-amber-50 text-amber-800')">
-										<span v-if="item.assigned_team_member" class="pt-avatar h-4 w-4 text-[8px]">{{ initials(memberName(item.assigned_team_member)) }}</span>
-										<select class="min-h-7 cursor-pointer appearance-none bg-transparent pr-1 outline-none" :value="item.assigned_team_member_id ?? ''"
-											:disabled="updatingItemId === item.id || (!teamMembers.length && !availableMembers.length)" :aria-label="`Assign ${item.label}`"
-											@change="assignItem(item, ($event.target as HTMLSelectElement).value)">
-											<option value="">{{ item.is_completed ? 'Unassigned' : 'Needs an assignee' }}</option>
-											<optgroup v-if="teamMembers.length" label="On this event">
-												<option v-for="member in teamMembers" :key="member.id" :value="member.id">{{ memberName(member) }}</option>
+									<!-- Everyone on the task (several people can share one), each removable -->
+									<span v-for="member in item.assignees" :key="member.id" class="pt-chip min-h-9 !py-1.5">
+										<span class="pt-avatar h-4 w-4 text-[8px]">{{ initials(memberName(member)) }}</span>{{ memberName(member) }}
+										<button v-if="!isFinished" type="button" class="-mr-1 ml-0.5 flex h-5 w-5 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-rose-700"
+											:disabled="updatingItemId === item.id" :aria-label="`Remove ${memberName(member)} from ${item.label}`" @click="removeAssignee(item, String(member.id))">
+											<IconBase name="x" class="h-3 w-3" />
+										</button>
+									</span>
+									<span v-if="!item.assignees.length && isFinished" class="text-xs text-gray-400">Unassigned</span>
+									<label v-if="!isFinished && (unassignedFor(item).length || availableMembers.length)" class="pt-chip min-h-9 cursor-pointer !py-1.5 !pl-2.5"
+										:class="item.assignees.length ? 'border-dashed text-gray-500' : (item.is_completed ? 'text-gray-400' : 'border-amber-200 bg-amber-50 text-amber-800')">
+										<IconBase name="plus" class="h-3 w-3" />
+										<select class="min-h-7 cursor-pointer appearance-none bg-transparent pr-1 outline-none" value=""
+											:disabled="updatingItemId === item.id" :aria-label="`Add a person to ${item.label}`"
+											@change="addAssignee(item, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+											<option value="">{{ item.assignees.length ? 'Add person' : 'Needs an assignee' }}</option>
+											<optgroup v-if="unassignedFor(item).length" label="On this event">
+												<option v-for="member in unassignedFor(item)" :key="member.id" :value="member.id">{{ memberName(member) }}</option>
 											</optgroup>
-											<optgroup v-if="availableMembers.length && !isFinished" label="Rest of your team (adds them)">
+											<optgroup v-if="availableMembers.length" label="Rest of your team (adds them)">
 												<option v-for="m in availableMembers" :key="m.id" :value="`org:${m.id}`">{{ m.name }}</option>
 											</optgroup>
 										</select>
@@ -192,6 +202,9 @@ interface PreparationItem {
 	is_completed: boolean
 	assigned_team_member_id: number | null
 	assigned_team_member?: TeamMember | null
+	/** Everyone on the task (event member ids / members). */
+	assignee_ids: string[]
+	assignees: TeamMember[]
 	completed_by?: TeamUser | null
 	completion_note?: string | null
 	review_status: 'pending' | 'verified' | 'changes_requested'
@@ -395,6 +408,8 @@ function applyPreparation(prep: ApiPreparation) {
 		is_completed: t.status === 'done',
 		assigned_team_member_id: (t.assignee_ids[0] ?? null) as unknown as number | null,
 		assigned_team_member: teamMembers.value.find(m => String(m.id) === t.assignee_ids[0]) ?? null,
+		assignee_ids: t.assignee_ids,
+		assignees: t.assignee_ids.map(id => teamMembers.value.find(m => String(m.id) === id)).filter((m): m is TeamMember => !!m),
 		// The template shows the note under "Completed by …".
 		completed_by: (t.completion_note || t.review_status === 'changes_requested')
 			? (teamMembers.value.find(m => String(m.id) === t.assignee_ids[0])?.user ?? { firstname: 'Your team', lastname: '' })
@@ -525,19 +540,38 @@ function startChanges(item: PreparationItem) {
 	changesNote.value = ''
 }
 
-/** Assign (or unassign) someone from this event's team. */
-async function assignItem(item: PreparationItem, pick: string) {
+/** Replace a task's assignees (the API takes the whole list). */
+async function setAssignees(item: PreparationItem, ids: string[]) {
 	updatingItemId.value = item.id
 	actionError.value = ''
 	try {
-		const memberId = await resolveAssignee(pick)
-		await useApi().put(`${tasksBase()}/tasks/${item.id}/assignees`, { event_member_ids: memberId ? [memberId] : [] })
+		await useApi().put(`${tasksBase()}/tasks/${item.id}/assignees`, { event_member_ids: [...new Set(ids)] })
 		applyPreparation(await useOrganizerEvents().preparation(orgId, String(eventId.value)) as unknown as ApiPreparation)
 	} catch (error: unknown) {
 		actionError.value = authMessage(error) || 'Unable to assign this item.'
 	} finally {
 		updatingItemId.value = null
 	}
+}
+/** Add one more person (a teammate not on the event yet is added to it first). */
+async function addAssignee(item: PreparationItem, pick: string) {
+	if (!pick) return
+	updatingItemId.value = item.id
+	try {
+		const memberId = await resolveAssignee(pick)
+		if (memberId) await setAssignees(item, [...item.assignee_ids, memberId])
+	} catch (error: unknown) {
+		actionError.value = authMessage(error) || 'Unable to assign this item.'
+	} finally {
+		updatingItemId.value = null
+	}
+}
+function removeAssignee(item: PreparationItem, memberId: string) {
+	return setAssignees(item, item.assignee_ids.filter(id => id !== memberId))
+}
+/** Event team members not on this task yet. */
+function unassignedFor(item: PreparationItem) {
+	return teamMembers.value.filter(m => !item.assignee_ids.includes(String(m.id)))
 }
 
 async function reviewItem(item: PreparationItem, status: 'verified' | 'changes_requested') {
@@ -617,7 +651,7 @@ const assigneeOptions = computed(() => [
 	// Teammates not on the event yet: picking one adds them, then assigns (#13).
 	...availableMembers.value.map(m => ({ value: `org:${m.id}` as unknown as number, label: `${m.name} · ${m.role} (adds to event)` })),
 ])
-function openFor(member: TeamMember) { return checklist.value.filter(i => !i.is_completed && i.assigned_team_member_id === member.id).length }
+function openFor(member: TeamMember) { return checklist.value.filter(i => !i.is_completed && i.assignee_ids.includes(String(member.id))).length }
 function initials(name: string) { const w = name.split(/\s+/).filter(Boolean); return ((w[0]?.[0] ?? '') + (w.length > 1 ? w[w.length - 1]?.[0] ?? '' : '')).toUpperCase() || '?' }
 async function quickAdd() {
 	if (!newItemLabel.value.trim() || isAddingItem.value) return

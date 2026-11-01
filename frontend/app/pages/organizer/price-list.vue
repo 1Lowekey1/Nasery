@@ -81,6 +81,20 @@
 							</template>
 						</div>
 
+						<!-- Which events it's for: "Build from my price list" on an offer shows only matching options. -->
+						<div>
+							<FormsLabel text="For which events?" hint="(none picked = every event)" />
+							<div class="flex flex-wrap gap-1.5" role="group" aria-label="Event types for this option">
+								<button v-for="t in tagChoices" :key="t" type="button" :aria-pressed="editing.event_tags.includes(t)"
+									class="inline-flex min-h-9 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+									:class="editing.event_tags.includes(t) ? 'border-primary-700 bg-primary-700 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-primary-300'"
+									@click="toggleTag(t)">
+									<IconBase v-if="editing.event_tags.includes(t)" name="check" class="h-3 w-3" />{{ t }}
+								</button>
+							</div>
+							<p class="mt-1 text-xs text-gray-400">Offers for other kinds of events won't list this option.</p>
+						</div>
+
 						<div>
 							<FormsLabel text="Description" />
 							<textarea v-model="editing.description" rows="2" maxlength="500" placeholder="What's included (shown to clients)"
@@ -129,6 +143,7 @@
 								<p v-if="o.description" class="mt-0.5 truncate text-xs text-gray-500">{{ o.description }}</p>
 								<p v-if="o.pricing_unit === 'per_guest' && o.min_guests" class="mt-0.5 text-xs text-gray-400">min {{ o.min_guests }} guests</p>
 								<p v-else-if="picksQuantity(o) && (o.min_quantity || o.max_quantity)" class="mt-0.5 text-xs text-gray-400">{{ quantityBounds(o).min }}{{ quantityBounds(o).max ? `–${quantityBounds(o).max}` : '+' }} {{ unitName(o, 2) }}</p>
+								<p class="mt-0.5 truncate text-xs text-primary-700/80">{{ o.event_tags?.length ? o.event_tags.join(' · ') : 'All events' }}</p>
 							</div>
 							<div class="shrink-0 text-right">
 								<p class="text-sm font-extrabold tabular-nums text-gray-950">{{ formatPeso(o.price) }}</p>
@@ -189,7 +204,7 @@ import type { PriceOption, PricingUnit } from '~/composables/useQuotations'
 definePageMeta({ layout: 'dashboard' })
 useSeoMeta({ title: 'Price List | NaSeRy' })
 
-type Draft = { id: string | null, name: string, organization_service_id: string | null, pricing_unit: PricingUnit, price: string, unit_label: string, min_guests: string, min_quantity: string, max_quantity: string, description: string, is_active: boolean }
+type Draft = { id: string | null, name: string, organization_service_id: string | null, pricing_unit: PricingUnit, price: string, unit_label: string, min_guests: string, min_quantity: string, max_quantity: string, description: string, is_active: boolean, event_tags: string[] }
 
 const api = usePriceOptions()
 const orgApi = useOrganization()
@@ -223,7 +238,16 @@ const groups = computed(() => {
 const visibleOptions = computed(() => options.value.filter(o => o.is_active))
 
 // ---- add / edit ------------------------------------------------------------
-const blank = (): Draft => ({ id: null, name: '', organization_service_id: null, pricing_unit: 'flat', price: '', unit_label: '', min_guests: '', min_quantity: '', max_quantity: '', description: '', is_active: true })
+const blank = (): Draft => ({ id: null, name: '', organization_service_id: null, pricing_unit: 'flat', price: '', unit_label: '', min_guests: '', min_quantity: '', max_quantity: '', description: '', is_active: true, event_tags: [] })
+// The event types this organizer handles (profile's event tags); every type until they pick some.
+const eventTypeChoices = ref<string[]>([])
+// Tags already on the option stay visible (and removable) even if the profile dropped them.
+const tagChoices = computed(() => [...new Set([...eventTypeChoices.value, ...(editing.value?.event_tags ?? [])])])
+function toggleTag(t: string) {
+	const d = editing.value
+	if (!d) return
+	d.event_tags = d.event_tags.includes(t) ? d.event_tags.filter(x => x !== t) : [...d.event_tags, t]
+}
 const num = (v: string) => (String(v).trim() === '' ? null : Number(v))
 
 const check = useFormCheck((): Record<string, string> => {
@@ -252,6 +276,7 @@ function startEdit(o: PriceOption) {
 		id: o.id, name: o.name, organization_service_id: o.organization_service_id, pricing_unit: o.pricing_unit, price: String(o.price),
 		unit_label: o.unit_label ?? '', min_guests: o.min_guests ? String(o.min_guests) : '', min_quantity: o.min_quantity ? String(o.min_quantity) : '',
 		max_quantity: o.max_quantity ? String(o.max_quantity) : '', description: o.description ?? '', is_active: o.is_active ?? true,
+		event_tags: [...(o.event_tags ?? [])],
 	}
 	check.reset()
 	nextTick(() => scrollToElement(editorEl.value))
@@ -280,6 +305,7 @@ async function save() {
 		min_guests: d.pricing_unit === 'per_guest' ? num(d.min_guests) : null,
 		min_quantity: qty ? num(d.min_quantity) : null,
 		max_quantity: qty ? num(d.max_quantity) : null,
+		event_tags: d.event_tags,
 	}
 	try {
 		if (d.id) {
@@ -372,8 +398,10 @@ onMounted(async () => {
 		const org = await orgApi.fetchOrganization(true)
 		if (!org) throw new Error('Set up your organizer workspace first.')
 		orgId.value = org.id
-		const [, list] = await Promise.all([loadOptions(), orgApi.services()])
+		const [, list, types] = await Promise.all([loadOptions(), orgApi.services(), useMarketplace().eventTypes().catch(() => [])])
 		services.value = list.filter(s => s.is_active).map(s => ({ id: s.id, name: s.custom_name || s.name }))
+		const profileTags = ((org.profile as { event_tags?: string[] } | undefined)?.event_tags ?? []).filter(Boolean)
+		eventTypeChoices.value = profileTags.length ? profileTags : types.map(t => t.name).filter(n => n !== 'Other')
 		const p = org.profile as (typeof org.profile & { estimate_service_charge_percent?: number | null, estimate_tax_percent?: number | null, estimate_note?: string | null }) | undefined
 		settings.service_charge = p?.estimate_service_charge_percent != null ? String(p.estimate_service_charge_percent) : ''
 		settings.tax = p?.estimate_tax_percent != null ? String(p.estimate_tax_percent) : ''

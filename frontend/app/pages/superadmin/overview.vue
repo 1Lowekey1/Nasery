@@ -25,6 +25,9 @@
 				<SuperadminStatCard label="Bids This Month" :value="overview.bids_this_month" icon="file-text" :hint="`${overview.avg_organizer_rating || '—'} avg. organizer rating`" />
 			</div>
 
+			<!-- The same NaSeRy-wide trends organizers see on their Home -->
+			<AnalyticsEventTrendsCard class="mb-6" subtitle="Event requests and booked events across NaSeRy, by event type." />
+
 			<div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
 				<div class="sa-rise rounded-3xl border border-gray-200 bg-white p-6 sm:p-8 xl:col-span-2" style="--d: 120ms">
 					<h2 class="text-lg font-extrabold tracking-tight text-gray-950">Recent Activity</h2>

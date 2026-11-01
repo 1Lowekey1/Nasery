@@ -123,9 +123,16 @@ class TicketingTest extends TestCase
         $post("email,contact\nfay@example.com,0917")->assertUnprocessable()
             ->assertJsonPath('error.details.fields.file.0', 'The first row needs a "name" column (or "first name" and "last name"). Download the template to see the format.');
 
-        // Exported CSV neutralizes the formula-looking name.
+        // Excel drops the leading 0 of mobile numbers (and our export writes ="0917…"): the 0 comes back.
+        $post("name,contact\nGio Sy,9171234567\nHana Go,+63 918 765 4321\nIvy Lao,\"=\"\"09191112222\"\"\"\nJun Co,(02) 8123 4567")
+            ->assertCreated()->assertJsonPath('data.imported', 4);
+        $contacts = DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')->where('t.event_id', $event)->pluck('a.contact_number', 'a.full_name');
+        $this->assertSame(['09171234567', '09187654321', '09191112222', '(02) 8123 4567'], [$contacts['Gio Sy'], $contacts['Hana Go'], $contacts['Ivy Lao'], $contacts['Jun Co']]);
+
+        // Exported CSV neutralizes the formula-looking name and keeps phone numbers as text for Excel.
         $csv = $this->actingAs($owner)->get($this->base($org, $event).'/guests/export')->assertOk()->streamedContent();
         $this->assertStringContainsString("'=HYPERLINK", $csv);
+        $this->assertStringContainsString('"=""09171234567"""', $csv);
     }
 
     public function test_capacity_is_enforced_per_tier_and_per_event(): void

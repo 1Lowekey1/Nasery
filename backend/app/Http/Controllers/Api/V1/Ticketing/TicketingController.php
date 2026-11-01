@@ -145,7 +145,11 @@ class TicketingController extends Controller
             foreach ($rows as $r) {
                 // Neutralize spreadsheet formulas in user-provided cells.
                 $safe = fn ($v) => is_string($v) && preg_match('/^[=+\-@\t\r]/', $v) ? "'".$v : $v;
-                fputcsv($out, array_map($safe, [$r['name'], $r['email'], $r['contact_number'], $r['tier'], $r['zone'], $r['status'], $r['admission_type'], $r['source']]));
+                $row = array_map($safe, [$r['name'], $r['email'], $r['contact_number'], $r['tier'], $r['zone'], $r['status'], $r['admission_type'], $r['source']]);
+                // Phone numbers as text, so Excel keeps the leading 0 (="0917…"; Bulk Import reads it back).
+                $phone = GuestList::localPhone($r['contact_number']);
+                $row[2] = $phone !== null && preg_match('/^0\d{6,}$/', $phone) ? '="'.$phone.'"' : $row[2];
+                fputcsv($out, $row);
             }
             fclose($out);
         }, (string) $name, ['Content-Type' => 'text/csv; charset=UTF-8']);

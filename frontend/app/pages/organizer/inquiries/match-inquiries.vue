@@ -356,14 +356,23 @@
 								<p class="text-xs text-gray-500">Pick options and quantities; the lines and total go into your offer.</p>
 							</div>
 							<button type="button" class="min-h-9 rounded-lg border border-primary-200 bg-white px-3.5 py-2 text-xs font-bold text-primary-700"
-								@click="toggleBuilder">{{ showBuilder ? 'Close' : offerLines.length ? 'Change' : 'Open' }}</button>
+								@click="toggleBuilder">{{ showBuilder ? 'Close' : offerForm.items.some(l => l.fromList) ? 'Change' : 'Open' }}</button>
 						</div>
 						<div v-if="showBuilder" class="mt-4">
 							<p v-if="builderLoading" class="text-sm text-gray-500">Loading your price list…</p>
 							<p v-else-if="!builderOptions.length" class="text-sm text-gray-500">
 								Your price list is empty. <NuxtLink to="/organizer/price-list" class="font-semibold text-primary-700 underline">Add options</NuxtLink> to build offers from it.
 							</p>
-							<PricingPriceCalculator v-else :options="builderOptions" :services="builderServices" :settings="builderSettings"
+							<template v-else>
+							<!-- Only options for this kind of event (Price list → "For which events?"), unless asked for all. -->
+							<div class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-xs text-gray-600">
+								<span>{{ showAllOptions ? `All ${builderOptions.length} of your options` : `${fittingOptions.length} of ${builderOptions.length} options are for ${offerForm.eventType || 'this event'}` }}</span>
+								<label class="flex cursor-pointer items-center gap-1.5 font-semibold text-primary-700">
+									<input v-model="showAllOptions" type="checkbox" class="accent-[#285F6b]"> Show all my options
+								</label>
+							</div>
+							<p v-if="!shownOptions.length" class="text-sm text-gray-500">None of your options are tagged for {{ offerForm.eventType || 'this event' }}. Tick “Show all my options”, or tag them in <NuxtLink to="/organizer/price-list" class="font-semibold text-primary-700 underline">Price list</NuxtLink>.</p>
+							<PricingPriceCalculator v-else :key="showAllOptions ? 'all' : 'fit'" compact :options="shownOptions" :services="builderServices" :settings="builderSettings"
 								:initial-guests="Number(offerForm.guests) || 1">
 								<template #action="{ estimate, guests }">
 									<div class="mt-3 flex justify-end">
@@ -372,41 +381,55 @@
 									</div>
 								</template>
 							</PricingPriceCalculator>
+							</template>
 						</div>
-						<!-- The breakdown as a receipt: items, subtotal, charges, total -->
-						<div v-if="offerLines.length && !showBuilder" class="mt-3 rounded-xl bg-white p-3 text-sm">
-							<div v-for="(line, i) in breakdown.items" :key="i" class="flex justify-between gap-3 py-1">
-								<span class="min-w-0 text-gray-700">{{ line.description }}<span v-if="Number(line.quantity) !== 1" class="text-xs text-gray-400"> × {{ Number(line.quantity).toLocaleString('en-PH') }}</span></span>
-								<span class="shrink-0 font-semibold text-gray-800">{{ formatPeso(lineSubtotal(line.quantity, line.unit_price)) }}</span>
+					</div>
+
+					<!-- Inclusions with prices (like Revise offer): price-list picks land here, and every line
+					     can be changed or added to, e.g. a service that isn't on the price list yet. -->
+					<div class="mt-5" data-field="budget">
+						<FormsLabel text="Inclusions / Services" />
+						<p class="-mt-1 mb-2 text-xs text-gray-500">Give a line a price to add it to the total; leave the price blank for something included at no extra cost.</p>
+						<div class="mb-1 hidden grid-cols-[minmax(0,1fr)_4.25rem_7rem_2rem] gap-2 px-0.5 text-[11px] font-semibold text-gray-400 sm:grid">
+							<span>Item</span><span>Qty</span><span>Price each</span><span />
+						</div>
+						<div class="space-y-2">
+							<div v-for="(line, index) in offerForm.items" :key="index" class="grid grid-cols-[minmax(0,1fr)_4.25rem_7rem_2rem] items-center gap-2">
+								<FormsTextField v-model="line.description" :aria-label="`Inclusion ${index + 1}`" :placeholder="`Inclusion ${index + 1}`" />
+								<FormsTextField v-model="line.quantity" type="number" min="0.01" step="0.01" :aria-label="`Inclusion ${index + 1} quantity`" />
+								<FormsTextField v-model="line.unit_price" type="number" min="0" step="0.01" placeholder="₱" :aria-label="`Inclusion ${index + 1} price each`" />
+								<button type="button" class="flex h-10 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-rose-50 hover:text-rose-700" :aria-label="`Remove inclusion ${index + 1}`" @click="removeInclusion(index)">
+									<IconBase name="x" class="h-4 w-4" />
+								</button>
 							</div>
+						</div>
+						<button type="button" class="mt-1 flex min-h-10 items-center gap-1 text-sm font-semibold text-primary-700" @click="addInclusion">
+							<IconBase name="plus" class="h-3.5 w-3.5" /> Add Inclusion
+						</button>
+
+						<!-- Totals from the priced lines -->
+						<div v-if="hasPricedLines" class="mt-2 rounded-xl bg-gray-50 p-3 text-sm">
 							<template v-if="breakdown.charges.length">
-								<div class="mt-1 flex justify-between gap-3 border-t border-gray-100 pt-2 text-gray-500">
-									<span>Subtotal</span><span class="font-semibold text-gray-700">{{ formatPeso(breakdown.subtotal) }}</span>
-								</div>
-								<div v-for="(c, i) in breakdown.charges" :key="`c${i}`" class="flex justify-between gap-3 py-1 text-gray-500">
-									<span class="min-w-0">{{ c.label }} <span class="text-xs text-gray-400">{{ c.percent }}% of {{ formatPeso(c.base) }}</span></span>
+								<div class="flex justify-between gap-3 text-gray-500"><span>Subtotal</span><span class="font-semibold text-gray-700">{{ formatPeso(breakdown.subtotal) }}</span></div>
+								<div v-for="(c, i) in breakdown.charges" :key="`c${i}`" class="flex items-center justify-between gap-3 py-1 text-gray-500">
+									<span class="min-w-0">{{ c.label }} ({{ c.percent }}%)
+										<button type="button" class="ml-1 text-xs font-semibold text-gray-400 hover:text-rose-700" :aria-label="`Remove ${c.label}`" @click="removeCharge(c.key)">Remove</button>
+									</span>
 									<span class="shrink-0 font-semibold text-gray-700">{{ formatPeso(c.amount) }}</span>
 								</div>
 							</template>
 							<div class="mt-1 flex justify-between gap-3 border-t border-gray-200 pt-2 text-base font-extrabold text-gray-950">
-								<span>Total</span><span>{{ formatPeso(breakdown.total) }}</span>
+								<span>Quotation total</span><span>{{ formatPeso(breakdown.total) }}</span>
 							</div>
-							<button type="button" class="mt-2 min-h-9 text-xs font-semibold text-gray-500 underline-offset-2 hover:text-gray-800 hover:underline" @click="clearLines">Use one amount instead</button>
 						</div>
+						<p v-if="amountError && hasPricedLines" class="mt-1.5 text-xs font-semibold text-rose-600" role="alert">{{ amountError }}</p>
 					</div>
 
-					<div class="mt-4" data-field="budget">
+					<!-- No priced lines: one amount for the whole offer, as before. -->
+					<div v-if="!hasPricedLines" class="mt-4">
 						<FormsLabel text="Your Quotation Amount" required />
-
-						<!-- With a breakdown the total comes from the lines (change them above to change it) -->
-						<div v-if="offerLines.length" class="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm font-extrabold text-gray-950">
-							<IconBase name="cash" class="h-4 w-4 text-gray-400" />{{ formatPeso(breakdown.total) }}
-						</div>
-						<FormsTextField v-else v-model="offerForm.budget" icon="peso" placeholder="e.g. 240000" inputmode="decimal" :error="amountError" />
-
-						<p v-if="!amountError" class="mt-1 text-xs text-gray-400">
-							{{ offerLines.length ? 'The total of your breakdown above. Change the price-list picks to change it.' : 'Enter one final quotation amount, or build it from your price list above.' }}
-						</p>
+						<FormsTextField v-model="offerForm.budget" icon="peso" placeholder="e.g. 240000" inputmode="decimal" :error="amountError" />
+						<p v-if="!amountError" class="mt-1 text-xs text-gray-400">Enter one final quotation amount, or price the inclusions above.</p>
 					</div>
 
 					<div class="mt-4">
@@ -422,22 +445,6 @@
 						<FormsTextField v-model="offerForm.timeline" icon="clock"
 							placeholder="e.g. 3 months lead time" />
 					</div>
-
-					<label class="mb-1.5 mt-4 block text-sm font-semibold text-gray-700">
-						Inclusions / Services
-					</label>
-
-					<div class="space-y-2">
-						<FormsTextField v-for="(_, index) in offerForm.inclusions" :key="index"
-							v-model="offerForm.inclusions[index]" :placeholder="`Inclusion ${index + 1}`" />
-					</div>
-
-					<button type="button" class="mt-1 flex min-h-10 items-center gap-1 text-sm font-semibold text-primary-700"
-						@click="addInclusion">
-						<IconBase name="plus" class="h-3.5 w-3.5" />
-
-						Add Inclusion
-					</button>
 
 					<label class="mb-1.5 mt-5 block text-sm font-semibold text-gray-700">
 						Your pitch to the client
@@ -633,10 +640,15 @@ function emptyOfferForm() {
 		budget: '',
 		packageName: '',
 		timeline: '',
-		inclusions: [''],
+		// Inclusions with optional prices (price-list picks fill these). Blank price = included at no extra cost.
+		items: [blankItem()] as OfferItem[],
+		// Service charge / VAT from the price list's estimate settings, re-applied as the lines change.
+		chargePercents: { service: 0, vat: 0 },
 		pitch: '',
 	}
 }
+interface OfferItem { description: string, quantity: string, unit_price: string, organization_service_id?: string | null, /** picked from the price list */ fromList?: boolean }
+function blankItem(): OfferItem { return { description: '', quantity: '1', unit_price: '' } }
 
 const offerForm =
 	reactive(
@@ -645,10 +657,15 @@ const offerForm =
 
 // Unfinished offer per inquiry (the price, package, timeline, inclusions and pitch you typed).
 const offerDraft = useDraft(() => (showOfferForm.value && selectedInquiryId.value ? `offer:${selectedInquiryId.value}` : null), offerForm, {
-	isEmpty: v => !v.budget?.trim() && !v.packageName?.trim() && !v.timeline?.trim() && !v.pitch?.trim() && (v.inclusions ?? []).every(i => !String(i).trim()),
+	isEmpty: v => !v.budget?.trim() && !v.packageName?.trim() && !v.timeline?.trim() && !v.pitch?.trim()
+		&& (Array.isArray(v.items) ? v.items : []).every(i => !String(i?.description ?? '').trim() && !String(i?.unit_price ?? '').trim()),
 })
+// Drafts saved before priced inclusions had no `items`: start them with one empty line.
+watch(() => offerForm.items, (items) => { if (!Array.isArray(items) || !items.length) offerForm.items = [blankItem()] })
 
+/** The offer total: the priced lines (+ charges) when there are any, else the one amount typed in. */
 function parseOfferAmount() {
+	if (hasPricedLines.value) return breakdown.value.total
 	return Number(
 		offerForm.budget.replace(/[₱,\s]/g, ''),
 	)
@@ -819,10 +836,10 @@ function openOfferForm(
 		offerForm,
 		emptyOfferForm(),
 	)
-	// A fresh offer: no breakdown carried over from another inquiry.
-	offerLines.value = []
+	// A fresh offer: no lines carried over from another inquiry.
 	amountError.value = ''
 	showBuilder.value = false
+	showAllOptions.value = false
 
 	selectedInquiryId.value =
 		inquiry.id
@@ -878,7 +895,11 @@ function closeOfferForm() {
 }
 
 function addInclusion() {
-	offerForm.inclusions.push('')
+	offerForm.items.push(blankItem())
+}
+function removeInclusion(index: number) {
+	offerForm.items.splice(index, 1)
+	if (!offerForm.items.length) offerForm.items.push(blankItem())
 }
 
 function validateOffer() {
@@ -899,9 +920,10 @@ function validateOffer() {
 	}
 
 	if (
+		!hasPricedLines.value &&
 		!offerForm.budget.trim()
 	) {
-		amountError.value = 'Enter your quotation amount, or build it from your price list.'
+		amountError.value = 'Enter your quotation amount, or price the inclusions (e.g. from your price list).'
 		scrollToElement(document.querySelector('[data-field="budget"]'), { block: 'center' })
 
 		return null
@@ -915,7 +937,7 @@ function validateOffer() {
 		) ||
 		quotationAmount <= 0
 	) {
-		amountError.value = 'Enter an amount greater than zero, e.g. 240000.'
+		amountError.value = hasPricedLines.value ? 'The total must be more than zero: check the prices above.' : 'Enter an amount greater than zero, e.g. 240000.'
 		scrollToElement(document.querySelector('[data-field="budget"]'), { block: 'center' })
 
 		return null
@@ -939,22 +961,31 @@ const builderLoading = ref(false)
 const builderOptions = ref<import('~/composables/useQuotations').PriceOption[]>([])
 const builderServices = ref<{ id: string, name: string }[]>([])
 const builderSettings = ref<EstimateSettings>({})
-const offerLines = ref<import('~/composables/useQuotations').QuotationLine[]>([])
-// Service charge / VAT lines added by the price-list builder (see useEstimate).
-const chargeLine = /^(Service charge|VAT) \((\d+(?:\.\d+)?)%\)$/
-const breakdown = computed(() => {
-	const items = offerLines.value.filter(l => !chargeLine.test(l.description))
-	const subtotal = items.reduce((sum, l) => sum + lineSubtotal(l.quantity, l.unit_price), 0)
-	let base = subtotal
-	const charges = offerLines.value.filter(l => chargeLine.test(l.description)).map((l) => {
-		const [, label, percent] = l.description.match(chargeLine)!
-		const amount = lineSubtotal(l.quantity, l.unit_price)
-		const charge = { label: label!, percent: Number(percent), base, amount }
-		base += amount
-		return charge
-	})
-	return { items, subtotal, charges, total: base }
+// Price list filtered to the client's event type (options with no event types fit every event).
+const showAllOptions = ref(false)
+const fittingOptions = computed(() => {
+	const type = offerForm.eventType.trim().toLowerCase()
+	return builderOptions.value.filter(o => !o.event_tags?.length || !type || o.event_tags.some(t => t.trim().toLowerCase() === type))
 })
+const shownOptions = computed(() => (showAllOptions.value ? builderOptions.value : fittingOptions.value))
+
+// Lines with a price make the total; service charge then VAT go on top (as in the estimate).
+const pricedItems = computed(() => offerForm.items.filter(l => l.description.trim() && String(l.unit_price).trim() !== ''))
+const hasPricedLines = computed(() => pricedItems.value.length > 0)
+const breakdown = computed(() => {
+	const subtotal = pricedItems.value.reduce((sum, l) => sum + lineSubtotal(Number(l.quantity) || 1, Number(l.unit_price) || 0), 0)
+	const cents = (v: number) => Math.round(v * 100) / 100
+	const service = cents(subtotal * (offerForm.chargePercents.service || 0) / 100)
+	const vat = cents((subtotal + service) * (offerForm.chargePercents.vat || 0) / 100)
+	const charges = [
+		...(service ? [{ key: 'service' as const, label: 'Service charge', percent: offerForm.chargePercents.service, amount: service }] : []),
+		...(vat ? [{ key: 'vat' as const, label: 'VAT', percent: offerForm.chargePercents.vat, amount: vat }] : []),
+	]
+	return { subtotal, charges, total: cents(subtotal + service + vat) }
+})
+function removeCharge(key: 'service' | 'vat') {
+	offerForm.chargePercents = { ...offerForm.chargePercents, [key]: 0 }
+}
 
 async function toggleBuilder() {
 	showBuilder.value = !showBuilder.value
@@ -974,32 +1005,22 @@ async function toggleBuilder() {
 	}
 }
 
-/** Turn the estimate into quotation lines (charges as their own lines) and fill the offer. */
+/**
+ * Price-list picks become priced inclusion lines (editable, like Revise offer). Lines the
+ * organizer typed themselves stay; earlier picks from the price list are replaced.
+ */
 function useEstimate(estimate: import('~/utils/priceCalc').Estimate, guests: number) {
 	const byId = new Map(builderOptions.value.map(o => [o.id, o]))
-	const lines = estimate.lines.map((l) => {
+	const picked: OfferItem[] = estimate.lines.map((l) => {
 		const o = byId.get(l.id)!
-		return { organization_service_id: o.organization_service_id, description: `${o.name}${unitSuffix(o)}`, quantity: l.quantity, unit_price: o.price }
+		return { organization_service_id: o.organization_service_id, description: `${o.name}${unitSuffix(o)}`, quantity: String(l.quantity), unit_price: String(o.price), fromList: true }
 	})
-	if (estimate.serviceCharge) lines.push({ organization_service_id: null, description: `Service charge (${estimate.serviceChargePercent}%)`, quantity: 1, unit_price: String(estimate.serviceCharge) })
-	if (estimate.tax) lines.push({ organization_service_id: null, description: `VAT (${estimate.taxPercent}%)`, quantity: 1, unit_price: String(estimate.tax) })
-	offerLines.value = lines
-	offerForm.budget = String(estimate.total)
+	const own = offerForm.items.filter(l => !l.fromList && (l.description.trim() || String(l.unit_price).trim()))
+	offerForm.items = [...picked, ...own]
+	offerForm.chargePercents = { service: estimate.serviceChargePercent || 0, vat: estimate.taxPercent || 0 }
 	amountError.value = ''
-	// Plain item names for the client (prices live in the breakdown).
-	if (!offerForm.inclusions.some(i => i.trim())) {
-		offerForm.inclusions = estimate.lines.map((l) => {
-			const o = byId.get(l.id)
-			return o && picksQuantity(o) ? `${l.label}, ${l.quantity.toLocaleString('en-PH')} ${unitName(o, l.quantity)}` : l.label
-		})
-	}
 	if (guests && !offerForm.guests) offerForm.guests = String(guests)
 	showBuilder.value = false
-}
-
-function clearLines() {
-	offerLines.value = []
-	offerForm.budget = ''
 }
 
 async function submitOffer() {
@@ -1016,16 +1037,21 @@ async function submitOffer() {
 	isSubmittingOffer.value = true
 
 	try {
-		// One line for the package price; the inclusions and pitch go in the proposal text.
-		const inclusions = offerForm.inclusions.map(item => item.trim()).filter(Boolean)
-		const proposal = [offerForm.pitch.trim(), inclusions.length ? `Inclusions:\n${inclusions.map(i => `• ${i}`).join('\n')}` : ''].filter(Boolean).join('\n\n')
+		// Priced inclusions are the quotation's lines (service charge / VAT as their own lines);
+		// inclusions without a price are listed in the proposal text. No priced lines: one package line.
+		const unpriced = offerForm.items.filter(l => l.description.trim() && String(l.unit_price).trim() === '').map(l => l.description.trim())
+		const proposal = [offerForm.pitch.trim(), unpriced.length ? `Inclusions:\n${unpriced.map(i => `• ${i}`).join('\n')}` : ''].filter(Boolean).join('\n\n')
+		const lines = hasPricedLines.value
+			? [
+					...pricedItems.value.map(l => ({ organization_service_id: l.organization_service_id ?? null, description: l.description.trim(), quantity: Number(l.quantity) || 1, unit_price: Number(l.unit_price) || 0 })),
+					...breakdown.value.charges.map(c => ({ organization_service_id: null, description: `${c.label} (${c.percent}%)`, quantity: 1, unit_price: c.amount })),
+				]
+			: [{ description: offerForm.packageName.trim() || 'Event package', quantity: 1, unit_price: quotationAmount }]
 		await useOrganizerQuotations().create(orgId, String(selectedInquiryId.value), {
 			package_name: offerForm.packageName.trim() || null,
 			proposal: proposal || null,
 			terms: offerForm.timeline.trim() || null,
-			items: offerLines.value.length
-				? offerLines.value
-				: [{ description: offerForm.packageName.trim() || 'Event package', quantity: 1, unit_price: quotationAmount }],
+			items: lines,
 		}, true)
 		const response = { message: 'Quotation sent to the client.' }
 

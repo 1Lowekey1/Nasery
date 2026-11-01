@@ -311,7 +311,8 @@
 							<span class="flex items-center gap-2"><svg width="12" height="16" viewBox="0 0 30 40" aria-hidden="true"><path d="M15 39C15 39 28 24.5 28 14.5A13 13 0 0 0 2 14.5C2 24.5 15 39 15 39Z" fill="#285F6b"/><circle cx="15" cy="14.5" r="5" fill="#ffffff"/></svg>Your
 								venue</span><span class="flex items-center gap-2"><span
 									class="h-2.5 w-2.5 rounded-full bg-amber-600 ring-2 ring-white shadow" />Nearby
-								organizer</span><span class="ml-auto">Map data by LocationIQ &amp; OpenStreetMap</span>
+								organizer</span><span v-if="!showStaticMap" class="flex items-center gap-2"><span
+									class="h-3 w-3 rounded-full border border-dashed border-primary-700 bg-primary-700/10" />Search area ({{ nearbyRadiusKm }} km)</span><span class="ml-auto">Map data by LocationIQ &amp; OpenStreetMap</span>
 						</div>
 					</div>
 				</section>
@@ -707,6 +708,8 @@ function toggleEventType(eventType: string) {
 	form.eventType = form.eventType === eventType
 		? ''
 		: eventType
+	// The nearby list depends on the event type (organizers' event tags).
+	if (hasSelectedLocation.value && !target.value) void refreshNearbyOrganizers()
 }
 
 const locationIqApiKey =
@@ -1221,7 +1224,9 @@ async function fetchNearbyOrganizers() {
 	isLoadingNearby.value = true
 	nearbyError.value = ''
 	try {
-		const { items } = await useMarketplace().organizers({ lat: form.latitude, lng: form.longitude, radius_km: nearbyRadiusKm.value, sort: 'distance' })
+		// Same rule as the request itself: only organizers who handle this event type (their event tags).
+		const eventType = form.eventType ? await standardEventTypeName(form.eventType) : undefined
+		const { items } = await useMarketplace().organizers({ lat: form.latitude, lng: form.longitude, radius_km: nearbyRadiusKm.value, sort: 'distance', event_type: eventType })
 		nearbyOrganizers.value = items.map(o => ({
 			id: o.id as unknown as number,
 			user_id: 0,
@@ -1260,6 +1265,14 @@ async function fetchNearbyOrganizers() {
 	} finally {
 		isLoadingNearby.value = false
 	}
+}
+
+/** The picked event type as NaSeRy's standard name ("Birthday" → "Birthday Party"), as submit() matches it. */
+let standardTypes: { id: string, name: string }[] | null = null
+async function standardEventTypeName(picked: string): Promise<string | undefined> {
+	standardTypes ??= await useMarketplace().eventTypes().catch(() => [])
+	const p = picked.toLowerCase()
+	return (standardTypes.find(t => t.name.toLowerCase() === p) ?? standardTypes.find(t => t.name.toLowerCase().startsWith(p)))?.name
 }
 
 async function loadLeaflet() {
@@ -1390,6 +1403,15 @@ async function renderMap() {
 			venueMarker
 		)
 
+		// The search area: organizers inside this circle can receive the request.
+		const searchArea = L.circle(center, {
+			radius: nearbyRadiusKm.value * 1000,
+			color: '#285F6b', weight: 1.5, dashArray: '6 6',
+			fillColor: '#285F6b', fillOpacity: 0.07, interactive: false,
+		}).addTo(leafletMap)
+		leafletMarkers.push(searchArea)
+		bounds.extend(searchArea.getBounds())
+
 		for (
 			const organizer
 			of nearbyOrganizers.value
@@ -1460,24 +1482,8 @@ async function renderMap() {
 			)
 		}
 
-		if (
-			nearbyOrganizers.value.length
-		) {
-			leafletMap.fitBounds(
-				bounds,
-				{
-					padding:
-						[45, 45],
-					maxZoom:
-						14,
-				}
-			)
-		} else {
-			leafletMap.setView(
-				center,
-				14
-			)
-		}
+		// Show the whole search area (and any organizer just outside its edge).
+		leafletMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 14 })
 
 		window.setTimeout(() => {
 			leafletMap

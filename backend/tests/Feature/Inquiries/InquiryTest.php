@@ -117,6 +117,12 @@ class InquiryTest extends TestCase
         [$near] = $this->listedOrganizer('Near Match', ['latitude' => 7.0731, 'longitude' => 125.6128], ['Wedding Coordination']);
         [$wrongService] = $this->listedOrganizer('Near Caterer', ['latitude' => 7.0750, 'longitude' => 125.6100], ['Catering']);
         [$far] = $this->listedOrganizer('Far Match', ['latitude' => 14.5995, 'longitude' => 120.9842], ['Wedding Coordination']);
+        // Right service and place, but they don't do weddings / haven't said what events they do.
+        [$wrongType] = $this->listedOrganizer('Near Concerts', ['latitude' => 7.0740, 'longitude' => 125.6110], ['Wedding Coordination']);
+        [$untagged] = $this->listedOrganizer('Near Untagged', ['latitude' => 7.0745, 'longitude' => 125.6115], ['Wedding Coordination']);
+        foreach ([[$near, ['wedding', 'Debut']], [$wrongService, ['Wedding']], [$far, ['Wedding']], [$wrongType, ['Concert']]] as [$org, $tags]) {
+            DB::table('organization_profiles')->where('organization_id', $org->id)->update(['event_tags' => json_encode($tags)]);
+        }
         $id = $this->draft();
 
         $preview = $this->actingAs($this->client)->spaJson('GET', "/api/v1/inquiries/{$id}/matches?match_radius_km=30")->assertOk();
@@ -126,9 +132,11 @@ class InquiryTest extends TestCase
             ->assertOk()->assertJsonPath('data.via', 'open_posting')->assertJsonPath('data.match_radius_km', 30)
             ->json('data.invitations'))->pluck('organization_id');
 
-        $this->assertContains($near->id, $invited);
+        $this->assertContains($near->id, $invited); // tags compare case-insensitively
         $this->assertNotContains($wrongService->id, $invited);
         $this->assertNotContains($far->id, $invited);
+        $this->assertNotContains($wrongType->id, $invited);
+        $this->assertNotContains($untagged->id, $invited);
     }
 
     public function test_open_posting_with_no_matches_is_refused_and_stays_a_draft(): void

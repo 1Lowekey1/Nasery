@@ -939,11 +939,12 @@ function exportCsv() {
                     )
                     .join(','),
             )
-            .join('\n')
+            .join('\r\n')
 
     const blob =
         new Blob(
-            [csv],
+            // The UTF-8 mark tells Excel the encoding (names like "Niño" stay readable).
+            ['﻿', csv],
             {
                 type:
                     'text/csv;charset=utf-8;',

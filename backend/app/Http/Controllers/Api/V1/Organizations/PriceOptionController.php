@@ -89,6 +89,9 @@ class PriceOptionController extends Controller
             'min_quantity' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100000'],
             'max_quantity' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100000'],
             'organization_service_id' => ['sometimes', 'nullable', 'uuid'],
+            // 0052: event types the option is for (names, like the profile's event tags); none = every type.
+            'event_tags' => ['sometimes', 'array', 'max:30'],
+            'event_tags.*' => ['string', 'distinct', 'max:60'],
             'is_active' => ['sometimes', 'boolean'],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:1000'],
         ]);
@@ -103,6 +106,9 @@ class PriceOptionController extends Controller
         }
         if (array_key_exists('unit_label', $data)) {
             $data['unit_label'] = filled($data['unit_label']) ? trim((string) $data['unit_label']) : null;
+        }
+        if (array_key_exists('event_tags', $data)) {
+            $data['event_tags'] = array_values(array_unique(array_filter(array_map(fn ($t) => trim((string) $t), $data['event_tags']), 'strlen')));
         }
         if (isset($data['min_quantity'], $data['max_quantity']) && $data['max_quantity'] < $data['min_quantity']) {
             throw ValidationException::withMessages(['max_quantity' => 'The most a client can pick must be at least the least.']);

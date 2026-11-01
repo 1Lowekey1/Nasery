@@ -61,6 +61,8 @@ export interface PriceOption {
   unit_label?: string | null
   min_quantity?: number | null
   max_quantity?: number | null
+  /** 0052: event types it's for (empty = every event type). Organizer's own list only. */
+  event_tags?: string[]
   is_active?: boolean
   sort_order?: number
 }

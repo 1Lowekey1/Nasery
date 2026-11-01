@@ -56,6 +56,8 @@ export interface OrganizerPublicProfile {
 export interface DirectoryFilters {
   search?: string
   service?: string
+  /** Event type name: organizers whose event tags include it. */
+  event_type?: string
   lat?: number
   lng?: number
   radius_km?: number

@@ -92,7 +92,7 @@ class GuestList
                 }
             }
 
-            $guests[] = ['full_name' => $row['name'], 'email' => $row['email'] ?? null, 'contact_number' => $row['contact'] ?? null, 'tier' => $tier];
+            $guests[] = ['full_name' => $row['name'], 'email' => $row['email'] ?? null, 'contact_number' => self::localPhone($row['contact'] ?? null), 'tier' => $tier];
         }
 
         if ($rows !== [] && ! array_key_exists('name', $rows[0])) {
@@ -296,6 +296,33 @@ class GuestList
             'checked_in_at' => $checkedInAt,
             'cancellation_reason' => $r->cancellation_reason,
         ];
+    }
+
+    /**
+     * A guest's contact number as text that keeps its leading 0. Excel turns
+     * 09171234567 into the number 9171234567 when a CSV is saved, and our own
+     * export writes ="0917…" so Excel shows it as text: both come back here as
+     * 09171234567. Philippine mobiles in any common form (+63 917…, 63917…,
+     * 917…) become 09XXXXXXXXX; anything else is kept as typed (trimmed).
+     */
+    public static function localPhone(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        if (preg_match('/^="+(.*?)"+$/', $value, $m)) {
+            $value = trim($m[1]);
+        }
+        if ($value === '') {
+            return null;
+        }
+
+        $digits = preg_replace('/[\s\-().]+/', '', $value);
+
+        return match (true) {
+            (bool) preg_match('/^\+?639(\d{9})$/', $digits, $m) => '09'.$m[1],
+            (bool) preg_match('/^09\d{9}$/', $digits) => $digits,
+            (bool) preg_match('/^9\d{9}$/', $digits) => '0'.$digits,
+            default => $value,
+        };
     }
 
     /**

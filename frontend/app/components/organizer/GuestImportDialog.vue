@@ -38,6 +38,7 @@
 							<li>Keep the <strong>first row as the column names</strong>, then put <strong>one guest per row</strong>.</li>
 							<li>Save it as <strong>CSV</strong>: Excel → File → Save As → “CSV UTF-8 (Comma delimited)”; Google Sheets → File → Download → “Comma-separated values (.csv)”.</li>
 						</ol>
+						<p class="mt-2 text-xs text-gray-500">Excel may drop the first 0 of a mobile number (0917… becomes 917…). That's fine: NaSeRy puts it back when you import.</p>
 						<div class="mt-3 overflow-x-auto rounded-xl border border-gray-200">
 							<table class="w-full text-left text-xs">
 								<thead class="bg-gray-50 text-gray-500">

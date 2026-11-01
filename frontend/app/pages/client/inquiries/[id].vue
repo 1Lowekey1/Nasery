@@ -108,15 +108,34 @@
 			<section v-if="inquiry.status !== 'draft'" class="mt-4 rounded-2xl border border-gray-200 bg-white p-6">
 				<div class="flex flex-wrap items-baseline justify-between gap-2">
 					<h2 class="text-base font-bold text-gray-900">Quotations</h2>
-					<span v-if="quotations.length" class="text-xs text-gray-500">Cheapest open offers first</span>
+					<span v-if="quotations.length" class="text-xs text-gray-500">{{ winner ? 'Your chosen organizer first' : 'Cheapest open offers first' }}</span>
 				</div>
 				<p class="mt-1 text-xs text-gray-500">Quotations are proposals, not contracts. You can contact organizers before choosing; final terms are agreed with them directly.</p>
 				<Alert v-if="notice" type="success" :text="notice" class="mt-3" />
 
 				<p v-if="!quotations.length" class="mt-4 text-sm text-gray-500">No quotations yet. Organizers you invited will send theirs here.</p>
 
-				<div v-for="q in quotations" :key="q.id" class="mt-4 rounded-xl border p-4"
-					:class="q.status === 'accepted' ? 'border-green-300 bg-green-50/40' : 'border-gray-200'">
+				<template v-for="(q, index) in orderedQuotations" :key="q.id">
+				<!-- After choosing: the other offers fold away, still one tap from the full offer. -->
+				<div v-if="winner && index === 1" class="mt-6 flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
+					<p class="text-sm font-bold text-gray-900">Other offers <span class="font-normal text-gray-400">({{ orderedQuotations.length - 1 }})</span></p>
+					<p class="text-xs text-gray-500">Kept here for reference</p>
+				</div>
+				<button v-if="winner && q.id !== winner.id && !expanded.has(q.id)" type="button"
+					class="mt-2 flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-gray-50/60 px-4 py-3 text-left transition hover:border-gray-300 hover:bg-gray-50"
+					:aria-expanded="false" @click="toggleOffer(q.id)">
+					<span class="min-w-0 flex-1">
+						<span class="block truncate text-sm font-semibold text-gray-800">{{ q.organizer.display_name }}</span>
+						<span v-if="q.package_name" class="block truncate text-xs text-gray-500">{{ q.package_name }}</span>
+					</span>
+					<span class="shrink-0 text-sm font-bold text-gray-700">{{ formatPeso(q.total_amount) }}</span>
+					<span class="hidden shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold sm:inline" :class="quotationStatusClasses[q.status]">{{ clientLabels[q.status] }}</span>
+					<IconBase name="chevron-down" class="h-4 w-4 shrink-0 text-gray-400" />
+				</button>
+				<div v-else class="rounded-xl border p-4" :class="[winner && q.id !== winner.id ? 'mt-2' : 'mt-4', q.status === 'accepted' ? 'border-green-300 bg-green-50/40' : 'border-gray-200']">
+					<button v-if="winner && q.id !== winner.id" type="button" class="mb-2 flex w-full items-center justify-end gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800" :aria-expanded="true" @click="toggleOffer(q.id)">
+						Hide <IconBase name="chevron-down" class="h-3.5 w-3.5 rotate-180" />
+					</button>
 					<div class="flex flex-wrap items-start justify-between gap-2">
 						<div>
 							<NuxtLink v-if="q.organizer.slug" :to="`/organizers/${q.organizer.slug}`" class="font-bold text-gray-900 hover:text-primary-700">{{ q.organizer.display_name }}</NuxtLink>
@@ -158,6 +177,7 @@
 							@click="declining = q; declineReason = ''">Decline</button>
 					</div>
 				</div>
+				</template>
 			</section>
 
 			<div v-if="declining" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4" @click.self="declining = null">
@@ -202,6 +222,15 @@ const clientLabels: Record<string, string> = {
 	withdrawn: 'Withdrawn by organizer', cancelled: 'Closed', draft: 'Draft',
 }
 const quotations = ref<ClientQuotation[]>([])
+// Once the client picks an organizer, that offer leads and the rest fold into compact rows.
+const winner = computed(() => quotations.value.find(q => q.status === 'accepted') ?? null)
+const orderedQuotations = computed(() => winner.value ? [winner.value, ...quotations.value.filter(q => q.id !== winner.value!.id)] : quotations.value)
+const expanded = ref(new Set<string>())
+function toggleOffer(id: string) {
+	const next = new Set(expanded.value)
+	if (!next.delete(id)) next.add(id)
+	expanded.value = next
+}
 const declining = ref<ClientQuotation | null>(null)
 const declineReason = ref('')
 const notice = ref('')
