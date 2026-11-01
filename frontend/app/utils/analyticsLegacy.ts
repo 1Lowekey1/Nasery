@@ -13,6 +13,15 @@ async function overviewFor(): Promise<AnalyticsOverview | null> {
 
 const pct = (n: number | null | undefined) => (n === null || n === undefined ? null : Math.round(n * 10) / 10)
 
+/** The period the numbers cover, as the server chose it (the range filter, or the plan's default). */
+function periodOf(o: AnalyticsOverview | null) {
+  const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-PH', { month: 'short', year: 'numeric', timeZone: 'Asia/Manila' })
+  return {
+    text: o?.period ? `${fmt(o.period.from)} – ${fmt(o.period.to)}` : 'this period',
+    by: o?.period.group === 'quarter' ? 'Quarterly' : 'Monthly',
+  }
+}
+
 /** Overview tab: headline numbers, how inquiries were handled, latest bids. */
 export async function legacyAnalyticsOverview() {
   const o = await overviewFor()
@@ -63,6 +72,7 @@ export async function legacyBidPerformance() {
     bids_won: t?.won ?? 0,
     bids_lost: t?.lost ?? 0,
     won_value: t ? Number(t.won_value) : 0,
+    period: periodOf(o),
   }
 }
 
@@ -75,5 +85,6 @@ export async function legacyEventPerformance() {
     avg_capacity_fill: pct(t?.average_capacity_fill),
     avg_no_show_rate: pct(t?.no_show_rate),
     total_events: t?.events ?? 0,
+    period: periodOf(o),
   }
 }

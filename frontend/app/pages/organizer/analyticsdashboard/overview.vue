@@ -185,7 +185,7 @@ const stats = computed(() => {
 	const hasWin = d?.win_rate !== null && d?.win_rate !== undefined
 	const hasAttendance = d?.avg_attendance_rate !== null && d?.avg_attendance_rate !== undefined
 	return [
-		{ label: 'Bids submitted', icon: 'file-text', display: String(Math.round(shown.bids)), percent: null, note: d?.total_bids ? 'All-time quotations sent' : 'No bids yet', link: null },
+		{ label: 'Bids submitted', icon: 'file-text', display: String(Math.round(shown.bids)), percent: null, note: d?.total_bids ? 'Quotations sent in this period' : 'No bids in this period', link: null },
 		{ label: 'Win rate', icon: 'trending-up', display: hasWin ? `${trim(shown.win)}%` : '—', percent: hasWin ? Number(d!.win_rate) : null, note: hasWin ? 'Accepted out of decided bids' : 'No decisions yet', link: null },
 		{ label: 'Attendance rate', icon: 'users', display: hasAttendance ? `${trim(shown.attendance)}%` : '—', percent: hasAttendance ? Number(d!.avg_attendance_rate) : null, note: hasAttendance ? 'Checked in out of tickets issued' : 'No ticketed events yet', link: null },
 		{ label: 'Active inquiries', icon: 'clock', display: String(Math.round(shown.active)), percent: null, note: d?.active_inquiries ? 'Waiting for your reply' : 'You’re all caught up', link: d?.active_inquiries ? { to: '/organizer/inquiries/match-inquiries', label: 'Respond' } : null },

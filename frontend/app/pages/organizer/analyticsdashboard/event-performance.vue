@@ -14,7 +14,7 @@
 					Event Attendance Trends
 				</h2>
 				<p class="mb-4 text-sm text-gray-500">
-					Monthly attendance vs no-show rates, last 6 months
+					{{ period.by }} attendance vs no-show rates, {{ period.text }}
 				</p>
 
 				<template v-if="hasMonthlyActivity">
@@ -23,7 +23,7 @@
 					</ClientOnly>
 				</template>
 				<p v-else class="py-16 text-center text-sm text-gray-400">
-					No ticketed events in the last 6 months yet.
+					No ticketed events in {{ period.text }} yet.
 					<NuxtLink to="/organizer/eventmanagement/ticket-tiers" class="mt-2 block font-semibold text-primary-700 hover:underline">Set up tickets for an event</NuxtLink>
 				</p>
 			</div>
@@ -107,6 +107,8 @@ const monthly = ref<MonthlyEventRow[]>([])
 const avgCapacityFill = ref<number | null>(null)
 const avgNoShowRate = ref<number | null>(null)
 const totalEvents = ref(0)
+// The period the numbers cover (follows the range filter), e.g. "May 2026 – Nov 2026".
+const period = ref({ text: 'this period', by: 'Monthly' })
 
 const hasMonthlyActivity = computed(() => monthly.value.some(row => row.attendance_rate > 0 || row.no_show_rate > 0))
 
@@ -153,6 +155,7 @@ async function loadEventPerformance() {
 		avgCapacityFill.value = response.data.avg_capacity_fill
 		avgNoShowRate.value = response.data.avg_no_show_rate
 		totalEvents.value = response.data.total_events
+		period.value = response.data.period
 	} catch (error: unknown) {
 		errorMessage.value = authMessage(error) || getApiErrorMessage(error, 'Unable to load your event performance.')
 	} finally {

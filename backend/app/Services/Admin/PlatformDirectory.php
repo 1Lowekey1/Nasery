@@ -240,16 +240,41 @@ class PlatformDirectory
                 $id = (string) Str::uuid7();
                 DB::table('event_types')->insert(['id' => $id, 'organization_id' => null, 'name' => $name, 'description' => $description,
                     'is_system_default' => true, 'created_at' => now(), 'updated_at' => now()]);
-            } elseif (DB::table('event_types')->where('id', $id)->whereNull('organization_id')->whereNull('deleted_at')
-                ->update(['name' => $name, 'description' => $description, 'updated_at' => now()]) === 0) {
-                throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
+
+                return [$id, null, 0];
             }
 
-            return $id;
+            $oldName = DB::table('event_types')->where('id', $id)->whereNull('organization_id')->whereNull('deleted_at')->value('name')
+                ?? throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
+            DB::table('event_types')->where('id', $id)->update(['name' => $name, 'description' => $description, 'updated_at' => now()]);
+
+            // Profiles and price options keep event types by NAME (matching compares names), so a
+            // rename carries over to them; otherwise those organizers would silently stop matching.
+            $carried = $oldName === $name ? 0 : $this->renameTag('organization_profiles', $oldName, $name)
+                + $this->renameTag('organization_price_options', $oldName, $name);
+
+            return [$id, $oldName, $carried];
         });
-        $this->audit->record('event_type.saved', ['event_types', $id], new: ['name' => $name]);
+        [$id, $oldName, $carried] = $id;
+        $this->audit->record('event_type.saved', ['event_types', $id], old: $oldName !== null ? ['name' => $oldName] : null,
+            new: ['name' => $name, 'renamed_on_profiles_and_price_options' => $carried]);
 
         return collect($this->eventTypes())->firstWhere('id', $id);
+    }
+
+    /**
+     * Replace an event type name inside a table's event_tags JSON arrays (any
+     * capitals / spacing), without duplicating a name already there.
+     *
+     * @return int rows changed
+     */
+    private function renameTag(string $table, string $from, string $to): int
+    {
+        return DB::update("update {$table} set event_tags = (
+                select coalesce(jsonb_agg(distinct x), '[]'::jsonb)
+                from (select case when lower(trim(t)) = lower(trim(?)) then ? else t end as x from jsonb_array_elements_text(event_tags) as t) as renamed
+            ), updated_at = now()
+            where exists (select 1 from jsonb_array_elements_text(event_tags) as t where lower(trim(t)) = lower(trim(?)))", [$from, $to, $from]);
     }
 
     /** Removed types stay on the events and inquiries that already use them; they just can't be picked anymore. */

@@ -14,7 +14,7 @@
 					Bid Performance Trends
 				</h2>
 				<p class="mb-4 text-sm text-gray-500">
-					Monthly bid win/loss decisions, last 6 months
+					{{ period.by }} bid win/loss decisions, {{ period.text }}
 				</p>
 
 				<template v-if="hasMonthlyActivity">
@@ -23,7 +23,7 @@
 					</ClientOnly>
 				</template>
 				<p v-else class="py-16 text-center text-sm text-gray-400">
-					No bid decisions in the last 6 months yet.
+					No bid decisions in {{ period.text }} yet.
 					<NuxtLink to="/organizer/inquiries/match-inquiries" class="mt-2 block font-semibold text-primary-700 hover:underline">See inquiries you can bid on</NuxtLink>
 				</p>
 			</div>
@@ -33,7 +33,7 @@
 					<div class="flex items-start justify-between gap-3">
 						<div>
 							<div class="text-sm font-semibold text-gray-900">Total Bids</div>
-							<div class="text-xs text-gray-400">All time</div>
+							<div class="text-xs text-gray-400">{{ period.text }}</div>
 						</div>
 						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50">
 							<IconBase name="file-text" class="h-5 w-5 text-primary-700" />
@@ -48,7 +48,7 @@
 					<div class="flex items-start justify-between gap-3">
 						<div>
 							<div class="text-sm font-semibold text-gray-900">Bids Won</div>
-							<div class="text-xs text-gray-400">All time</div>
+							<div class="text-xs text-gray-400">{{ period.text }}</div>
 						</div>
 						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50">
 							<IconBase name="check-circle" class="h-5 w-5 text-primary-700" />
@@ -63,7 +63,7 @@
 					<div class="flex items-start justify-between gap-3">
 						<div>
 							<div class="text-sm font-semibold text-gray-900">Bids Lost</div>
-							<div class="text-xs text-gray-400">All time</div>
+							<div class="text-xs text-gray-400">{{ period.text }}</div>
 						</div>
 						<span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50">
 							<IconBase name="x-circle" class="h-5 w-5 text-amber-600" />
@@ -124,6 +124,8 @@ const totalBids = ref(0)
 const bidsWon = ref(0)
 const bidsLost = ref(0)
 const wonValue = ref(0)
+// The period the numbers cover (follows the range filter), e.g. "May 2026 – Nov 2026".
+const period = ref({ text: 'this period', by: 'Monthly' })
 
 const hasMonthlyActivity = computed(() => monthly.value.some(row => row.won > 0 || row.lost > 0))
 
@@ -174,6 +176,7 @@ async function loadBidPerformance() {
 		bidsWon.value = response.data.bids_won
 		bidsLost.value = response.data.bids_lost
 		wonValue.value = response.data.won_value
+		period.value = response.data.period
 	} catch (error: unknown) {
 		errorMessage.value = authMessage(error) || getApiErrorMessage(error, 'Unable to load your bid performance.')
 	} finally {
