@@ -720,7 +720,8 @@ async function loadMatchingInquiries(quiet = false) {
 				return {
 					id: i.inquiry_id as unknown as number,
 					client_id: 0,
-					event_title: `${i.event_type ?? 'Event'} for ${i.client}`,
+					// The client's own event name ("Marlo & Rena Wedding"); "Posted by" shows who.
+					event_title: i.event_name || i.event_type || 'Event',
 					event_type: i.event_type ?? 'Other',
 					event_date: i.requested_date ?? '',
 					// Post an Event writes "Time: 16:00 – 21:00" into the notes.
@@ -732,7 +733,7 @@ async function loadMatchingInquiries(quiet = false) {
 					expected_guests: i.guest_count ?? 0,
 					budget_range: [peso(i.budget_min), peso(i.budget_max)].filter(Boolean).join(' – ') || 'Open budget',
 					additional_details: [
-						i.additional_requirements?.replace(/^Time: .*\n?/m, '').trim(),
+						i.additional_requirements?.replace(/^Time: .*\n?/m, '').replace(/^\s*Event: .*\n?/mi, '').trim(),
 						...i.services.map(sv => sv.name ? `• ${sv.name}${sv.notes ? ` (${sv.notes})` : ''}` : null),
 					].filter(Boolean).join('\n') || null,
 					created_at: i.invited_at,

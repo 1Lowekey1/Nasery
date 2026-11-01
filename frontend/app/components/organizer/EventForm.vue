@@ -153,7 +153,8 @@ function blankSession(date = ''): SessionInput {
 const inquiry = props.quotation?.inquiry
 const source = props.event
 const form = reactive({
-	name: source?.name ?? (inquiry ? `${inquiry.event_type ?? 'Event'} for ${props.quotation?.client?.name ?? 'client'}` : ''),
+	// The client's own event name first; otherwise "Wedding for Nicole" as a starting point.
+	name: source?.name ?? (inquiry ? inquiry.event_name || `${inquiry.event_type ?? 'Event'} for ${props.quotation?.client?.name ?? 'client'}` : ''),
 	event_type_id: source?.event_type_id ?? inquiry?.event_type_id ?? null,
 	description: source?.description ?? '',
 	overall_capacity: (source?.overall_capacity ?? inquiry?.guest_count ?? '') as number | string,

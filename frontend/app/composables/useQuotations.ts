@@ -37,7 +37,7 @@ export interface OrganizerQuotation extends Quotation {
   event_id: string | null
   /** 0051: sent before the client's latest change to the request. */
   before_changes?: boolean
-  inquiry: { id: string, status: string, event_type_id: string | null, event_type: string | null, requested_date: string | null, guest_count: number | null, budget_min: string | null, budget_max: string | null, location_text: string | null, revised_at?: string | null } | null
+  inquiry: { id: string, status: string, event_name?: string | null, event_type_id: string | null, event_type: string | null, requested_date: string | null, guest_count: number | null, budget_min: string | null, budget_max: string | null, location_text: string | null, revised_at?: string | null } | null
   client: { name: string, email: string | null, phone: string | null } | null
 }
 

@@ -91,4 +91,14 @@ class Inquiry extends Model
     {
         return $this->match_radius_km !== null;
     }
+
+    /**
+     * The event's name as the client wrote it on Post an Event ("Marlo & Rena
+     * Wedding"). It's kept as an "Event: …" line in additional_requirements
+     * (no column of its own); null when the client didn't give one.
+     */
+    public function eventName(): ?string
+    {
+        return preg_match('/^\s*Event:\s*(.+?)\s*$/mi', (string) $this->additional_requirements, $m) ? mb_substr($m[1], 0, 150) : null;
+    }
 }

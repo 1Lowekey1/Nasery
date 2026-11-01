@@ -142,7 +142,8 @@ export function toLegacyQuotation(q: ApiOrganizerQuotation, events: LegacyEvent[
     inquiry: q.inquiry
       ? {
           id: q.inquiry.id,
-          event_title: q.inquiry.event_type ? `${q.inquiry.event_type}${q.client?.name ? ` for ${q.client.name}` : ''}` : null,
+          // The client's own event name, else the event type (the client's name shows separately).
+          event_title: q.inquiry.event_name || q.inquiry.event_type || null,
           event_type: q.inquiry.event_type ?? 'Event',
           event_date: q.inquiry.requested_date,
           start_time: null,

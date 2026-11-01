@@ -1224,7 +1224,8 @@ async function loadClientInquiries(quiet = false) {
 			return {
 				id: i.id as unknown as number,
 				client_id: 0,
-				event_title: i.event_type ? `${i.event_type}${i.guest_count ? ` · ${i.guest_count} guests` : ''}` : 'Event inquiry',
+				// The name they gave the event; else the type and guest count.
+				event_title: i.event_name || (i.event_type ? `${i.event_type}${i.guest_count ? ` · ${i.guest_count} guests` : ''}` : 'Event inquiry'),
 				event_type: i.event_type ?? 'Other',
 				event_date: eventDay ?? i.requested_date ?? '',
 				location: i.location_text ?? '',

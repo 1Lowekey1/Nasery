@@ -365,6 +365,7 @@ class OrganizerQuotations
                 'inquiry' => $inquiry ? [
                     'id' => $inquiry->id,
                     'status' => $inquiry->status->value,
+                    'event_name' => $inquiry->eventName(),
                     'event_type_id' => $inquiry->event_type_id,
                     'event_type' => $types[$inquiry->event_type_id] ?? null,
                     'requested_date' => $inquiry->requested_date?->toDateString(),

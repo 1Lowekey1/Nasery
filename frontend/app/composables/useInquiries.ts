@@ -28,6 +28,8 @@ export interface ClientInquiry {
   via: 'direct' | 'open_posting' | null
   /** Direct requests: the organizer(s) it went to (dashboard shows "Direct to …"). */
   direct_to?: string[] | null
+  /** The event name the client gave on Post an Event, when there is one. */
+  event_name?: string | null
   event_type_id: string | null
   event_type: string | null
   requested_date: string | null
@@ -62,6 +64,8 @@ export interface OrganizerInquiry {
   is_open: boolean
   via: 'direct' | 'open_posting'
   client: string
+  /** The client's own name for the event ("Marlo & Rena Wedding"), when they gave one. */
+  event_name?: string | null
   event_type: string | null
   requested_date: string | null
   guest_count: number | null

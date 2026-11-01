@@ -174,6 +174,8 @@ class OrganizerInquiries
             'revised_at' => $inquiry->revised_at?->toIso8601String(),
             'via' => $inquiry->isOpenPosting() ? 'open_posting' : 'direct',
             'client' => $extras['clients'][$inquiry->client_user_id] ?? 'Client',
+            // Shown as the card title ("Marlo & Rena Wedding", posted by the client).
+            'event_name' => $inquiry->eventName(),
             'event_type' => $extras['types'][$inquiry->event_type_id] ?? null,
             'requested_date' => $inquiry->requested_date?->toDateString(),
             'guest_count' => $inquiry->guest_count,
