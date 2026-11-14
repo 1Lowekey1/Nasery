@@ -38,8 +38,13 @@ class PublicEventController extends Controller
 
     public function show(Request $request, string $event): JsonResponse
     {
-        return ApiResponse::success($this->registration->event($event, $this->linkKey($request))
-            ?? throw new ApiException(ErrorCode::NotFound, 'This event isn\'t open to the public.', 404));
+        $found = $this->registration->event($event, $this->linkKey($request));
+        if ($found === null && $this->registration->wasCancelled($event)) {
+            // Someone with an old link (or a stale Marketplace tab): say why, not just "not found".
+            throw new ApiException(ErrorCode::InvalidStateTransition, 'This event was cancelled by its organizer. Ticket sales are closed.', 410);
+        }
+
+        return ApiResponse::success($found ?? throw new ApiException(ErrorCode::NotFound, 'This event isn\'t open to the public.', 404));
     }
 
     public function register(Request $request, string $event): JsonResponse
@@ -97,6 +102,15 @@ class PublicEventController extends Controller
         $this->registration->cancelMine($request->user(), $ticket);
 
         return ApiResponse::success(null, 'Ticket cancelled.');
+    }
+
+    /** 0061: the buyer asks the organizer for their money back. */
+    public function requestRefund(Request $request, string $ticket): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:500']]);
+        app(\App\Services\Payments\RefundRequests::class)->request($request->user(), $ticket, $data['reason']);
+
+        return ApiResponse::success(null, 'Refund requested. The organizer will answer.');
     }
 
     /** A private event's link key (?key=… on the page, or in the request body). */

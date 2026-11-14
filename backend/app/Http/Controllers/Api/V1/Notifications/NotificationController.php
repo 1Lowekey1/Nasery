@@ -47,6 +47,23 @@ class NotificationController extends Controller
         return ApiResponse::success(['count' => $this->unread($request)]);
     }
 
+    /** Clear the whole list (soft delete: the rows stay for the record). */
+    public function clear(Request $request): JsonResponse
+    {
+        DB::table('notifications')->where('recipient_user_id', $request->user()->id)->whereNull('deleted_at')
+            ->update(['deleted_at' => now(), 'read_at' => DB::raw('coalesce(read_at, now())')]);
+
+        return ApiResponse::success(['count' => 0]);
+    }
+
+    public function destroy(Request $request, string $notification): JsonResponse
+    {
+        DB::table('notifications')->where('id', $notification)->where('recipient_user_id', $request->user()->id)->whereNull('deleted_at')
+            ->update(['deleted_at' => now(), 'read_at' => DB::raw('coalesce(read_at, now())')]);
+
+        return ApiResponse::success(['count' => $this->unread($request)]);
+    }
+
     public function readAll(Request $request): JsonResponse
     {
         DB::table('notifications')->where('recipient_user_id', $request->user()->id)->whereNull('read_at')->update(['read_at' => now()]);

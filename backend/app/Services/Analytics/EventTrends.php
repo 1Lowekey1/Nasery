@@ -74,4 +74,46 @@ class EventTrends
             ];
         });
     }
+
+    /**
+     * One organizer's own picture: the event types they handle most (events
+     * booked in the period), with the requests they received for each. Their
+     * custom types keep their names here; it's their data.
+     *
+     * @return array{from: string, types: list<array{name: string, events: int, requests: int, share: int}>, totals: array{events: int, requests: int}}
+     */
+    public function forOrganization(string $organizationId, int $months = 6): array
+    {
+        return $this->db->system('analytics.org_event_types', function () use ($organizationId, $months) {
+            $start = CarbonImmutable::now(self::TZ)->startOfMonth()->subMonths($months - 1);
+            $from = $start->utc();
+            $type = DB::raw("coalesce(et.name, 'Other') as t");
+
+            $events = DB::table('events as e')->leftJoin('event_types as et', 'et.id', '=', 'e.event_type_id')
+                ->where('e.organization_id', $organizationId)->whereNull('e.deleted_at')->whereNot('e.status', 'cancelled')
+                ->where('e.created_at', '>=', $from)
+                ->select([$type, DB::raw('count(*) as v')])->groupBy('t')->pluck('v', 't')->map(fn ($v) => (int) $v);
+            $requests = DB::table('inquiry_organizations as io')->join('inquiries as i', 'i.id', '=', 'io.inquiry_id')
+                ->leftJoin('event_types as et', 'et.id', '=', 'i.event_type_id')
+                ->where('io.organization_id', $organizationId)->whereNot('i.status', 'draft')->where('io.created_at', '>=', $from)
+                ->select([$type, DB::raw('count(*) as v')])->groupBy('t')->pluck('v', 't')->map(fn ($v) => (int) $v);
+
+            $totalEvents = $events->sum();
+            // Most handled first; requests break ties (and rank types with requests but no events yet).
+            $names = $events->keys()->merge($requests->keys())->unique()
+                ->sortByDesc(fn ($n) => [$events[$n] ?? 0, $requests[$n] ?? 0])->values();
+            $row = fn (string $n, int $e, int $r) => ['name' => $n, 'events' => $e, 'requests' => $r,
+                'share' => $totalEvents > 0 ? (int) round($e / $totalEvents * 100) : 0];
+
+            $top = $names->reject(fn ($n) => $n === 'Other')->take(self::MAX_TYPES + 1)->values();
+            $types = $top->map(fn ($n) => $row($n, $events[$n] ?? 0, $requests[$n] ?? 0))->all();
+            $restE = $events->reject(fn ($v, $n) => $top->contains($n))->sum();
+            $restR = $requests->reject(fn ($v, $n) => $top->contains($n))->sum();
+            if ($restE + $restR > 0) {
+                $types[] = $row('Other', $restE, $restR);
+            }
+
+            return ['from' => $start->toDateString(), 'types' => $types, 'totals' => ['events' => $totalEvents, 'requests' => $requests->sum()]];
+        });
+    }
 }

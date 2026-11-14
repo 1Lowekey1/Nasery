@@ -1,5 +1,6 @@
 <template>
-	<div>
+	<p v-if="embedded && summaryError" class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ summaryError }}</p>
+	<div v-else-if="!embedded">
 		<!-- Hero (wider screens; on phones the top bar already names the page) -->
 		<div class="tk-hero tk-rise relative mb-6 hidden overflow-hidden rounded-[2rem] px-9 py-8 text-white shadow-sm sm:block">
 			<span class="tk-orb tk-orb-a" />
@@ -14,7 +15,7 @@
 					</div>
 
 					<h1 class="text-xl font-extrabold tracking-tight sm:mt-4 sm:text-4xl">
-						<span class="sm:hidden">Ticketing &amp; Attendance</span><span class="hidden sm:inline">Registration, Ticketing &amp; Attendance</span>
+						Ticketing &amp; Attendance
 					</h1>
 
 					<p class="mt-2 hidden text-sm leading-6 text-white/70 sm:block sm:text-base">
@@ -254,6 +255,9 @@
 </template>
 
 <script setup lang="ts">
+// Embedded (Event Management → Guests): no header, it only loads the event for the guest list.
+defineProps<{ embedded?: boolean }>()
+
 interface OrganizerEvent {
 	id: number
 	name: string

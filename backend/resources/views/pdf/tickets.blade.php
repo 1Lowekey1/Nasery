@@ -43,6 +43,7 @@
         @foreach ($card['sessions'] as $session)
             <tr><td class="k">{{ $loop->first ? 'When' : '' }}</td><td>@if ($session['name']){{ $session['name'] }}: @endif{{ $session['when'] }}</td></tr>
         @endforeach
+        @if ($card['seat'] ?? null)<tr><td class="k">Seat or table</td><td>{{ $card['seat'] }}</td></tr>@endif
         @if ($card['venue'])<tr><td class="k">Where</td><td>{{ $card['venue'] }}</td></tr>@endif
         @if ($card['benefits'])<tr><td class="k">Includes</td><td>{{ implode(' · ', $card['benefits']) }}</td></tr>@endif
         @if ((float) $card['price'] > 0)<tr><td class="k">Price</td><td>₱{{ number_format((float) $card['price'], 2) }}</td></tr>@endif

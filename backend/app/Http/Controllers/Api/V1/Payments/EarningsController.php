@@ -63,7 +63,7 @@ class EarningsController extends Controller
 
     public function balances(): JsonResponse
     {
-        return ApiResponse::success(['organizers' => $this->earnings->balances(), 'methods' => Earnings::METHODS]);
+        return ApiResponse::success(['organizers' => $this->earnings->balances(), 'methods' => Earnings::METHODS, 'refunds' => $this->earnings->recentRefunds()]);
     }
 
     public function payouts(Organization $organization): JsonResponse

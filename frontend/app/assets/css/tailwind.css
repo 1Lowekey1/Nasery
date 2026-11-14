@@ -39,10 +39,6 @@ body {
     box-shadow: none !important;
 }
 
-.multiselect-option.is-selected,
-.multiselect-option.is-selected.is-pointed {
-    @apply bg-primary !important;
-}
 /* Touch screens have no hover: controls that only appear on hover
    (edit, delete, move...) are always shown there. */
 @media (hover: none) {
@@ -55,6 +51,13 @@ body {
    inside the card instead of pushing it wider than a phone screen. */
 .grid > * {
   min-width: 0;
+}
+
+/* Leaflet maps stack their layers at z-index 400–1000. Keep those inside the
+   map, so dialogs and pop-ups (z-index 100+) always show above it. */
+.leaflet-container {
+  isolation: isolate;
+  z-index: 0;
 }
 
 /* Bigger tap area for small icon buttons (e.g. a close ×) without changing
@@ -191,4 +194,19 @@ body {
   .-mx-6 { margin-left: -1rem; margin-right: -1rem; }
   .-mt-6 { margin-top: -1rem; }
   .w-\[calc\(100\%\+3rem\)\] { width: calc(100% + 2rem); }
+}
+
+/* Long names with no spaces wrap instead of spilling out of their box. */
+body { overflow-wrap: break-word; }
+
+/* Live updates: something that just arrived glows briefly, then settles (no jump, no reload). */
+.live-fresh {
+  animation: live-fresh 4s ease-out;
+}
+@keyframes live-fresh {
+  0%, 30% { background-color: rgb(40 95 107 / 0.10); box-shadow: inset 3px 0 0 #285F6b; }
+  100% { box-shadow: inset 3px 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-fresh { animation: none; box-shadow: inset 3px 0 0 #285F6b; }
 }

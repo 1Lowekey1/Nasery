@@ -57,8 +57,9 @@ class MarketplaceDirectory
                     ->where('s.name', 'ilike', $this->like($filters['service'])));
             }
 
-            // Organizers who handle this kind of event (their profile's event tags), as inquiry matching does.
-            if (filled($filters['event_type'] ?? null)) {
+            // Organizers who handle this kind of event (their profile's event tags), as inquiry
+            // matching does. "Other" fits no tag, so it doesn't narrow the list.
+            if (filled($filters['event_type'] ?? null) && mb_strtolower(trim($filters['event_type'])) !== 'other') {
                 $query->whereRaw('exists (select 1 from jsonb_array_elements_text(p.event_tags) as tag where lower(trim(tag)) = ?)',
                     [mb_strtolower(trim($filters['event_type']))]);
             }
@@ -133,7 +134,7 @@ class MarketplaceDirectory
                 // 0048: estimate settings for the client calculator.
                 'estimate' => [
                     'service_charge_percent' => isset($profile->estimate_service_charge_percent) ? (float) $profile->estimate_service_charge_percent : null,
-                    'tax_percent' => isset($profile->estimate_tax_percent) ? (float) $profile->estimate_tax_percent : null,
+                    'tax_percent' => app(\App\Services\Admin\PlatformSettings::class)->vatFor($profile->estimate_tax_percent ?? null),
                     'note' => $profile->estimate_note ?? null,
                 ],
                 'services' => DB::table('public_organization_services')->where('organization_id', $profile->organization_id)

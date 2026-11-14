@@ -28,6 +28,27 @@ class ApprovalWorkflowTest extends TestCase
         $this->admin = $this->adminUser();
     }
 
+    public function test_an_admin_note_reaches_the_owner_without_a_decision(): void
+    {
+        $org = $this->onboard($owner = $this->businessUser());
+        $url = "/api/v1/admin/organizer-applications/{$org->id}/note";
+        $key = fn () => ['Idempotency-Key' => (string) Str::uuid()];
+
+        $this->actingAs($owner)->spaJson('POST', $url, ['note' => 'Hello there'], $key())->assertForbidden();
+
+        $this->actingAs($this->admin)->spaJson('POST', $url, ['note' => 'Your permit is blurry.'], $key())->assertOk()
+            ->assertJsonPath('data.approval_status', 'pending');
+
+        $this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/approval")->assertOk()
+            ->assertJsonPath('data.approval_status', 'pending')
+            ->assertJsonFragment(['kind' => 'note', 'decision_reason' => 'Your permit is blurry.']);
+
+        $this->assertDatabaseHas('notifications', ['recipient_user_id' => $owner->id, 'type' => 'application.note', 'body' => 'Your permit is blurry.']);
+
+        $this->decide($org->id, 'rejected', 'Please fix your profile.')->assertOk();
+        $this->actingAs($this->admin)->spaJson('POST', $url, ['note' => 'One more thing.'], $key())->assertConflict();
+    }
+
     public function test_only_admins_see_applications(): void
     {
         $org = $this->onboard($owner = $this->businessUser());

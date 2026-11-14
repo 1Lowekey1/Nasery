@@ -21,7 +21,12 @@ class ApprovalHistoryResource extends JsonResource
         return [
             'status' => $this->status->value,
             'decision_reason' => $this->decision_reason,
-            'kind' => $this->reviewed_by === null ? 'submission' : 'decision',
+            // A reviewer's row in a review status with a message is a note, not a decision.
+            'kind' => match (true) {
+                $this->reviewed_by === null => 'submission',
+                in_array($this->status->value, ['pending', 'under_review'], true) && filled($this->decision_reason) => 'note',
+                default => 'decision',
+            },
             'submitted_at' => $this->submitted_at?->toIso8601String(),
             'decided_at' => $this->decided_at?->toIso8601String(),
         ];

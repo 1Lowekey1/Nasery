@@ -1,7 +1,7 @@
 <template>
-	<div class="mx-auto max-w-5xl">
+	<div>
 		<h1 class="text-2xl font-extrabold text-gray-900">Settings</h1>
-		<p class="mt-1 text-gray-500">Platform fee, limits, the service catalog and announcements. Every change is logged.</p>
+		<p class="mt-1 text-gray-500">Platform fee, limits, plans and announcements. Every change is logged. Services are on Service Tags.</p>
 
 		<div class="mt-5 flex gap-1 border-b border-gray-200" role="tablist">
 			<button v-for="t in tabs" :key="t.key" type="button" role="tab" :aria-selected="tab === t.key" class="-mb-px border-b-2 px-4 py-2.5 text-sm font-semibold"
@@ -22,9 +22,7 @@
 					<label class="flex items-center gap-2 text-sm font-semibold text-gray-700 sm:col-span-2"><input v-model="fee.enabled" type="checkbox"> Charge a platform fee</label>
 					<template v-if="fee.enabled">
 						<label class="text-xs font-semibold text-gray-600">Type
-							<select v-model="fee.model" class="mt-1 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">
-								<option value="percentage">Percentage</option><option value="fixed">Fixed per payment</option><option value="hybrid">Percentage + fixed</option>
-							</select>
+							<FormsSelect v-model="fee.model" class="mt-1" :can-clear="false" :options="[{ value: 'percentage', label: 'Percentage' }, { value: 'fixed', label: 'Fixed per payment' }, { value: 'hybrid', label: 'Percentage + fixed' }]" />
 						</label>
 						<div class="flex gap-3">
 							<label v-if="fee.model !== 'fixed'" class="flex-1 text-xs font-semibold text-gray-600">Percent (%)
@@ -54,7 +52,7 @@
 
 			<section class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
 				<h2 class="text-base font-bold text-gray-900">Limits</h2>
-				<form class="mt-4 grid gap-4 sm:grid-cols-2" @submit.prevent="saveSettings">
+				<form class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3" @submit.prevent="saveSettings">
 					<label v-for="s in overview.settings" :key="s.key" class="text-sm">
 						<span class="font-semibold text-gray-800">{{ s.label }}</span>
 						<span class="block text-xs text-gray-500">{{ s.help }} ({{ s.min }}–{{ s.max }} {{ s.unit }})</span>
@@ -109,29 +107,6 @@
 			</section>
 		</template>
 
-		<!-- Catalog -->
-		<section v-if="tab === 'catalog'" class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
-			<h2 class="text-base font-bold text-gray-900">Service catalog</h2>
-			<p class="mt-1 text-sm text-gray-500">The standard services organizers pick when describing their business and clients search by. Archiving hides a service from new picks; organizers who already use it keep it.</p>
-			<form class="mt-4 flex flex-wrap items-end gap-2" @submit.prevent="saveService">
-				<label class="text-xs font-semibold text-gray-600">Service<input v-model="svc.name" maxlength="80" class="mt-1 block w-56 rounded-xl border border-gray-200 px-3 py-2 text-sm" placeholder="e.g. Lights & Sound"></label>
-				<label class="text-xs font-semibold text-gray-600">Category<input v-model="svc.category" maxlength="60" list="svc-cats" class="mt-1 block w-44 rounded-xl border border-gray-200 px-3 py-2 text-sm" placeholder="optional"></label>
-				<datalist id="svc-cats"><option v-for="c in categories" :key="c" :value="c" /></datalist>
-				<button type="submit" :disabled="busy || svc.name.trim().length < 2" class="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{{ svc.id ? 'Save' : 'Add' }}</button>
-				<button v-if="svc.id" type="button" class="rounded-xl border border-gray-200 px-4 py-2 text-sm" @click="resetService">Cancel</button>
-			</form>
-			<p v-if="!services.length" class="mt-4 text-sm text-gray-400">The catalog is empty.</p>
-			<ul class="mt-4 divide-y divide-gray-100">
-				<li v-for="s in services" :key="s.id" class="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm" :class="s.archived ? 'text-gray-400' : ''">
-					<span><b :class="s.archived ? 'font-normal line-through' : 'text-gray-900'">{{ s.name }}</b> <span class="text-xs">{{ s.category ?? '' }} · used by {{ s.uses }}</span></span>
-					<span class="flex gap-3 text-xs font-semibold">
-						<button v-if="!s.archived" type="button" class="text-primary-700" @click="Object.assign(svc, { id: s.id, name: s.name, category: s.category ?? '' })">Rename</button>
-						<button type="button" :class="s.archived ? 'text-green-700' : 'text-rose-700'" @click="archive(s.id, !s.archived)">{{ s.archived ? 'Restore' : 'Archive' }}</button>
-					</span>
-				</li>
-			</ul>
-		</section>
-
 		<!-- Announcements -->
 		<section v-if="tab === 'announcements'" class="mt-5 rounded-2xl border border-gray-200 bg-white p-6">
 			<h2 class="text-base font-bold text-gray-900">Announcements</h2>
@@ -140,9 +115,7 @@
 				<label class="text-xs font-semibold text-gray-600 sm:col-span-2">Title<input v-model="ann.title" maxlength="120" class="mt-1 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"></label>
 				<label class="text-xs font-semibold text-gray-600 sm:col-span-2">Message<textarea v-model="ann.body" rows="2" maxlength="1000" class="mt-1 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm" /></label>
 				<label class="text-xs font-semibold text-gray-600">Who sees it
-					<select v-model="ann.audience" class="mt-1 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">
-						<option value="all">Everyone (including visitors)</option><option value="organizers">Organizers</option><option value="clients">Clients</option>
-					</select>
+					<FormsSelect v-model="ann.audience" class="mt-1" :can-clear="false" :options="[{ value: 'all', label: 'Everyone (including visitors)' }, { value: 'organizers', label: 'Organizers' }, { value: 'clients', label: 'Clients' }]" />
 				</label>
 				<div class="flex gap-3">
 					<label class="flex-1 text-xs font-semibold text-gray-600">Starts<input v-model="ann.starts_at" type="datetime-local" class="mt-1 block w-full rounded-xl border border-gray-200 bg-white px-2 py-2 text-sm"></label>
@@ -173,17 +146,17 @@
 </template>
 
 <script setup lang="ts">
-import type { Announcement, CatalogService, FeeState, FeeVersion, PlatformSetting } from '~/composables/useAdmin'
+import type { Announcement, FeeState, FeeVersion, PlatformSetting } from '~/composables/useAdmin'
 import type { AdminBilling } from '~/composables/useBilling'
 import { limitLabels } from '~/composables/useBilling'
 
 definePageMeta({ layout: 'superadmin' })
 
-type Tab = 'platform' | 'plans' | 'catalog' | 'announcements'
+type Tab = 'platform' | 'plans' | 'announcements'
 const route = useRoute()
 const admin = useAdmin()
-const tabs: { key: Tab, label: string }[] = [{ key: 'platform', label: 'Fee & limits' }, { key: 'plans', label: 'Plans' }, { key: 'catalog', label: 'Service catalog' }, { key: 'announcements', label: 'Announcements' }]
-const tab = ref<Tab>((['platform', 'plans', 'catalog', 'announcements'] as Tab[]).includes(route.query.tab as Tab) ? route.query.tab as Tab : 'platform')
+const tabs: { key: Tab, label: string }[] = [{ key: 'platform', label: 'Fee & limits' }, { key: 'plans', label: 'Plans' }, { key: 'announcements', label: 'Announcements' }]
+const tab = ref<Tab>((['platform', 'plans', 'announcements'] as Tab[]).includes(route.query.tab as Tab) ? route.query.tab as Tab : 'platform')
 const error = ref('')
 const notice = ref('')
 const busy = ref(false)
@@ -191,12 +164,9 @@ const busy = ref(false)
 const overview = ref<{ settings: PlatformSetting[], fee: FeeState } | null>(null)
 const values = reactive<Record<string, number>>({})
 const fee = reactive({ enabled: true, model: 'percentage' as FeeVersion['model'], percent: 1 as number | null, fixed: null as number | null, reason: '' })
-const services = ref<CatalogService[]>([])
-const svc = reactive({ id: '', name: '', category: '' })
 const announcements = ref<Announcement[]>([])
 const ann = reactive({ id: '', title: '', body: '', audience: 'all', starts_at: '', ends_at: '' })
 
-const categories = computed(() => [...new Set(services.value.map(s => s.category).filter(Boolean))] as string[])
 const audienceLabel = { all: 'Everyone', organizers: 'Organizers', clients: 'Clients' }
 const stateBadge = { live: 'bg-green-50 text-green-700', scheduled: 'bg-sky-50 text-sky-700', ended: 'bg-gray-100 text-gray-600' }
 
@@ -262,18 +232,6 @@ const savePlan = async (id: string) => {
 	if (await run(() => billingApi.updatePlan(id, body), plan.name + ' saved.')) await loadPlans()
 }
 
-async function loadServices() { services.value = await admin.services() }
-function resetService() { Object.assign(svc, { id: '', name: '', category: '' }) }
-const saveService = async () => {
-	if (await run(() => admin.saveService({ name: svc.name.trim(), category: svc.category.trim() || null }, svc.id || undefined), svc.id ? 'Service updated.' : 'Service added.')) {
-		resetService()
-		await loadServices()
-	}
-}
-const archive = async (id: string, yes: boolean) => {
-	if (await run(() => admin.archiveService(id, yes), yes ? 'Service archived.' : 'Service restored.')) await loadServices()
-}
-
 async function loadAnnouncements() { announcements.value = await admin.announcements() }
 function resetAnnouncement() { Object.assign(ann, { id: '', title: '', body: '', audience: 'all', starts_at: '', ends_at: '' }) }
 function editAnnouncement(a: Announcement) {
@@ -293,7 +251,7 @@ const removeAnnouncement = async (id: string) => {
 async function load() {
 	error.value = ''
 	try {
-		await ({ platform: loadPlatform, plans: loadPlans, catalog: loadServices, announcements: loadAnnouncements })[tab.value]()
+		await ({ platform: loadPlatform, plans: loadPlans, announcements: loadAnnouncements })[tab.value]()
 	} catch (e) {
 		error.value = authMessage(e)
 	}

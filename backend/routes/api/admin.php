@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\Admin\AdminController;
 use App\Http\Controllers\Api\V1\Organizations\EventTypeSuggestionController;
+use App\Http\Controllers\Api\V1\Organizations\ServiceSuggestionController;
 use App\Http\Controllers\Api\V1\Organizations\NaseryAccessController;
 use App\Http\Controllers\Api\V1\Payments\EarningsController;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +32,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])->where($ids)->group(fu
     Route::prefix('admin')->name('admin.')->middleware('account:admin')->group(function () {
         Route::get('overview', [AdminController::class, 'overview'])->name('overview');
         Route::get('analytics', [AdminController::class, 'analytics'])->name('analytics');
+        Route::get('earnings', [AdminController::class, 'earnings'])->name('earnings');
         Route::get('events', [AdminController::class, 'events'])->name('events');
 
         Route::get('access', [AdminController::class, 'access'])->name('access');
@@ -68,6 +70,10 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])->where($ids)->group(fu
         Route::get('event-type-suggestions', [EventTypeSuggestionController::class, 'pending'])->name('event-type-suggestions');
         Route::post('event-type-suggestions/{suggestion}/{decision}', [EventTypeSuggestionController::class, 'decide'])
             ->whereUuid('suggestion')->whereIn('decision', ['approve', 'merge', 'reject'])->middleware('throttle:sensitive')->name('event-type-suggestions.decide');
+        // 0056: organizers' service suggestions, the same way.
+        Route::get('service-suggestions', [ServiceSuggestionController::class, 'pending'])->name('service-suggestions');
+        Route::post('service-suggestions/{suggestion}/{decision}', [ServiceSuggestionController::class, 'decide'])
+            ->whereUuid('suggestion')->whereIn('decision', ['approve', 'merge', 'reject'])->middleware('throttle:sensitive')->name('service-suggestions.decide');
         Route::get('services', [AdminController::class, 'services'])->name('services');
         Route::post('services', [AdminController::class, 'saveService'])->middleware('throttle:sensitive')->name('services.store');
         Route::patch('services/{service}', [AdminController::class, 'saveService'])->middleware('throttle:sensitive')->name('services.update');

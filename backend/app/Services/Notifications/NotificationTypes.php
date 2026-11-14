@@ -30,8 +30,11 @@ final class NotificationTypes
         'access.update' => ['label' => 'NaSeRy support access started or ended', 'group' => 'organizer', 'critical' => false, 'email' => true],
         'billing.update' => ['label' => 'Your plan, payments and renewals', 'group' => 'organizer', 'critical' => true, 'email' => true],
         'payout.update' => ['label' => 'Payouts of your ticket earnings', 'group' => 'organizer', 'critical' => true, 'email' => true],
+        'refund.requested' => ['label' => 'Buyers asking for a refund', 'group' => 'organizer', 'critical' => true, 'email' => true],
         'refund.claim_reviewed' => ['label' => 'NaSeRy reviewed a refund fee claim', 'group' => 'organizer', 'critical' => true, 'email' => true],
         'event_type.decided' => ['label' => 'Decisions on event types you suggested', 'group' => 'organizer', 'critical' => false, 'email' => true],
+        'service.decided' => ['label' => 'Decisions on services you suggested', 'group' => 'organizer', 'critical' => false, 'email' => true],
+        'application.note' => ['label' => 'Notes from NaSeRy about your application', 'group' => 'organizer', 'critical' => false, 'email' => true],
         // Clients
         'quotation.received' => ['label' => 'Quotations from organizers', 'group' => 'client', 'critical' => false, 'email' => true],
         'event.created' => ['label' => 'Your organizer set up your event', 'group' => 'client', 'critical' => false, 'email' => true],
@@ -39,8 +42,10 @@ final class NotificationTypes
         'message.client' => ['label' => 'Messages from organizers about your inquiries', 'group' => 'client', 'critical' => false, 'email' => true],
         'review.requested' => ['label' => 'Invitations to review your organizer', 'group' => 'client', 'critical' => false, 'email' => true],
         'review.replied' => ['label' => 'Your organizer replied to your review', 'group' => 'client', 'critical' => false, 'email' => true],
+        'booking.cancellation' => ['label' => 'Requests to cancel a booking', 'group' => 'tickets', 'critical' => true, 'email' => true],
         // Everyone with tickets / events
         'tickets.issued' => ['label' => 'Your tickets are ready', 'group' => 'tickets', 'critical' => false, 'email' => false],
+        'refund.answered' => ['label' => 'Answers to your refund requests', 'group' => 'tickets', 'critical' => true, 'email' => true],
         'payment.refunded' => ['label' => 'Refunds', 'group' => 'tickets', 'critical' => true, 'email' => true],
         'ticket.cancelled' => ['label' => 'A ticket of yours was cancelled', 'group' => 'tickets', 'critical' => true, 'email' => true],
         'event.cancelled' => ['label' => 'An event you are part of was cancelled', 'group' => 'tickets', 'critical' => true, 'email' => true],
@@ -52,6 +57,8 @@ final class NotificationTypes
         'admin.report' => ['label' => 'Reported reviews', 'group' => 'admin', 'critical' => false, 'email' => true],
         'admin.access' => ['label' => 'Workspace access answers and support invites', 'group' => 'admin', 'critical' => false, 'email' => true],
         'admin.event_type' => ['label' => 'Event types suggested by organizers', 'group' => 'admin', 'critical' => false, 'email' => true],
+        'admin.refund' => ['label' => 'Refunds made by organizers', 'group' => 'admin', 'critical' => false, 'email' => true],
+        'admin.service' => ['label' => 'Services suggested by organizers', 'group' => 'admin', 'critical' => false, 'email' => true],
     ];
 
     public static function exists(string $type): bool

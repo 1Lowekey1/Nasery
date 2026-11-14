@@ -107,6 +107,7 @@ const classes = {
     background: #fff;
     box-shadow: 0 12px 32px -8px rgba(16, 63, 77, 0.18), 0 2px 6px -2px rgba(16, 63, 77, 0.08);
     max-height: 260px;
+    overflow-y: auto;
     z-index: 60;
     animation: ns-select-in 0.12s ease-out;
 }

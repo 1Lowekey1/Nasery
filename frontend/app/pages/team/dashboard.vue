@@ -2,7 +2,7 @@
     <div>
         <div class="mb-7">
             <p class="text-sm font-semibold text-primary-700">Team Member Portal</p>
-            <h1 class="mt-1 text-2xl font-extrabold text-gray-900">Hi there, {{ firstName }} 👋</h1>
+            <h1 class="mt-1 text-2xl font-extrabold text-gray-900">Hi there, {{ firstName }}</h1>
             <p class="mt-1 text-gray-500">View your assigned event tasks and update your progress.</p>
         </div>
         <div class="grid grid-cols-2 gap-2.5 sm:gap-5 xl:grid-cols-4">

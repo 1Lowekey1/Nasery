@@ -50,7 +50,7 @@
 					</p>
 					<div class="mt-3 max-h-80 space-y-1 overflow-y-auto pr-1">
 						<div v-for="b in report.timeline.buckets" :key="b.starts_at" class="flex items-center gap-2 text-xs">
-							<span class="w-24 shrink-0 text-right text-gray-500">{{ b.label }}</span>
+							<span class="shrink-0 whitespace-nowrap text-right tabular-nums text-gray-500" :class="longLabels ? 'w-28' : 'w-16'">{{ b.label }}</span>
 							<div class="flex h-3 flex-1 overflow-hidden rounded-sm bg-gray-50" :title="`${b.check_ins} check-ins, ${b.walk_ins} walk-ins`">
 								<div class="h-full bg-primary-700" :style="{ width: b.check_ins / maxBucket * 100 + '%' }" />
 								<div class="h-full bg-primary-200" :style="{ width: b.walk_ins / maxBucket * 100 + '%' }" />
@@ -77,13 +77,8 @@
 			<div class="flex flex-wrap items-center gap-2">
 				<h3 class="mr-auto text-base font-bold text-gray-900">Guest list</h3>
 				<input v-model="q" placeholder="Search name" aria-label="Search guests" class="w-48 rounded-lg border border-gray-200 px-3 py-2 text-sm">
-				<select v-model="status" aria-label="Status" class="rounded-lg border border-gray-200 bg-white px-2 py-2 text-sm">
-					<option value="">Everyone</option>
-					<option value="attended">Attended</option>
-					<option value="no_show">No-shows</option>
-					<option value="cancelled">Cancelled</option>
-					<option value="walk_in">Walk-ins (names)</option>
-				</select>
+				<div class="w-40"><FormsSelect v-model="order" :can-clear="false" :searchable="false" :options="[{ value: 'asc', label: 'Earliest first' }, { value: 'desc', label: 'Latest first' }]" /></div>
+				<div class="w-44"><FormsSelect v-model="status" :options="[{ value: 'attended', label: 'Attended' }, { value: 'no_show', label: 'No-shows' }, { value: 'cancelled', label: 'Cancelled' }, { value: 'walk_in', label: 'Walk-ins (names)' }]" placeholder="Everyone" /></div>
 			</div>
 			<div class="mt-3 overflow-x-auto">
 				<table v-table-cards class="w-full min-w-[560px] text-left text-sm">
@@ -112,9 +107,23 @@ const props = defineProps<{ report: AttendanceReport }>()
 
 const q = ref('')
 const status = ref('')
+// Arrival order (adviser, 2026-11): check-ins by time, then no-shows, then cancelled.
+const order = ref<'asc' | 'desc'>('asc')
+const rank: Record<string, number> = { attended: 0, walk_in: 0, no_show: 1, cancelled: 2 }
+// Reports shared before check-in times were saved only have the shown time, e.g. "Oct 17, 1:54 PM".
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+function shownTime(shown: string | null | undefined): string {
+	const m = /^([A-Z][a-z]{2}) (\d{1,2}), (\d{1,2}):(\d{2}) (AM|PM)$/.exec(shown ?? '')
+	if (!m || !MONTHS.includes(m[1]!)) return ''
+	const hour = (Number(m[3]) % 12) + (m[5] === 'PM' ? 12 : 0)
+	const pad = (n: number) => String(n).padStart(2, '0')
+	return `${pad(MONTHS.indexOf(m[1]!) + 1)}-${pad(Number(m[2]))} ${pad(hour)}:${m[4]}`
+}
 const t = computed(() => props.report.totals)
 const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 10) / 10}%`)
 const money = (v: string) => formatPeso(v) || '₱0'
+// Times only ("1:45 PM") need a narrow column; multi-day events add the date.
+const longLabels = computed(() => props.report.timeline.buckets.some(b => b.label.length > 8))
 const maxBucket = computed(() => Math.max(1, ...props.report.timeline.buckets.map(b => b.check_ins + b.walk_ins)))
 const statusTone: Record<string, string> = {
 	attended: 'bg-green-50 text-green-700', no_show: 'bg-amber-50 text-amber-800', cancelled: 'bg-gray-100 text-gray-500', walk_in: 'bg-primary-50 text-primary-700',
@@ -128,9 +137,16 @@ const cards = computed(() => [
 ])
 
 const rows = computed(() => {
-	const tickets = (props.report.attendees ?? []).map(a => ({ name: a.name, tier: a.tier as string | null, status: a.status as string, label: attendeeStatusLabels[a.status], at: a.first_check_in }))
-	const walkIns = (props.report.walk_in_names ?? []).map(w => ({ name: w.name, tier: null, status: 'walk_in', label: 'Walk-in', at: w.at }))
+	const tickets = (props.report.attendees ?? []).map(a => ({ name: a.name, tier: a.tier as string | null, status: a.status as string, label: attendeeStatusLabels[a.status], at: a.first_check_in, time: a.checked_in_at || shownTime(a.first_check_in) }))
+	const walkIns = (props.report.walk_in_names ?? []).map(w => ({ name: w.name, tier: null, status: 'walk_in', label: 'Walk-in', at: w.at, time: w.checked_in_at || shownTime(w.at) }))
 	const term = q.value.trim().toLowerCase()
-	return [...tickets, ...walkIns].filter(r => (!status.value || r.status === status.value) && (!term || r.name.toLowerCase().includes(term)))
+	const dir = order.value === 'desc' ? -1 : 1
+	return [...tickets, ...walkIns]
+		.map((r, i) => ({ ...r, i }))
+		.sort((a, b) => (rank[a.status] ?? 3) - (rank[b.status] ?? 3)
+			|| (a.time && b.time ? dir * a.time.localeCompare(b.time) : 0)
+			|| (a.time || b.time ? 0 : a.i - b.i)
+			|| a.name.localeCompare(b.name))
+		.filter(r => (!status.value || r.status === status.value) && (!term || r.name.toLowerCase().includes(term)))
 })
 </script>

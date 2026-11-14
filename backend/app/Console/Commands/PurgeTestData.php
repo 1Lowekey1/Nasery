@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Organizations\OrganizationDocuments;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -160,9 +161,14 @@ class PurgeTestData extends Command
                     ->whereIn('inquiry_id', $inquiries)->orWhereIn('organization_id', $orgs)->select('id'))->orWhereIn('sender_user_id', $users)->delete(),
                 'inquiry_organizations' => $db->table('inquiry_organizations')->whereIn('inquiry_id', $inquiries)->orWhereIn('organization_id', $orgs)->delete(),
                 'inquiry_services' => $db->table('inquiry_services')->whereIn('inquiry_id', $inquiries)->delete(),
+                'booking_cancellations' => $db->table('booking_cancellations')->whereIn('inquiry_id', $inquiries)->orWhereIn('organization_id', $orgs)->delete(),
                 'inquiries' => $db->table('inquiries')->whereIn('id', $inquiries)->delete(),
                 'organizer_approval_requests' => $db->table('organizer_approval_requests')->whereIn('organization_id', $orgs)->delete(),
+                'organization_documents' => $this->purgeDocuments($db, $orgs, $users),
                 'ownership_transfers' => $db->table('ownership_transfers')->whereIn('organization_id', $orgs)->delete(),
+                // 0054 / 0056: organizers' suggestions, and ones the purged admins decided (a decision must name its admin).
+                'event_type_suggestions' => $db->table('event_type_suggestions')->whereIn('organization_id', $orgs)->orWhereIn('suggested_by', $users)->orWhereIn('decided_by', $users)->delete(),
+                'service_suggestions' => $db->table('service_suggestions')->whereIn('organization_id', $orgs)->orWhereIn('suggested_by', $users)->orWhereIn('decided_by', $users)->delete(),
                 'organization_services' => $db->table('organization_services')->whereIn('organization_id', $orgs)->delete(),
                 'event_types' => $db->table('event_types')->whereIn('organization_id', $orgs)->delete(),
                 'event_stages' => $db->table('event_stages')->whereIn('organization_id', $orgs)->delete(),
@@ -196,5 +202,15 @@ class PurgeTestData extends Command
         $this->call('nasery:media:prune');
 
         return self::SUCCESS;
+    }
+
+    /** 0057: the rows, and the private files they point to. */
+    private function purgeDocuments($db, $orgs, $users): int
+    {
+        $rows = $db->table('organization_documents')->whereIn('organization_id', $orgs)->orWhereIn('uploaded_by', $users);
+        $store = app(OrganizationDocuments::class);
+        (clone $rows)->pluck('stored_path')->each(fn (string $path) => @unlink($store->absolute($path)));
+
+        return $rows->delete();
     }
 }

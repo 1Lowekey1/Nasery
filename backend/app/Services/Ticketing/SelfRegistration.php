@@ -88,6 +88,13 @@ class SelfRegistration
     /**
      * @return array<string, mixed>|null
      */
+    /** A listed event the organizer called off (for a clear message on its page). */
+    public function wasCancelled(string $eventId): bool
+    {
+        return \Illuminate\Support\Str::isUuid($eventId) && $this->db->system('public.event_cancelled', fn () => DB::table('events')->where('id', $eventId)
+            ->where('status', 'cancelled')->where('visibility', 'public')->whereNull('deleted_at')->exists());
+    }
+
     public function event(string $eventId, ?string $key = null): ?array
     {
         return $this->db->system('public.event', function () use ($eventId, $key) {
@@ -231,19 +238,25 @@ class SelfRegistration
                 ->where('r.purchaser_user_id', $user->id)->whereNull('t.deleted_at')
                 ->where('t.status', '!=', TicketStatus::Pending->value)
                 ->orderByDesc('t.created_at')->limit(200)
-                ->get(['t.id', 't.status', 't.admission_type', 't.event_id', 'a.full_name', 'tt.name as tier', 'tt.zone_name', 'tt.benefits',
+                ->get(['t.id', 't.status', 't.admission_type', 't.event_id', 't.registration_id', 'a.full_name', 'tt.name as tier', 'tt.zone_name', 't.seat_label', 'tt.benefits',
                     'e.name as event', 'e.status as event_status', 'e.timezone', 'e.venue_name', 'e.venue_address', 'o.display_name as organizer']);
 
             $qrs = QrTicket::query()->whereIn('ticket_id', $rows->pluck('id'))->where('status', 'active')->get()->keyBy('ticket_id');
             $starts = DB::table('event_sessions')->whereIn('event_id', $rows->pluck('event_id')->unique())->whereNull('deleted_at')
                 ->where('status', '!=', 'cancelled')->groupBy('event_id')->selectRaw('event_id, min(starts_at) as starts_at')->pluck('starts_at', 'event_id');
 
+            $refunds = app(\App\Services\Payments\RefundRequests::class);
+            $refundState = $rows->pluck('registration_id')->unique()->mapWithKeys(fn ($id) => [$id => $refunds->stateFor($id)]);
+
             return $rows->map(fn ($r) => [
                 'id' => $r->id,
                 'status' => $r->status,
+                // 0061: paid purchases can be refunded on request (the organizer decides).
+                'refund' => $refundState[$r->registration_id],
                 'attendee' => $r->full_name,
                 'tier' => $r->tier,
                 'zone' => $r->zone_name,
+                'seat' => $r->seat_label,
                 'benefits' => json_decode((string) $r->benefits, true) ?? [],
                 'event_id' => $r->event_id,
                 'event' => $r->event,

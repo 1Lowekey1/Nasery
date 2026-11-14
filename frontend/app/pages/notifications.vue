@@ -1,6 +1,6 @@
 <template>
 	<NuxtLayout :name="layout">
-		<div class="mx-auto max-w-3xl" :class="layout === 'public' ? 'px-5 pt-8 pb-16 sm:px-8' : ''">
+		<div :class="layout === 'public' ? 'mx-auto max-w-3xl px-5 pt-8 pb-16 sm:px-8' : ''">
 			<h1 class="text-2xl font-extrabold text-gray-900">Notifications</h1>
 			<p class="mt-1 text-gray-500">Updates about your events, tickets and team. You always see them here; choose which also come by e-mail.</p>
 
@@ -17,12 +17,15 @@
 			<section v-if="tab !== 'settings'" class="rounded-2xl border border-gray-200 bg-white">
 				<div class="flex items-center justify-between border-b border-gray-100 px-5 py-3">
 					<p class="text-sm text-gray-500">{{ tab === 'unread' ? 'Unread' : 'All notifications' }}</p>
-					<button v-if="unread" type="button" class="tap-target text-sm font-semibold text-primary-700" @click="readAll">Mark all read</button>
+					<div class="flex items-center gap-4">
+						<button v-if="unread" type="button" class="tap-target text-sm font-semibold text-primary-700" @click="readAll">Mark all read</button>
+						<button v-if="items.length" type="button" class="tap-target text-sm font-semibold text-gray-500 hover:text-rose-700" @click="clearAll">Clear all</button>
+					</div>
 				</div>
 				<p v-if="loading && !items.length" class="px-5 py-10 text-center text-sm text-gray-400">Loading…</p>
 				<p v-else-if="!items.length" class="px-5 py-10 text-center text-sm text-gray-400">{{ tab === 'unread' ? "You're all caught up." : 'No notifications yet.' }}</p>
 				<ul v-else class="divide-y divide-gray-100">
-					<li v-for="n in items" :key="n.id" class="flex gap-3 px-5 py-4">
+					<li v-for="n in items" :key="n.id" class="flex gap-3 px-5 py-4" :class="{ 'live-fresh': isFreshNotice(n) }">
 						<span class="mt-1.5 h-2 w-2 shrink-0 rounded-full" :class="n.read ? 'bg-gray-200' : n.critical ? 'bg-rose-600' : 'bg-primary-600'" aria-hidden="true" />
 						<div class="min-w-0 flex-1">
 							<p class="text-sm" :class="n.read ? 'text-gray-700' : 'font-semibold text-gray-900'">{{ n.title }}</p>
@@ -32,6 +35,7 @@
 						<div class="flex shrink-0 flex-col items-end gap-1">
 							<button v-if="n.url" type="button" class="tap-target text-sm font-semibold text-primary-700" @click="openItem(n)">Open</button>
 							<button v-if="!n.read" type="button" class="tap-target text-xs text-gray-500 hover:text-gray-800" @click="markRead(n)">Mark read</button>
+							<button type="button" class="tap-target text-xs text-gray-400 hover:text-rose-700" @click="clearOne(n)">Clear</button>
 						</div>
 					</li>
 				</ul>
@@ -95,8 +99,8 @@ const groupedPrefs = computed(() => (['admin', 'organizer', 'client', 'tickets',
 	.map(key => ({ key, label: groupLabels[key], items: prefs.value.filter(p => p.group === key) }))
 	.filter(g => g.items.length))
 
-async function load(p = 1) {
-	loading.value = true
+async function load(p = 1, quiet = false) {
+	if (!quiet) loading.value = true
 	error.value = ''
 	try {
 		const r = await api.list({ unread: tab.value === 'unread', page: p })
@@ -137,6 +141,17 @@ async function openItem(n: AppNotification) {
 	if (n.url) await navigateTo(n.url)
 }
 
+async function clearOne(n: AppNotification) {
+	await api.remove(n.id)
+	items.value = items.value.filter(i => i.id !== n.id)
+}
+
+async function clearAll() {
+	if (!(await confirmDialog('Clear all your notifications? They disappear from this list.', { confirmLabel: 'Clear all' }))) return
+	await api.clearAll()
+	items.value = []
+}
+
 async function readAll() {
 	await api.readAll()
 	items.value = tab.value === 'unread' ? [] : items.value.map(n => ({ ...n, read: true }))
@@ -156,4 +171,7 @@ async function save() {
 }
 
 onMounted(() => (tab.value === 'settings' ? loadPrefs() : load()))
+// Live: new notices slide into the list on their own and glow for a moment.
+useLiveRefresh(() => (tab.value === 'settings' ? undefined : load(page.value, true)), { interval: 30000 })
+const isFreshNotice = useFreshKeys(() => items.value, n => n.id)
 </script>

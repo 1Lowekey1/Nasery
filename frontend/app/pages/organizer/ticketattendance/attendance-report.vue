@@ -47,6 +47,10 @@
             </div>
         </section>
 
+        <!-- Once the event is completed: export the summary as PDF and share it with the client. -->
+        <OrganizerEventSummaryCard v-if="selectedEvent?.status === 'completed' && organizationId" :key="selectedEvent.id"
+            :organization-id="organizationId" :event-id="String(selectedEvent.id)" />
+
         <template v-if="selectedEventId">
             <div v-if="isLoading" class="rounded-3xl border border-gray-200 bg-white py-20 text-center">
                 <IconBase name="refresh-cw" class="mx-auto h-6 w-6 animate-spin text-gray-400" />
@@ -415,6 +419,8 @@ const selectedEvent =
             )
         },
     )
+
+const organizationId = computed(() => useOrganization().organization.value?.id ?? '')
 
 const attendees =
     ref<Attendee[]>([])
@@ -906,7 +912,8 @@ function exportCsv() {
 
                 formatCategory(attendee.attendee_category),
 
-                attendee.ticket_id,
+                // T- keeps it text: Excel reads an ID like 12E456 as a number.
+                `T-${attendee.ticket_id}`,
 
                 formatSource(
                     attendee.source,

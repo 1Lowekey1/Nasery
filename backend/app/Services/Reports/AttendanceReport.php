@@ -31,11 +31,76 @@ class AttendanceReport
     public function __construct(private readonly DatabaseContext $db) {}
 
     /**
+     * The rest of the event's story for the PDF: who it was for, what was
+     * agreed, the program, preparation and the client's review. The price
+     * needs Finance on the organizer's side (the client agreed to it, so they
+     * always see it). Clients only get program items marked for them.
+     *
      * @return array<string, mixed>
      */
-    public function build(Event $event, bool $withRevenue, bool $withAttendees = true): array
+    private function summary(Event $event, string $tz, bool $withPackage, bool $forClient): array
     {
-        return $this->db->system('report.build', function () use ($event, $withRevenue, $withAttendees) {
+        $inquiry = $event->inquiry_id ? DB::table('inquiries')->where('id', $event->inquiry_id)->first(['client_user_id', 'guest_count', 'event_type_id']) : null;
+        $typeId = $event->event_type_id ?? $inquiry?->event_type_id;
+        $client = $inquiry ? DB::table('users')->where('id', $inquiry->client_user_id)->first(['first_name', 'last_name']) : null;
+
+        $tasks = DB::table('tasks as t')->join('checklists as c', 'c.id', '=', 't.checklist_id')
+            ->where('c.event_id', $event->id)->whereNull('c.deleted_at')->whereNull('t.deleted_at')
+            ->where('t.status', '!=', 'cancelled')->pluck('t.status');
+
+        $program = DB::table('event_activities')->where('event_id', $event->id)->whereNull('deleted_at')
+            ->when($forClient, fn ($q) => $q->where('visible_to_client', true))
+            ->orderByRaw('activity_at nulls last')->orderBy('created_at')
+            ->get(['title', 'person', 'status', 'activity_at']);
+
+        $review = DB::table('reviews')->where('event_id', $event->id)->whereNull('deleted_at')
+            ->where('status', 'published')->orderByDesc('created_at')->first(['rating', 'written_review']);
+
+        return [
+            'client' => $client ? trim("{$client->first_name} {$client->last_name}") : null,
+            'event_type' => $typeId ? DB::table('event_types')->where('id', $typeId)->value('name') : null,
+            'requested_guests' => $inquiry?->guest_count,
+            'description' => $event->description,
+            'package' => $withPackage ? $this->package($event) : null,
+            'tasks' => ['done' => $tasks->filter(fn ($s) => $s === 'done')->count(), 'total' => $tasks->count()],
+            'program' => $program->map(fn ($a) => [
+                'title' => $a->title,
+                'when' => $a->activity_at ? $this->local($a->activity_at, $tz) : null,
+                'person' => $a->person,
+                'status' => $a->status,
+            ])->values()->all(),
+            'review' => $review ? ['rating' => (int) $review->rating, 'text' => $review->written_review] : null,
+        ];
+    }
+
+    /** @return array<string, mixed>|null the accepted offer and the final agreed price */
+    private function package(Event $event): ?array
+    {
+        $quotation = $event->accepted_quotation_id
+            ? DB::table('quotations')->where('id', $event->accepted_quotation_id)->first(['id', 'package_name', 'total_amount'])
+            : null;
+        if ($quotation === null && $event->agreed_amount === null) {
+            return null;
+        }
+
+        return [
+            'name' => $quotation?->package_name,
+            'items' => $quotation ? DB::table('quotation_items')->where('quotation_id', $quotation->id)->orderBy('created_at')
+                ->get(['description', 'quantity', 'subtotal'])->map(fn ($i) => [
+                    'description' => $i->description, 'quantity' => (float) $i->quantity, 'subtotal' => $i->subtotal,
+                ])->values()->all() : [],
+            'quoted_total' => $quotation?->total_amount,
+            'agreed_amount' => $event->agreed_amount,
+            'agreed_note' => $event->agreed_amount_note,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function build(Event $event, bool $withRevenue, bool $withAttendees = true, bool $forClient = false): array
+    {
+        return $this->db->system('report.build', function () use ($event, $withRevenue, $withAttendees, $forClient) {
             $tz = $event->timezone ?: 'Asia/Manila';
             $sessions = DB::table('event_sessions')->where('event_id', $event->id)->whereNull('deleted_at')
                 ->where('status', '!=', 'cancelled')->orderBy('starts_at')->get(['id', 'name', 'starts_at', 'ends_at']);
@@ -101,6 +166,7 @@ class AttendanceReport
                     'walk_ins' => (int) $unticketed->where('event_session_id', $s->id)->sum('count'),
                 ])->values()->all(),
                 'timeline' => $this->timeline($attendance, $unticketed, $tz),
+                'summary' => $this->summary($event, $tz, $withRevenue || $forClient, $forClient),
             ];
 
             if ($withRevenue) {
@@ -123,12 +189,14 @@ class AttendanceReport
                             default => 'no_show',
                         },
                         'first_check_in' => $records->isNotEmpty() ? $this->local($records->first()->checked_in_at, $tz)->format('M j, g:i A') : null,
+                        'checked_in_at' => $records->isNotEmpty() ? $this->sortable($records->first()->checked_in_at) : null,
                         'sessions_attended' => $records->count(),
                         'method' => $records->isNotEmpty() ? ($records->contains('method', 'qr_scan') ? 'QR' : 'manual') : null,
                     ];
-                })->values()->all();
+                })->sort(fn ($a, $b) => self::arrivalOrder($a, $b))->values()->all();
                 $report['walk_in_names'] = $unticketed->whereNotNull('full_name')->map(fn ($w) => [
                     'name' => $w->full_name, 'at' => $this->local($w->recorded_at, $tz)->format('M j, g:i A'),
+                    'checked_in_at' => $this->sortable($w->recorded_at),
                 ])->values()->all();
             }
 
@@ -238,6 +306,44 @@ class AttendanceReport
             'door_cash' => $money($door),
             'total' => $money($net + $door),
         ];
+    }
+
+    /**
+     * Adviser's order (2026-11): who arrived first is on top, then no-shows, then
+     * cancelled tickets; names break ties.
+     *
+     * @param  array<string, mixed>  $a
+     * @param  array<string, mixed>  $b
+     */
+    public static function arrivalOrder(array $a, array $b): int
+    {
+        $rank = fn ($r) => ['attended' => 0, 'no_show' => 1, 'cancelled' => 2][$r['status']] ?? 3;
+
+        return [$rank($a), self::arrivalKey($a), mb_strtolower($a['name'] ?? '')]
+            <=> [$rank($b), self::arrivalKey($b), mb_strtolower($b['name'] ?? '')];
+    }
+
+    /**
+     * Reports shared before checked_in_at existed only have the shown time
+     * ("Oct 17, 1:54 PM"); read that instead, so their PDFs sort the same way.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private static function arrivalKey(array $row): string
+    {
+        if (! empty($row['checked_in_at'])) {
+            return (string) $row['checked_in_at'];
+        }
+        $shown = $row['first_check_in'] ?? null;
+        $at = is_string($shown) ? CarbonImmutable::createFromFormat('!M j, g:i A', $shown) : false;
+
+        return $at ? $at->format('m-d H:i') : '';
+    }
+
+    /** A time that sorts as text (UTC, microseconds). */
+    private function sortable(string $at): string
+    {
+        return CarbonImmutable::parse($at)->utc()->format('Y-m-d H:i:s.u');
     }
 
     private function local(string $at, string $tz): CarbonImmutable

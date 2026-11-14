@@ -102,21 +102,14 @@
 						</div>
 
 						<div class="flex flex-wrap items-center gap-2">
-							<select v-model="selectedEvent" aria-label="Filter by event" class="max-w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-bold text-gray-700 focus:border-primary-500 focus:outline-none sm:max-w-[16rem]">
-								<option :value="null">All events ({{ data.summary.reviews_count }})</option>
-								<option v-for="event in data.events" :key="event.id" :value="event.id">{{ event.name }} · ★ {{ event.average_rating.toFixed(1) }} ({{ event.reviews_count }})</option>
-							</select>
+							<div class="w-full sm:w-64"><FormsSelect v-model="selectedEvent" :options="data.events.map(event => ({ value: event.id, label: `${event.name} · ★ ${event.average_rating.toFixed(1)} (${event.reviews_count})` }))" :placeholder="`All events (${data.summary.reviews_count})`" /></div>
 							<div class="flex rounded-xl bg-gray-100 p-1 text-xs font-bold">
 								<button v-for="option in ratingOptions" :key="option.value" type="button" class="min-h-9 rounded-lg px-3 py-1.5 transition"
 									:class="ratingFilter === option.value ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
 									@click="ratingFilter = option.value">{{ option.label }}</button>
 							</div>
 
-							<select v-model="sort" class="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-xs font-bold text-gray-700 focus:border-primary-500 focus:outline-none">
-								<option value="newest">Newest first</option>
-								<option value="highest">Highest rated</option>
-								<option value="lowest">Lowest rated</option>
-							</select>
+							<div class="w-44"><FormsSelect v-model="sort" :can-clear="false" :options="[{ value: 'newest', label: 'Newest first' }, { value: 'highest', label: 'Highest rated' }, { value: 'lowest', label: 'Lowest rated' }]" /></div>
 
 							<label class="flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition" :class="awaitingOnly ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-gray-200 text-gray-600 hover:bg-gray-50'">
 								<input v-model="awaitingOnly" type="checkbox" class="h-3.5 w-3.5 rounded border-gray-300 text-primary-700 focus:ring-primary-500" />

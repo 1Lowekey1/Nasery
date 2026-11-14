@@ -28,10 +28,7 @@
 
 		<div class="grid items-start gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
 			<!-- Events: a dropdown on phones and tablets, the side list on wide screens -->
-			<select v-model="eventChoice" aria-label="Choose an event" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm font-semibold text-gray-800 focus:border-primary-500 focus:outline-none lg:hidden">
-				<option value="">All events ({{ totalActivities }} {{ totalActivities === 1 ? 'item' : 'items' }})</option>
-				<option v-for="event in timelineEvents" :key="event.key" :value="event.key">{{ event.name }} · {{ monthOf(event.eventDate) }} {{ dayOf(event.eventDate) }} · {{ eventProgress(event).done }}/{{ eventProgress(event).total }}</option>
-			</select>
+			<div class="lg:hidden"><FormsSelect v-model="eventChoice" :options="timelineEvents.map(event => ({ value: event.key, label: `${event.name} · ${monthOf(event.eventDate)} ${dayOf(event.eventDate)} · ${eventProgress(event).done}/${eventProgress(event).total}` }))" :placeholder="`All events (${totalActivities} ${totalActivities === 1 ? 'item' : 'items'})`" /></div>
 			<aside class="hidden min-w-0 lg:sticky lg:top-0 lg:block">
 				<div class="rounded-2xl border border-gray-200 bg-white">
 					<div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
@@ -162,7 +159,7 @@
 											<span v-if="activity.category" class="at-chip">{{ activity.category }}</span>
 											<span v-if="activity.tag" class="at-chip">{{ activity.tag }}</span>
 											<span v-if="activity.person" class="at-chip"><IconBase name="user" class="h-3 w-3" />{{ activity.person }}</span>
-											<button type="button" class="at-chip transition" :class="activity.visible_to_client ? '!border-primary-200 !bg-primary-50 !text-primary-700' : ''"
+											<button type="button" class="at-chip tap-target transition" :class="activity.visible_to_client ? '!border-primary-200 !bg-primary-50 !text-primary-700' : ''"
 												:disabled="togglingId === activity.id"
 												:title="activity.visible_to_client ? 'The client sees this on their timeline. Click to hide it.' : 'Only your team sees this. Click to show it to the client.'"
 												@click="toggleClientVisibility(activity)">

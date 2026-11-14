@@ -36,6 +36,17 @@ export interface EarningsDetails {
   months: (MoneySplit & { month: string })[]
 }
 
+/** A refund returned to a buyer (admin Payouts page). */
+export interface RecentRefund {
+  id: string
+  amount: number
+  reason: string
+  buyer: string | null
+  event: string
+  organizer: string
+  refunded_at: string
+}
+
 export interface PayoutBalance extends Omit<EarningsSummary, 'payouts' | 'plan'> {
   organization: { id: string, name: string }
   last_payout_at: string | null
@@ -51,7 +62,7 @@ export const useEarnings = () => {
     exportCsv: (orgId: string) => api.blob(`${base(orgId)}/export`),
 
     // Admins
-    balances: async () => (await api.get<{ organizers: PayoutBalance[], methods: Record<string, string> }>('/admin/payouts')).data,
+    balances: async () => (await api.get<{ organizers: PayoutBalance[], methods: Record<string, string>, refunds?: RecentRefund[] }>('/admin/payouts')).data,
     payouts: async (orgId: string) => (await api.get<Payout[]>(`/admin/organizations/${orgId}/payouts`)).data,
     record: async (orgId: string, body: { amount: number, method: string, reference: string, note?: string | null, paid_at?: string | null }) =>
       (await api.post<Payout>(`/admin/organizations/${orgId}/payouts`, body, { idempotencyKey: crypto.randomUUID() })).data,

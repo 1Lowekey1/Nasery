@@ -76,17 +76,25 @@ function render(fit = false) {
 	} else {
 		circle.setLatLng(center); circle.setRadius(radius); circle.setStyle({ color, fillColor: color })
 	}
-	if (fit) map.fitBounds(circle.getBounds(), { padding: [24, 24], maxZoom: 15 })
+	if (fit) fitCircle()
+}
+
+/** Zoom in or out so the radius circle fills the map neatly (re-measured first: the map may have just been shown or resized). */
+function fitCircle() {
+	if (!map || !circle) return
+	map.invalidateSize()
+	map.fitBounds(circle.getBounds(), { padding: [16, 16], maxZoom: 15, animate: false })
 }
 
 onMounted(async () => {
 	L = await import('leaflet')
 	if (!container.value) return
 	const start: [number, number] = hasPin.value ? [props.latitude as number, props.longitude as number] : FALLBACK
-	map = L.map(container.value, { scrollWheelZoom: false, zoomControl: true }).setView(start, hasPin.value ? zoomForRadius(props.radiusKm) : 12)
+	map = L.map(container.value, { scrollWheelZoom: false, zoomControl: true, zoomSnap: 0.25 }).setView(start, hasPin.value ? zoomForRadius(props.radiusKm) : 12)
 	L.tileLayer(tileUrl(), { maxZoom: 18, attribution: '&copy; LocationIQ &copy; OpenStreetMap contributors' }).addTo(map)
 	map.on('click', (event: import('leaflet').LeafletMouseEvent) => moveTo(event.latlng.lat, event.latlng.lng))
 	render(true)
+	window.setTimeout(fitCircle, 0)
 })
 
 watch(() => [props.latitude, props.longitude], (now, before) => {

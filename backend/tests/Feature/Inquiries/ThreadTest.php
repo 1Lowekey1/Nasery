@@ -77,6 +77,21 @@ class ThreadTest extends TestCase
         // Alpha replies; the client is told and sees 1 unread.
         $this->actingAs($ownerA)->spaJson('POST', "/api/v1/threads/{$threadA}/messages", ['body' => 'Yes, and we cater too.'])->assertCreated();
         $this->assertSame(1, $this->notified($client, 'message.client'));
+        // Mock defense: alerts say which request the message is about, not only who sent it.
+        $this->assertStringStartsWith('About your', (string) DB::table('notifications')->where('recipient_user_id', $client->id)->where('type', 'message.client')->value('body'));
+
+        // Live updates: the change stamp stays put until something happens for this person.
+        $before = $this->actingAs($client)->spaJson('GET', '/api/v1/me/changes')->assertOk()->json('data.stamp');
+        $this->assertSame($before, $this->actingAs($client)->spaJson('GET', '/api/v1/me/changes')->json('data.stamp'));
+
+        // Clearing: one, then all; cleared notices leave the list and the unread count.
+        $first = DB::table('notifications')->where('recipient_user_id', $client->id)->value('id');
+        $this->actingAs($client)->spaJson('DELETE', "/api/v1/me/notifications/{$first}")->assertOk();
+        $this->actingAs($client)->spaJson('GET', '/api/v1/me/notifications')->assertOk()->assertJsonMissing(['id' => $first]);
+        $this->actingAs($client)->spaJson('POST', '/api/v1/me/notifications/clear')->assertOk();
+        $this->actingAs($client)->spaJson('GET', '/api/v1/me/notifications/unread-count')->assertJsonPath('data.count', 0);
+        $this->actingAs($client)->spaJson('GET', '/api/v1/me/notifications')->assertJsonCount(0, 'data');
+        $this->assertNotSame($before, $this->actingAs($client)->spaJson('GET', '/api/v1/me/changes')->json('data.stamp'));
         $mine = collect($this->actingAs($client)->spaJson('GET', "/api/v1/inquiries/{$inquiry}/threads")->json('data'))->firstWhere('id', $threadA);
         $this->assertSame(1, $mine['unread']);
         $this->actingAs($client)->spaJson('GET', "/api/v1/threads/{$threadA}")->assertJsonPath('data.messages.2.author', fn ($a) => str_starts_with($a, $orgA->display_name));

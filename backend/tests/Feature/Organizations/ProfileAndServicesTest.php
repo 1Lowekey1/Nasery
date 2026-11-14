@@ -80,6 +80,23 @@ class ProfileAndServicesTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_removing_a_service_moves_its_price_options_to_add_ons(): void
+    {
+        $org = $this->onboard($owner = $this->businessUser());
+        $service = $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/services", ['custom_name' => 'Catering'])
+            ->assertCreated()->json('data.id');
+        $option = $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/price-options", [
+            'name' => 'Buffet', 'pricing_unit' => 'per_guest', 'price' => 500, 'organization_service_id' => $service,
+        ])->assertCreated()->json('data.id');
+
+        $this->actingAs($owner)->spaJson('DELETE', "/api/v1/organizations/{$org->id}/services/{$service}")->assertOk();
+
+        $row = collect($this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/price-options")->assertOk()->json('data'))
+            ->firstWhere('id', $option);
+        $this->assertNotNull($row);
+        $this->assertNull($row['organization_service_id']);
+    }
+
     public function test_catalog_is_readable_by_verified_users(): void
     {
         $this->actingAs($this->businessUser())->spaJson('GET', '/api/v1/services')->assertOk()->assertJsonIsArray('data');

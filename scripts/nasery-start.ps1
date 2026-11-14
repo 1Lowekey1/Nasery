@@ -14,8 +14,10 @@
   Each server runs in its own window ("NaSeRy - ..."); leave them open.
   Things already running are left alone, so starting twice is safe.
 
-  Permanent address later (domain + named tunnel): put the address in
-  scripts\public-url.txt (e.g. https://nasery.com) and the tunnel's name in
+  Permanent address (domain + named tunnel): put the address in
+  scripts\public-url.txt (e.g. https://nasery.bid). The tunnel itself is the
+  "Cloudflared" Windows service (installed once with "cloudflared service
+  install <token>"), or, without the service, the tunnel's name in
   scripts\tunnel-name.txt. Then the link never changes.
 #>
 param(
@@ -123,8 +125,17 @@ $urlFile = Join-Path $PSScriptRoot 'public-url.txt'
 $nameFile = Join-Path $PSScriptRoot 'tunnel-name.txt'
 $tunnelUp = [bool](Get-Process cloudflared -ErrorAction SilentlyContinue)
 
-if ((Test-Path $urlFile) -and (Test-Path $nameFile)) {
-  # Named tunnel: fixed address.
+$cfService = Get-Service Cloudflared -ErrorAction SilentlyContinue
+if ((Test-Path $urlFile) -and $cfService) {
+  # Named tunnel installed as the "Cloudflared" Windows service (cloudflared service install <token>):
+  # it starts with Windows and reconnects by itself; the address is fixed (public-url.txt).
+  $url = (Get-Content $urlFile -TotalCount 1).Trim().TrimEnd('/')
+  if ($cfService.Status -ne 'Running') {
+    try { Start-Service Cloudflared -ErrorAction Stop } catch { Fail 'The Cloudflared service is stopped and could not be started. Start it in Services (services.msc), or run start.bat as administrator.' }
+  }
+  Ok "Cloudflare tunnel ($url)"
+} elseif ((Test-Path $urlFile) -and (Test-Path $nameFile)) {
+  # Named tunnel run by name (needs this PC's cloudflared login): fixed address.
   $url = (Get-Content $urlFile -TotalCount 1).Trim().TrimEnd('/')
   if (-not $tunnelUp) { Window 'Cloudflare tunnel' $Root "`"$cf`" tunnel --no-autoupdate run $((Get-Content $nameFile -TotalCount 1).Trim())" }
   Ok "Cloudflare tunnel ($url)"

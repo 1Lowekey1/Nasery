@@ -167,6 +167,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Organizers' proof of business (App\Services\Organizations\OrganizationDocuments)
+    |--------------------------------------------------------------------------
+    |
+    | A private folder, outside the public web folder and the media route.
+    | "required": a new application needs at least one file before approval.
+    |
+    */
+
+    'organizer_documents' => [
+        'root' => env('ORGANIZER_DOCUMENTS_ROOT', storage_path('app/documents')),
+        'max_bytes' => (int) env('ORGANIZER_DOCUMENTS_MAX_BYTES', 10 * 1024 * 1024),
+        'required' => (bool) env('ORGANIZER_DOCUMENTS_REQUIRED', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Demo dataset (nasery:demo:seed)
     |--------------------------------------------------------------------------
     |

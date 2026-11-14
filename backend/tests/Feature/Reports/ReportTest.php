@@ -97,6 +97,8 @@ class ReportTest extends TestCase
         $this->assertSame(15, $r['timeline']['bucket_minutes']);
         $this->assertSame('no_show', collect($r['attendees'])->firstWhere('name', 'Ben')['status']);
         $this->assertSame('cancelled', collect($r['attendees'])->firstWhere('name', 'Cara')['status']);
+        // First in at the top, then no-shows, then cancelled (adviser, 2026-11).
+        $this->assertSame(['Ana', 'Dan', 'Fe', 'Ben', 'Eve', 'Cara'], array_column($r['attendees'], 'name'));
         $this->assertSame([['name' => 'Gino']], array_map(fn ($w) => ['name' => $w['name']], $r['walk_in_names']));
         $this->assertSame('0.00', $r['revenue']['total']); // the owner has finance.view
         $this->assertFalse($r['final']);
@@ -167,6 +169,75 @@ class ReportTest extends TestCase
         // Nobody else can read it.
         $this->actingAs(User::factory()->create())->spaJson('GET', "/api/v1/events/{$event}/report")->assertNotFound();
         $this->assertSame(2, DB::table('audit_logs')->where('action', 'report.shared')->where('new_values->event_id', $event)->count());
+    }
+
+    public function test_the_summary_covers_the_whole_event_and_keeps_private_notes_private(): void
+    {
+        $client = User::factory()->create(['first_name' => 'Nina', 'last_name' => 'Reyes']);
+        [$org, $owner] = $this->listedOrganizer();
+        [$event, $base] = $this->clientEvent($client, $org, $owner);
+
+        foreach ([['Ceremony', true], ['Staff briefing', false]] as [$title, $visible]) {
+            DB::table('event_activities')->insert(['event_id' => $event, 'organization_id' => $org->id, 'title' => $title,
+                'visible_to_client' => $visible, 'created_by' => $owner->id, 'activity_at' => now()]);
+        }
+
+        $this->travelTo(now()->addHours(2));
+        $this->actingAs($owner)->spaJson('POST', "{$base}/complete")->assertOk();
+
+        $mine = $this->actingAs($owner)->spaJson('GET', "{$base}/report")->assertOk()->json('data.summary');
+        $this->assertSame('Nina Reyes', $mine['client']);
+        $this->assertSame('Wedding', $mine['event_type']);
+        $this->assertSame(90, $mine['requested_guests']);
+        $this->assertSame('Package', $mine['package']['items'][0]['description']);
+        $this->assertCount(2, $mine['program']);
+
+        $this->actingAs($owner)->get("{$base}/report/pdf", self::SPA)->assertOk()->assertHeader('Content-Type', 'application/pdf');
+
+        $this->actingAs($owner)->spaJson('POST', "{$base}/report/share", [], $this->key())->assertCreated();
+        $shared = $this->actingAs($client)->spaJson('GET', "/api/v1/events/{$event}/report")->assertOk()->json('data.shared.report.summary');
+        $this->assertSame(['Ceremony'], array_column($shared['program'], 'title'));
+        $this->assertNotNull($shared['package']);
+
+        $this->actingAs($client)->get("/api/v1/events/{$event}/report/pdf", self::SPA)->assertOk()->assertHeader('Content-Type', 'application/pdf');
+    }
+
+    public function test_a_private_events_client_sees_the_guest_list_with_seats_but_no_contact_details(): void
+    {
+        $client = User::factory()->create();
+        [$org, $owner] = $this->listedOrganizer();
+        [$event, $base] = $this->clientEvent($client, $org, $owner, ['visibility' => 'private']);
+        $ana = $this->guest($owner, $base, $this->tier($owner, $base, 'Guest'), 'Ana Cruz');
+
+        $this->actingAs($owner)->spaJson('PATCH', "{$base}/tickets/{$ana['ticket_id']}/seat", ['seat' => ' Table 4 '])->assertOk();
+
+        $guests = $this->actingAs($client)->spaJson('GET', "/api/v1/events/{$event}/guests")->assertOk()->json('data');
+        $this->assertSame([['name' => 'Ana Cruz', 'tier' => 'Guest', 'seat' => 'Table 4', 'arrived' => false]], $guests);
+
+        $this->actingAs($owner)->spaJson('GET', "{$base}/guests")->assertOk()->assertJsonPath('data.0.seat', 'Table 4');
+        $this->actingAs($owner)->spaJson('PATCH', "{$base}/tickets/{$ana['ticket_id']}/seat", ['seat' => ''])->assertOk();
+        $this->actingAs($owner)->spaJson('GET', "{$base}/guests")->assertOk()->assertJsonPath('data.0.seat', null);
+
+        $this->actingAs($owner)->spaJson('PATCH', "{$base}/tickets/{$ana['ticket_id']}/seat", ['seat' => str_repeat('x', 31)])->assertUnprocessable();
+
+        // Check-in staff can't change seats.
+        $staff = $this->businessUser();
+        $this->addStaff($org, $staff);
+        $this->assignToEvent($owner, $org, $event, $staff, ['checkin.perform']);
+        $this->actingAs($staff)->spaJson('PATCH', "{$base}/tickets/{$ana['ticket_id']}/seat", ['seat' => 'A1'])->assertForbidden();
+    }
+
+    public function test_a_public_events_client_gets_no_guest_list(): void
+    {
+        $client = User::factory()->create();
+        [$org, $owner] = $this->listedOrganizer();
+        [$event, $base] = $this->clientEvent($client, $org, $owner, ['visibility' => 'public']);
+        $this->guest($owner, $base, $this->tier($owner, $base, 'Guest'), 'Ana Cruz');
+
+        $this->actingAs($client)->spaJson('GET', "/api/v1/events/{$event}/guests")->assertOk()->assertJsonPath('data', []);
+
+        $stranger = User::factory()->create();
+        $this->actingAs($stranger)->spaJson('GET', "/api/v1/events/{$event}/guests")->assertNotFound();
     }
 
     public function test_a_public_events_client_copy_has_numbers_only(): void

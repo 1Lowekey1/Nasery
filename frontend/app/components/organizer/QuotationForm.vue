@@ -53,8 +53,12 @@
 						</div>
 					</div>
 					<button type="button" class="mt-2 text-sm font-semibold text-primary-700" @click="form.items.push(blankLine())">+ Add a line</button>
+					<!-- VAT is added by NaSeRy at its rate (organizers who charge VAT); it can't be typed or edited. -->
+					<div v-if="vatRate" class="mt-3 flex items-center justify-between text-sm text-gray-600">
+						<span>VAT ({{ vatRate }}%) <span class="text-xs text-gray-400">added automatically</span></span><span>{{ formatPeso(vatAmount) || '₱0' }}</span>
+					</div>
 					<div class="mt-3 flex items-center justify-between border-t border-gray-200 pt-3 text-base font-bold text-gray-900">
-						<span>Total</span><span>{{ formatPeso(total) || '₱0' }}</span>
+						<span>Total</span><span>{{ formatPeso(total + vatAmount) || '₱0' }}</span>
 					</div>
 				</div>
 
@@ -115,9 +119,12 @@ const form = reactive<QuotationContent>({
 	package_name: props.quotation?.package_name ?? '',
 	proposal: props.quotation?.proposal ?? '',
 	terms: props.quotation?.terms ?? '',
-	items: props.quotation?.items.map(i => ({ organization_service_id: i.organization_service_id, description: i.description, quantity: Number(i.quantity), unit_price: Number(i.unit_price) })) ?? [blankLine()],
+	// The VAT line is NaSeRy's, recalculated on save: not an editable line.
+	items: props.quotation?.items.filter(i => !isVatLine(i.description)).map(i => ({ organization_service_id: i.organization_service_id, description: i.description, quantity: Number(i.quantity), unit_price: Number(i.unit_price) })) ?? [blankLine()],
 })
-const total = computed(() => linesTotal(form.items))
+const total = computed(() => linesTotal(form.items.filter(i => !isVatLine(String(i.description)))))
+const vatRate = ref<number | null>(null)
+const vatAmount = computed(() => (vatRate.value ? Math.round(total.value * vatRate.value) / 100 : 0))
 const draft = useDraft(() => (props.quotation ? null : `quotation:${props.inquiryId}`), form, {
 	isEmpty: v => !v.package_name?.trim() && !v.proposal?.trim() && !v.terms?.trim() && (v.items ?? []).every(i => !String(i.description ?? '').trim() && !i.unit_price),
 })
@@ -131,7 +138,7 @@ function payload(): QuotationContent {
 		package_name: form.package_name?.trim() || null,
 		proposal: form.proposal?.trim() || null,
 		terms: form.terms?.trim() || null,
-		items: form.items.filter(i => String(i.description).trim() || i.unit_price !== '').map(i => ({
+		items: form.items.filter(i => (String(i.description).trim() || i.unit_price !== '') && !isVatLine(String(i.description))).map(i => ({
 			organization_service_id: i.organization_service_id ?? null,
 			description: String(i.description).trim(),
 			quantity: i.quantity,
@@ -163,6 +170,12 @@ async function save(send: boolean) {
 }
 
 onMounted(async () => {
+	try {
+		const org = await useOrganization().fetchOrganization()
+		vatRate.value = (org?.profile as { estimate_tax_percent?: number | null } | undefined)?.estimate_tax_percent || null
+	} catch {
+		// Without the profile the form still works; the server adds VAT anyway.
+	}
 	try {
 		priceOptions.value = (await listPriceOptions(props.organizationId)).filter(o => o.is_active !== false)
 	} catch {

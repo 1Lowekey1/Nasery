@@ -8,6 +8,7 @@ use App\Models\Organization;
 use App\Models\OrganizerApprovalRequest;
 use App\Models\User;
 use App\Services\Notifications\AdminAlerts;
+use App\Services\Notifications\Notifier;
 use App\Support\Audit\AuditLogger;
 use App\Support\Database\DatabaseContext;
 use App\Support\Http\ErrorCode;
@@ -41,6 +42,8 @@ class ApprovalWorkflow
         private readonly DatabaseContext $db,
         private readonly AuditLogger $audit,
         private readonly AdminAlerts $adminAlerts,
+        private readonly OrganizationDocuments $documents,
+        private readonly Notifier $notifier,
     ) {}
 
     /**
@@ -66,6 +69,12 @@ class ApprovalWorkflow
             );
         }
 
+        // A new application needs proof of business; reinstating a suspended organizer doesn't.
+        if ($to === ApprovalStatus::Approved && $organization->approval_status !== ApprovalStatus::Suspended
+            && OrganizationDocuments::required() && $this->documents->count($organization) === 0) {
+            throw new ApiException(ErrorCode::Conflict, 'This organizer has not uploaded any documents yet.', 409);
+        }
+
         $reason = $reason !== null ? trim($reason) : null;
 
         if (in_array($to, [ApprovalStatus::Rejected, ApprovalStatus::Suspended], true) && ($reason === null || $reason === '')) {
@@ -76,6 +85,38 @@ class ApprovalWorkflow
         DB::select('select set_organizer_approval_status(?, ?::approval_status, ?)', [$organization->id, $to->value, $reason ?: null]);
 
         return $organization->refresh();
+    }
+
+    /**
+     * A one-way note to an applicant ("this permit is blurry"), without a
+     * decision. It joins the approval history and reaches the owner as a
+     * notification (and e-mail, by their preferences).
+     */
+    public function note(Organization $organization, User $admin, string $note): void
+    {
+        $this->lock($organization);
+
+        if (! in_array($organization->approval_status, [ApprovalStatus::Pending, ApprovalStatus::UnderReview], true)) {
+            throw new ApiException(ErrorCode::InvalidStateTransition, 'Notes can only be sent while an application is being reviewed.', 409);
+        }
+
+        $note = trim($note);
+        $owner = $this->db->system('org.note', function () use ($organization, $admin, $note) {
+            OrganizerApprovalRequest::query()->create([
+                'organization_id' => $organization->id,
+                'status' => $organization->approval_status,
+                'reviewed_by' => $admin->id,
+                'decision_reason' => $note,
+                'submitted_at' => now(),
+                'decided_at' => now(),
+            ]);
+
+            return DB::table('organization_members')->where('organization_id', $organization->id)->where('is_primary_owner', true)->value('user_id');
+        });
+
+        $this->audit->record('organization.review_note', $organization, new: ['note' => $note],
+            organizationId: $organization->id, actorUserId: $admin->id);
+        $this->notifier->send($owner, 'application.note', 'A note about your application', $note, [], '/organizer/home');
     }
 
     /**

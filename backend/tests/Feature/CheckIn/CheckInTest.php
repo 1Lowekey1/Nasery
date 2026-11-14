@@ -105,7 +105,7 @@ class CheckInTest extends TestCase
         // A reserved-but-unpaid ticket can't be let in manually either.
         $cara = $this->guest($owner, $org, $event, $tier, 'Cara Tan');
         DB::table('tickets')->where('id', $cara['ticket_id'])->update(['status' => 'pending']);
-        $this->actingAs($owner)->spaJson('POST', "{$base}/checkin/manual", ['ticket_id' => $cara['ticket_id']])->assertJsonPath('data.result', 'unpaid');
+        $this->actingAs($owner)->spaJson('POST', "{$base}/checkin/manual", ['ticket_id' => $cara['ticket_id'], 'ticket_code' => substr($cara['ticket_id'], -4)])->assertJsonPath('data.result', 'unpaid');
     }
 
     public function test_check_in_follows_the_session_window_and_event_state(): void
@@ -150,6 +150,46 @@ class CheckInTest extends TestCase
         $this->assertSame(2, DB::table('attendance_records')->where('ticket_id', $ana['ticket_id'])->count());
     }
 
+    public function test_manual_check_in_needs_the_ticket_code_or_a_logged_reason(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        [$event, $tier] = $this->event($owner, $org);
+        $base = "/api/v1/organizations/{$org->id}/events/{$event}/checkin";
+        $ana = $this->guest($owner, $org, $event, $tier);
+        $ben = $this->guest($owner, $org, $event, $tier, 'Ben Cruz');
+        $post = fn (array $body) => $this->actingAs($owner)->spaJson('POST', "{$base}/manual", $body);
+        $code = strtoupper(substr($ana['ticket_id'], -4));
+        $wrong = $code === 'AAAA' ? 'BBBB' : 'AAAA';
+
+        // A name alone (no proof) and a wrong code let nobody in.
+        $post(['ticket_id' => $ana['ticket_id']])->assertUnprocessable();
+        $post(['ticket_id' => $ana['ticket_id'], 'ticket_code' => $wrong])->assertUnprocessable()
+            ->assertJsonPath('error.details.fields.ticket_code.0', fn ($m) => is_string($m));
+        $post(['ticket_id' => $ana['ticket_id'], 'no_ticket_reason' => 'x'])->assertUnprocessable();
+        $this->assertDatabaseMissing('attendance_records', ['ticket_id' => $ana['ticket_id']]);
+
+        // The right code, in any letter case, checks them in.
+        $post(['ticket_id' => $ana['ticket_id'], 'ticket_code' => strtolower($code)])->assertOk()->assertJsonPath('data.result', 'checked_in');
+
+        // No ticket ID: allowed with a reason, and the reason is on record.
+        $post(['ticket_id' => $ben['ticket_id'], 'no_ticket_reason' => 'Phone died, ID shown to Maria'])->assertOk()->assertJsonPath('data.result', 'checked_in');
+        $this->assertDatabaseHas('audit_logs', ['action' => 'checkin.no_ticket_id', 'entity_id' => $ben['ticket_id'], 'reason' => 'Phone died, ID shown to Maria']);
+    }
+
+    public function test_the_door_finds_a_guest_by_name_ticket_id_or_exported_ticket_id(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        [$event, $tier] = $this->event($owner, $org);
+        $base = "/api/v1/organizations/{$org->id}/events/{$event}/checkin";
+        $guest = $this->guest($owner, $org, $event, $tier);
+        $code = strtoupper(substr(str_replace('-', '', $guest['ticket_id']), -10));
+
+        foreach (['Ana', strtolower($code), $code, "T-{$code}"] as $query) {
+            $this->actingAs($owner)->spaJson('GET', "{$base}/search?q=".urlencode($query))->assertOk()
+                ->assertJsonPath('data.0.ticket_id', $guest['ticket_id']);
+        }
+    }
+
     public function test_manual_check_in_undo_and_door_staff_permissions(): void
     {
         [$org, $owner] = $this->listedOrganizer();
@@ -164,7 +204,7 @@ class CheckInTest extends TestCase
         $this->addStaff($org, $outsider);
 
         $this->actingAs($door)->spaJson('GET', "{$base}/search?q=ana")->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.name', 'Ana Cruz');
-        $id = $this->actingAs($door)->spaJson('POST', "{$base}/manual", ['ticket_id' => $ana['ticket_id']])->assertOk()
+        $id = $this->actingAs($door)->spaJson('POST', "{$base}/manual", ['ticket_id' => $ana['ticket_id'], 'ticket_code' => substr($ana['ticket_id'], -4)])->assertOk()
             ->assertJsonPath('data.result', 'checked_in')->json('data.attendance_id');
         $this->assertSame('manual', DB::table('attendance_records')->where('id', $id)->value('method'));
         $this->actingAs($door)->spaJson('GET', $base)->assertOk()->assertJsonPath('data.can', ['scan' => true, 'undo' => false])

@@ -60,6 +60,62 @@ class PlatformAnalytics
         });
     }
 
+    /**
+     * What NaSeRy earns (admin Overview): recurring plan revenue (monthly and
+     * yearly run rate, by plan), paying vs free organizers, and the last 12
+     * months of money in from plans and from the ticket fee.
+     *
+     * @return array<string, mixed>
+     */
+    public function earnings(): array
+    {
+        return $this->db->system('admin.earnings', function () {
+            $active = DB::table('subscriptions as s')->join('plans as p', 'p.id', '=', 's.plan_id')->whereNull('s.deleted_at')
+                ->whereIn('s.status', ['active', 'payment_failed', 'grace_period'])->where('p.price_monthly', '>', 0)
+                ->get(['s.organization_id', 's.billing_cycle', 'p.slug', 'p.name', 'p.price_monthly', 'p.price_yearly']);
+            // Monthly value of each paid subscription (a yearly plan counts as a twelfth a month).
+            $monthly = fn ($s) => $s->billing_cycle === 'yearly' ? (float) $s->price_yearly / 12 : (float) $s->price_monthly;
+            $plans = $active->groupBy('slug')->map(fn (Collection $g) => [
+                'plan' => $g->first()->name,
+                'organizations' => $g->pluck('organization_id')->unique()->count(),
+                'monthly' => $g->where('billing_cycle', 'monthly')->count(),
+                'yearly' => $g->where('billing_cycle', 'yearly')->count(),
+                'mrr' => round($g->sum($monthly), 2),
+            ])->sortByDesc('mrr')->values();
+            $mrr = round($active->sum($monthly), 2);
+
+            $listed = DB::table('organizations')->whereNull('deleted_at')->where('approval_status', 'approved')->count();
+            $paying = $active->pluck('organization_id')->unique()->count();
+
+            $from = now('Asia/Manila')->startOfMonth()->subMonths(11)->utc();
+            $planMoney = (float) DB::table('payments')->where('status', 'paid')->whereNotNull('subscription_invoice_id')->where('paid_at', '>=', $from)->sum('amount');
+            $byPlan = DB::table('payments as pay')->join('subscription_invoices as i', 'i.id', '=', 'pay.subscription_invoice_id')
+                ->join('subscriptions as s', 's.id', '=', 'i.subscription_id')->join('plans as p', 'p.id', '=', 's.plan_id')
+                ->where('pay.status', 'paid')->where('pay.paid_at', '>=', $from)->groupBy('p.name')->selectRaw('p.name, sum(pay.amount) as v')->pluck('v', 'name');
+            $feeMoney = (float) DB::table('platform_fee_snapshots')->where('created_at', '>=', $from)->sum('computed_amount')
+                - (float) DB::table('payment_refunds')->where('refunded_at', '>=', $from)->sum('fee_portion_refunded');
+            $ticketSales = (float) DB::table('payments')->where('status', 'paid')->whereNotNull('registration_id')->where('paid_at', '>=', $from)->sum('amount');
+            $fee = DB::table('platform_fee_configs')->where('effective_from', '<=', now())
+                ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>', now()))->orderByDesc('effective_from')->first();
+
+            return [
+                'mrr' => $mrr,
+                'arr' => round($mrr * 12, 2),
+                'plans' => $plans->all(),
+                'organizations' => ['listed' => $listed, 'paying' => $paying, 'free' => max(0, $listed - $paying)],
+                'last_12_months' => [
+                    'from' => $from->setTimezone('Asia/Manila')->toDateString(),
+                    'plans' => round($planMoney, 2),
+                    'plans_by_plan' => $byPlan->map(fn ($v) => round((float) $v, 2))->all(),
+                    'ticket_fee' => round($feeMoney, 2),
+                    'ticket_sales' => round($ticketSales, 2),
+                    'total' => round($planMoney + $feeMoney, 2),
+                ],
+                'fee_percent' => $fee && $fee->is_enabled && $fee->percentage_rate !== null ? round((float) $fee->percentage_rate * 100, 2) : null,
+            ];
+        });
+    }
+
     /** @return array<string, mixed> */
     public function totals(): array
     {

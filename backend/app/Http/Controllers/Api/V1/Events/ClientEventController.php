@@ -12,6 +12,7 @@ use App\Services\Events\EventActivities;
 use App\Services\Events\EventPresenter;
 use App\Services\Preparation\ActivityTimeline;
 use App\Services\Preparation\ProgressTracker;
+use App\Services\Ticketing\GuestList;
 use App\Support\Http\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,7 @@ class ClientEventController extends Controller
         private readonly CheckInDesk $checkIn,
         private readonly ReportSharing $sharing,
         private readonly ReportPdf $reportPdf,
+        private readonly GuestList $guests,
     ) {}
 
     public function index(): JsonResponse
@@ -69,6 +71,12 @@ class ClientEventController extends Controller
      * Live check-in progress for the client's own event (paper: client-facing
      * live attendance view). Numbers only; no guest names.
      */
+    /** A private event's guest list for its client (read-only, no contact details). */
+    public function guests(Event $event): JsonResponse
+    {
+        return ApiResponse::success($this->guests->forClient($event));
+    }
+
     public function attendance(Event $event): JsonResponse
     {
         return ApiResponse::success($this->checkIn->forClient($event));

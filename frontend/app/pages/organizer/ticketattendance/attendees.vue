@@ -1,9 +1,10 @@
 <template>
 	<div class="rounded-3xl border border-gray-200 bg-white p-4 sm:p-8">
+		<LivePill :count="isFreshGuest.count.value" one="guest updated" many="guests updated" />
 		<div class="mb-5 flex flex-wrap items-start justify-between gap-3">
 			<div>
 				<h2 class="text-xl font-extrabold tracking-tight text-gray-950">
-					Attendee Management
+					{{ inEventManagement ? 'Guests & invitations' : 'Attendee Management' }}
 				</h2>
 
 				<p class="mt-1 text-sm text-gray-500">
@@ -20,17 +21,17 @@
 				</p>
 			</div>
 
-			<!-- Phones: Register full width, Import + Export side by side -->
+			<!-- Phones: Invite full width, Import + Export side by side. Owners invite in Event Management → Guests; staff who can't open it invite here. -->
 			<div v-if="selectedEventId" class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:gap-3">
-				<button type="button"
+				<button v-if="canInvite" type="button"
 					class="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#1f4a54] hover:shadow-md active:translate-y-0 active:scale-[0.98]"
 					@click="openRegisterAttendee">
 					<IconBase name="user-plus" class="h-4 w-4" />
 
-					Register Attendee
+					Invite Guest
 				</button>
 
-				<button type="button"
+				<button v-if="canInvite" type="button"
 					class="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 sm:px-4"
 					@click="openImport">
 					<IconBase name="upload" class="h-4 w-4" />
@@ -40,7 +41,7 @@
 
 				<button type="button"
 					class="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
-					:disabled="!attendees.length" @click="exportAttendees">
+					:class="canInvite ? '' : 'col-span-2'" :disabled="!attendees.length" @click="exportAttendees">
 					<IconBase name="download" class="h-4 w-4" />
 
 					Export List
@@ -146,10 +147,6 @@
 							</th>
 
 							<th class="pr-4">
-								Email
-							</th>
-
-							<th class="pr-4">
 								Ticket Type
 							</th>
 
@@ -178,7 +175,7 @@
 					</thead>
 
 					<tbody class="divide-y divide-gray-100">
-						<tr v-for="attendee in filteredAttendees" :key="attendee.id"
+						<tr v-for="attendee in filteredAttendees" :key="attendee.id" :class="{ 'live-fresh': isFreshGuest(attendee) }"
 							class="row-in group transition-colors hover:bg-gray-50">
 							<td data-card-title class="py-3.5 pl-3 pr-4">
 								<div class="flex items-center gap-3">
@@ -198,6 +195,8 @@
 											}}
 										</p>
 
+										<p class="mt-0.5 max-w-[14rem] truncate text-xs text-gray-500">{{ attendee.email || 'No e-mail' }}</p>
+
 										<p v-if="
 											attendee.checked_in_at
 										" class="mt-0.5 text-xs text-gray-400">
@@ -212,19 +211,13 @@
 								</div>
 							</td>
 
-							<td class="py-3.5 pr-4 text-gray-500">
-								{{
-									attendee.email ||
-									'—'
-								}}
-							</td>
-
 							<td class="py-3.5 pr-4 text-gray-700">
 								{{
 									attendee.ticket_type
 										?.name ||
 									'General Admission'
 								}}
+								<span v-if="attendee.seat" class="mt-0.5 block text-xs font-semibold text-primary-700">{{ attendee.seat }}</span>
 							</td>
 
 							<td class="py-3.5 pr-4">
@@ -305,6 +298,11 @@
 										:disabled="ticketActionId === attendee.id" @click="reissueAttendeeQr(attendee)">
 										<IconBase name="refresh-cw" class="h-4 w-4" />
 									</button>
+									<button v-if="attendee.status !== 'rejected'" type="button" title="Set seat or table" :aria-label="`Set a seat or table for ${attendee.name}`"
+										class="rounded-lg border border-gray-200 bg-white p-2 text-gray-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 disabled:opacity-40"
+										:disabled="ticketActionId === attendee.id" @click="setAttendeeSeat(attendee)">
+										<IconBase name="map-pin" class="h-4 w-4" />
+									</button>
 									<button v-if="attendee.status === 'registered'" type="button" title="Cancel ticket" :aria-label="`Cancel ${attendee.name}'s ticket`"
 										class="rounded-lg border border-gray-200 bg-white p-2 text-gray-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
 										:disabled="ticketActionId === attendee.id" @click="cancelAttendeeTicket(attendee)">
@@ -342,6 +340,7 @@
 				</p>
 
 				<button v-if="
+					canInvite &&
 					!search &&
 					activeFilter ===
 					'all'
@@ -349,7 +348,7 @@
 					@click="openRegisterAttendee">
 					<IconBase name="user-plus" class="h-4 w-4" />
 
-					Register First Attendee
+					Invite First Guest
 				</button>
 			</div>
 		</template>
@@ -707,6 +706,7 @@ interface Attendee {
 	id: number
 	name: string
 	email: string | null
+	seat?: string | null
 
 	ticket_type:
 	| TicketType
@@ -819,7 +819,17 @@ type AttendeeCategory =
 definePageMeta({
 	layout: 'dashboard',
 	middleware: ['organizer'],
+	// Event Management → Guests is this same page, where organizers invite guests.
+	alias: '/organizer/eventmanagement/guests',
 })
+
+const pageRoute = useRoute()
+const inEventManagement = computed(() => pageRoute.path === '/organizer/eventmanagement/guests')
+// Staff without the Events menu can't reach the Guests tab, so they invite from their Guest List.
+const { organization: ownOrganization } = useOrganization()
+const { nav: teamNav, can: teamCan } = useTeamNav()
+const canInvite = computed(() => inEventManagement.value
+	|| (Boolean(ownOrganization.value) && teamCan('attendee.manage') && !teamNav.value.some(item => item.to === '/organizer/eventmanagement/all-events')))
 
 const config =
 	useRuntimeConfig()
@@ -1010,6 +1020,7 @@ function toAttendee(g: GuestRowApi): Attendee {
 		name: g.name,
 		email: g.email,
 		ticket_type: { id: 0, name: g.tier },
+		seat: g.seat,
 		ticket_id: g.id.replace(/-/g, '').slice(-10).toUpperCase(),
 		// Download / e-mail work by ticket id; any non-empty value enables them.
 		qr_token: ['valid', 'used'].includes(g.status) ? g.id : null,
@@ -1242,6 +1253,8 @@ async function loadAttendees(quiet = false) {
 }
 // Close to live during the event (review #12): check-ins and sales appear on their own.
 useLiveRefresh(() => loadAttendees(true), { interval: 20000 })
+// New guests, and guests who just checked in, glow for a moment.
+const isFreshGuest = useFreshKeys(() => attendees.value, a => `${a.id}:${a.status}`)
 
 function downloadAttendeeTicket(attendee: Attendee) {
 	if (!attendee.qr_token) return
@@ -1281,8 +1294,28 @@ async function reissueAttendeeQr(attendee: Attendee) {
 	}
 }
 
+// Optional: a seat or table for this guest, shown on their ticket.
+async function setAttendeeSeat(attendee: Attendee) {
+	const seat = await promptDialog(`Seat or table for ${attendee.name}, such as “Table 4” or “A12”. Leave it empty to clear it.${attendee.seat ? ` Now: ${attendee.seat}.` : ''}`, {
+		title: 'Seat or table', confirmLabel: 'Save', placeholder: 'Table 4',
+	})
+	if (seat === null) return
+	ticketActionId.value = attendee.id
+	errorMessage.value = ''
+	try {
+		await ticketingApi.setSeat(await orgIdOf(), eventKey(), String(attendee.id), seat.trim().slice(0, 30) || null)
+		await loadAttendees(true)
+	} catch (error: unknown) {
+		errorMessage.value = authMessage(error) || 'Unable to save this seat.'
+	} finally {
+		ticketActionId.value = null
+	}
+}
+
 async function cancelAttendeeTicket(attendee: Attendee) {
-	const reason = await promptDialog(`Cancel ${attendee.name}'s ticket? Their QR code stops working and the seat opens up again. Say why.`, { title: 'Cancel ticket', placeholder: 'At least 3 characters', minLength: 3, confirmLabel: 'Cancel ticket' })
+	// Paid online: cancelling alone doesn't give money back; refunds are made in Payments.
+	const paidNote = attendee.attendee_category === 'paid' ? ' They paid online: cancelling doesn\'t refund them. To give their money back, use Refund in Ticketing & Attendance → Payments instead.' : ''
+	const reason = await promptDialog(`Cancel ${attendee.name}'s ticket? Their QR code stops working and the seat opens up again.${paidNote} Say why.`, { title: 'Cancel ticket', placeholder: 'At least 3 characters', minLength: 3, confirmLabel: 'Cancel ticket' })
 	if (!reason) return
 	ticketActionId.value = attendee.id
 	errorMessage.value = ''

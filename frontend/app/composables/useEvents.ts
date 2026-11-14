@@ -194,5 +194,6 @@ export const useClientEvents = () => {
     list: async () => (await api.get<ClientEvent[]>('/events')).data,
     show: async (id: string) => (await api.get<ClientEvent>(`/events/${id}`)).data,
     progress: async (id: string) => (await api.get<ClientProgress>(`/events/${id}/progress`)).data,
+    guests: async (id: string) => (await api.get<{ name: string, tier: string, seat: string | null, arrived: boolean }[]>(`/events/${id}/guests`)).data,
   }
 }

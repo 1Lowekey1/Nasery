@@ -97,12 +97,12 @@ class InquiryThreads
         if ($side === 'client') {
             $recipients = $this->withoutUnreadNotice($this->recipients->forOrganization($thread->organization_id, self::HANDLERS), $thread->id, 'message.organizer');
             $this->notifier->send($recipients, 'message.organizer', 'New message from '.$this->clientName($thread->client_first, $thread->client_last),
-                "About the {$thread->event_type} inquiry: \"{$preview}\"", ['thread_id' => $thread->id, 'inquiry_id' => $thread->inquiry_id],
+                'About '.$this->requestLabel($thread).": \"{$preview}\"", ['thread_id' => $thread->id, 'inquiry_id' => $thread->inquiry_id],
                 "/organizer/inquiries/match-inquiries?thread={$thread->id}");
         } else {
             $this->notifier->send($this->withoutUnreadNotice([$thread->client_user_id], $thread->id, 'message.client'), 'message.client', "New message from {$thread->organization}",
-                "\"{$preview}\"", ['thread_id' => $thread->id, 'inquiry_id' => $thread->inquiry_id],
-                "/client/inquiries/{$thread->inquiry_id}?thread={$thread->id}");
+                'About '.$this->requestLabel($thread).": \"{$preview}\"", ['thread_id' => $thread->id, 'inquiry_id' => $thread->inquiry_id],
+                "/client/messages?thread={$thread->id}");
         }
 
         return ['id' => $id, 'side' => $side, 'mine' => true, 'body' => $body, 'at' => $now->toIso8601String()];
@@ -113,6 +113,20 @@ class InquiryThreads
      *
      * @return list<array<string, mixed>>
      */
+    /**
+     * All of a client's conversations, for their Messages page (mock defense: messages
+     * moved off the request page). Newest activity first; drafts have none.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function forClient(User $client): array
+    {
+        $rows = $this->db->system('threads.client_all', fn () => $this->threads()->where('i.client_user_id', $client->id)
+            ->orderByRaw('last_at desc nulls last')->orderByDesc('i.created_at')->orderBy('o.display_name')->get());
+
+        return $rows->map(fn ($t) => $this->presentThread($t, 'client', $client))->values()->all();
+    }
+
     public function forInquiry(User $client, string $inquiryId): array
     {
         $rows = $this->db->system('threads.client_list', fn () => $this->threads()->where('i.id', $inquiryId)->where('i.client_user_id', $client->id)
@@ -191,6 +205,14 @@ class InquiryThreads
         return array_values(array_diff($userIds, $waiting));
     }
 
+    /** Which request a message is about: its event name, else the kind of event (mock defense). */
+    private function requestLabel(object $thread): string
+    {
+        $name = (new \App\Models\Inquiry)->forceFill(['additional_requirements' => $thread->additional_requirements ?? null])->eventName();
+
+        return $name ? "“{$name}”" : "your {$thread->event_type} request";
+    }
+
     private function threads()
     {
         $last = DB::table('inquiry_messages')->selectRaw('distinct on (inquiry_organization_id) inquiry_organization_id, body, sender_side, created_at')
@@ -204,7 +226,7 @@ class InquiryThreads
             ->leftJoinSub($last, 'lm', 'lm.inquiry_organization_id', '=', 'io.id')
             ->select(['io.id', 'io.inquiry_id', 'io.organization_id', 'io.status as participant_status', 'i.status as inquiry_status', 'i.client_user_id',
                 'i.requested_date', 'o.display_name as organization', 'o.slug as organization_slug', 'c.first_name as client_first', 'c.last_name as client_last',
-                DB::raw("coalesce(et.name, 'event') as event_type"), 'lm.body as last_body', 'lm.sender_side as last_side', 'lm.created_at as last_at']);
+                DB::raw("coalesce(et.name, 'event') as event_type"), 'i.additional_requirements', 'lm.body as last_body', 'lm.sender_side as last_side', 'lm.created_at as last_at']);
     }
 
     /** @return array<string, mixed> */
@@ -219,6 +241,8 @@ class InquiryThreads
             'id' => $t->id,
             'inquiry_id' => $t->inquiry_id,
             'event_type' => $t->event_type,
+            // The client's own name for the event ("Event: …" line), when they gave one.
+            'event_name' => (new \App\Models\Inquiry)->forceFill(['additional_requirements' => $t->additional_requirements ?? null])->eventName(),
             'requested_date' => $t->requested_date,
             'organization' => ['id' => $t->organization_id, 'name' => $t->organization, 'slug' => $t->organization_slug],
             'client' => $this->clientName($t->client_first, $t->client_last),

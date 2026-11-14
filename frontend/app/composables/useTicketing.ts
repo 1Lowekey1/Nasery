@@ -45,6 +45,7 @@ export interface GuestRow {
   contact_number: string | null
   tier: string
   zone: string | null
+  seat: string | null
   status: 'valid' | 'used' | 'cancelled' | 'invalidated'
   admission_type: 'paid' | 'free' | 'invited' | 'complimentary'
   source: 'online' | 'organizer' | 'staff' | 'walk_in'
@@ -101,6 +102,7 @@ export interface MyTicket {
   attendee: string
   tier: string
   zone: string | null
+  seat: string | null
   benefits: string[]
   event_id: string
   event: string
@@ -110,6 +112,10 @@ export interface MyTicket {
   starts_at: string | null
   qr_token: string | null
   cancellable: boolean
+  /** 0061: a paid purchase can be refunded on request; the organizer decides. */
+  refund?: { paid: boolean, can_request: boolean, request_status: 'pending' | 'refunded' | 'declined' | 'withdrawn' | null, response_note: string | null,
+    /** Money already returned to the buyer (any refund, asked for or not). */
+    paid_amount?: string | null, refunded_amount?: string | null, refunded_at?: string | null }
 }
 
 export function priceLabel(price: string | number | null | undefined): string {
@@ -148,6 +154,8 @@ export const useOrganizerTicketing = () => {
       (await api.get<{ ticket_id: string, status: string, qr_token: string | null }>(`${base(orgId, eventId)}/tickets/${ticketId}/qr`)).data,
     reissueQr: async (orgId: string, eventId: string, ticketId: string) =>
       (await api.post<{ ticket_id: string, qr_token: string }>(`${base(orgId, eventId)}/tickets/${ticketId}/reissue-qr`)).data,
+    setSeat: (orgId: string, eventId: string, ticketId: string, seat: string | null) =>
+      api.patch(`${base(orgId, eventId)}/tickets/${ticketId}/seat`, { seat }),
     cancelTicket: (orgId: string, eventId: string, ticketId: string, reason: string) =>
       api.post(`${base(orgId, eventId)}/tickets/${ticketId}/cancel`, { reason }),
     ticketPdf: (orgId: string, eventId: string, ticketId: string) => api.blob(`${base(orgId, eventId)}/tickets/${ticketId}/pdf`),
@@ -172,6 +180,7 @@ export const usePublicEvents = () => {
         `/public-events/${id}/register`, { ticket_type_id: ticketTypeId, attendees, ...(key ? { key } : {}) }, { idempotencyKey: crypto.randomUUID() })),
     myTickets: async () => (await api.get<MyTicket[]>('/me/tickets')).data,
     cancelMine: (ticketId: string) => api.post(`/me/tickets/${ticketId}/cancel`),
+    requestRefund: (ticketId: string, reason: string) => api.post(`/me/tickets/${ticketId}/refund-request`, { reason }),
     myTicketPdf: (ticketId: string) => api.blob(`/me/tickets/${ticketId}/pdf`),
   }
 }
@@ -220,6 +229,8 @@ export interface EventPayment {
   fee: string | null
   refunded: string
   fee_returned: string
+  /** When the last refund on this payment went out. */
+  refunded_at?: string | null
   net: string | null
   buyer: string | null
   email: string | null
@@ -227,6 +238,8 @@ export interface EventPayment {
   paid_at: string | null
   created_at: string
   failure_reason: string | null
+  /** 0061: the buyer's open refund request on this payment. */
+  refund_request: { id: string, reason: string, created_at: string } | null
 }
 
 export const usePayments = () => {
@@ -247,5 +260,7 @@ export const usePayments = () => {
       (await api.get<{ payments: EventPayment[], totals: { gross: string, fees: string, fee_returned: string, refunds: string, net: string } }>(`/organizations/${orgId}/events/${eventId}/payments`)).data,
     refund: (orgId: string, eventId: string, paymentId: string, body: { amount: number, category: RefundCategory, reason: string, cancel_tickets: boolean }) =>
       api.post(`/organizations/${orgId}/events/${eventId}/payments/${paymentId}/refund`, body, { idempotencyKey: crypto.randomUUID() }),
+    declineRefundRequest: (orgId: string, eventId: string, requestId: string, note: string | null) =>
+      api.post(`/organizations/${orgId}/events/${eventId}/refund-requests/${requestId}/decline`, { note }),
   }
 }

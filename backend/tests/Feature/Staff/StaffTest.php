@@ -192,6 +192,27 @@ class StaffTest extends TestCase
         ])->assertUnprocessable();
     }
 
+    public function test_program_items_with_my_name_show_in_my_program(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $helper = $this->join($owner, $org, ['preset' => 'checkin']);
+        $other = $this->join($owner, $org, ['preset' => 'checkin']);
+        $event = $this->event($owner, $org);
+        $this->assignToEvent($owner, $org, $event, $helper);
+        $name = strtoupper(trim("{$helper->first_name} {$helper->last_name}"));
+
+        foreach ([['Ceremony', " {$name} "], ['Dinner', 'Someone Else']] as [$title, $person]) {
+            DB::table('event_activities')->insert(['event_id' => $event, 'organization_id' => $org->id, 'title' => $title,
+                'person' => $person, 'created_by' => $owner->id]);
+        }
+
+        $url = "/api/v1/organizations/{$org->id}/my-program";
+        $this->actingAs($helper)->spaJson('GET', $url)->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.title', 'Ceremony')->assertJsonPath('data.0.event_id', $event);
+        $this->actingAs($other)->spaJson('GET', $url)->assertOk()->assertJsonCount(0, 'data');
+        $this->actingAs($this->businessUser())->spaJson('GET', $url)->assertNotFound();
+    }
+
     public function test_assigned_members_update_their_task_and_see_it_in_my_tasks(): void
     {
         [$org, $owner] = $this->listedOrganizer();

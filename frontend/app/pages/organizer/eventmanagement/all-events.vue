@@ -50,7 +50,7 @@
 						</p>
 
 						<dl class="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-							<div class="flex items-center gap-2"><IconBase name="users" class="h-4 w-4 text-gray-400" /><dt class="sr-only">Expected guests</dt><dd class="font-semibold text-gray-900">{{ guestsOf(item) }} <span class="font-normal text-gray-500">guests</span></dd></div>
+							<div class="flex items-center gap-2"><IconBase name="users" class="h-4 w-4 text-gray-400" /><dt class="sr-only">Capacity</dt><dd class="font-semibold text-gray-900">{{ guestsOf(item) }} <span class="font-normal text-gray-500">guests</span></dd></div>
 							<div class="flex items-center gap-2"><IconBase name="clock" class="h-4 w-4 text-gray-400" /><dt class="sr-only">Time</dt><dd class="font-semibold text-gray-900">{{ timeRange(item) }}</dd></div>
 							<div v-if="item.quotation" class="flex min-w-0 items-center gap-2"><IconBase name="gift" class="h-4 w-4 text-gray-400" /><dt class="sr-only">Package</dt><dd class="truncate font-semibold text-gray-900">{{ item.quotation.package_name || 'Custom package' }}</dd></div>
 							<div v-if="item.quotation" class="flex items-center gap-2"><IconBase name="cash" class="h-4 w-4 text-gray-400" /><dt class="sr-only">{{ item.quotation.quotation_status === 'accepted' ? 'Agreed amount' : 'Offer amount' }}</dt><dd class="font-bold text-primary-700">{{ formatCurrency(item.quotation.quotation_amount) }}</dd></div>
@@ -75,7 +75,7 @@
 						</div>
 						<p v-else class="text-sm text-amber-700">Waiting for the client to decide.</p>
 
-						<div class="ml-auto flex gap-2 lg:ml-0">
+						<div class="ml-auto flex max-w-full flex-wrap justify-end gap-2 lg:ml-0">
 							<button v-if="item.event" type="button" class="ev-btn" :aria-label="`Edit ${item.name}`" @click.stop="editEvent(item.event)"><IconBase name="edit" class="h-4 w-4" /> Edit</button>
 							<button type="button" class="ev-btn ev-btn-primary flex-1 justify-center" @click.stop="openPlanningItem(item)">
 								{{ item.quotation?.quotation_status === 'pending' && !item.event ? 'View offer' : 'Open' }} <IconBase name="arrow-right" class="h-4 w-4 transition group-hover:translate-x-0.5" />

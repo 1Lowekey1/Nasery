@@ -80,6 +80,33 @@ class EventTeamController extends Controller
     }
 
     /**
+     * Program items where this member is the person in charge, on the
+     * organization's open events. The program stores a name, so this matches
+     * it against the member's full name.
+     */
+    public function myProgram(Request $request, Organization $organization): JsonResponse
+    {
+        $this->access->membership($request->user(), $organization)
+            ?? throw new ApiException(ErrorCode::Forbidden, 'You are not allowed to perform this action.', 403);
+
+        $name = trim("{$request->user()->first_name} {$request->user()->last_name}");
+        $items = DB::table('event_activities as a')->join('events as e', 'e.id', '=', 'a.event_id')
+            ->where('a.organization_id', $organization->id)->whereNull('a.deleted_at')->whereNull('e.deleted_at')
+            ->whereIn('e.status', ['draft', 'published', 'ongoing'])
+            ->whereRaw('lower(btrim(a.person)) = lower(?)', [$name])
+            ->orderByRaw("case a.status when 'completed' then 1 else 0 end")->orderByRaw('a.activity_at asc nulls last')
+            ->limit(200)->get(['a.id', 'a.title', 'a.status', 'a.activity_at', 'a.event_id', 'e.name as event', 'e.timezone']);
+
+        $visible = Event::query()->whereIn('id', $items->pluck('event_id')->unique())->get()
+            ->filter(fn (Event $e) => $this->access->canSeeEvent($request->user(), $e))->keyBy('id');
+
+        return ApiResponse::success($items->filter(fn ($a) => $visible->has($a->event_id))->map(fn ($a) => [
+            'id' => $a->id, 'title' => $a->title, 'status' => $a->status, 'event_id' => $a->event_id, 'event' => $a->event,
+            'activity_at' => $a->activity_at ? CarbonImmutable::parse($a->activity_at)->setTimezone($a->timezone)->toIso8601String() : null,
+        ])->values());
+    }
+
+    /**
      * Tasks assigned to the signed-in member across the organization's open
      * events (the paper's "task link" lands here).
      */
@@ -100,7 +127,7 @@ class EventTeamController extends Controller
             ->orderByRaw("case t.status when 'done' then 1 when 'cancelled' then 2 else 0 end")
             ->orderByRaw('t.due_at asc nulls last')
             ->limit(200)
-            ->get(['t.id', 't.name', 't.description', 't.status', 't.priority', 't.due_at', 'c.name as checklist', 'e.id as event_id', 'e.name as event', 'e.timezone',
+            ->get(['t.id', 't.name', 't.description', 't.status', 't.priority', 't.due_at', 'ta.assigned_at', 'c.name as checklist', 'e.id as event_id', 'e.name as event', 'e.timezone',
                 // 0044 review state, and the event's type and first session (team dashboard).
                 't.completion_note', 't.review_status', 't.review_note', 'et.name as event_type',
                 DB::raw('(select min(s.starts_at) from event_sessions s where s.event_id = e.id and s.deleted_at is null) as event_starts_at')]);
@@ -109,6 +136,7 @@ class EventTeamController extends Controller
             'id' => $t->id, 'name' => $t->name, 'description' => $t->description, 'status' => $t->status, 'priority' => $t->priority,
             'due_at' => $t->due_at ? CarbonImmutable::parse($t->due_at)->setTimezone($t->timezone)->toIso8601String() : null,
             'checklist' => $t->checklist, 'event_id' => $t->event_id, 'event' => $t->event,
+            'assigned_at' => CarbonImmutable::parse($t->assigned_at)->toIso8601String(),
             'completion_note' => $t->completion_note, 'review_status' => $t->review_status, 'review_note' => $t->review_note,
             'event_type' => $t->event_type,
             'event_starts_at' => $t->event_starts_at ? CarbonImmutable::parse($t->event_starts_at)->setTimezone($t->timezone)->toIso8601String() : null,

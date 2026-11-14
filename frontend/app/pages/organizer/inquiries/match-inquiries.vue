@@ -55,7 +55,8 @@
 
 		<!-- Matching Inquiries -->
 		<div v-else-if="inquiries.length" class="space-y-4">
-			<article v-for="inquiry in inquiries" :key="inquiry.id"
+			<LivePill :count="isFreshInquiry.count.value" one="new request" many="new requests" />
+			<article v-for="inquiry in inquiries" :key="inquiry.id" :class="{ 'live-fresh': isFreshInquiry(inquiry) }"
 				class="group overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md">
 				<div class="p-5 sm:p-6">
 					<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -251,7 +252,7 @@
 
 		<Transition name="slide">
 			<div v-if="showOfferForm"
-				class="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl">
+				class="fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col bg-white shadow-2xl">
 
 				<div class="flex shrink-0 items-start justify-between border-b border-gray-200 px-6 py-5">
 					<div class="flex items-start gap-3">
@@ -280,6 +281,14 @@
 				<!-- Body -->
 				<div class="flex-1 overflow-y-auto px-6 py-5">
 					<FormsDraftNotice :draft="offerDraft" />
+
+					<!-- What the client asked for, to check while writing the offer. Open on a computer, one tap on a phone. -->
+					<OrganizerClientRequest :organization-id="orgIdForRequest" :inquiry-id="selectedInquiryId ? String(selectedInquiryId) : null"
+						collapsible compact :start-open="wideScreen" class="mb-4" />
+					<p v-if="sameDateEvents.length" class="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+						<IconBase name="calendar" class="mt-0.5 h-4 w-4 shrink-0" />
+						<span>You already have {{ sameDateEvents.length === 1 ? `“${sameDateEvents[0]!.name}”` : `${sameDateEvents.length} events` }} on this date.</span>
+					</p>
 
 					<!-- Error -->
 					<div v-if="offerError"
@@ -364,15 +373,15 @@
 								Your price list is empty. <NuxtLink to="/organizer/price-list" class="font-semibold text-primary-700 underline">Add options</NuxtLink> to build offers from it.
 							</p>
 							<template v-else>
-							<!-- Only options for this kind of event (Price list → "For which events?"), unless asked for all. -->
-							<div class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-xs text-gray-600">
+							<!-- Only options for this kind of event (Price list → "For which events?"), unless asked for all. "Other" can't be tagged, so it shows everything. -->
+							<div v-if="!isOtherEvent" class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-xs text-gray-600">
 								<span>{{ showAllOptions ? `All ${builderOptions.length} of your options` : `${fittingOptions.length} of ${builderOptions.length} options are for ${offerForm.eventType || 'this event'}` }}</span>
 								<label class="flex cursor-pointer items-center gap-1.5 font-semibold text-primary-700">
 									<input v-model="showAllOptions" type="checkbox" class="accent-[#285F6b]"> Show all my options
 								</label>
 							</div>
 							<p v-if="!shownOptions.length" class="text-sm text-gray-500">None of your options are tagged for {{ offerForm.eventType || 'this event' }}. Tick “Show all my options”, or tag them in <NuxtLink to="/organizer/price-list" class="font-semibold text-primary-700 underline">Price list</NuxtLink>.</p>
-							<PricingPriceCalculator v-else :key="showAllOptions ? 'all' : 'fit'" compact :options="shownOptions" :services="builderServices" :settings="builderSettings"
+							<PricingPriceCalculator v-else :key="showAllOptions ? 'all' : 'fit'" compact :collapse-over="8" :options="shownOptions" :services="builderServices" :settings="builderSettings"
 								:initial-guests="Number(offerForm.guests) || 1">
 								<template #action="{ estimate, guests }">
 									<div class="mt-3 flex justify-end">
@@ -413,7 +422,8 @@
 								<div class="flex justify-between gap-3 text-gray-500"><span>Subtotal</span><span class="font-semibold text-gray-700">{{ formatPeso(breakdown.subtotal) }}</span></div>
 								<div v-for="(c, i) in breakdown.charges" :key="`c${i}`" class="flex items-center justify-between gap-3 py-1 text-gray-500">
 									<span class="min-w-0">{{ c.label }} ({{ c.percent }}%)
-										<button type="button" class="ml-1 text-xs font-semibold text-gray-400 hover:text-rose-700" :aria-label="`Remove ${c.label}`" @click="removeCharge(c.key)">Remove</button>
+										<button v-if="c.key !== 'vat'" type="button" class="ml-1 text-xs font-semibold text-gray-400 hover:text-rose-700" :aria-label="`Remove ${c.label}`" @click="removeCharge(c.key)">Remove</button>
+										<span v-else class="ml-1 text-xs text-gray-400">added by NaSeRy</span>
 									</span>
 									<span class="shrink-0 font-semibold text-gray-700">{{ formatPeso(c.amount) }}</span>
 								</div>
@@ -430,6 +440,8 @@
 						<FormsLabel text="Your Quotation Amount" required />
 						<FormsTextField v-model="offerForm.budget" icon="peso" placeholder="e.g. 240000" inputmode="decimal" :error="amountError" />
 						<p v-if="!amountError" class="mt-1 text-xs text-gray-400">Enter one final quotation amount, or price the inclusions above.</p>
+						<p v-if="orgVatRate && Number(offerForm.budget.replace(/[₱,\s]/g, '')) > 0" class="mt-1 text-xs font-semibold text-gray-600">
+							+ VAT ({{ orgVatRate }}%) {{ formatPeso(Math.round(Number(offerForm.budget.replace(/[₱,\s]/g, '')) * orgVatRate) / 100) }}, added by NaSeRy</p>
 					</div>
 
 					<div class="mt-4">
@@ -830,9 +842,25 @@ function formatSchedule(start: string | null, end: string | null): string {
 	return `${formatTime(start)} – ${formatTime(end)}`
 }
 
+// For the drawer: the request itself, and anything already booked on that date (a note, never a block).
+const orgIdForRequest = computed(() => useOrganization().organization.value?.id ?? '')
+const wideScreen = ref(false)
+const ownEvents = ref<{ name: string, date: string, status: string }[]>([])
+const sameDateEvents = computed(() => {
+	const date = String(offerForm.eventDate ?? '').slice(0, 10)
+	return date ? ownEvents.value.filter(e => e.date === date && e.status !== 'cancelled') : []
+})
+async function loadOwnEvents() {
+	if (!orgIdForRequest.value) return
+	const events = await allItems(page => useOrganizerEvents().list(orgIdForRequest.value, [], page)).catch(() => [])
+	ownEvents.value = events.map(e => ({ name: e.name, date: (e.starts_at ?? '').slice(0, 10), status: e.status }))
+}
+
 function openOfferForm(
 	inquiry: MatchingInquiry,
 ) {
+	wideScreen.value = window.matchMedia('(min-width: 1024px)').matches
+	void loadOwnEvents()
 	Object.assign(
 		offerForm,
 		emptyOfferForm(),
@@ -963,9 +991,12 @@ const builderOptions = ref<import('~/composables/useQuotations').PriceOption[]>(
 const builderServices = ref<{ id: string, name: string }[]>([])
 const builderSettings = ref<EstimateSettings>({})
 // Price list filtered to the client's event type (options with no event types fit every event).
+// "Other" isn't a tag organizers can pick, so every option fits it, as in matching.
 const showAllOptions = ref(false)
+const isOtherEvent = computed(() => offerForm.eventType.trim().toLowerCase() === 'other')
 const fittingOptions = computed(() => {
 	const type = offerForm.eventType.trim().toLowerCase()
+	if (isOtherEvent.value) return builderOptions.value
 	return builderOptions.value.filter(o => !o.event_tags?.length || !type || o.event_tags.some(t => t.trim().toLowerCase() === type))
 })
 const shownOptions = computed(() => (showAllOptions.value ? builderOptions.value : fittingOptions.value))
@@ -977,13 +1008,15 @@ const breakdown = computed(() => {
 	const subtotal = pricedItems.value.reduce((sum, l) => sum + lineSubtotal(Number(l.quantity) || 1, Number(l.unit_price) || 0), 0)
 	const cents = (v: number) => Math.round(v * 100) / 100
 	const service = cents(subtotal * (offerForm.chargePercents.service || 0) / 100)
-	const vat = cents((subtotal + service) * (offerForm.chargePercents.vat || 0) / 100)
+	// VAT: NaSeRy's rate for organizers who charge it, never typed or removed (mock defense).
+	const vat = cents((subtotal + service) * orgVatRate.value / 100)
 	const charges = [
 		...(service ? [{ key: 'service' as const, label: 'Service charge', percent: offerForm.chargePercents.service, amount: service }] : []),
-		...(vat ? [{ key: 'vat' as const, label: 'VAT', percent: offerForm.chargePercents.vat, amount: vat }] : []),
+		...(vat ? [{ key: 'vat' as const, label: 'VAT', percent: orgVatRate.value, amount: vat }] : []),
 	]
 	return { subtotal, charges, total: cents(subtotal + service + vat) }
 })
+const orgVatRate = computed(() => Number((useOrganization().organization.value?.profile as { estimate_tax_percent?: number | null } | undefined)?.estimate_tax_percent) || 0)
 function removeCharge(key: 'service' | 'vat') {
 	offerForm.chargePercents = { ...offerForm.chargePercents, [key]: 0 }
 }
@@ -1045,7 +1078,8 @@ async function submitOffer() {
 		const lines = hasPricedLines.value
 			? [
 					...pricedItems.value.map(l => ({ organization_service_id: l.organization_service_id ?? null, description: l.description.trim(), quantity: Number(l.quantity) || 1, unit_price: Number(l.unit_price) || 0 })),
-					...breakdown.value.charges.map(c => ({ organization_service_id: null, description: `${c.label} (${c.percent}%)`, quantity: 1, unit_price: c.amount })),
+					// The server adds the VAT line itself, at NaSeRy's rate.
+					...breakdown.value.charges.filter(c => c.key !== 'vat').map(c => ({ organization_service_id: null, description: `${c.label} (${c.percent}%)`, quantity: 1, unit_price: c.amount })),
 				]
 			: [{ description: offerForm.packageName.trim() || 'Event package', quantity: 1, unit_price: quotationAmount }]
 		await useOrganizerQuotations().create(orgId, String(selectedInquiryId.value), {
@@ -1153,6 +1187,8 @@ onMounted(() => {
 })
 // Close to live (review #12): other people's changes appear without a reload.
 useLiveRefresh(() => loadMatchingInquiries(true), { interval: 60000 })
+// New requests glow for a moment when they arrive (no reload, no jump).
+const isFreshInquiry = useFreshKeys(() => inquiries.value, i => i.id)
 </script>
 
 <style scoped>

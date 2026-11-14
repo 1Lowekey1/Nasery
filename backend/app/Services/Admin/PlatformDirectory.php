@@ -161,9 +161,12 @@ class PlatformDirectory
     {
         return $this->db->system('admin.services', fn () => DB::table('services as s')
             ->leftJoinSub(DB::table('organization_services')->whereNull('deleted_at')->whereNotNull('service_id')->groupBy('service_id')->selectRaw('service_id, count(*) as uses'), 'x', 'x.service_id', '=', 's.id')
+            // How often clients asked for it in a request (Service Tags).
+            ->leftJoinSub(DB::table('inquiry_services as q')->join('inquiries as i', 'i.id', '=', 'q.inquiry_id')->whereNot('i.status', 'draft')->whereNotNull('q.service_id')
+                ->groupBy('q.service_id')->selectRaw('q.service_id, count(*) as requests'), 'r', 'r.service_id', '=', 's.id')
             ->orderByRaw('s.deleted_at is not null')->orderBy('s.category')->orderBy('s.name')
-            ->get(['s.id', 's.name', 's.category', 's.deleted_at', 'x.uses'])
-            ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'category' => $s->category, 'archived' => $s->deleted_at !== null, 'uses' => (int) $s->uses])
+            ->get(['s.id', 's.name', 's.category', 's.deleted_at', 'x.uses', 'r.requests'])
+            ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'category' => $s->category, 'archived' => $s->deleted_at !== null, 'uses' => (int) $s->uses, 'requests' => (int) $s->requests])
             ->all());
     }
 

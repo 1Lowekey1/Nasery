@@ -29,10 +29,7 @@
 				<IconBase name="user-plus" class="h-4 w-4" /> Add teammate
 			</button>
 			<form v-else-if="adding && candidates.length" class="mt-3 space-y-3 rounded-xl bg-gray-50 p-3" @submit.prevent="add">
-				<select v-model="form.organization_member_id" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" aria-label="Team member">
-					<option value="" disabled>Choose a teammate</option>
-					<option v-for="c in candidates" :key="c.id" :value="c.id">{{ c.name }} ({{ c.role }})</option>
-				</select>
+				<FormsSelect v-model="form.organization_member_id" :can-clear="false" :options="candidates.map(c => ({ value: c.id, label: `${c.name} (${c.role})` }))" placeholder="Choose a teammate" />
 				<FormsTextField v-model="form.label" placeholder="Their job here, e.g. Stage manager" aria-label="Their job on this event" />
 				<fieldset>
 					<legend class="mb-1 text-xs font-semibold text-gray-500">Extra permissions on this event only</legend>

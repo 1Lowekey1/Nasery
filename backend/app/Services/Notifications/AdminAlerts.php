@@ -141,6 +141,14 @@ class AdminAlerts
         return preg_match('/[.!?]$/u', $text) ? $text : "{$text}.";
     }
 
+    /** Every refund, so NaSeRy (which holds online payments) knows money went back (mock defense 2026-11). */
+    public function refundRecorded(string $organizationId, float $amount, string $reason): void
+    {
+        $org = $this->db->system('notify.refund_org', fn () => DB::table('organizations')->where('id', $organizationId)->value('display_name')) ?? 'An organizer';
+        $this->notifier->send($this->admins(), 'admin.refund', "{$org} refunded ₱".number_format($amount, 2),
+            self::sentence($reason), ['organization_id' => $organizationId], '/superadmin/moderation?tab=claims');
+    }
+
     // ---- Recipients ---------------------------------------------------------
 
     /** @return list<string> active platform admins */

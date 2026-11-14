@@ -14,6 +14,11 @@ Route::middleware(['auth:sanctum', 'active'])->where(['notification' => $uuid])-
     Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread');
     Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::post('notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    // Mock defense: clearing notifications (hidden from the list, kept in the database).
+    Route::post('notifications/clear', [NotificationController::class, 'clear'])->name('notifications.clear');
+    // Live updates (option B): pages reload only when this changes.
+    Route::get('changes', [\App\Http\Controllers\Api\V1\Notifications\ChangeStampController::class, 'show'])->name('changes');
+    Route::delete('notifications/{notification}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
     Route::get('notification-preferences', [NotificationController::class, 'preferences'])->name('notification-preferences.show');
     Route::put('notification-preferences', [NotificationController::class, 'updatePreferences'])->middleware('throttle:sensitive')->name('notification-preferences.update');
 });

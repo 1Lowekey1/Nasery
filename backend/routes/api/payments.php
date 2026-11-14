@@ -39,5 +39,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
             Route::get('payments', [OrganizerPaymentController::class, 'index'])->name('payments.index');
             Route::post('payments/{payment}/refund', [OrganizerPaymentController::class, 'refund'])
                 ->middleware(['throttle:sensitive', 'idempotent'])->name('payments.refund');
+            Route::post('refund-requests/{refundRequest}/decline', [OrganizerPaymentController::class, 'declineRequest'])
+                ->middleware('throttle:sensitive')->name('refund-requests.decline');
         });
     });

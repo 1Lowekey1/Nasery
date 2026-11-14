@@ -26,6 +26,8 @@
 			</div>
 
 			<!-- The same NaSeRy-wide trends organizers see on their Home -->
+			<SuperadminEarningsCard class="mb-6" />
+
 			<AnalyticsEventTrendsCard class="mb-6" subtitle="Event requests and booked events across NaSeRy, by event type." />
 
 			<div class="grid grid-cols-1 gap-5 xl:grid-cols-3">

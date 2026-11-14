@@ -6,6 +6,9 @@
     $maxBucket = max(1, (int) collect($r['timeline']['buckets'])->max(fn ($b) => $b['check_ins'] + $b['walk_ins']));
     $statusLabel = ['attended' => 'Attended', 'no_show' => 'No-show', 'cancelled' => 'Cancelled'];
     $sourceLabel = ['online' => 'Online', 'organizer' => 'Guest list', 'staff' => 'Staff', 'walk_in' => 'Door sale'];
+    $sum = $r['summary'] ?? null; // reports shared before this section existed have none
+    $qty = fn ($q) => rtrim(rtrim(number_format((float) $q, 2), '0'), '.');
+    $activityLabel = ['pending' => 'Pending', 'in_progress' => 'In progress', 'done' => 'Done', 'completed' => 'Done', 'cancelled' => 'Cancelled'];
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -38,7 +41,7 @@
 <body>
 <div class="foot">NaSeRy · {{ $r['event']['name'] }} · generated {{ \Carbon\CarbonImmutable::parse($r['generated_at'])->format('M j, Y g:i A') }}@if (! empty($share['version'])) · shared version {{ $share['version'] }}@endif</div>
 
-<div class="brand">@include('pdf.partials.logo')NaSeRy <span class="muted" style="font-weight:normal;font-size:8pt">· Post-event attendance report</span></div>
+<div class="brand">@include('pdf.partials.logo')NaSeRy <span class="muted" style="font-weight:normal;font-size:8pt">· Post-event summary</span></div>
 <h1>{{ $r['event']['name'] }}</h1>
 <div class="muted">by {{ $r['event']['organizer'] }}@if ($r['event']['venue']) · {{ $r['event']['venue'] }}@endif</div>
 @foreach ($r['event']['sessions'] as $s)
@@ -49,6 +52,19 @@
     <div class="note"><strong>Note from the organizer:</strong> {{ $share['note'] }}</div>
 @endif
 
+@if ($sum)
+    <h2>Event overview</h2>
+    <table class="grid">
+        @if ($sum['client'])<tr><td class="muted" style="width:28%">Client</td><td>{{ $sum['client'] }}</td></tr>@endif
+        <tr><td class="muted" style="width:28%">Organizer</td><td>{{ $r['event']['organizer'] }}</td></tr>
+        @if ($sum['event_type'])<tr><td class="muted">Event type</td><td>{{ $sum['event_type'] }}</td></tr>@endif
+        @if ($r['event']['venue'])<tr><td class="muted">Venue</td><td>{{ $r['event']['venue'] }}</td></tr>@endif
+        @if ($sum['requested_guests'])<tr><td class="muted">Guests requested</td><td>{{ $sum['requested_guests'] }}</td></tr>@endif
+        @if ($sum['description'])<tr><td class="muted">About</td><td>{{ $sum['description'] }}</td></tr>@endif
+    </table>
+@endif
+
+<h2>Attendance</h2>
 <table class="cards"><tr>
     <td><div class="small">Attended</div><div class="big">{{ $t['attended'] }}<span class="small"> / {{ $t['expected'] }}</span></div><div class="small">{{ $pct($t['attendance_rate']) }} of ticket holders</div></td>
     <td><div class="small">No-shows</div><div class="big">{{ $t['no_shows'] }}</div><div class="small">never checked in</div></td>
@@ -121,8 +137,48 @@
     <div class="muted">No one has checked in yet.</div>
 @endif
 
-@isset($r['revenue'])
-    <h2>Revenue</h2>
+@if ($sum && ! empty($sum['program']))
+    <h2>Event program</h2>
+    <table class="grid">
+        <tr><th>When</th><th>Activity</th><th>Person</th><th>Status</th></tr>
+        @foreach ($sum['program'] as $a)
+            <tr><td>{{ $a['when'] ? \Carbon\CarbonImmutable::parse($a['when'])->format('M j, g:i A') : '—' }}</td><td>{{ $a['title'] }}</td><td>{{ $a['person'] ?? '—' }}</td>
+                <td>{{ $activityLabel[$a['status']] ?? $a['status'] }}</td></tr>
+        @endforeach
+    </table>
+@endif
+
+@if ($sum && $sum['tasks']['total'] > 0)
+    <h2>Preparation</h2>
+    <div>{{ $sum['tasks']['done'] }} of {{ $plural($sum['tasks']['total'], 'task') }} completed.</div>
+@endif
+
+@if ($sum && $sum['package'])
+    <h2>Package and pricing</h2>
+    @if ($sum['package']['name'])<div style="margin-bottom:4pt"><strong>{{ $sum['package']['name'] }}</strong></div>@endif
+    <table class="grid" style="width:75%">
+        @foreach ($sum['package']['items'] as $item)
+            <tr><td>{{ $item['description'] }}@if ($item['quantity'] != 1) <span class="muted">× {{ $qty($item['quantity']) }}</span>@endif</td>
+                <td class="num">{{ $peso($item['subtotal']) }}</td></tr>
+        @endforeach
+        @if ($sum['package']['quoted_total'] !== null)
+            <tr><td><strong>Offer total</strong></td><td class="num"><strong>{{ $peso($sum['package']['quoted_total']) }}</strong></td></tr>
+        @endif
+        @if ($sum['package']['agreed_amount'] !== null)
+            <tr><td><strong>Final agreed price</strong></td><td class="num"><strong>{{ $peso($sum['package']['agreed_amount']) }}</strong></td></tr>
+        @endif
+    </table>
+    @if ($sum['package']['agreed_note'])<div class="small" style="margin-top:4pt">{{ $sum['package']['agreed_note'] }}</div>@endif
+@endif
+
+@if ($sum && $sum['review'])
+    <h2>Client review</h2>
+    <div><strong>{{ $sum['review']['rating'] }} out of 5</strong></div>
+    @if ($sum['review']['text'])<div class="note">{{ $sum['review']['text'] }}</div>@endif
+@endif
+
+@if (isset($r['revenue']) && (float) $r['revenue']['total'] != 0)
+    <h2>Ticket revenue</h2>
     <table class="grid" style="width:60%">
         <tr><td>Online ticket sales</td><td class="num">{{ $peso($r['revenue']['online_gross']) }}</td></tr>
         <tr><td>NaSeRy platform fee</td><td class="num">−{{ $peso($r['revenue']['platform_fee']) }}</td></tr>
@@ -131,18 +187,27 @@
         <tr><td>Cash at the door</td><td class="num">{{ $peso($r['revenue']['door_cash']) }}</td></tr>
         <tr><td><strong>Total</strong></td><td class="num"><strong>{{ $peso($r['revenue']['total']) }}</strong></td></tr>
     </table>
-@endisset
+@endif
 
 @isset($r['attendees'])
     <h2 style="page-break-before:always">Guest list</h2>
     <table class="grid">
         <tr><th>Name</th><th>Tier</th><th>Source</th><th>Status</th><th>First check-in</th></tr>
-        @foreach ($r['attendees'] as $a)
-            <tr><td>{{ $a['name'] }}</td><td>{{ $a['tier'] }}</td><td>{{ $sourceLabel[$a['source']] ?? $a['source'] }}</td>
-                <td>{{ $statusLabel[$a['status']] }}</td><td>{{ $a['first_check_in'] ?? '—' }}</td></tr>
-        @endforeach
-        @foreach ($r['walk_in_names'] ?? [] as $w)
-            <tr><td>{{ $w['name'] }}</td><td class="muted">—</td><td>Walk-in</td><td>Attended</td><td>{{ $w['at'] }}</td></tr>
+        {{-- In arrival order: first in at the top, no-shows and cancelled at the bottom; named walk-ins slot in by their time. --}}
+        @php
+            $guestRows = collect($r['attendees'])->map(fn ($a) => $a + ['walk_in' => false])
+                ->merge(collect($r['walk_in_names'] ?? [])->map(fn ($w) => [
+                    'name' => $w['name'], 'status' => 'attended', 'checked_in_at' => $w['checked_in_at'] ?? null, 'first_check_in' => $w['at'], 'walk_in' => true,
+                ]))
+                ->sort(fn ($a, $b) => \App\Services\Reports\AttendanceReport::arrivalOrder($a, $b));
+        @endphp
+        @foreach ($guestRows as $a)
+            @if ($a['walk_in'])
+                <tr><td>{{ $a['name'] }}</td><td class="muted">—</td><td>Walk-in</td><td>Attended</td><td>{{ $a['first_check_in'] }}</td></tr>
+            @else
+                <tr><td>{{ $a['name'] }}</td><td>{{ $a['tier'] }}</td><td>{{ $sourceLabel[$a['source']] ?? $a['source'] }}</td>
+                    <td>{{ $statusLabel[$a['status']] }}</td><td>{{ $a['first_check_in'] ?? '—' }}</td></tr>
+            @endif
         @endforeach
     </table>
 @endisset

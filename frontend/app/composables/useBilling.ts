@@ -56,6 +56,8 @@ export interface BillingOverview {
   plans: PlanInfo[]
   open_invoice: (Invoice & { plan_slug: string, due_by: string }) | null
   payment_mode: 'fake' | 'test' | 'live'
+  /** NaSeRy's cut of each online ticket sale, same on every plan (null when the fee is off). */
+  fee_percent?: number | null
   scheduled_change: { plan: string, plan_slug: string, cycle: 'monthly' | 'yearly', starts_at: string, price: number } | null
   invoices: Invoice[]
   can: { manage: boolean }

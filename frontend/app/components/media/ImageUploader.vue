@@ -80,10 +80,10 @@ const frameClass = computed(() => ({
 	event: 'h-28 w-full max-w-sm rounded-xl',
 })[props.shape])
 const hint = computed(() => ({
-	avatar: 'JPG, PNG or WebP, up to 5 MB. Shown as a circle.',
-	logo: 'JPG, PNG or WebP, up to 5 MB. Square works best; transparent PNG is kept.',
-	cover: 'JPG, PNG or WebP, up to 5 MB. A wide picture (about 1600×600) works best.',
-	event: 'JPG, PNG or WebP, up to 5 MB. A wide picture (about 16:9) works best.',
+	avatar: 'JPG, PNG or WebP, up to 25 MB. Shown as a circle.',
+	logo: 'JPG, PNG or WebP, up to 25 MB. Square works best; transparent PNG is kept.',
+	cover: 'JPG, PNG or WebP, up to 25 MB. A wide picture (about 1600×600) works best.',
+	event: 'JPG, PNG or WebP, up to 25 MB. A wide picture (about 16:9) works best.',
 })[props.shape])
 // The crop frame matches what the server makes of each kind (ImageStore::KINDS).
 const cropping = ref<File | null>(null)
@@ -114,6 +114,11 @@ function pick(e: Event) {
 function accept(file: File) {
 	const original = cropping.value ?? file
 	cropping.value = null
+	// Only when the picture couldn't be shrunk here (see CropDialog).
+	if (file.size > imageRules.maxBytes) {
+		error.value = 'That picture couldn\'t be shrunk here. Try one under 5 MB.'
+		return
+	}
 	if (batch) {
 		batch.put(key.value, { file, original, preview: URL.createObjectURL(file), upload: props.upload, done: url => emit('changed', url) })
 		return

@@ -135,7 +135,7 @@
 					</div>
 				</div>
 
-				<div class="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+				<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
 					<article v-for="(p, index) in data.plans" :key="p.id"
 						class="plan-card fade-up relative flex flex-col rounded-3xl p-7"
 						:class="p.slug === featuredSlug ? 'featured' : 'border border-gray-200 bg-white shadow-sm'"
@@ -154,15 +154,16 @@
 							<template v-else-if="cycle === 'yearly'">That's {{ peso(Number(p.price_yearly) / 12) }} a month</template>
 							<template v-else>Billed monthly</template>
 						</p>
-						<ul class="mt-6 flex-1 space-y-3 text-sm">
+						<p class="mt-4 text-sm leading-6 text-gray-600">{{ planPitch(p) }}</p>
+						<ul class="mt-5 flex-1 space-y-3 text-sm">
 							<li v-for="(label, key) in limitLabels" :key="key" class="flex items-start gap-2.5 text-gray-700">
 								<svg viewBox="0 0 20 20" class="mt-0.5 h-[18px] w-[18px] shrink-0 text-primary-700" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.8 3.8 6.8-6.8a1 1 0 0 1 1.4 0Z" clip-rule="evenodd" /></svg>
-								<span><span class="font-bold text-gray-950">{{ p.limits?.[key] === null || p.limits?.[key] === undefined ? 'Unlimited' : p.limits[key] }}</span> {{ label }}</span>
+								<span><span class="font-bold text-gray-950">{{ p.limits?.[key] === null || p.limits?.[key] === undefined ? 'Unlimited' : p.limits[key] }}</span> {{ label }}<span v-if="key === 'analytics_history_months'" class="block text-xs text-gray-500">Trends, bids, events and the Event Types breakdown</span></span>
 							</li>
 							<li class="flex items-start gap-2.5" :class="p.features?.advanced_reports ? 'text-gray-700' : 'text-gray-400'">
 								<svg v-if="p.features?.advanced_reports" viewBox="0 0 20 20" class="mt-0.5 h-[18px] w-[18px] shrink-0 text-primary-700" fill="currentColor"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.8 3.8 6.8-6.8a1 1 0 0 1 1.4 0Z" clip-rule="evenodd" /></svg>
 								<span v-else class="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center text-gray-300">—</span>
-								<span>Quarterly analytics &amp; CSV exports</span>
+								<span>Quarterly analytics &amp; earnings CSV</span>
 							</li>
 						</ul>
 						<div class="mt-8">
@@ -179,6 +180,17 @@
 							</button>
 						</div>
 					</article>
+				</div>
+
+				<!-- What every organizer gets, whatever the plan -->
+				<div class="mt-6 rounded-2xl bg-gray-50 p-5">
+					<p class="text-sm font-bold text-gray-950">Included in every plan</p>
+					<ul class="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 text-sm text-gray-700 sm:grid-cols-2 lg:grid-cols-3">
+						<li v-for="item in everyPlan" :key="item" class="flex items-start gap-2">
+							<IconBase name="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />{{ item }}
+						</li>
+					</ul>
+					<p class="mt-3 text-xs text-gray-500">On ticket sales, NaSeRy keeps {{ data.fee_percent ?? '—' }}% of each online sale; buyers never pay extra. Plans don't change this.</p>
 				</div>
 
 				<p class="mt-4 flex items-start gap-2 text-xs text-gray-400">
@@ -354,6 +366,21 @@ watch(data, (value) => { if (value) setTimeout(() => { ringsReady.value = true }
 const plansRef = ref<HTMLElement | null>(null)
 function scrollToPlans() { scrollToElement(plansRef.value) }
 // The most capable paid plan gets the "Most popular" ribbon.
+// What each plan is for, in one line (the numbers on the card come from the plan itself).
+function planPitch(p: { slug: string, is_free: boolean }) {
+	if (p.is_free) return 'For getting started: get matched to client requests, send offers and run your first events.'
+	return p.slug === featuredSlug.value
+		? 'For busy organizers: no caps on events, team or price list, and the longest analytics history.'
+		: 'For growing teams: more events and teammates, a full year of analytics, and quarterly reports.'
+}
+const everyPlan = [
+	'Matched to client requests for your event types',
+	'Offers built from your price list',
+	'Event setup, preparation tasks and event program',
+	'Online tickets, QR check-in and walk-ins',
+	'Business profile in the NaSeRy directory',
+	'NaSeRy-wide event trends and reviews',
+]
 const featuredSlug = computed(() => [...(data.value?.plans ?? [])].filter(p => !p.is_free).sort((a, b) => Number(b.price_monthly) - Number(a.price_monthly))[0]?.slug ?? null)
 const yearlySavings = computed(() => {
 	const p = data.value?.plans.find(x => !x.is_free && Number(x.price_monthly) > 0)

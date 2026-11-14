@@ -53,6 +53,12 @@ class AdminController extends Controller
         return ApiResponse::success($this->analytics->overview());
     }
 
+    /** What NaSeRy earns: plan run rate, paying organizers, last 12 months of plans and ticket fees. */
+    public function earnings(): JsonResponse
+    {
+        return ApiResponse::success($this->analytics->earnings());
+    }
+
     public function analytics(Request $request): JsonResponse
     {
         $data = $request->validate(['months' => ['nullable', 'integer', Rule::in([3, 6, 12, 24])]]);

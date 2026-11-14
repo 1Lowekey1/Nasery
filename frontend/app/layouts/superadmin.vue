@@ -114,6 +114,7 @@ const navItems = [
 	{ label: 'Events', to: '/superadmin/events', icon: 'calendar', matches: ['/superadmin/events'] },
 	{ label: 'Analytics', to: '/superadmin/analytics', icon: 'chart-bar', matches: ['/superadmin/analytics'] },
 	{ label: 'Event Tags', to: '/superadmin/event-tags', icon: 'tag', matches: ['/superadmin/event-tags'] },
+	{ label: 'Service Tags', to: '/superadmin/service-tags', icon: 'briefcase', matches: ['/superadmin/service-tags'] },
 	{ label: 'Approvals', to: '/superadmin/approvals', icon: 'check-circle', matches: ['/superadmin/approvals'] },
 	{ label: 'Moderation', to: '/superadmin/moderation', icon: 'star', matches: ['/superadmin/moderation'] },
 	{ label: 'NaSeRy Access', to: '/superadmin/access', icon: 'shield-check', matches: ['/superadmin/access'] },

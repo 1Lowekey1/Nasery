@@ -1,6 +1,6 @@
 <template>
 	<NuxtLayout :name="layout">
-	<div class="mx-auto max-w-4xl" :class="layout === 'public' ? 'px-5 pt-8 pb-16 sm:px-8' : ''">
+	<div :class="layout === 'public' ? 'mx-auto max-w-4xl px-5 pt-8 pb-16 sm:px-8' : ''">
 		<h1 class="text-3xl font-bold tracking-tight">My tickets</h1>
 		<p class="mt-2 text-gray-500">Show the QR code at the entrance. Each person needs their own.</p>
 
@@ -29,10 +29,11 @@
 			<NuxtLink to="/events" class="mt-3 inline-block font-semibold text-primary-700">Browse public events</NuxtLink>
 		</div>
 
-		<div v-else class="mt-8 space-y-5">
+		<!-- Two tickets side by side on wide screens instead of one long column. -->
+		<div v-else class="mt-8 grid gap-5" :class="layout === 'public' ? '' : '2xl:grid-cols-2'">
 			<article v-for="t in tickets" :key="t.id" class="grid gap-5 rounded-2xl border border-gray-200 bg-white p-6 sm:grid-cols-[1fr_auto]">
 				<div>
-					<p class="text-xs font-semibold uppercase tracking-wide text-primary-700">{{ t.tier }}<span v-if="t.zone"> · {{ t.zone }}</span></p>
+					<p class="text-xs font-semibold uppercase tracking-wide text-primary-700">{{ t.tier }}<span v-if="t.zone"> · {{ t.zone }}</span><span v-if="t.seat"> · {{ t.seat }}</span></p>
 					<h2 class="mt-1 text-xl font-bold text-gray-900">{{ t.event }}</h2>
 					<p class="text-sm text-gray-500">by {{ t.organizer }}</p>
 					<p class="mt-3 text-sm font-semibold text-gray-900">{{ t.attendee }}</p>
@@ -45,6 +46,17 @@
 					</p>
 					<button v-if="t.qr_token" type="button" class="ml-3 text-xs font-semibold text-primary-700" @click="downloadPdf(t)">Download PDF</button>
 					<button v-if="t.cancellable" type="button" class="ml-3 text-xs font-semibold text-rose-700" @click="cancel(t)">Cancel ticket</button>
+					<button v-if="t.refund?.can_request && t.event_status !== 'completed'" type="button" class="ml-3 text-xs font-semibold text-rose-700" @click="askRefund(t)">Request a refund</button>
+					<p v-if="t.refund?.request_status === 'pending'" class="mt-2 text-xs font-semibold text-amber-700">Refund requested. Waiting for {{ t.organizer }} to answer.</p>
+					<!-- Money returned: amount, date, and where it went. -->
+					<div v-else-if="t.refund?.refunded_amount" class="mt-3 flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
+						<IconBase name="check-circle" class="mt-0.5 h-4 w-4 shrink-0" />
+						<p>
+							<span class="font-semibold">{{ formatPeso(t.refund.refunded_amount) }} refunded<template v-if="t.refund.paid_amount && Number(t.refund.refunded_amount) < Number(t.refund.paid_amount)"> of {{ formatPeso(t.refund.paid_amount) }}</template><template v-if="t.refund.refunded_at"> on {{ new Date(t.refund.refunded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}</template></span>
+							<span class="block text-green-700">Returned to the account you paid with. It can take a few days to show.</span>
+						</p>
+					</div>
+					<p v-else-if="t.refund?.request_status === 'declined'" class="mt-2 text-xs text-gray-600">Refund request declined<template v-if="t.refund.response_note">: “{{ t.refund.response_note }}”</template></p>
 				</div>
 				<QrCode v-if="t.qr_token" :value="t.qr_token" :label="`QR ticket for ${t.attendee} at ${t.event}`" class="w-48 justify-self-center" />
 			</article>
@@ -118,6 +130,23 @@ async function downloadPdf(t: MyTicket) {
 		URL.revokeObjectURL(url)
 	} catch (e) {
 		error.value = authMessage(e)
+	}
+}
+
+// 0061: paid purchases: ask the organizer for the money back (covers every ticket in that purchase).
+async function askRefund(t: MyTicket) {
+	const reason = await promptDialog(`Ask ${t.organizer} to refund your purchase for ${t.event}? This covers every ticket bought together with this one. Say why.`,
+		{ title: 'Request a refund', placeholder: 'e.g. I can no longer attend', minLength: 3, confirmLabel: 'Send request' })
+	if (!reason) return
+	busy.value = true
+	error.value = ''
+	try {
+		await api.requestRefund(t.id, reason)
+		await load()
+	} catch (e) {
+		error.value = authMessage(e)
+	} finally {
+		busy.value = false
 	}
 }
 

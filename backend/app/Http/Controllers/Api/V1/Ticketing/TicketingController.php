@@ -120,13 +120,18 @@ class TicketingController extends Controller
     {
         $member = $this->check($request, $organization, $event, 'attendee.manage', write: true);
         $data = $request->validate([
-            'file' => ['required', 'file', 'extensions:csv,txt', 'max:1024'],
+            // Mock defense: Excel's own .xlsx too (first sheet), not only .csv.
+            'file' => ['required', 'file', 'extensions:csv,txt,xlsx', 'max:1024'],
             'ticket_type_id' => ['required', 'uuid'],
             'admission_type' => ['required', Rule::in(['invited', 'complimentary'])],
             'send_email' => ['sometimes', 'boolean'],
         ]);
 
-        $result = $this->guests->import($event, (string) file_get_contents($data['file']->getRealPath()),
+        $file = $data['file'];
+        $csv = strtolower((string) $file->getClientOriginalExtension()) === 'xlsx'
+            ? GuestList::xlsxToCsv($file->getRealPath())
+            : (string) file_get_contents($file->getRealPath());
+        $result = $this->guests->import($event, $csv,
             $this->tier($event, $data['ticket_type_id']), AdmissionType::from($data['admission_type']), $member, $request->boolean('send_email', true));
 
         return ApiResponse::created(['imported' => $result['imported']], "{$result['imported']} guests imported with QR tickets.");
@@ -141,14 +146,13 @@ class TicketingController extends Controller
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // Excel-friendly UTF-8
-            fputcsv($out, ['Name', 'Email', 'Contact', 'Tier', 'Zone', 'Status', 'Admission', 'Source']);
+            fputcsv($out, ['Name', 'Email', 'Contact', 'Tier', 'Zone', 'Seat', 'Status', 'Admission', 'Source']);
             foreach ($rows as $r) {
                 // Neutralize spreadsheet formulas in user-provided cells.
                 $safe = fn ($v) => is_string($v) && preg_match('/^[=+\-@\t\r]/', $v) ? "'".$v : $v;
-                $row = array_map($safe, [$r['name'], $r['email'], $r['contact_number'], $r['tier'], $r['zone'], $r['status'], $r['admission_type'], $r['source']]);
-                // Phone numbers as text, so Excel keeps the leading 0 (="0917…"; Bulk Import reads it back).
-                $phone = GuestList::localPhone($r['contact_number']);
-                $row[2] = $phone !== null && preg_match('/^0\d{6,}$/', $phone) ? '="'.$phone.'"' : $row[2];
+                $row = array_map($safe, [$r['name'], $r['email'], $r['contact_number'], $r['tier'], $r['zone'], $r['seat'], $r['status'], $r['admission_type'], $r['source']]);
+                // 0917-123-4567: stays text in Excel through every save, and Bulk Import reads it back.
+                $row[2] = GuestList::spreadsheetPhone($r['contact_number']);
                 fputcsv($out, $row);
             }
             fclose($out);
@@ -194,6 +198,16 @@ class TicketingController extends Controller
         $this->check($request, $organization, $event, 'attendee.manage', write: true);
 
         return ApiResponse::success(['ticket_id' => $ticket->id, 'qr_token' => $this->guests->reissueQr($event, $ticket)], 'New QR code issued; the old one no longer works.');
+    }
+
+    /** 0058: an optional seat or table label. Empty clears it. */
+    public function seat(Request $request, Organization $organization, Event $event, Ticket $ticket): JsonResponse
+    {
+        $this->check($request, $organization, $event, 'attendee.manage', write: true);
+        $data = $request->validate(['seat' => ['nullable', 'string', 'max:30']]);
+        $this->guests->setSeat($event, $ticket, $data['seat'] ?? null);
+
+        return ApiResponse::success(['ticket_id' => $ticket->id], 'Seat saved.');
     }
 
     public function cancelTicket(Request $request, Organization $organization, Event $event, Ticket $ticket): JsonResponse

@@ -145,7 +145,9 @@ class OrganizerAnalytics
                     'inquiries' => $g->count(),
                     'bids' => $g->whereNotNull('first_sent_at')->count(),
                     'won' => $g->where('outcome', 'won')->count(),
+                    'lost' => $g->where('outcome', 'lost')->count(),
                     'win_rate' => $this->rate($g->where('outcome', 'won')->count(), $g->whereIn('outcome', ['won', 'lost'])->count()),
+                    'won_value' => $this->money($g->where('outcome', 'won')->sum(fn ($r) => (float) $r->amount)),
                 ])->sortByDesc('inquiries')->values()->all(),
                 'history' => $rows->sortByDesc('invited_at')->take(25)->map(fn ($r) => [
                     'inquiry_id' => $r->inquiry_id,

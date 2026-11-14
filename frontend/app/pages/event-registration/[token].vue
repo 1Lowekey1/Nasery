@@ -1557,7 +1557,9 @@ const loadEvent = async () => {
     } catch (error: unknown) {
         eventData.value = null
 
-        errorMessage.value = error instanceof ApiError && error.status === 404
+        errorMessage.value = error instanceof ApiError && error.status === 410
+            ? error.message
+            : error instanceof ApiError && error.status === 404
             ? 'This event isn’t open to the public. If you were invited, open the full link the host sent you.'
             : getApiErrorMessage(
                 error,

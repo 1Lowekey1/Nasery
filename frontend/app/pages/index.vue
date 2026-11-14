@@ -57,9 +57,9 @@
 					<label for="organizer-search" class="mb-2 block text-xs font-semibold text-gray-600">
 						Search organizers
 					</label>
-					<input id="organizer-search" v-model="search" type="search"
+					<FormsSearchSuggest id="organizer-search" v-model="search" :suggestions="suggestions"
 						placeholder="Name, location, or service…"
-						class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm" />
+						input-class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm" />
 				</div>
 				<div>
 					<label class="mb-2 block text-xs font-semibold text-gray-600">
@@ -203,12 +203,13 @@ const { user } = useAuth()
 const { data, status, error, refresh } = await useOrganizerDirectory()
 const organizers = computed(() => data.value?.data ?? [])
 const specialties = computed(() => [...new Set(organizers.value.flatMap(item => item.specialties))].sort())
-const regions = computed(() => [...new Set(organizers.value.map(item => item.location).filter((item): item is string => Boolean(item)))].sort())
+const regions = computed(() => [...new Set(organizers.value.map(item => item.location).filter(Boolean).map(cityOf))].sort())
+const suggestions = computed(() => organizerSuggestions(organizers.value))
 const filtered = computed(() => {
 	const query = search.value.trim().toLowerCase()
 	return organizers.value.filter(item =>
 		(!specialty.value || item.specialties.includes(specialty.value)) &&
-		(!region.value || item.location === region.value) &&
+		(!region.value || cityOf(item.location) === region.value) &&
 		(!query || [item.name, item.location, item.bio, ...item.specialties].filter(Boolean).join(' ').toLowerCase().includes(query))
 	).sort((a, b) => sort.value === 'work' ? b.portfolio_events_count - a.portfolio_events_count || a.name.localeCompare(b.name) : a.name.localeCompare(b.name))
 })

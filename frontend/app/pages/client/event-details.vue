@@ -32,6 +32,8 @@
 
 		<div v-else-if="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
 			{{ errorMessage }}
+			<!-- Chosen an organizer, event not set up yet: the offers are still one tap away. -->
+			<NuxtLink v-if="inquiryId" :to="`/client/my-events?offers=${inquiryId}`" class="mt-2 block font-semibold underline">Review offers</NuxtLink>
 		</div>
 
 		<div v-else-if="eventData" class="space-y-6">
@@ -130,10 +132,20 @@
 						</div>
 					</div>
 
-					<NuxtLink v-if="inquiryId" :to="`/client/inquiries/${inquiryId}#messages`"
+					<NuxtLink v-if="eventInquiryId" :to="`/client/messages?inquiry=${eventInquiryId}`"
 						class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700">
 						<IconBase name="message" class="h-4 w-4" />
 						Message organizer
+					</NuxtLink>
+					<NuxtLink v-if="eventData?.event.status === 'completed'" :to="`/client/event-report?event=${eventData.event.id}`"
+						class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700">
+						<IconBase name="file-text" class="h-4 w-4" />
+						Event summary
+					</NuxtLink>
+					<NuxtLink v-if="eventInquiryId" :to="`/client/my-events?offers=${eventInquiryId}`"
+						class="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700">
+						<IconBase name="file-text" class="h-4 w-4" />
+						Review offers
 					</NuxtLink>
 				</section>
 
@@ -172,6 +184,8 @@
 					</div>
 				</section>
 			</div>
+
+			<BookingCancellation v-if="eventInquiryId" :inquiry-id="eventInquiryId" :other-name="eventData.organizer?.company_name || 'Your organizer'" @changed="loadEventDetails(true)" />
 
 			<!-- B16: the client reviews the organizer once the event is completed -->
 			<ClientReviewPanel v-if="eventData.event?.id && eventData.event.status === 'completed' && eventData.organizer"
@@ -426,7 +440,7 @@
 							</div>
 						</div>
 					</div>
-					<div v-else class="mt-5 rounded-xl border border-dashed border-gray-300 px-5 py-8 text-center">
+					<div v-else-if="!isPrivate" class="mt-5 rounded-xl border border-dashed border-gray-300 px-5 py-8 text-center">
 						<IconBase name="ticket" class="mx-auto h-7 w-7 text-gray-400" />
 
 						<p class="mt-2 text-sm font-semibold text-gray-700">
@@ -438,6 +452,21 @@
 						</p>
 					</div>
 				</template>
+
+				<!-- A private event's guests, added by the organizer (invites work with or without ticket types). -->
+				<div v-if="isPrivate" class="mt-6">
+					<h4 class="text-sm font-bold text-gray-900">Guest list <span v-if="clientGuests.length" class="font-normal text-gray-400">({{ clientGuests.length }})</span></h4>
+					<p v-if="!clientGuests.length" class="mt-2 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-500">Your organizer hasn’t added guests yet. They’ll appear here.</p>
+					<ul v-else class="mt-3 max-h-80 divide-y divide-gray-100 overflow-y-auto rounded-xl border border-gray-200">
+						<li v-for="(g, i) in clientGuests" :key="i" class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+							<span class="min-w-0">
+								<span class="block truncate font-semibold text-gray-900">{{ g.name }}</span>
+								<span class="block truncate text-xs text-gray-500">{{ g.tier }}<template v-if="g.seat"> · {{ g.seat }}</template></span>
+							</span>
+							<span v-if="g.arrived" class="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Arrived</span>
+						</li>
+					</ul>
+				</div>
 
 				<div class="my-6 border-t border-gray-100" />
 
@@ -954,6 +983,10 @@ const inquiryId =
 const eventParam =
 	computed(() => (typeof route.query.event === 'string' ? route.query.event : null))
 
+// The request this event came from, for "Message organizer" and "Review offers" (this page can also be opened by event id).
+const eventInquiryId = ref<string | null>(null)
+const clientGuests = ref<{ name: string, tier: string, seat: string | null, arrived: boolean }[]>([])
+
 const eventId =
 	computed<number | string | null>(
 		() =>
@@ -1000,7 +1033,7 @@ const visibility = ref<string>('public')
 const isPrivate = computed(() => visibility.value === 'private')
 const isOver = computed(() => ['completed', 'cancelled'].includes(String(eventData.value?.event.status ?? '')))
 // After the event the section only matters if the client holds tickets.
-const showRegistrationSection = computed(() => !isOver.value || eventTickets.value.length > 0)
+const showRegistrationSection = computed(() => !isOver.value || eventTickets.value.length > 0 || clientGuests.value.length > 0)
 const stateCopy = computed(() => ({
 	draft: { badge: 'Confirmed', text: 'Your organizer and package are confirmed. Your organizer is setting up the event.' },
 	published: { badge: 'Confirmed', text: 'Your organizer and package are confirmed. Everything for the day is below.' },
@@ -1456,6 +1489,8 @@ async function loadEventDetails(quiet = false) {
 			return
 		}
 
+		eventInquiryId.value = event.inquiry_id ?? null
+		clientGuests.value = event.visibility === 'private' ? await useClientEvents().guests(event.id).catch(() => []) : []
 		const privateKey = event.visibility === 'private' ? ((event as { private_link_key?: string | null }).private_link_key ?? null) : null
 		const [quotes, publicEvent] = await Promise.all([
 			event.inquiry_id ? useClientQuotations().forInquiry(event.inquiry_id).catch(() => []) : Promise.resolve([]),

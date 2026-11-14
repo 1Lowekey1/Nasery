@@ -4,6 +4,7 @@ namespace Tests\Feature\Organizations;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Tests\Concerns\InteractsWithOrganizations;
 use Tests\TestCase;
 
@@ -70,5 +71,42 @@ class EventTypeSuggestionsTest extends TestCase
         $this->actingAs($admin)->spaJson('POST', "/api/v1/admin/event-type-suggestions/{$merge['id']}/merge", ['event_type_id' => $debut])->assertOk();
         $this->assertContains('Debut', $this->tags($b->id));
         $this->assertSame('merged', DB::table('event_type_suggestions')->where('id', $merge['id'])->value('status'));
+    }
+
+    public function test_a_suggestion_is_usable_right_away_and_gives_way_to_the_standard_type(): void
+    {
+        [$org, $owner] = $this->listedOrganizer('Suggest Own');
+        $admin = $this->adminUser();
+        $url = "/api/v1/organizations/{$org->id}/event-type-suggestions";
+        $own = fn () => DB::table('event_types')->where('organization_id', $org->id)->whereNull('deleted_at')->pluck('name')->all();
+        $kept = 'Durian Fest '.random_int(1000, 9999);
+        $gone = 'Kite Day '.random_int(1000, 9999);
+
+        // A new name is also the organization's own type at once (asking again doesn't make a second copy).
+        $first = $this->actingAs($owner)->spaJson('POST', $url, ['name' => $gone])->assertCreated()->json('data');
+        $this->assertSame($gone, $first['own_type']['name']);
+        $this->actingAs($owner)->spaJson('POST', $url, ['name' => $gone])->assertOk()->assertJsonPath('data.own_type.id', $first['own_type']['id']);
+        $this->actingAs($owner)->spaJson('POST', $url, ['name' => $kept])->assertCreated();
+        $this->assertEqualsCanonicalizing([$gone, $kept], $own());
+
+        // An event that used the private type moves to the standard one when NaSeRy approves it; the copy goes.
+        $day = now()->addDays(20)->toDateString();
+        $event = $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/events", [
+            'name' => 'Kite flying', 'event_type_id' => $first['own_type']['id'], 'sessions' => [['starts_at' => "{$day}T09:00", 'ends_at' => "{$day}T12:00"]],
+        ], ['Idempotency-Key' => (string) Str::uuid()])->assertCreated()->json('data.id');
+        $pending = collect($this->actingAs($admin)->spaJson('GET', '/api/v1/admin/event-type-suggestions')->json('data'));
+        $this->actingAs($admin)->spaJson('POST', '/api/v1/admin/event-type-suggestions/'.$pending->firstWhere('name', $gone)['id'].'/approve')->assertOk();
+        $standard = DB::table('event_types')->whereNull('organization_id')->where('name', $gone)->value('id');
+        $this->assertSame($standard, DB::table('events')->where('id', $event)->value('event_type_id'));
+
+        // Rejected: it stays theirs, for their own events.
+        $this->actingAs($admin)->spaJson('POST', '/api/v1/admin/event-type-suggestions/'.$pending->firstWhere('name', $kept)['id'].'/reject', ['note' => 'Too local for the list.'])->assertOk();
+        $this->assertSame([$kept], $own());
+
+        // Free plan: 2 own types. A third suggestion still reaches NaSeRy, without a private copy.
+        $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/event-types", ['name' => 'Filler '.random_int(1000, 9999)])->assertCreated();
+        $this->onPlan($org, 'free'); // test organizers start on Pro
+        $this->actingAs($owner)->spaJson('POST', $url, ['name' => 'Mango Run '.random_int(1000, 9999)])->assertCreated()
+            ->assertJsonPath('data.own_type', null)->assertJsonPath('data.own_type_limit_reached', true);
     }
 }

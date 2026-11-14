@@ -97,6 +97,7 @@
 				<li><strong>Clients</strong> see organizers' public profiles and the quotations sent to them.</li>
 				<li><strong>The public</strong> sees only public profiles, public events and published reviews. Private events are visible only through their invitation link.</li>
 				<li><strong>NaSeRy administrators</strong> see what they need to review organizers and handle reports.</li>
+				<li><strong>Business documents</strong> an organizer uploads are private: only that organization's owner and NaSeRy administrators can open them, and they're used only to confirm the business.</li>
 				<li><strong>Service providers</strong> that run parts of NaSeRy for us: our e-mail sender, our payment provider and our map and address search. They get only what that job needs.</li>
 			</ul>
 
@@ -132,7 +133,7 @@ defineProps<{ doc: 'terms' | 'privacy' }>()
 /** The other document's link was clicked: the page navigates, the popup switches tabs. */
 const emit = defineEmits<{ open: ['terms' | 'privacy'] }>()
 
-const UPDATED = 'October 27, 2026'
+const UPDATED = 'November 7, 2026'
 const CONTACT = 'naserynotifications@gmail.com'
 </script>
 

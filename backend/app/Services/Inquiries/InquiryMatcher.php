@@ -19,7 +19,9 @@ use Illuminate\Support\Facades\DB;
  * catalog services compare by catalog name) AND their profile pin is within the inquiry's
  * match_radius_km of the inquiry's pin AND (advisor review, 2026-11) the event
  * type is one of their profile's event tags. Organizers without event tags
- * aren't matched until they add them.
+ * aren't matched until they add them. "Other" means the event fits no type,
+ * and no organizer tags that, so it skips the event-type check: every organizer
+ * nearby who offers a requested service receives it.
  */
 class InquiryMatcher
 {
@@ -68,6 +70,7 @@ class InquiryMatcher
         $eventType = $inquiry->event_type_id === null ? null : $this->db->system('inquiry.event_type',
             fn () => DB::table('event_types')->where('id', $inquiry->event_type_id)->value('name'));
         $eventType = $eventType !== null ? mb_strtolower(trim($eventType)) : null;
+        $eventType = $eventType === 'other' ? null : $eventType;
 
         return $this->db->system('inquiry.match', function () use ($lat, $lng, $radius, $names, $limit, $eventType) {
             $distance = '(6371 * acos(least(1, greatest(-1,

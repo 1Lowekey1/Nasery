@@ -27,6 +27,7 @@ class Alerts
         private readonly Recipients $recipients,
         private readonly TicketMailer $tickets,
         private readonly DatabaseContext $db,
+        private readonly GuestMail $guestMail,
     ) {}
 
     /** @param  Collection<int, string>|list<string>  $organizationIds */
@@ -68,10 +69,18 @@ class Alerts
     public function quotationReceived(Quotation $quotation, bool $revised = false): void
     {
         $row = $this->quotationInfo($quotation);
-        $this->notifier->send($row->client_user_id, 'quotation.received',
-            ($revised ? 'Revised quotation from ' : 'New quotation from ').$row->organizer,
-            "{$row->organizer} quoted ₱".number_format((float) $row->total_amount, 2).' for your inquiry. Compare offers and accept the one you like.',
-            ['quotation_id' => $quotation->id, 'inquiry_id' => $row->inquiry_id], "/client/inquiries/{$row->inquiry_id}");
+        $amount = '₱'.number_format((float) $row->total_amount, 2);
+        // Mock defense: say so when an offer fits the client's budget, or is close to it.
+        $fit = self::budgetFit((float) $row->total_amount, $row->budget_min, $row->budget_max);
+        $title = match ($fit) {
+            'within' => "An offer within your budget from {$row->organizer}",
+            'close' => "An offer close to your budget from {$row->organizer}",
+            default => ($revised ? 'Revised quotation from ' : 'New quotation from ').$row->organizer,
+        };
+        $budget = $row->budget_max !== null ? ' Your budget: up to ₱'.number_format((float) $row->budget_max, 0).'.' : '';
+        $this->notifier->send($row->client_user_id, 'quotation.received', $title,
+            "{$row->organizer} ".($revised ? 'revised their offer to ' : 'quoted ')."{$amount} for your request.".($fit ? $budget : '').' Compare offers and accept the one you like.',
+            ['quotation_id' => $quotation->id, 'inquiry_id' => $row->inquiry_id], "/client/my-events?offers={$row->inquiry_id}");
     }
 
     public function quotationDecided(Quotation $quotation, bool $accepted, ?string $reason = null): void
@@ -198,10 +207,16 @@ class Alerts
     public function refunded(Payment $payment, float $amount, bool $ticketsCancelled): void
     {
         $row = $this->db->system('alerts.refund', fn () => DB::table('registrations as r')->join('events as e', 'e.id', '=', 'r.event_id')
-            ->where('r.id', $payment->registration_id)->first(['r.purchaser_user_id', 'e.name']));
-        $this->notifier->send($row?->purchaser_user_id, 'payment.refunded', '₱'.number_format($amount, 2)." refunded for {$row?->name}",
-            ($ticketsCancelled ? 'Your tickets were cancelled. ' : '').'The money goes back to the payment method you used; banks and e-wallets can take a few days.',
-            ['payment_id' => $payment->id], '/my-tickets');
+            ->where('r.id', $payment->registration_id)->first(['r.purchaser_user_id', 'r.purchaser_email', 'r.purchaser_name', 'e.name']));
+        $title = '₱'.number_format($amount, 2)." refunded for {$row?->name}";
+        $body = ($ticketsCancelled ? 'Your tickets were cancelled. ' : '').'The money goes back to the payment method you used; banks and e-wallets can take a few days.';
+        if ($row !== null && $row->purchaser_user_id === null) {
+            // Bought without an account: e-mail is the only way to tell them.
+            $this->guestMail->send($row->purchaser_email, $row->purchaser_name, $title, $body);
+
+            return;
+        }
+        $this->notifier->send($row?->purchaser_user_id, 'payment.refunded', $title, $body, ['payment_id' => $payment->id], '/my-tickets');
     }
 
     /** @param  list<string>  $ticketIds */
@@ -214,6 +229,15 @@ class Alerts
         foreach ($rows->groupBy('purchaser_user_id') as $userId => $group) {
             $this->notifier->send($userId, 'ticket.cancelled', "Ticket cancelled: {$group->first()->name}",
                 "The organizer cancelled {$group->count()} ticket".($group->count() > 1 ? 's' : '')." of yours. Reason: {$reason}.", [], '/my-tickets');
+        }
+
+        // Buyers without an account: by e-mail.
+        $guests = $this->db->system('alerts.cancelled_guests', fn () => DB::table('tickets as t')->join('registrations as r', 'r.id', '=', 't.registration_id')
+            ->join('events as e', 'e.id', '=', 't.event_id')->whereIn('t.id', $ticketIds)->whereNull('r.purchaser_user_id')->whereNotNull('r.purchaser_email')
+            ->get(['r.purchaser_email', 'r.purchaser_name', 'e.name']));
+        foreach ($guests->groupBy(fn ($g) => strtolower(trim((string) $g->purchaser_email))) as $group) {
+            $this->guestMail->send($group->first()->purchaser_email, $group->first()->purchaser_name, "Ticket cancelled: {$group->first()->name}",
+                "The organizer cancelled {$group->count()} ticket".($group->count() > 1 ? 's' : '')." of yours. Reason: {$reason}. If you paid, contact the organizer about a refund.");
         }
     }
 
@@ -228,9 +252,16 @@ class Alerts
             return $holders->push($client)->filter()->unique()->values()->all();
         });
 
-        $this->notifier->send($users, 'event.cancelled', "Cancelled: {$event->name}",
-            'The organizer cancelled this event'.($reason ? ". Reason: {$reason}" : '').'. Tickets are no longer valid; paid tickets are refunded by the organizer.',
-            ['event_id' => $event->id], '/my-tickets');
+        $body = 'The organizer cancelled this event'.($reason ? ". Reason: {$reason}" : '').'. Tickets are no longer valid; paid tickets are refunded by the organizer.';
+        $this->notifier->send($users, 'event.cancelled', "Cancelled: {$event->name}", $body, ['event_id' => $event->id], '/my-tickets');
+
+        // Buyers without an account: by e-mail, once per address.
+        $guests = $this->db->system('alerts.event_cancelled_guests', fn () => DB::table('tickets as t')->join('registrations as r', 'r.id', '=', 't.registration_id')
+            ->whereIn('t.id', $ticketIds)->whereNull('r.purchaser_user_id')->whereNotNull('r.purchaser_email')
+            ->get(['r.purchaser_email', 'r.purchaser_name']));
+        foreach ($guests->unique(fn ($g) => strtolower(trim((string) $g->purchaser_email))) as $g) {
+            $this->guestMail->send($g->purchaser_email, $g->purchaser_name, "Cancelled: {$event->name}", $body);
+        }
     }
 
     /** Almost full / full, once per level per event, to the door team and managers. */
@@ -258,6 +289,27 @@ class Alerts
             "/organizer/ticketattendance/walkin-counter?event={$event->id}", "capacity:{$event->id}:{$level}");
     }
 
+    /**
+     * within: inside the client's range; close: at most 10% over their maximum
+     * (or 10% under their minimum). Null when there's no budget or it's far off.
+     */
+    public static function budgetFit(float $total, mixed $min, mixed $max): ?string
+    {
+        if ($max === null && $min === null) {
+            return null;
+        }
+        $min = $min !== null ? (float) $min : 0.0;
+        $max = $max !== null ? (float) $max : null;
+        if ($total >= $min && ($max === null || $total <= $max)) {
+            return 'within';
+        }
+        if (($max !== null && $total > $max && $total <= $max * 1.10) || ($total < $min && $total >= $min * 0.90)) {
+            return 'close';
+        }
+
+        return null;
+    }
+
     private function quotationInfo(Quotation $quotation): object
     {
         return $this->db->system('alerts.quotation', fn () => DB::table('quotations as q')
@@ -265,7 +317,7 @@ class Alerts
             ->join('organizations as o', 'o.id', '=', 'q.organization_id')
             ->join('users as u', 'u.id', '=', 'i.client_user_id')
             ->where('q.id', $quotation->id)
-            ->first(['q.inquiry_id', 'q.organization_id', 'q.total_amount', 'i.client_user_id', 'o.display_name as organizer',
+            ->first(['q.inquiry_id', 'q.organization_id', 'q.total_amount', 'i.client_user_id', 'i.budget_min', 'i.budget_max', 'o.display_name as organizer',
                 DB::raw("trim(concat(u.first_name, ' ', u.last_name)) as client")]));
     }
 }

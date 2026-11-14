@@ -44,7 +44,7 @@ class ReportSharing
             throw new ApiException(ErrorCode::BusinessRuleViolation, 'This event has no client to share the report with (it was not created from an inquiry).', 409);
         }
 
-        $snapshot = $this->reports->build($event, $includeRevenue, withAttendees: $event->visibility === 'private');
+        $snapshot = $this->reports->build($event, $includeRevenue, withAttendees: $event->visibility === 'private', forClient: true);
         $row = $this->db->system('report.share', function () use ($event, $by, $note, $includeRevenue, $snapshot) {
             DB::table('events')->where('id', $event->id)->lockForUpdate()->value('id');
             $version = (int) DB::table('event_reports')->where('event_id', $event->id)->max('version') + 1;

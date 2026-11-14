@@ -24,8 +24,8 @@ class ReportPdf
             ->output();
     }
 
-    /** File name like "garden-gala-attendance-report.pdf". */
-    public static function fileName(array $report, string $suffix = 'attendance-report'): string
+    /** File name like "garden-gala-event-summary.pdf". */
+    public static function fileName(array $report, string $suffix = 'event-summary'): string
     {
         $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower((string) ($report['event']['name'] ?? 'event'))), '-') ?: 'event';
 

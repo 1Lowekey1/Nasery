@@ -13,6 +13,7 @@ use App\Models\Registration;
 use App\Models\TicketType;
 use App\Models\User;
 use App\Services\Billing\Billing;
+use App\Services\Notifications\AdminAlerts;
 use App\Services\Notifications\Alerts;
 use App\Services\Ticketing\CapacityGuard;
 use App\Services\Ticketing\TicketIssuer;
@@ -52,6 +53,8 @@ class Payments
         private readonly TicketIssuer $issuer,
         private readonly PlatformFee $fee,
         private readonly Alerts $alerts,
+        private readonly RefundRequests $refundRequests,
+        private readonly AdminAlerts $adminAlerts,
     ) {}
 
     /**
@@ -363,6 +366,8 @@ class Payments
                 'refunded_at' => now(),
                 'created_at' => now(),
             ]);
+            // A refund answers the buyer's open request, if any (0061).
+            $this->refundRequests->markRefunded($payment->id, $by->id);
 
             if ($cancelTickets) {
                 $ids = DB::table('tickets')->where('registration_id', $payment->registration_id)->where('status', TicketStatus::Valid->value)->pluck('id');
@@ -374,6 +379,7 @@ class Payments
 
         $orgId = DB::table('registrations as r')->join('events as e', 'e.id', '=', 'r.event_id')->where('r.id', $payment->registration_id)->value('e.organization_id');
         $this->alerts->refunded($payment, $amountCents / 100, $cancelTickets);
+        $this->adminAlerts->refundRecorded((string) $orgId, $amountCents / 100, $reason);
         $this->audit->record('payment.refunded', $payment, new: ['amount' => $amountCents / 100, 'category' => $category->value, 'fee_returned' => $feeCents / 100, 'reference' => $reference, 'cancel_tickets' => $cancelTickets],
             organizationId: $orgId, reason: $reason);
     }

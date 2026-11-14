@@ -48,6 +48,16 @@ export interface EventTeamMember {
   permissions: string[]
 }
 
+/** A program item where this person is the person in charge. */
+export interface MyProgramItem {
+  id: string
+  title: string
+  status: 'pending' | 'in_progress' | 'completed'
+  activity_at: string | null
+  event_id: string
+  event: string
+}
+
 export interface MyTask {
   id: string
   name: string
@@ -55,6 +65,8 @@ export interface MyTask {
   status: import('./useEvents').TaskStatus
   priority: import('./useEvents').TaskPriority
   due_at: string | null
+  /** When it was assigned to you (sorting by newest). */
+  assigned_at?: string
   checklist: string
   event_id: string
   event: string
@@ -113,5 +125,6 @@ export const useTeam = () => {
     removeFromEvent: async (orgId: string, eventId: string, eventMemberId: string) =>
       (await api.delete<EventTeamMember[]>(`${base(orgId)}/events/${eventId}/team/${eventMemberId}`)).data,
     myTasks: async (orgId: string) => (await api.get<MyTask[]>(`${base(orgId)}/my-tasks`)).data,
+    myProgram: async (orgId: string) => (await api.get<MyProgramItem[]>(`${base(orgId)}/my-program`)).data,
   }
 }

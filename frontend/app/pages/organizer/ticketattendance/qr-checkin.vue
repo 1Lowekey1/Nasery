@@ -191,7 +191,7 @@
                     <div v-else-if="
                         checkInSummary.recent_check_ins.length
                     " class="max-h-[420px] space-y-1 overflow-y-auto pr-1">
-                        <div v-for="(entry, index) in checkInSummary.recent_check_ins" :key="entry.id"
+                        <div v-for="(entry, index) in checkInSummary.recent_check_ins" :key="entry.id" :class="{ 'live-fresh': isFreshScan(entry) }"
                             class="qr-row flex items-center justify-between gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-gray-50"
                             :style="{ '--d': index * 45 + 'ms' }">
                             <div class="flex min-w-0 items-center gap-3">
@@ -298,24 +298,43 @@
                     <FormsLabel text="Name, e-mail or ticket ID" required />
 
                     <FormsTextField v-model="manualTicketId" placeholder="e.g. Bea Santos, bea@example.com or 3B8D41D8A6" />
+                    <p class="mt-1.5 text-xs text-gray-500">Find the guest, then ask for the last 4 characters of their ticket ID.</p>
 
                     <p v-if="manualSearching" class="mt-3 text-xs text-gray-400">Searching…</p>
                     <p v-else-if="manualTicketId.trim().length >= 2 && !manualMatches.length" class="mt-3 text-xs text-gray-500">No ticket on this event matches “{{ manualTicketId.trim() }}”.</p>
                     <ul v-else-if="manualMatches.length" class="mt-3 divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
                         <li v-for="g in manualMatches" :key="g.ticket_id">
                             <button type="button" class="flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition hover:bg-gray-50 disabled:opacity-50"
-                                :disabled="isManualCheckingIn || g.status === 'cancelled'" @click="checkInMatch(g)">
+                                :class="selectedGuest?.ticket_id === g.ticket_id ? 'bg-primary-50' : ''"
+                                :disabled="isManualCheckingIn || g.status === 'cancelled'" @click="selectGuest(g)">
                                 <span class="min-w-0">
                                     <span class="block truncate text-sm font-bold text-gray-900">{{ g.name }}</span>
-                                    <span class="block truncate text-xs text-gray-500">{{ g.tier }} · {{ shortTicketId(g.ticket_id) }}</span>
+                                    <span class="block truncate text-xs text-gray-500">{{ g.tier }}<template v-if="g.seat"> · {{ g.seat }}</template></span>
                                 </span>
                                 <span class="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
                                     :class="g.status === 'cancelled' ? 'bg-red-50 text-red-600' : g.last_checked_in_at ? 'bg-gray-100 text-gray-600' : 'bg-[#285F6b] text-white'">
-                                    {{ g.status === 'cancelled' ? 'Cancelled' : g.last_checked_in_at ? 'Already in' : 'Check in' }}
+                                    {{ g.status === 'cancelled' ? 'Cancelled' : g.last_checked_in_at ? 'Already in' : 'Select' }}
                                 </span>
                             </button>
                         </li>
                     </ul>
+
+                    <!-- Proof that this is the right guest: never just a name. -->
+                    <form v-if="selectedGuest" class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4" @submit.prevent="confirmManualCheckIn">
+                        <p class="text-sm font-bold text-gray-900">{{ selectedGuest.name }}</p>
+                        <template v-if="!noTicketId">
+                            <label for="door-code" class="mt-3 block text-sm font-semibold text-gray-700">Last 4 of their ticket ID</label>
+                            <input id="door-code" v-model="ticketCode" type="text" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false"
+                                class="mt-1 w-32 rounded-xl border border-gray-200 bg-white px-3 py-2 text-center font-mono text-base uppercase tracking-[0.2em] focus:border-primary-500 focus:outline-none">
+                            <button type="button" class="mt-3 block text-sm font-semibold text-primary-700 hover:underline" @click="noTicketId = true">Guest has no ticket ID</button>
+                        </template>
+                        <template v-else>
+                            <label for="door-reason" class="mt-3 block text-sm font-semibold text-gray-700">Why? This is saved with your name.</label>
+                            <textarea id="door-reason" v-model="noTicketReason" rows="2" maxlength="300" placeholder="e.g. Phone died, checked their ID"
+                                class="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none" />
+                            <button type="button" class="mt-2 block text-sm font-semibold text-primary-700 hover:underline" @click="noTicketId = false">Use the ticket ID instead</button>
+                        </template>
+                    </form>
                 </div>
 
                 <div class="border-t border-gray-200 px-6 py-4">
@@ -328,9 +347,7 @@
 
                         <button type="button"
                             class="flex items-center gap-2 rounded-xl bg-[#285F6b] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#1f4a54] disabled:opacity-50"
-                            :disabled="isManualCheckingIn ||
-                                !manualTicketId
-                                " @click="submitManualCheckIn">
+                            :disabled="isManualCheckingIn || !proofReady" @click="confirmManualCheckIn">
                             <IconBase v-if="isManualCheckingIn" name="refresh-cw" class="h-4 w-4 animate-spin" />
 
                             {{
@@ -637,7 +654,7 @@ function scannedFrom(outcome: import('~/composables/useCheckIn').ScanOutcome): S
         attendee_email: null,
         status: outcome.result,
         checked_in_at: outcome.checked_in_at ?? null,
-        ticket_type: outcome.guest ? { id: 0, name: outcome.guest.zone ? `${outcome.guest.tier} · ${outcome.guest.zone}` : outcome.guest.tier } : null,
+        ticket_type: outcome.guest ? { id: 0, name: [outcome.guest.tier, outcome.guest.zone, outcome.guest.seat].filter(Boolean).join(' · ') } : null,
     }
 }
 
@@ -900,6 +917,10 @@ async function handleScannedCode(
     }
 }
 
+// Live (option B): scans at other doors show up here within seconds, the newest glowing briefly.
+useLiveRefresh(() => loadCheckInSummary(true), { interval: 20000 })
+const isFreshScan = useFreshKeys(() => checkInSummary.value.recent_check_ins, e => e.id)
+
 async function loadCheckInSummary(quiet = false) {
     if (!eventId.value) {
         checkInSummary.value = { registered: 0, checked_in: 0, recent_check_ins: [] }
@@ -944,6 +965,8 @@ function openManualEntry() {
     manualEntryError.value =
         ''
 
+    selectGuest(null)
+
     showManualEntry.value =
         true
 }
@@ -963,17 +986,31 @@ function closeManualEntry() {
 
     manualEntryError.value =
         ''
+
+    selectGuest(null)
 }
 
-// Manual entry: matches appear as you type (name, e-mail or the ticket ID printed on
-// the ticket); tap one to check them in. The button checks in a single match.
-type DoorMatch = { ticket_id: string, name: string, tier: string, status: string, last_checked_in_at: string | null }
+// Manual entry: matches appear as you type (name, e-mail or the ticket ID printed on the
+// ticket); tap one, then prove it with the last 4 of the ticket ID, or give a reason.
+type DoorMatch = { ticket_id: string, name: string, tier: string, seat?: string | null, status: string, last_checked_in_at: string | null }
+const selectedGuest = ref<DoorMatch | null>(null)
+const ticketCode = ref('')
+const noTicketId = ref(false)
+const noTicketReason = ref('')
+const proofReady = computed(() => Boolean(selectedGuest.value && (noTicketId.value ? noTicketReason.value.trim().length >= 3 : ticketCode.value.trim().length === 4)))
+function selectGuest(guest: DoorMatch | null) {
+    selectedGuest.value = guest
+    ticketCode.value = ''
+    noTicketId.value = false
+    noTicketReason.value = ''
+    manualEntryError.value = ''
+}
 const manualMatches = ref<DoorMatch[]>([])
 const manualSearching = ref(false)
-const shortTicketId = (id: string) => id.replace(/-/g, '').slice(-10).toUpperCase()
 let manualTimer: ReturnType<typeof setTimeout> | undefined
 watch(manualTicketId, (value) => {
     clearTimeout(manualTimer)
+    selectGuest(null)
     const query = value.trim()
     if (query.length < 2 || !eventId.value) { manualMatches.value = []; manualSearching.value = false; return }
     manualSearching.value = true
@@ -984,43 +1021,17 @@ watch(manualTicketId, (value) => {
         } catch { manualMatches.value = [] } finally { manualSearching.value = false }
     }, 250)
 })
-async function checkInMatch(g: DoorMatch) {
+async function confirmManualCheckIn() {
+    const guest = selectedGuest.value
+    if (!guest || !proofReady.value) return
     isManualCheckingIn.value = true
     manualEntryError.value = ''
     try {
-        await showOutcome(await checkInApi.manual(await orgIdOf(), eventKey(), g.ticket_id))
+        const proof = noTicketId.value ? { no_ticket_reason: noTicketReason.value.trim() } : { ticket_code: ticketCode.value.trim() }
+        await showOutcome(await checkInApi.manual(await orgIdOf(), eventKey(), guest.ticket_id, proof))
         showManualEntry.value = false
         manualTicketId.value = ''
-    } catch (error: unknown) {
-        manualEntryError.value = authMessage(error) || 'Unable to check in this guest.'
-    } finally {
-        isManualCheckingIn.value = false
-    }
-}
-
-async function submitManualCheckIn() {
-    if (!eventId.value) return
-    const query = manualTicketId.value.trim()
-    if (query.length < 2) {
-        manualEntryError.value = 'Type the guest\'s name, e-mail or ticket ID.'
-        return
-    }
-    isManualCheckingIn.value = true
-    manualEntryError.value = ''
-    try {
-        const orgId = await orgIdOf()
-        const matches = (await checkInApi.search(orgId, eventKey(), query)).filter(g => g.status !== 'cancelled')
-        if (!matches.length) {
-            manualEntryError.value = 'No ticket on this event matches that.'
-            return
-        }
-        if (matches.length > 1) {
-            manualEntryError.value = `${matches.length} guests match. Tap the right one in the list.`
-            return
-        }
-        await showOutcome(await checkInApi.manual(orgId, eventKey(), matches[0]!.ticket_id))
-        showManualEntry.value = false
-        manualTicketId.value = ''
+        selectGuest(null)
     } catch (error: unknown) {
         manualEntryError.value = authMessage(error) || 'Unable to check in this guest.'
     } finally {

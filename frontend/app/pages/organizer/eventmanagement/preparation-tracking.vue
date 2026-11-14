@@ -90,21 +90,10 @@
 										</button>
 									</span>
 									<span v-if="!item.assignees.length && isFinished" class="text-xs text-gray-400">Unassigned</span>
-									<label v-if="!isFinished && (unassignedFor(item).length || availableMembers.length)" class="pt-chip min-h-9 cursor-pointer !py-1.5 !pl-2.5"
-										:class="item.assignees.length ? 'border-dashed text-gray-500' : (item.is_completed ? 'text-gray-400' : 'border-amber-200 bg-amber-50 text-amber-800')">
-										<IconBase name="plus" class="h-3 w-3" />
-										<select class="min-h-7 cursor-pointer appearance-none bg-transparent pr-1 outline-none" value=""
-											:disabled="updatingItemId === item.id" :aria-label="`Add a person to ${item.label}`"
-											@change="addAssignee(item, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
-											<option value="">{{ item.assignees.length ? 'Add person' : 'Needs an assignee' }}</option>
-											<optgroup v-if="unassignedFor(item).length" label="On this event">
-												<option v-for="member in unassignedFor(item)" :key="member.id" :value="member.id">{{ memberName(member) }}</option>
-											</optgroup>
-											<optgroup v-if="availableMembers.length" label="Rest of your team (adds them)">
-												<option v-for="m in availableMembers" :key="m.id" :value="`org:${m.id}`">{{ m.name }}</option>
-											</optgroup>
-										</select>
-									</label>
+									<div v-if="!isFinished && (unassignedFor(item).length || availableMembers.length)" class="w-48">
+										<FormsSelect :model-value="null" :options="assigneeChoices(item)" :placeholder="item.assignees.length ? 'Add person' : 'Needs an assignee'"
+											:can-clear="false" :disabled="updatingItemId === item.id" append-to-body close-on-scroll @update:model-value="value => value && addAssignee(item, String(value))" />
+									</div>
 									<span v-if="item.completed_by" class="text-xs text-gray-500">Done by {{ userName(item.completed_by) }}<template v-if="item.completion_note"> · “{{ item.completion_note }}”</template></span>
 								</div>
 								<form v-if="changesFor === item.id" class="mt-2.5 flex flex-wrap items-center gap-2 rounded-xl bg-red-50/60 px-3 py-2.5"
@@ -304,6 +293,13 @@ const newItemAssignee = ref<number | null>(null)
 const teamMembers = ref<TeamMember[]>([])
 /** Organization members not on this event's team yet (to add them). */
 const orgMembers = ref<{ id: string, name: string, role: string }[]>([])
+// The add-a-person menu: people on this event first, then the rest of the team.
+function assigneeChoices(item: Parameters<typeof unassignedFor>[0]) {
+	return [
+		...unassignedFor(item).map(member => ({ value: String(member.id), label: memberName(member) })),
+		...availableMembers.value.map(m => ({ value: `org:${m.id}`, label: `${m.name} (adds them)` })),
+	]
+}
 const availableMembers = computed(() => orgMembers.value.filter(m => !teamMembers.value.some(t => (t as unknown as { organization_member_id: string }).organization_member_id === m.id)))
 let orgId = ''
 // The request this event was booked from (for the client's-request panel).

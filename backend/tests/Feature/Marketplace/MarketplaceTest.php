@@ -120,7 +120,7 @@ class MarketplaceTest extends TestCase
     {
         $org = $this->listed('Profile Page Co', ['description' => 'We plan debuts.'], ['Debut Styling']);
         $owner = $org->members()->where('is_owner', true)->first()->user;
-        $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/event-types", ['name' => 'Gender Reveal'])->assertCreated();
+        $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/event-types", ['name' => 'Pet Birthday Bash'])->assertCreated();
         $inactive = $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/services", ['custom_name' => 'Retired Service', 'is_active' => false])->json('data.id');
 
         $this->app['auth']->forgetGuards();
@@ -129,7 +129,7 @@ class MarketplaceTest extends TestCase
         $this->assertSame('We plan debuts.', $profile['description']);
         $this->assertSame(['Debut Styling'], array_column($profile['services'], 'name'));
         $this->assertNotContains($inactive, array_column($profile['services'], 'id'));
-        $this->assertSame(['Gender Reveal'], array_column($profile['event_types'], 'name'));
+        $this->assertSame(['Pet Birthday Bash'], array_column($profile['event_types'], 'name'));
         $this->assertSame(0, $profile['rating']['count']);
         $this->assertSame([], $profile['recent_reviews']);
         $this->assertArrayNotHasKey('legal_name', $profile);

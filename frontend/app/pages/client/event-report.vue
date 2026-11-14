@@ -1,5 +1,5 @@
 <template>
-	<div class="mx-auto max-w-5xl">
+	<div>
 		<NuxtLink :to="`/client/event-details?event=${eventId}`" class="text-sm font-semibold text-primary-700">← Your events</NuxtLink>
 		<Alert v-if="error" type="danger" :text="error" class="mt-3" />
 		<div v-if="loading" class="py-16 text-center text-sm text-gray-500">Loading the report…</div>
@@ -18,9 +18,7 @@
 					<p class="mt-1 text-xs text-gray-400">Version {{ data.shared.version }}, shared {{ new Date(data.shared.shared_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) }}</p>
 				</div>
 				<div class="flex items-center gap-2">
-					<select v-if="data.versions.length > 1" v-model.number="version" aria-label="Report version" class="rounded-xl border border-gray-200 px-3 py-2 text-sm" @change="load">
-						<option v-for="v in data.versions" :key="v.version" :value="v.version">Version {{ v.version }}{{ v.version === data.versions[0]!.version ? ' (latest)' : '' }}</option>
-					</select>
+					<div v-if="data.versions.length > 1" class="w-44"><FormsSelect v-model="version" :can-clear="false" :options="data.versions.map(v => ({ value: v.version, label: `Version ${v.version}${v.version === data!.versions[0]!.version ? ' (latest)' : ''}` }))" @update:model-value="nextTick(load)" /></div>
 					<button type="button" :disabled="busy" class="flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50" @click="downloadPdf">
 						<IconBase name="download" class="h-4 w-4" /> Download PDF
 					</button>

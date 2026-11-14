@@ -19,17 +19,17 @@ Run them with PHP 8.5.10: `C:\xampp\php8.5.10\php.exe artisan …`
 | Role | E-mail | Who / what to show |
 |---|---|---|
 | Admin | `admin@` | Dana Admin: approvals, moderation, fee claims, support invite, analytics |
-| Organizer (owner) | `maria@` | **Davao Dream Events**: Pro plan (yearly); staff, completed wedding with report and 5★ review, festival with ticket sales, a refund (fee claim), lost and pending bids |
+| Organizer (owner) | `maria@` | **Davao Dream Events**: Pro plan (yearly), 11 price options (the offer builder folds long lists); staff, completed wedding with report and 5★ review, festival with ticket sales, a refund (fee claim), lost and pending bids |
 | Organizer (owner) | `carlo@` | **Mindanao Grand Occasions**: Starter plan; **live event right now** (Davao Tech Summit), upcoming birthday with checklist in progress, completed christening with a **reported 3★ review**, a support invite to NaSeRy |
 | Organizer (owner) | `liza@` | **Samal Island Weddings**: Free plan; quoted a debut; upcoming paid concert |
-| Organizer (owner) | `jomar@` | **Toril Party Planners**: application **pending** approval |
+| Organizer (owner) | `jomar@` | **Toril Party Planners**: application **pending** approval, no documents yet (upload one to unlock Approve) |
 | Organizer (owner) | `rhea@` | **Buhangin Balloons & Co.**: application **under review** |
 | Staff | `ken@`, `aira@`, `paolo@` | Davao Dream team: Coordinator, Check-in Staff, Finance |
 | Client | `ella@` | Booked Davao Dream: completed wedding, shared report, her review |
 | Client | `miguel@` | Corporate inquiry: **two quotations to compare**, message threads |
 | Client | `sofia@` | Debut inquiry: one quotation, one organizer declined |
-| Client | `joshua@` | Booked Mindanao Grand: upcoming birthday, follow preparation |
-| Client | `andrea@` | Completed christening, left a 3★ review (reported) |
+| Client | `joshua@` | Booked Mindanao Grand: upcoming birthday, follow preparation, with a cancellation request waiting for Carlo |
+| Client | `andrea@` | Completed christening, left a 3★ review (reported); open "Other" request (Davao Pet Adoption Fair) waiting for Maria's offer |
 | Client | `rafael@` | Older booking (analytics history) |
 | Buyers | `bea@`, `carl@`, `dana@`, `enzo@`, `faith@`, `gino@` | Ticket holders across the public events (QR tickets under My Tickets) |
 
@@ -53,6 +53,7 @@ Run them with PHP 8.5.10: `C:\xampp\php8.5.10\php.exe artisan …`
   - **shared tasks**: the check-in briefing and check-in setup have two assignees
   - **event type suggestions**: Gender Reveal (approved), Kiddie Party (merged into Birthday Party), Product Launch (waiting on Admin → Event Tags)
   - Quick Party PH is **rejected** (its owner sees the reviewer's note and "Resubmit for review")
+- **Earnings (for the business-model demo):** the ticket fee is **5%** of each online sale (Admin → Settings; plans don't change it), and Admin → Overview opens with "What NaSeRy earns": monthly recurring revenue, paying vs free organizers, and the last 12 months split between plans and ticket fees.
 - **Platform:** a welcome announcement, a pending support invite, a pending fee claim, a reported review, 2 organizer applications, and subscription revenue (Pro yearly + Starter monthly).
 
 "Live now" and "upcoming" are relative to when you run the seeder: **run `--fresh` on the day of the presentation** (it takes several minutes against Supabase).

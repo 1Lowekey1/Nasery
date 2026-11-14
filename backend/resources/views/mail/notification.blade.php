@@ -13,7 +13,11 @@
         @if ($link)
             <p style="margin:0 0 24px;"><a href="{{ $link }}" style="display:inline-block;background:#285F6b;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 20px;border-radius:8px;">Open in NaSeRy</a></p>
         @endif
-        <p style="margin:0;color:#6b7280;font-size:12px;">You get this because of your notification settings. <a href="{{ $settings }}" style="color:#6b7280;">Change them</a>.</p>
+        @if ($settings)
+            <p style="margin:0;color:#6b7280;font-size:12px;">You get this because of your notification settings. <a href="{{ $settings }}" style="color:#6b7280;">Change them</a>.</p>
+        @else
+            <p style="margin:0;color:#6b7280;font-size:12px;">You get this because you bought tickets on NaSeRy with this e-mail address.</p>
+        @endif
     </td></tr>
 </table>
 </body>

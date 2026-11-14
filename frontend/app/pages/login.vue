@@ -1,6 +1,7 @@
 <template>
 	<div>
 		<Alert v-if="errorMessage" type="danger" :text="errorMessage" />
+		<p v-if="staffAccount" class="mt-2 text-sm"><NuxtLink to="/superadmin/login" class="font-semibold text-primary-700 hover:underline">Go to the staff sign-in</NuxtLink></p>
 
 		<h2 class="mb-1.5 text-2xl font-extrabold text-gray-900 sm:text-[28px]">
 			Welcome back
@@ -123,7 +124,15 @@ const nextInquiry = computed(() => inquiryRedirect(route.query.redirect))
 onMounted(() => {
 	if (typeof route.query.social_error === 'string') errorMessage.value = route.query.social_error
 })
+// Staff sign in on their own portal (the staff form turns other accounts away the same way).
+const staffAccount = ref(false)
 async function finishLogin(user: SessionUser) {
+	if (user.role === 'superadmin') {
+		await logout()
+		errorMessage.value = 'This is a NaSeRy staff account. Use the staff sign-in instead.'
+		staffAccount.value = true
+		return
+	}
 	if (user.role === 'client' && nextInquiry.value) {
 		return await navigateTo(nextInquiry.value)
 	}
@@ -140,6 +149,7 @@ const state = reactive({
 
 const {
 	login,
+	logout,
 	redirectByRole,
 	isLoading,
 	errorMessage,
@@ -171,6 +181,7 @@ function normalizePhone(phone: string): string {
 
 async function handleSubmit() {
 	errorMessage.value = ''
+	staffAccount.value = false
 
 	try {
 		if (loginMethod.value === 'email') {

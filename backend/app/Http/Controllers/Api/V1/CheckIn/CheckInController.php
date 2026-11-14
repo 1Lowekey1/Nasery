@@ -57,9 +57,12 @@ class CheckInController extends Controller
         $data = $request->validate([
             'ticket_id' => ['required', 'uuid'],
             'session_id' => ['nullable', 'uuid'],
+            // Proof: the last 4 of the ticket ID, or why the guest doesn't have it.
+            'ticket_code' => ['required_without:no_ticket_reason', 'nullable', 'string', 'size:4'],
+            'no_ticket_reason' => ['required_without:ticket_code', 'nullable', 'string', 'min:3', 'max:300'],
         ]);
 
-        return ApiResponse::success($this->desk->manual($event, $member, $data['ticket_id'], $data['session_id'] ?? null));
+        return ApiResponse::success($this->desk->manual($event, $member, $data['ticket_id'], $data['session_id'] ?? null, $data['ticket_code'] ?? null, $data['no_ticket_reason'] ?? null));
     }
 
     public function search(Request $request, Organization $organization, Event $event): JsonResponse

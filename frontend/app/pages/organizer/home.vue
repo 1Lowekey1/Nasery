@@ -199,7 +199,9 @@
 			</div>
 
 			<!-- What's in demand across NaSeRy (counts only, no other organizer's details) -->
-			<AnalyticsEventTrendsCard class="hm-rise" style="--d: 300ms" subtitle="What clients are asking for across NaSeRy, so you can plan your services and price list." />
+			<AnalyticsEventTrendsCard class="hm-rise" style="--d: 300ms" breakdown-link subtitle="What clients are asking for across NaSeRy, so you can plan your services and price list." />
+			<!-- And their own: the event types they handle most -->
+			<AnalyticsMyEventTypesCard class="hm-rise" style="--d: 310ms" />
 		</template>
 
 		<!-- Quick actions -->

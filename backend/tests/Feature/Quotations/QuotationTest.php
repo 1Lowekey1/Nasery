@@ -134,6 +134,27 @@ class QuotationTest extends TestCase
         $this->quote($declinerOwner, $decliner, $id)->assertConflict();
     }
 
+    public function test_vat_is_added_at_the_admins_rate_and_cannot_be_typed(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $id = $this->inquiry($org);
+        $typedVat = ['items' => [
+            ['description' => 'Package', 'quantity' => 1, 'unit_price' => 10000],
+            ['description' => 'VAT (50%)', 'quantity' => 1, 'unit_price' => 5000],
+        ]];
+
+        // Not VAT-registered: a typed VAT line is dropped.
+        $first = $this->quote($owner, $org, $id, $typedVat)->assertCreated()->assertJsonPath('data.total_amount', '10000.00')->assertJsonCount(1, 'data.items')->json('data.id');
+
+        // VAT-registered: NaSeRy's rate (admin setting) on the other lines, whatever was typed.
+        DB::table('organization_profiles')->where('organization_id', $org->id)->update(['estimate_tax_percent' => 1]);
+        app(\App\Services\Admin\PlatformSettings::class);
+        DB::table('platform_settings')->updateOrInsert(['key' => 'vat_percent'], ['value' => json_encode(12)]);
+        $this->actingAs($owner)->spaJson('POST', $this->orgPath($org, $first, '/revise'), $this->content($typedVat), ['Idempotency-Key' => (string) Str::uuid()])
+            ->assertCreated()->assertJsonPath('data.total_amount', '11200.00')
+            ->assertJsonPath('data.items.1.description', 'VAT (12%)')->assertJsonPath('data.items.1.subtotal', '1200.00');
+    }
+
     public function test_revising_replaces_the_offer_and_keeps_the_earlier_version(): void
     {
         [$org, $owner] = $this->listedOrganizer();

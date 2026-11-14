@@ -42,6 +42,13 @@ export const useNotifications = () => {
       await api.post('/me/notifications/read-all')
       unread.value = 0
     },
+    remove: async (id: string) => {
+      unread.value = (await api.delete<{ count: number }>(`/me/notifications/${id}`)).data.count
+    },
+    clearAll: async () => {
+      await api.post('/me/notifications/clear')
+      unread.value = 0
+    },
     preferences: async () => (await api.get<NotificationPreference[]>('/me/notification-preferences')).data,
     savePreferences: async (prefs: { type: string, email: boolean }[]) =>
       (await api.put<NotificationPreference[]>('/me/notification-preferences', { preferences: prefs })).data,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Admin\PlatformSettings;
 use App\Services\Media\ImageStore;
 use App\Models\OrganizationProfile;
 use Illuminate\Http\Request;
@@ -43,7 +44,9 @@ class OrganizationProfileResource extends JsonResource
             'instagram' => $extra('instagram'),
             'banner_color' => $extra('banner_color'),
             'estimate_service_charge_percent' => ($v = $extra('estimate_service_charge_percent')) !== null ? (float) $v : null,
-            'estimate_tax_percent' => ($v = $extra('estimate_tax_percent')) !== null ? (float) $v : null,
+            'estimate_tax_percent' => app(PlatformSettings::class)->vatFor($extra('estimate_tax_percent')),
+            // NaSeRy's VAT rate, for the "We charge VAT" switch.
+            'vat_rate' => (float) app(PlatformSettings::class)->get('vat_percent'),
             'estimate_note' => $extra('estimate_note'),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

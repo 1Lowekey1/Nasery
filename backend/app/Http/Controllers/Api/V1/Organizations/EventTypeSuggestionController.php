@@ -44,6 +44,12 @@ class EventTypeSuggestionController extends Controller
             'already_suggested' => 'You already suggested this one; NaSeRy will let you know.',
             default => 'Thanks! NaSeRy will review it and let you know.',
         };
+        // New names are also the organization's own event type right away (plan permitting).
+        if (in_array($result['result'], ['pending', 'already_suggested'], true)) {
+            $message .= ! empty($result['own_type'])
+                ? ' You can already use it for your own events.'
+                : ($result['own_type_limit_reached'] ? ' Your plan\'s own event types are used up, so you can use it once NaSeRy adds it.' : '');
+        }
 
         return $result['result'] === 'pending'
             ? ApiResponse::created($result, $message)

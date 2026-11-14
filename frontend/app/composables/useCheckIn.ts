@@ -15,7 +15,7 @@ export interface CheckInSession {
 export interface ScanOutcome {
   result: ScanResult
   message: string
-  guest: { name: string, tier: string, zone: string | null, benefits: string[] } | null
+  guest: { name: string, tier: string, zone: string | null, seat?: string | null, benefits: string[] } | null
   attendance_id?: string
   session?: Omit<CheckInSession, 'checked_in'>
   checked_in_at?: string
@@ -145,8 +145,8 @@ export const useCheckIn = () => {
     summary: async (orgId: string, eventId: string) => (await api.get<CheckInSummary>(base(orgId, eventId))).data,
     scan: async (orgId: string, eventId: string, token: string, sessionId?: string | null) =>
       (await api.post<ScanOutcome>(`${base(orgId, eventId)}/scan`, { token, session_id: sessionId || null })).data,
-    manual: async (orgId: string, eventId: string, ticketId: string, sessionId?: string | null) =>
-      (await api.post<ScanOutcome>(`${base(orgId, eventId)}/manual`, { ticket_id: ticketId, session_id: sessionId || null })).data,
+    manual: async (orgId: string, eventId: string, ticketId: string, proof: { ticket_code?: string, no_ticket_reason?: string }, sessionId?: string | null) =>
+      (await api.post<ScanOutcome>(`${base(orgId, eventId)}/manual`, { ticket_id: ticketId, session_id: sessionId || null, ...proof })).data,
     search: async (orgId: string, eventId: string, q: string) =>
       (await api.get<DoorGuest[]>(`${base(orgId, eventId)}/search`, { query: { q } })).data,
     undo: (orgId: string, eventId: string, attendanceId: string, reason: string) =>

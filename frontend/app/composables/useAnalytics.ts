@@ -79,7 +79,7 @@ export const useAnalytics = () => {
       }
       return cache.value[key]!
     },
-    live: async (orgId: string) => (await api.get<{ live: LiveEvent[], upcoming: (LiveEvent['session'] & { event_id: string, name: string })[] }>(`/organizations/${orgId}/analytics/live`)).data,
+    live: async (orgId: string) => (await api.get<{ live: LiveEvent[], upcoming: (LiveEvent['session'] & { event_id: string, name: string })[] }>(`/organizations/${orgId}/live-events`)).data,
   }
 }
 

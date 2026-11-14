@@ -57,7 +57,7 @@
 						<p class="text-sm text-gray-500"><strong class="font-semibold tabular-nums text-gray-900">{{ event.invitations.sold ?? 0 }}</strong> of {{ event.invitations.capacity }} guests invited</p>
 					</div>
 				</div>
-				<NuxtLink :to="{ path: '/organizer/ticketattendance/attendees', query: { event: route.query.event } }" class="tt-btn-primary"><IconBase name="user-plus" class="h-4 w-4" /> Invite guests</NuxtLink>
+				<NuxtLink :to="{ path: '/organizer/eventmanagement/guests', query: { event: route.query.event } }" class="tt-btn-primary"><IconBase name="user-plus" class="h-4 w-4" /> Invite guests</NuxtLink>
 			</section>
 
 			<!-- Empty -->

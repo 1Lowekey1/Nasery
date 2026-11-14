@@ -97,6 +97,8 @@
 
 				<TicketingTabs v-else-if="isTicketAttendanceRoute" />
 
+				<TicketingTabs v-if="route.path === '/organizer/eventmanagement/guests'" embedded />
+
 				<slot />
 			</main>
 		</div>
@@ -581,6 +583,7 @@ const analyticsRoutes = [
 	'/organizer/analyticsdashboard/overview',
 	'/organizer/analyticsdashboard/bid-performance',
 	'/organizer/analyticsdashboard/event-performance',
+	'/organizer/analyticsdashboard/event-types',
 	'/organizer/analyticsdashboard/live-events',
 ]
 
@@ -594,6 +597,7 @@ const eventManagementRoutes = [
 	'/organizer/eventmanagement/all-events',
 	'/organizer/eventmanagement/event-details',
 	'/organizer/eventmanagement/ticket-tiers',
+	'/organizer/eventmanagement/guests',
 	'/organizer/eventmanagement/preparation-tracking',
 ]
 

@@ -139,6 +139,28 @@ class InquiryTest extends TestCase
         $this->assertNotContains($untagged->id, $invited);
     }
 
+    public function test_an_other_request_reaches_organizers_by_service_and_distance_alone(): void
+    {
+        [$tagged] = $this->listedOrganizer('Near Weddings', ['latitude' => 7.0731, 'longitude' => 125.6128], ['Wedding Coordination']);
+        [$untagged] = $this->listedOrganizer('Near Untagged', ['latitude' => 7.0745, 'longitude' => 125.6115], ['Wedding Coordination']);
+        [$wrongService] = $this->listedOrganizer('Near Caterer', ['latitude' => 7.0750, 'longitude' => 125.6100], ['Catering']);
+        [$far] = $this->listedOrganizer('Far Match', ['latitude' => 14.5995, 'longitude' => 120.9842], ['Wedding Coordination']);
+        DB::table('organization_profiles')->where('organization_id', $tagged->id)->update(['event_tags' => json_encode(['Wedding'])]);
+
+        $id = $this->draft();
+        DB::table('inquiries')->where('id', $id)->update(['event_type_id' => DB::table('event_types')->whereNull('organization_id')->where('name', 'Other')->value('id')]);
+
+        $invited = collect($this->submit($id, ['mode' => 'open', 'match_radius_km' => 30])->assertOk()->json('data.invitations'))->pluck('organization_id');
+
+        $this->assertContains($tagged->id, $invited);
+        $this->assertContains($untagged->id, $invited);
+        $this->assertNotContains($wrongService->id, $invited);
+        $this->assertNotContains($far->id, $invited);
+
+        $listed = collect($this->getJson('/api/v1/marketplace/organizers?event_type=Other&lat=7.0731&lng=125.6128&radius_km=30')->assertOk()->json('data'))->pluck('id');
+        $this->assertContains($untagged->id, $listed);
+    }
+
     public function test_open_posting_with_no_matches_is_refused_and_stays_a_draft(): void
     {
         $id = $this->draft(['services' => [['custom_service_name' => 'Zz'.Str::random(8).' Hovercraft rides']]]);

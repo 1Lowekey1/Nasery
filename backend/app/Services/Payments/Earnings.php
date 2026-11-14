@@ -127,6 +127,23 @@ class Earnings
         });
     }
 
+    /** @return list<array<string, mixed>> the latest refunds returned to buyers, for the admin Payouts page */
+    public function recentRefunds(int $limit = 30): array
+    {
+        return $this->db->system('earnings.refunds', fn () => DB::table('payment_refunds as pr')
+            ->join('payments as p', 'p.id', '=', 'pr.payment_id')
+            ->join('registrations as r', 'r.id', '=', 'p.registration_id')
+            ->join('events as e', 'e.id', '=', 'r.event_id')
+            ->join('organizations as o', 'o.id', '=', 'e.organization_id')
+            ->orderByRaw('coalesce(pr.refunded_at, pr.created_at) desc')->limit($limit)
+            ->get(['pr.id', 'pr.amount', 'pr.reason', DB::raw('coalesce(pr.refunded_at, pr.created_at) as refunded_at'), 'r.purchaser_name', 'e.name as event', 'o.display_name as organizer'])
+            ->map(fn ($x) => [
+                'id' => $x->id, 'amount' => (float) $x->amount, 'reason' => $x->reason, 'buyer' => $x->purchaser_name,
+                'event' => $x->event, 'organizer' => $x->organizer,
+                'refunded_at' => CarbonImmutable::parse($x->refunded_at)->toIso8601String(),
+            ])->all());
+    }
+
     /** @return list<array<string, mixed>> the organizer's payouts, for the admin page */
     public function payoutsFor(string $organizationId): array
     {

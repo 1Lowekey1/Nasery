@@ -42,17 +42,22 @@ class OrganizerPaymentController extends Controller
                 'f.computed_amount as fee',
                 DB::raw('(select coalesce(sum(pr.amount), 0) from payment_refunds pr where pr.payment_id = p.id) as refunded'),
                 DB::raw('(select coalesce(sum(pr.fee_portion_refunded), 0) from payment_refunds pr where pr.payment_id = p.id) as fee_returned'),
+                DB::raw('(select max(pr.refunded_at) from payment_refunds pr where pr.payment_id = p.id) as refunded_at'),
                 DB::raw("(select count(*) from tickets t where t.registration_id = r.id and t.status in ('valid', 'used')) as tickets")]);
 
         $paid = $rows->where('status', 'paid');
+        // 0061: buyers' open refund requests, shown on their payment.
+        $requests = DB::table('refund_requests')->where('event_id', $event->id)->where('status', 'pending')
+            ->get(['id', 'payment_id', 'reason', 'created_at'])->keyBy('payment_id');
 
         return ApiResponse::success([
             'payments' => $rows->map(fn ($r) => [
                 'id' => $r->id, 'status' => $r->status, 'amount' => $r->amount, 'fee' => $r->fee, 'refunded' => $r->refunded,
-                'fee_returned' => $r->fee_returned,
+                'fee_returned' => $r->fee_returned, 'refunded_at' => $r->refunded_at,
                 'net' => $r->status === 'paid' ? number_format((float) $r->amount - (float) $r->fee + (float) $r->fee_returned - (float) $r->refunded, 2, '.', '') : null,
                 'buyer' => $r->purchaser_name, 'email' => $r->purchaser_email, 'tickets' => (int) $r->tickets,
                 'paid_at' => $r->paid_at, 'created_at' => $r->created_at, 'failure_reason' => $r->failure_reason,
+                'refund_request' => isset($requests[$r->id]) ? ['id' => $requests[$r->id]->id, 'reason' => $requests[$r->id]->reason, 'created_at' => $requests[$r->id]->created_at] : null,
             ])->values(),
             'totals' => [
                 'gross' => number_format((float) $paid->sum('amount'), 2, '.', ''),
@@ -82,6 +87,15 @@ class OrganizerPaymentController extends Controller
         $this->payments->refund($model, (float) $data['amount'], RefundReason::from($data['category']), $data['reason'], $request->user(), $request->boolean('cancel_tickets', true));
 
         return ApiResponse::success(null, 'Refund recorded.');
+    }
+
+    public function declineRequest(Request $request, Organization $organization, Event $event, string $refundRequest): JsonResponse
+    {
+        $this->check($request, $organization, $event, write: true);
+        $data = $request->validate(['note' => ['nullable', 'string', 'max:500']]);
+        app(\App\Services\Payments\RefundRequests::class)->decline($event->id, $refundRequest, $request->user(), $data['note'] ?? null);
+
+        return ApiResponse::success(null, 'Request declined.');
     }
 
     private function check(Request $request, Organization $organization, Event $event, bool $write = false): void

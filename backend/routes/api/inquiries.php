@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\Inquiries\ClientInquiryController;
 use App\Http\Controllers\Api\V1\Inquiries\OrganizerInquiryController;
 use App\Http\Controllers\Api\V1\Inquiries\ThreadController;
+use App\Http\Controllers\Api\V1\Inquiries\BookingCancellationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -28,6 +29,11 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
                 ->middleware(['throttle:sensitive', 'idempotent'])->name('submit');
             Route::post('{inquiry}/invite', [ClientInquiryController::class, 'invite'])
                 ->middleware(['throttle:sensitive', 'idempotent'])->name('invite');
+            // 0060: backing out of an accepted booking.
+            Route::get('{inquiry}/cancellation', [BookingCancellationController::class, 'clientShow'])->name('cancellation.show');
+            Route::post('{inquiry}/cancellation', [BookingCancellationController::class, 'clientRequest'])->middleware('throttle:sensitive')->name('cancellation.request');
+            Route::post('{inquiry}/cancellation/respond', [BookingCancellationController::class, 'clientRespond'])->middleware('throttle:sensitive')->name('cancellation.respond');
+            Route::delete('{inquiry}/cancellation', [BookingCancellationController::class, 'clientWithdraw'])->middleware('throttle:sensitive')->name('cancellation.withdraw');
             Route::post('{inquiry}/cancel', [ClientInquiryController::class, 'cancel'])->middleware('throttle:sensitive')->name('cancel');
         });
 
@@ -35,10 +41,15 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
         Route::prefix('organizations/{organization}/inquiries')->name('organizations.inquiries.')->middleware('account:business')->group(function () {
             Route::get('/', [OrganizerInquiryController::class, 'index'])->name('index');
             Route::get('{inquiry}', [OrganizerInquiryController::class, 'show'])->name('show');
+            Route::get('{inquiry}/cancellation', [BookingCancellationController::class, 'organizerShow'])->name('cancellation.show');
+            Route::post('{inquiry}/cancellation', [BookingCancellationController::class, 'organizerRequest'])->middleware('throttle:sensitive')->name('cancellation.request');
+            Route::post('{inquiry}/cancellation/respond', [BookingCancellationController::class, 'organizerRespond'])->middleware('throttle:sensitive')->name('cancellation.respond');
+            Route::delete('{inquiry}/cancellation', [BookingCancellationController::class, 'organizerWithdraw'])->middleware('throttle:sensitive')->name('cancellation.withdraw');
             Route::post('{inquiry}/decline', [OrganizerInquiryController::class, 'decline'])->middleware('throttle:sensitive')->name('decline');
         });
 
         // Client–organizer threads (0042). The service checks who is a participant.
+        Route::get('me/threads', [ThreadController::class, 'mine'])->middleware('account:client')->name('me.threads');
         Route::get('inquiries/{inquiryId}/threads', [ThreadController::class, 'forInquiry'])->middleware('account:client')->whereUuid('inquiryId')->name('inquiries.threads');
         Route::get('organizations/{organization}/threads', [ThreadController::class, 'forOrganization'])->middleware('account:business')->name('organizations.threads');
         Route::get('threads/{thread}', [ThreadController::class, 'show'])->whereUuid('thread')->name('threads.show');

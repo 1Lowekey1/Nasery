@@ -243,6 +243,11 @@ const navItems = [
 		icon: 'send',
 	},
 	{
+		label: 'Messages',
+		to: '/client/messages',
+		icon: 'message',
+	},
+	{
 		label: 'Event Journey',
 		to: '/client/preparation-tracking',
 		icon: 'activity',

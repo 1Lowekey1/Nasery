@@ -10,6 +10,7 @@ use App\Support\Audit\AuditLogger;
 use App\Support\Database\DatabaseContext;
 use App\Support\Http\ErrorCode;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -73,10 +74,17 @@ class OfferedServices
         return $this->withCatalogNames(collect([$service]))->first();
     }
 
+    /** Its price options become add-ons (no group), so they stay on the price list and the calculator. */
     public function delete(OrganizationService $service): void
     {
-        $service->delete(); // soft delete: quotations may reference it later
-        $this->audit->record('organization.service_removed', $service, organizationId: $service->organization_id);
+        $moved = DB::transaction(function () use ($service) {
+            $moved = DB::table('organization_price_options')->where('organization_service_id', $service->id)
+                ->update(['organization_service_id' => null, 'updated_at' => now()]);
+            $service->delete(); // soft delete: quotations may reference it later
+
+            return $moved;
+        });
+        $this->audit->record('organization.service_removed', $service, new: ['price_options_moved_to_add_ons' => $moved], organizationId: $service->organization_id);
     }
 
     /**

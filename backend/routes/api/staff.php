@@ -37,6 +37,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'account:business'])
             Route::delete('roles/{role}', [TeamController::class, 'destroyRole'])->middleware('throttle:sensitive')->name('roles.destroy');
 
             Route::get('my-tasks', [EventTeamController::class, 'myTasks'])->name('my-tasks');
+            Route::get('my-program', [EventTeamController::class, 'myProgram'])->name('my-program');
 
             Route::prefix('events/{event}')->name('events.')->scopeBindings()->group(function () {
                 Route::get('team', [EventTeamController::class, 'index'])->name('team.index');

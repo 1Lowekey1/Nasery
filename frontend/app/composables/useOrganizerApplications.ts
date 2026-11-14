@@ -1,6 +1,7 @@
 // Admin review of organizer applications (B2).
 import type { ApprovalHistoryEntry, ApprovalStatus, OfferedService, OrganizationProfile } from '~/composables/useOrganization'
 import type { OrganizerTotals } from '~/composables/useAdmin'
+import type { OrganizationDocument } from '~/composables/useOrganizationDocuments'
 
 export interface ApplicationSummary {
   id: string
@@ -24,6 +25,8 @@ export interface ApplicationDetail extends ApplicationSummary {
   profile: OrganizationProfile | null
   services: OfferedService[]
   history: ApprovalHistoryEntry[]
+  documents: OrganizationDocument[]
+  documents_required: boolean
   totals?: OrganizerTotals | null
   access?: { grant: { id: string, expires_at: string } | null, pending_request_id: string | null, default_hours: number }
 }
@@ -48,7 +51,10 @@ export const useOrganizerApplications = () => {
       idempotencyKey: crypto.randomUUID(),
     })).data
 
-  return { list, show, decide }
+  const sendNote = async (id: string, note: string) =>
+    (await api.post<ApplicationDetail>(`/admin/organizer-applications/${id}/note`, { note }, { idempotencyKey: crypto.randomUUID() })).data
+
+  return { list, show, decide, sendNote }
 }
 
 export const approvalBadge: Record<ApprovalStatus, string> = {

@@ -34,12 +34,34 @@
 			</div>
 
 			<!-- Organizer quotations -->
-			<div v-else-if="quotations.length" class="space-y-5">
-				<article v-for="quotation in quotations" :key="quotation.id"
+			<div v-else-if="quotations.length" :class="chosenQuotation ? 'space-y-3' : 'space-y-5'">
+				<template v-for="(quotation, index) in orderedQuotations" :key="quotation.id">
+				<!-- After choosing: the chosen offer leads, the others fold into rows and open on a tap. -->
+				<div v-if="chosenQuotation && index === 1" class="flex items-center justify-between gap-3 pt-3">
+					<p class="text-sm font-bold text-gray-900">Other offers <span class="font-normal text-gray-400">({{ orderedQuotations.length - 1 }})</span></p>
+					<p class="text-xs text-gray-500">Kept here for reference</p>
+				</div>
+				<button v-if="chosenQuotation && quotation.id !== chosenQuotation.id && !openOfferIds.has(quotation.id)" type="button"
+					class="flex w-full items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left transition hover:border-primary-200 hover:bg-primary-50/40"
+					:aria-expanded="false" @click="toggleOffer(quotation.id)">
+					<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-xs font-bold text-primary-700">{{ organizerInitials(quotation) }}</span>
+					<span class="min-w-0 flex-1">
+						<span class="block truncate text-sm font-semibold text-gray-900">{{ organizerName(quotation) }}</span>
+						<span v-if="quotation.package_name" class="block truncate text-xs text-gray-500">{{ quotation.package_name }}</span>
+					</span>
+					<span class="shrink-0 text-sm font-bold text-gray-800">{{ formatQuotationCurrency(quotation.quotation_amount) }}</span>
+					<span class="hidden shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold sm:inline" :class="statusClass(quotation.quotation_status)">{{ formatStatus(quotation.quotation_status) }}</span>
+					<IconBase name="chevron-down" class="h-4 w-4 shrink-0 text-gray-400" />
+				</button>
+				<article v-else
 					class="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6" :class="{
 						'border-green-300 bg-green-50/30':
 							quotation.quotation_status === 'accepted',
 					}">
+					<button v-if="chosenQuotation && quotation.id !== chosenQuotation.id" type="button"
+						class="mb-3 flex w-full items-center justify-end gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800" :aria-expanded="true" @click="toggleOffer(quotation.id)">
+						Hide <IconBase name="chevron-down" class="h-3.5 w-3.5 rotate-180" />
+					</button>
 					<div class="flex flex-wrap items-start justify-between gap-4">
 						<div class="flex items-start gap-3">
 							<div
@@ -74,24 +96,24 @@
 						</div>
 					</div>
 
-					<div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-						<div class="rounded-xl border border-gray-200 p-4">
+					<div v-if="quotation.package_name || quotation.timeline" class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+						<div v-if="quotation.package_name" class="rounded-xl border border-gray-200 p-4">
 							<div class="text-xs text-gray-500">
 								Package / Offer Name
 							</div>
 
 							<div class="mt-1 font-semibold text-gray-900">
-								{{ quotation.package_name || 'Not specified' }}
+								{{ quotation.package_name }}
 							</div>
 						</div>
 
-						<div class="rounded-xl border border-gray-200 p-4">
+						<div v-if="quotation.timeline" class="rounded-xl border border-gray-200 p-4">
 							<div class="text-xs text-gray-500">
 								Timeline / Lead Time
 							</div>
 
 							<div class="mt-1 font-semibold text-gray-900">
-								{{ quotation.timeline || 'Not specified' }}
+								{{ quotation.timeline }}
 							</div>
 						</div>
 					</div>
@@ -159,6 +181,7 @@
 						</div>
 					</div>
 				</article>
+				</template>
 			</div>
 
 			<!-- No quotations -->
@@ -339,11 +362,18 @@
 								</div>
 
 								<div class="flex flex-wrap items-center justify-end gap-2">
-									<NuxtLink :to="`/client/inquiries/${event.id}#messages`"
+									<NuxtLink :to="`/client/messages?inquiry=${event.id}`"
 										class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-xs font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700">
 										<IconBase name="message" class="h-3.5 w-3.5" />
 										Messages
 									</NuxtLink>
+
+									<button v-if="event.status === 'awarded' && event.quotations_count" type="button"
+										class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-xs font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+										@click="openOffers(event)">
+										<IconBase name="file-text" class="h-3.5 w-3.5" />
+										Review offers
+									</button>
 
 									<button v-if="canRateOrganizer(event)" type="button"
 										class="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-xs font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
@@ -1131,13 +1161,30 @@ async function viewQuotations(
 		return
 	}
 
+	await openOffers(event)
+}
+
+async function openOffers(event: ClientInquiry) {
 	selectedEvent.value = event
 	showQuotations.value = true
 
 	quotations.value = []
+	openOfferIds.value = new Set()
 	quotationError.value = ''
 
 	await loadQuotations()
+}
+
+// Once an organizer is chosen, their offer leads and the rest fold into rows.
+const chosenQuotation = computed(() => quotations.value.find(q => q.quotation_status === 'accepted') ?? null)
+const orderedQuotations = computed(() => chosenQuotation.value
+	? [chosenQuotation.value, ...quotations.value.filter(q => q.id !== chosenQuotation.value!.id)]
+	: quotations.value)
+const openOfferIds = ref(new Set<number>())
+function toggleOffer(id: number) {
+	const next = new Set(openOfferIds.value)
+	if (!next.delete(id)) next.add(id)
+	openOfferIds.value = next
 }
 
 function backToMyEvents() {
@@ -1308,9 +1355,16 @@ const stats = computed(() => {
 	]
 })
 
-onMounted(() => {
-	loadClientInquiries()
+onMounted(async () => {
 	loadNotifications()
+	await loadClientInquiries()
+	// From the event page ("Review offers"): open that request's offers here.
+	const id = useRoute().query.offers
+	const target = clientEvents.value.find(e => String(e.id) === id)
+	if (target) {
+		await navigateTo({ query: {} }, { replace: true })
+		await openOffers(target)
+	}
 })
 // Close to live (review #12): other people's changes appear without a reload.
 useLiveRefresh(() => loadClientInquiries(true), { interval: 60000 })

@@ -16,7 +16,17 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'account:business'])
     ->prefix('organizations/{organization}/analytics')->name('organizations.analytics.')
     ->group(function () {
         Route::get('/', [AnalyticsController::class, 'overview'])->name('overview');
-        Route::get('live', [AnalyticsController::class, 'live'])->name('live');
+    });
+
+// Live events and the event types an organizer handles most (Home). Not under /analytics/:
+// browser ad and tracker blockers drop requests whose path has an "/analytics/" segment.
+Route::middleware(['auth:sanctum', 'active', 'verified', 'account:business'])
+    ->where(['organization' => $uuid])
+    ->prefix('organizations/{organization}')->name('organizations.')
+    ->group(function () {
+        Route::get('live-events', [AnalyticsController::class, 'live'])->name('live-events');
+        Route::get('top-event-types', [AnalyticsController::class, 'eventTypes'])->name('top-event-types');
+        Route::get('event-type-breakdown', [AnalyticsController::class, 'eventTypeBreakdown'])->name('event-type-breakdown');
     });
 
 // Event trends across all of NaSeRy (counts only): organizer Home and the admin overview.

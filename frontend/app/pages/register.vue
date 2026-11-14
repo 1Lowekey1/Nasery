@@ -34,19 +34,22 @@
 
 		<form novalidate @submit.prevent="handleSubmit">
 			<FormsDraftNotice :draft="draft" />
-			<div class="mb-5" data-field="fullName">
-				<FormsLabel text="Full Name" required />
-
-				<FormsTextField v-model="form.fullName" type="text" placeholder="Sean Kenneth H. Axalan" size="lg"
-					required :error="check.err('fullName')">
-					<template #icon>
-						<svg viewBox="0 0 20 20"
-							class="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400">
-							<path fill="currentColor"
-								d="M10 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5Z" />
-						</svg>
-					</template>
-				</FormsTextField>
+			<!-- Separate boxes (mock defense): two-word first names and surnames like "Dela Cruz" stay whole. -->
+			<div class="mb-5 grid gap-3 sm:grid-cols-2">
+				<div data-field="firstName">
+					<FormsLabel text="First name" required />
+					<FormsTextField v-model="form.firstName" type="text" placeholder="e.g. Juan Carlos" size="lg" autocomplete="given-name" maxlength="100"
+						required :error="check.err('firstName')" />
+				</div>
+				<div data-field="lastName">
+					<FormsLabel text="Last name" required />
+					<FormsTextField v-model="form.lastName" type="text" placeholder="e.g. Dela Cruz" size="lg" autocomplete="family-name" maxlength="100"
+						required :error="check.err('lastName')" />
+				</div>
+				<div class="sm:col-span-2" data-field="middleName">
+					<FormsLabel text="Middle name (optional)" />
+					<FormsTextField v-model="form.middleName" type="text" placeholder="e.g. Santos" size="lg" autocomplete="additional-name" maxlength="100" />
+				</div>
 			</div>
 			<div class="mb-5" data-field="email">
 				<FormsLabel text="Email Address" required />
@@ -72,8 +75,8 @@
 				</ul>
 			</div>
 			<div class="mb-5" data-field="phone">
-				<!-- Optional (the API allows none); with one, you can also sign in by phone. -->
-				<FormsLabel text="Mobile number" hint="(optional, lets you sign in by phone)" />
+				<!-- Optional (the API allows none). Sign-in is by e-mail only. -->
+				<FormsLabel text="Mobile number" hint="(optional)" />
 
 				<FormsTextField v-model="form.phone" type="tel" placeholder="0917 123 4567" size="lg" :error="check.err('phone')">
 					<template #icon>
@@ -223,7 +226,9 @@ onMounted(() => {
 })
 
 const form = reactive({
-	fullName: '',
+	firstName: '',
+	middleName: '',
+	lastName: '',
 	email: '',
 	password: '',
 	phone: '',
@@ -268,64 +273,6 @@ const successLoginMessage = computed(() =>
 		? 'Please sign in to complete your organizer profile and start receiving nearby event inquiries.'
 		: 'Please sign in using your email and password to access your new account.'
 )
-
-function parseFullName(
-	fullName: string
-) {
-	const parts = fullName
-		.trim()
-		.split(/\s+/)
-		.filter(Boolean)
-
-	if (parts.length === 0) {
-		return {
-			firstname: '',
-			middlename: '',
-			lastname: '',
-		}
-	}
-
-	if (parts.length === 1) {
-		return {
-			firstname:
-				parts[0] ?? '',
-
-			middlename:
-				'',
-
-			lastname:
-				'',
-		}
-	}
-
-	if (parts.length === 2) {
-		return {
-			firstname:
-				parts[0] ?? '',
-
-			middlename:
-				'',
-
-			lastname:
-				parts[1] ?? '',
-		}
-	}
-
-	return {
-		firstname:
-			parts[0] ?? '',
-
-		middlename:
-			parts
-				.slice(1, -1)
-				.join(' '),
-
-		lastname:
-			parts[
-			parts.length - 1
-			] ?? '',
-	}
-}
 
 function normalizePhone(
 	phone: string
@@ -372,11 +319,11 @@ const passwordRules = computed(() => [
 	{ label: 'A number', ok: /\d/.test(form.password) },
 ])
 const check = useFormCheck(() => {
-	const { firstname, lastname } = parseFullName(form.fullName)
 	const email = form.email.trim()
 	const phone = normalizePhone(form.phone)
 	return {
-		fullName: !form.fullName.trim() ? 'Enter your full name.' : (!firstname || !lastname) ? 'Enter both your first and last name.' : '',
+		firstName: !form.firstName.trim() ? 'Enter your first name.' : '',
+		lastName: !form.lastName.trim() ? 'Enter your last name.' : '',
 		email: !email ? 'Enter your e-mail address.' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'Enter a valid e-mail address (like name@example.com).' : '',
 		password: !form.password ? 'Create a password.' : passwordRules.value.every(r => r.ok) ? '' : 'Your password needs 8+ characters with a letter and a number.',
 		phone: form.phone.trim() && !/^\+639\d{9}$/.test(phone) ? 'Enter a Philippine mobile number, e.g. 0917 123 4567, or leave it blank.' : '',
@@ -388,7 +335,10 @@ async function handleSubmit() {
 
 	if (!check.ok()) return
 
-	const { firstname, middlename, lastname } = parseFullName(form.fullName)
+	const tidy = (v: string) => v.trim().replace(/\s+/g, ' ')
+	const firstname = tidy(form.firstName)
+	const middlename = tidy(form.middleName)
+	const lastname = tidy(form.lastName)
 	const email = form.email.trim().toLowerCase()
 	const phone = normalizePhone(form.phone)
 
@@ -440,7 +390,7 @@ async function handleSubmit() {
 			true
 	} catch (error: unknown) {
 		// Field problems from the server (e.g. e-mail already registered) go under the field.
-		check.fromServer(error, { first_name: 'fullName', last_name: 'fullName', middle_name: 'fullName' })
+		check.fromServer(error, { first_name: 'firstName', last_name: 'lastName', middle_name: 'firstName' })
 	}
 }
 

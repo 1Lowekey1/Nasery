@@ -15,7 +15,7 @@
 			<legend class="text-sm font-bold text-gray-900">{{ group.label }}
 				<span class="font-normal text-gray-400">· {{ group.single ? 'choose one' : 'choose any' }}</span></legend>
 			<div class="mt-2 grid gap-2" :class="compact ? '' : 'sm:grid-cols-2'">
-				<div v-for="o in group.options" :key="o.id"
+				<div v-for="o in visibleOptions(group)" :key="o.id"
 					class="min-w-0 rounded-xl border text-sm transition" :class="[compact ? 'px-3 py-2' : 'px-3.5 py-2.5', o.id in chosen ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-primary-200']">
 					<!-- Compact (narrow panels): price goes under the name so nothing spills out. -->
 					<label class="flex cursor-pointer items-start justify-between gap-3" :class="compact ? 'flex-wrap gap-y-0.5' : ''">
@@ -43,6 +43,9 @@
 					</div>
 				</div>
 			</div>
+			<button v-if="collapses(group)" type="button" class="tap-target mt-1 text-xs font-semibold text-primary-700 hover:underline" @click="expanded[group.key] = !expanded[group.key]">
+				{{ expanded[group.key] ? 'Show fewer' : `Show ${group.options.length - visibleOptions(group).length} more` }}
+			</button>
 		</fieldset>
 
 		<!-- Breakdown -->
@@ -100,11 +103,15 @@ const props = withDefaults(defineProps<{
 	initialGuests?: number
 	/** Narrow side panel: one option per row, price under the name. */
 	compact?: boolean
-}>(), { services: () => [], settings: null, initialGuests: 100, compact: false })
+	/** Past this many options, each service shows its first few with "Show more". Off when 0. */
+	collapseOver?: number
+}>(), { services: () => [], settings: null, initialGuests: 100, compact: false, collapseOver: 0 })
 
 const uid = useId()
 const guests = ref(clampGuests(props.initialGuests))
 const chosen = reactive<Record<string, number>>({})
+const FEW = 3
+const expanded = reactive<Record<string, boolean>>({})
 
 const groups = computed(() => {
 	const sorted = [...props.options].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -119,6 +126,16 @@ const groups = computed(() => {
 		}))
 		.sort((a, b) => Number(!a.single) - Number(!b.single))
 })
+
+// Picked options stay in view even when their service is folded.
+function visibleOptions(group: { key: string, options: PriceOption[] }) {
+	const folds = props.collapseOver > 0 && props.options.length > props.collapseOver && !expanded[group.key]
+	return folds ? group.options.filter((o, i) => i < FEW || o.id in chosen) : group.options
+}
+
+function collapses(group: { key: string, options: PriceOption[] }) {
+	return expanded[group.key] || visibleOptions(group).length < group.options.length
+}
 
 function toggle(group: { single: boolean, options: PriceOption[] }, o: PriceOption) {
 	if (o.id in chosen) {

@@ -42,7 +42,7 @@ class TicketCards
                 ->whereIn('t.id', $ticketIds)->whereNull('t.deleted_at')
                 ->orderBy('a.full_name')
                 ->get(['t.id', 't.status', 't.event_id', 't.purchased_price', 'a.full_name', 'a.email as attendee_email', 'r.purchaser_email', 'r.purchaser_name',
-                    'tt.name as tier', 'tt.zone_name', 'tt.benefits', 'e.name as event', 'e.status as event_status', 'e.timezone', 'e.venue_name', 'e.venue_address',
+                    'tt.name as tier', 'tt.zone_name', 't.seat_label', 'tt.benefits', 'e.name as event', 'e.status as event_status', 'e.timezone', 'e.venue_name', 'e.venue_address',
                     'e.organization_id', 'o.display_name as organizer']);
 
             $qrs = QrTicket::query()->whereIn('ticket_id', $rows->pluck('id'))->where('status', '!=', 'invalidated')->get()->keyBy('ticket_id');
@@ -63,6 +63,7 @@ class TicketCards
                     'recipient_name' => $r->attendee_email ? $r->full_name : ($r->purchaser_name ?: $r->full_name),
                     'tier' => $r->tier,
                     'zone' => $r->zone_name,
+                    'seat' => $r->seat_label,
                     'benefits' => json_decode((string) $r->benefits, true) ?? [],
                     'price' => $r->purchased_price,
                     'event_id' => $r->event_id,

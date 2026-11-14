@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<button type="button"
-			class="mb-4 flex items-center gap-1.5 text-sm font-semibold text-gray-500 transition hover:text-gray-700"
+			class="tap-target mb-4 flex items-center gap-1.5 text-sm font-semibold text-gray-500 transition hover:text-gray-700"
 			@click="navigateTo('/superadmin/organizers')">
 			<IconBase name="arrow-left" class="h-4 w-4" />
 			Back to Organizers

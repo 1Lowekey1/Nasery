@@ -22,7 +22,13 @@
 				</li>
 			</ol>
 
-			<form v-if="thread.can_send" class="mt-3 flex items-end gap-2" @submit.prevent="send">
+			<!-- Mock defense: ready-made messages. A tap fills the box, so it can be edited before sending. -->
+			<div v-if="thread.can_send" class="mt-3 flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Ready-made messages">
+				<button v-for="q in quickReplies" :key="q.label" type="button"
+					class="shrink-0 whitespace-nowrap rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-primary-300 hover:bg-primary-50"
+					@click="useQuickReply(q.text)">{{ q.label }}</button>
+			</div>
+			<form v-if="thread.can_send" class="mt-2 flex items-end gap-2" @submit.prevent="send">
 				<label :for="`msg-${threadId}`" class="sr-only">Message</label>
 				<textarea :id="`msg-${threadId}`" v-model="draft" rows="2" maxlength="2000" placeholder="Write a message… (Enter to send, Shift+Enter for a new line)"
 					class="min-w-0 flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm" @keydown.enter.exact.prevent="send" />
@@ -43,6 +49,26 @@ const api = useThreads()
 const thread = ref<ThreadDetail | null>(null)
 const error = ref('')
 const draft = ref('')
+
+const QUICK_REPLIES = {
+	client: [
+		{ label: 'Lower the price?', text: 'Thank you for your offer. Would you be able to lower the price to ₱___? That would fit our budget better.' },
+		{ label: 'Counter offer', text: 'Thanks for the quotation. We would like to make a counter offer of ₱___ for the same inclusions. Would that work for you?' },
+		{ label: 'Date available?', text: 'Hi! Is our event date still available on your side?' },
+		{ label: "What's included?", text: 'Could you tell us more about what is included in this package?' },
+	],
+	organizer: [
+		{ label: 'Thanks for the request', text: 'Thank you for your request! We would love to help with your event. May we ask a few details first?' },
+		{ label: 'Accept counter offer', text: 'Thank you for your counter offer. We can do ₱___ for the same inclusions. I will send a revised quotation.' },
+		{ label: 'Best price', text: 'This is already our best price for these inclusions, but we can adjust the package to fit your budget. Which items matter most to you?' },
+		{ label: 'Venue details?', text: 'Could you share more about the venue and the timeline of your event?' },
+	],
+}
+const quickReplies = computed(() => QUICK_REPLIES[thread.value?.side === 'organizer' ? 'organizer' : 'client'])
+function useQuickReply(text: string) {
+	draft.value = draft.value.trim() ? `${draft.value.trim()}\n${text}` : text
+	nextTick(() => document.getElementById(`msg-${props.threadId}`)?.focus())
+}
 // A half-written message survives leaving the page (per thread); sending empties it.
 useDraft(() => `message:${props.threadId}`, reactive({ text: draft }))
 const sending = ref(false)

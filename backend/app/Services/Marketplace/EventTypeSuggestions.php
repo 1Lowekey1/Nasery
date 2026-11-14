@@ -5,6 +5,7 @@ namespace App\Services\Marketplace;
 use App\Exceptions\ApiException;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\Billing\Entitlements;
 use App\Services\Notifications\AdminAlerts;
 use App\Services\Notifications\Notifier;
 use App\Support\Audit\AuditLogger;
@@ -28,6 +29,11 @@ use Illuminate\Validation\ValidationException;
  * standard type, optionally with fixed spelling), merge into an existing
  * type, or reject. The organizations that suggested it get the resulting
  * type on their profile's event tags and a notification.
+ *
+ * One box for organizers: a new name is also saved as the organization's own
+ * (private) event type, so they can use it for their events right away. When
+ * NaSeRy approves or merges it, their events move to the standard type and
+ * the private copy goes; when rejected, it stays private to them.
  */
 class EventTypeSuggestions
 {
@@ -36,6 +42,7 @@ class EventTypeSuggestions
         private readonly AuditLogger $audit,
         private readonly Notifier $notifier,
         private readonly AdminAlerts $admin,
+        private readonly Entitlements $entitlements,
     ) {}
 
     /** "  gender   reveal " → "Gender reveal" (first letter capitalised, single spaces). */
@@ -96,7 +103,11 @@ class EventTypeSuggestions
             throw ValidationException::withMessages(['name' => 'Write the event type, e.g. Gender reveal.']);
         }
 
-        return $this->db->system('event_types.suggest', function () use ($organization, $by, $name, $key, $confirmNew) {
+        // Room for one more private type on the organization's plan (Free: 2).
+        $limit = $this->entitlements->limit($organization, 'custom_event_type_limit');
+        $room = $limit === null || ($this->entitlements->usage($organization)['custom_event_type_limit'] ?? 0) < $limit;
+
+        return $this->db->system('event_types.suggest', function () use ($organization, $by, $name, $key, $confirmNew, $room) {
             $standard = $this->standardNames();
             $exact = $standard->first(fn ($n) => self::key($n) === $key);
             if ($exact !== null) {
@@ -106,7 +117,7 @@ class EventTypeSuggestions
                 return ['result' => 'similar', 'event_type' => $close];
             }
             if (DB::table('event_type_suggestions')->where('organization_id', $organization->id)->where('name_key', $key)->where('status', 'pending')->exists()) {
-                return ['result' => 'already_suggested'];
+                return ['result' => 'already_suggested'] + $this->ownType($organization, $name, $key, $room);
             }
 
             $id = (string) Str::uuid7();
@@ -117,8 +128,40 @@ class EventTypeSuggestions
                 "{$organization->display_name} suggested it. Approve, merge or reject it on Event Tags.", ['suggestion_id' => $id],
                 '/superadmin/event-tags', "event_type:{$key}:".now()->format('YmdH'));
 
-            return ['result' => 'pending', 'suggestion' => $this->present(DB::table('event_type_suggestions')->find($id))];
+            return ['result' => 'pending', 'suggestion' => $this->present(DB::table('event_type_suggestions')->find($id))]
+                + $this->ownType($organization, $name, $key, $room);
         });
+    }
+
+    /**
+     * The organization's own copy of a suggested name (made now if missing and
+     * the plan has room), usable for its events while NaSeRy decides.
+     *
+     * @return array{own_type: ?array{id: string, name: string}, own_type_limit_reached: bool}
+     */
+    private function ownType(Organization $organization, string $name, string $key, bool $room): array
+    {
+        $existing = $this->privateTypes($organization->id, $key)->first();
+        if ($existing) {
+            return ['own_type' => ['id' => $existing->id, 'name' => $existing->name], 'own_type_limit_reached' => false];
+        }
+        if (! $room) {
+            return ['own_type' => null, 'own_type_limit_reached' => true];
+        }
+
+        $id = (string) Str::uuid7();
+        DB::table('event_types')->insert(['id' => $id, 'organization_id' => $organization->id, 'name' => $name, 'description' => null,
+            'is_system_default' => false, 'created_at' => now(), 'updated_at' => now()]);
+        $this->audit->record('organization.event_type_added', ['event_types', $id], new: ['name' => $name], organizationId: $organization->id);
+
+        return ['own_type' => ['id' => $id, 'name' => $name], 'own_type_limit_reached' => false];
+    }
+
+    /** @return Collection<int, object> the organization's live private types with this name key */
+    private function privateTypes(string $organizationId, string $key): Collection
+    {
+        return DB::table('event_types')->where('organization_id', $organizationId)->whereNull('deleted_at')->get(['id', 'name'])
+            ->filter(fn ($t) => self::key($t->name) === $key)->values();
     }
 
     /** @return list<array<string, mixed>> the organization's suggestions, newest first */
@@ -190,6 +233,18 @@ class EventTypeSuggestions
                 'decision_note' => $note !== null && trim($note) !== '' ? trim($note) : null, 'updated_at' => now(),
             ]);
 
+            // Their private copies give way to the standard type: events and requests move over.
+            if ($typeId !== null) {
+                foreach ($group->pluck('organization_id')->unique() as $orgId) {
+                    $private = $this->privateTypes($orgId, $first->name_key)->pluck('id');
+                    if ($private->isNotEmpty()) {
+                        DB::table('events')->whereIn('event_type_id', $private)->update(['event_type_id' => $typeId]);
+                        DB::table('inquiries')->whereIn('event_type_id', $private)->update(['event_type_id' => $typeId]);
+                        DB::table('event_types')->whereIn('id', $private)->update(['deleted_at' => now(), 'updated_at' => now()]);
+                    }
+                }
+            }
+
             // The organizations that asked now offer the type (approved or merged).
             if ($typeName !== null) {
                 foreach ($group->pluck('organization_id')->unique() as $orgId) {
@@ -215,7 +270,7 @@ class EventTypeSuggestions
                 default => "Your suggested event type “{$label}” wasn't added",
             }, match ($decision) {
                 'approve', 'merge' => "It's on your business profile, so clients asking for {$typeName} events can now find you.{$why}",
-                default => "NaSeRy didn't add it to the list.{$why}",
+                default => "NaSeRy didn't add it to the list. You can still use it for your own events.{$why}",
             }, ['organization_id' => $orgId], '/organizer/business-profile');
         }
     }

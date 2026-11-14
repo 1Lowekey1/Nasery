@@ -4,6 +4,8 @@ export interface ThreadSummary {
   id: string
   inquiry_id: string
   event_type: string
+  /** The client's own name for the event, when given. */
+  event_name?: string | null
   requested_date: string | null
   organization: { id: string, name: string, slug: string }
   client: string
@@ -69,6 +71,8 @@ export const useThreads = () => {
 
   return {
     forInquiry: async (inquiryId: string) => (await api.get<ThreadSummary[]>(`/inquiries/${inquiryId}/threads`)).data,
+    /** Every conversation of the signed-in client (Messages page). */
+    mine: async () => (await api.get<ThreadSummary[]>('/me/threads')).data,
     forOrganization: async (orgId: string, inquiryId?: string) =>
       (await api.get<ThreadSummary[]>(`/organizations/${orgId}/threads`, { query: inquiryId ? { inquiry: inquiryId } : {} })).data,
     show: async (threadId: string) => (await api.get<ThreadDetail>(`/threads/${threadId}`)).data,

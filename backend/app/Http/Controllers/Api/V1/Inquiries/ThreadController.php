@@ -29,6 +29,11 @@ class ThreadController extends Controller
         return ApiResponse::created($this->threads->send($request->user(), $thread, $data['body']));
     }
 
+    public function mine(Request $request): JsonResponse
+    {
+        return ApiResponse::success($this->threads->forClient($request->user()));
+    }
+
     public function forInquiry(Request $request, string $inquiryId): JsonResponse
     {
         return ApiResponse::success($this->threads->forInquiry($request->user(), $inquiryId));

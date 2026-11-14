@@ -2,8 +2,10 @@
 // re-encoded by the server; these calls only send the file.
 
 export const imageRules = {
-	/** Same limits as the server (config nasery.media). */
+	/** What's uploaded after cropping: same limit as the server (config nasery.media). */
 	maxBytes: 5 * 1024 * 1024,
+	/** What can be picked: the crop step shrinks it before it's sent. */
+	maxPickBytes: 25 * 1024 * 1024,
 	types: ['image/jpeg', 'image/png', 'image/webp'],
 	accept: 'image/jpeg,image/png,image/webp',
 }
@@ -11,7 +13,7 @@ export const imageRules = {
 /** Quick check before uploading (the server checks the real content again). */
 export function imageProblem(file: File): string {
 	if (!imageRules.types.includes(file.type)) return 'Choose a JPG, PNG or WebP image.'
-	if (file.size > imageRules.maxBytes) return 'Choose an image under 5 MB.'
+	if (file.size > imageRules.maxPickBytes) return 'Choose an image under 25 MB.'
 	return ''
 }
 

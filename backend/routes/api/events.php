@@ -24,6 +24,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
             Route::get('{event}', [ClientEventController::class, 'show'])->name('show');
             Route::get('{event}/progress', [ClientEventController::class, 'progress'])->name('progress');
             Route::get('{event}/attendance', [ClientEventController::class, 'attendance'])->name('attendance');
+            Route::get('{event}/guests', [ClientEventController::class, 'guests'])->name('guests');
             Route::get('{event}/report', [ClientEventController::class, 'report'])->name('report');
             Route::get('{event}/report/pdf', [ClientEventController::class, 'reportPdf'])->name('report.pdf');
         });

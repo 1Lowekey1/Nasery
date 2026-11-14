@@ -26,6 +26,9 @@ class PlatformSettings
         'ticket_hold_default_minutes' => ['label' => 'Checkout hold', 'help' => 'How long tickets stay reserved while a buyer pays.', 'min' => 5, 'max' => 120, 'default' => 15, 'unit' => 'minutes'],
         'ticket_hold_max_minutes' => ['label' => 'Longest allowed hold', 'help' => 'Ceiling for the checkout hold.', 'min' => 5, 'max' => 120, 'default' => 60, 'unit' => 'minutes'],
         'admin_grant_default_expiry_hours' => ['label' => 'Admin access length', 'help' => 'How long approved workspace access lasts.', 'min' => 1, 'max' => 72, 'default' => 24, 'unit' => 'hours'],
+        'cancellation_grace_hours' => ['label' => 'Time to answer a cancellation', 'help' => 'If the other side doesn\'t answer a request to cancel a booking within this time, it counts as agreed.', 'min' => 1, 'max' => 336, 'default' => 72, 'unit' => 'hours'],
+        // Mock defense: VAT is NaSeRy's rate, not typed per offer. Organizers only say whether they charge it.
+        'vat_percent' => ['label' => 'VAT rate', 'help' => 'Added to offers and estimates of organizers who charge VAT (VAT-registered businesses).', 'min' => 0, 'max' => 30, 'default' => 12, 'unit' => '%'],
         'inquiry_auto_close_days' => ['label' => 'Inquiry auto-close', 'help' => 'Unanswered inquiries close after this many days.', 'min' => 7, 'max' => 180, 'default' => 30, 'unit' => 'days'],
     ];
 
@@ -41,6 +44,15 @@ class PlatformSettings
         $value = $this->db->system('settings.read', fn () => DB::table('platform_settings')->where('key', $key)->value('value'));
 
         return $value !== null ? json_decode((string) $value, true) : ($default ?? (self::EDITABLE[$key]['default'] ?? null));
+    }
+
+    /**
+     * The VAT rate an organizer applies: NaSeRy's rate when they charge VAT
+     * (their profile's estimate_tax_percent is only an on/off marker), else null.
+     */
+    public function vatFor(mixed $storedTaxPercent): ?float
+    {
+        return $storedTaxPercent !== null && (float) $storedTaxPercent > 0 ? (float) $this->get('vat_percent') : null;
     }
 
     public function holdMinutes(): int

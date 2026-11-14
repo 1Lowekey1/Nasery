@@ -34,6 +34,8 @@ function policy(hashes) {
 		// Address search (LocationIQ) is the only API the browser calls directly.
 		"connect-src 'self' https://api.locationiq.com https://us1.locationiq.com",
 		"media-src 'self' blob:",
+		// The admin's and owner's document preview shows a local blob of the PDF.
+		"frame-src blob:",
 		"worker-src 'self' blob:",
 		"object-src 'none'",
 		"base-uri 'self'",

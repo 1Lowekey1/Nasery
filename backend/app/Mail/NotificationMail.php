@@ -14,6 +14,8 @@ class NotificationMail extends Mailable
         public readonly ?string $text,
         public readonly ?string $path,
         public readonly ?string $firstName,
+        /** Sent to a buyer without an account: no settings link to offer. */
+        public readonly bool $guest = false,
     ) {}
 
     public function envelope(): Envelope
@@ -33,7 +35,7 @@ class NotificationMail extends Mailable
                 'text' => $this->text,
                 'firstName' => $this->firstName,
                 'link' => $this->path !== null ? $frontend.$this->path : null,
-                'settings' => $frontend.'/notifications?tab=settings',
+                'settings' => $this->guest ? null : $frontend.'/notifications?tab=settings',
             ],
         );
     }

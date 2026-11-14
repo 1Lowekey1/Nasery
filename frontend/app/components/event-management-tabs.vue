@@ -20,12 +20,12 @@
 			</button>
 		</div>
 
-		<!-- Phones: three equal tabs with short labels, so none is cut off.
+		<!-- Phones: four equal tabs with short labels, so none is cut off.
 		     Only once the event exists: an awarded bid has no tickets or preparation until "Start preparing". -->
-		<nav v-if="selectedEventId" class="mb-5 grid w-full grid-cols-3 gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 shadow-sm sm:mb-6 sm:flex sm:w-fit" aria-label="Event management sections">
+		<nav v-if="selectedEventId" class="mb-5 grid w-full gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 shadow-sm sm:mb-6 sm:flex sm:w-fit" :class="tabs.length === 4 ? 'grid-cols-4' : 'grid-cols-3'" aria-label="Event management sections">
 			<template v-for="tab in tabs" :key="tab.label">
 				<NuxtLink :to="tab.to" :aria-label="tab.label"
-					class="inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-[13px] font-bold transition sm:shrink-0 sm:gap-2 sm:px-4 sm:text-sm" :class="route.path === tab.path
+					class="inline-flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[13px] font-bold transition sm:shrink-0 sm:flex-row sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm" :class="route.path === tab.path
 						? 'bg-[#285F6b] text-white shadow-sm'
 						: 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
 						">
@@ -299,6 +299,9 @@ function selectedQuery():
 	return query
 }
 
+const teamNav = useTeamNav()
+const canManageGuests = () => teamNav.can('attendee.manage')
+
 const tabs =
 	computed(() => [
 		{
@@ -339,6 +342,14 @@ const tabs =
 			},
 		},
 
+		// Team members without guest rights don't get this tab.
+		...(canManageGuests() ? [{
+			label: 'Guests',
+			short: 'Guests',
+			icon: 'users',
+			path: '/organizer/eventmanagement/guests',
+			to: { path: '/organizer/eventmanagement/guests', query: selectedQuery() },
+		}] : []),
 		{
 			label:
 				'Preparation Tracking',

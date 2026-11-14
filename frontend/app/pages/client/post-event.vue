@@ -81,32 +81,21 @@
 						<div id="field-eventType" class="mb-3 mt-6 flex scroll-mt-24 items-end justify-between gap-3">
 							<div><label class="block text-sm font-bold text-gray-800">What are you celebrating? <span
 										class="text-rose-500">*</span></label>
-								<p class="mt-1 text-xs text-gray-400">Select one event type. Click it again to clear
-									your choice.</p>
+								<p class="mt-1 text-xs text-gray-400">Select one event type. Search or filter if you don't see yours.</p>
 							</div><span v-if="form.eventType"
 								class="shrink-0 rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-bold text-primary-700">{{
 									form.eventType }} selected</span>
 						</div>
-						<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-							<button v-for="type in eventTypes" :key="type.value" type="button"
-								:aria-pressed="form.eventType === type.value"
-								class="group relative z-0 flex min-h-[5.25rem] cursor-pointer flex-col items-start justify-between overflow-hidden rounded-xl border p-3 text-left transition"
-								:class="form.eventType === type.value
-									? 'border-primary-700 bg-primary-700 text-white shadow-md shadow-primary-900/10 -translate-y-0.5'
-									: 'border-gray-200 bg-white text-gray-600 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-sm'"
-								@click.prevent="toggleEventType(type.value)">
-								<span aria-hidden="true"
-									class="pointer-events-none absolute -bottom-6 -right-6 h-16 w-16 rounded-full"
-									:class="form.eventType === type.value ? 'bg-white/10' : 'bg-primary-50'" />
-								<span
-									class="pointer-events-none flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-									:class="form.eventType === type.value ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-primary-50 group-hover:text-primary-700'">
-									<IconBase :name="type.icon" class="h-4 w-4" />
-								</span>
-								<span class="pointer-events-none relative text-sm font-bold">{{ type.value }}</span>
-							</button>
-						</div>
+						<!-- Every event type NaSeRy has, in a searchable dropdown (the list grows as admins approve organizers' suggestions) -->
+						<FormsTagPicker id="pick-event-type" :model-value="form.eventType" :options="eventTypeTagOptions" :group-order="EVENT_GROUPS"
+							placeholder="Choose the kind of event" search-placeholder="Search event types" :invalid="showMissing('eventType')"
+							@update:model-value="setEventType" />
 						<p v-if="showMissing('eventType')" class="mt-2 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">Choose the kind of event.</p>
+
+						<p v-if="form.eventType === 'Other'" class="mt-2 flex items-start gap-1.5 rounded-lg bg-primary-50 px-3 py-2 text-xs font-medium text-primary-800">
+							<IconBase name="sparkles" class="mt-px h-3.5 w-3.5 shrink-0" />
+							<span>Your request goes to every organizer nearby who offers the services you pick. Give your event a name above so they know what it is.</span>
+						</p>
 
 						<div id="field-services" class="mt-6 scroll-mt-24">
 							<div class="mb-3 flex items-end justify-between gap-3">
@@ -118,16 +107,9 @@
 								</div>
 								<span v-if="form.services.length" class="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">{{ form.services.length }} selected</span>
 							</div>
-							<div v-if="serviceOptions.length" class="flex flex-wrap gap-2">
-								<button v-for="service in serviceOptions" :key="service.name" type="button"
-									:aria-pressed="form.services.includes(service.name)"
-									class="rounded-full border px-3.5 py-2 text-sm font-semibold transition"
-									:class="form.services.includes(service.name) ? 'border-primary-700 bg-primary-700 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300'"
-									@click="toggleService(service.name)">
-									{{ service.name }}
-									<span class="ml-1 text-xs font-normal opacity-70">· {{ service.organizers }} {{ service.organizers === 1 ? 'organizer' : 'organizers' }}</span>
-								</button>
-							</div>
+							<!-- NaSeRy's whole service catalog (and services organizers added), searchable and filtered by category -->
+							<FormsTagPicker v-if="serviceTagOptions.length" id="pick-services" v-model="form.services" multiple :options="serviceTagOptions"
+								placeholder="Choose the services you need" search-placeholder="Search services" :invalid="showMissing('services')" />
 							<p v-else class="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-500">{{ servicesLoaded ? 'No organizers have listed services yet, so open posting isn’t available. You can still request a quotation from an organizer’s page.' : 'Loading services…' }}</p>
 							<p v-if="showMissing('services')" class="mt-2 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">Choose at least one service so NaSeRy can find matching organizers.</p>
 						</div>
@@ -151,6 +133,10 @@
 									<p class="mt-1.5 text-xs text-gray-400">Any date from today up to {{ maximumEventDateLabel }}.</p>
 									<p v-if="form.date" class="mt-1.5 text-xs font-semibold text-primary-700">{{
 										formattedEventDate }}</p>
+									<p v-if="sameDayEvent" class="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-xs font-medium text-amber-800">
+										<IconBase name="calendar" class="mt-px h-3.5 w-3.5 shrink-0" />
+										<span>You already have “{{ sameDayEvent }}” on this date. You can still continue.</span>
+									</p>
 								</div>
 								<div>
 									<FormsLabel text="Start time" required />
@@ -249,7 +235,7 @@
 									<IconBase name="check-circle" class="h-3.5 w-3.5" /> Budget selected
 								</span>
 							</div>
-							<p v-if="showMissing('budget')" class="-mt-2 mb-3 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">Choose a budget range.</p>
+							<p v-if="showMissing('budget')" class="-mt-2 mb-3 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">Choose a budget range, or enter your own amount.</p>
 							<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" role="radiogroup"
 								aria-label="Budget range">
 								<button v-for="option in budgetOptions" :key="option.value" type="button" role="radio"
@@ -276,6 +262,24 @@
 											class="h-3.5 w-3.5" />
 									</span>
 								</button>
+							</div>
+							<!-- Mock defense: a budget of their own, alongside the ranges. -->
+							<div class="mt-3 rounded-2xl border p-4 transition" :class="form.budget === CUSTOM_BUDGET ? 'border-primary-700 bg-primary-50/40' : 'border-dashed border-gray-300'">
+								<label class="flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-gray-800">
+									<input type="radio" name="budget-custom" class="accent-[#285F6b]" :checked="form.budget === CUSTOM_BUDGET" @change="form.budget = CUSTOM_BUDGET">
+									I have my own amount
+								</label>
+								<div v-if="form.budget === CUSTOM_BUDGET" class="mt-3 grid gap-3 sm:grid-cols-2">
+									<div>
+										<label class="text-xs font-semibold text-gray-600" for="budget-min">From (₱, optional)</label>
+										<FormsTextField id="budget-min" v-model="form.budgetMin" type="number" min="0" step="1000" inputmode="numeric" placeholder="e.g. 80000" />
+									</div>
+									<div>
+										<label class="text-xs font-semibold text-gray-600" for="budget-max">Up to (₱)</label>
+										<FormsTextField id="budget-max" v-model="form.budgetMax" type="number" min="0" step="1000" inputmode="numeric" placeholder="e.g. 120000" />
+									</div>
+									<p v-if="customBudgetProblem" class="text-xs font-semibold text-rose-600 sm:col-span-2" role="alert">{{ customBudgetProblem }}</p>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -450,7 +454,7 @@
 						<div class="flex items-start justify-between gap-3">
 							<dt class="text-gray-400">Budget</dt>
 							<dd class="text-right font-semibold text-gray-800">
-								{{ form.budget || 'Not selected' }}
+								{{ budgetText || 'Not selected' }}
 							</dd>
 						</div>
 						<div class="flex items-start justify-between gap-3">
@@ -618,20 +622,32 @@ let leafletMarkers:
 	any[] = []
 
 // Shown at once, then replaced by NaSeRy's live list (types admins approve from organizers' suggestions appear too).
-const eventTypes = ref([
-	{ value: 'Wedding', icon: 'heart' },
-	{ value: 'Corporate Event', icon: 'briefcase' },
-	{ value: 'Birthday Party', icon: 'gift' },
-	{ value: 'Debut', icon: 'star' },
-	{ value: 'Concert', icon: 'music' },
-	{ value: 'Conference', icon: 'users' },
-	{ value: 'Reunion', icon: 'users' },
-	{ value: 'Seminar', icon: 'award' },
-])
+// NaSeRy's standard types, so nothing is missing even if the live list can't load.
+const eventTypes = ref(['Birthday Party', 'Christening', 'Concert', 'Conference', 'Corporate Event', 'Debut', 'Gender Reveal', 'Reunion', 'Seminar', 'Wedding', 'Other']
+	.map(name => ({ value: name, icon: 'users' })))
 const typeIcons: [RegExp, string][] = [
 	[/wedding/i, 'heart'], [/corporate|business/i, 'briefcase'], [/birthday|party|gender/i, 'gift'], [/debut|gala|anniversary/i, 'star'],
 	[/concert|music|festival/i, 'music'], [/seminar|workshop|training|graduation/i, 'award'],
 ]
+// Filter buttons for the event type picker, from the type's name (new types land in "Other" until a keyword fits).
+const EVENT_GROUPS = ['Celebrations', 'Business', 'Entertainment', 'Other']
+const typeGroups: [RegExp, string][] = [
+	[/wedding|birthday|debut|christening|baptism|reunion|gender|anniversary|party|shower|graduation/i, 'Celebrations'],
+	[/corporate|conference|seminar|workshop|training|launch|business|summit|meeting/i, 'Business'],
+	[/concert|festival|music|show|fair|expo/i, 'Entertainment'],
+]
+const eventTypeTagOptions = computed(() => eventTypes.value.map(t => ({
+	value: t.value,
+	label: t.value,
+	icon: typeIcons.find(([re]) => re.test(t.value))?.[1] ?? (t.value === 'Other' ? 'sparkles' : 'users'),
+	group: typeGroups.find(([re]) => re.test(t.value))?.[1] ?? 'Other',
+})))
+function setEventType(value: string | string[]) {
+	const next = Array.isArray(value) ? (value[0] ?? '') : value
+	if (next === form.eventType) return
+	toggleEventType(next || form.eventType)
+}
+
 async function loadEventTypeChoices() {
 	const list = await useMarketplace().eventTypes().catch(() => [])
 	if (!list.length) return
@@ -654,6 +670,23 @@ const budgetOptions = [
 	{ value: '₱500,000 – ₱800,000', tier: 'Premium', label: '₱500K – ₱800K', hint: 'For elevated event productions' },
 	{ value: 'Over ₱800,000', tier: 'Luxury', label: 'Over ₱800K', hint: 'For bespoke, large-scale occasions' },
 ]
+
+const CUSTOM_BUDGET = 'custom'
+const peso = (n: number) => `₱${n.toLocaleString('en-PH')}`
+const customBudgetProblem = computed(() => {
+	if (form.budget !== CUSTOM_BUDGET) return ''
+	const [min, max] = [Number(form.budgetMin) || 0, Number(form.budgetMax) || 0]
+	if (!min && !max) return 'Enter at least an amount you can spend up to.'
+	if (min < 0 || max < 0) return 'Use amounts above zero.'
+	if (min && max && min > max) return '"From" must not be more than "Up to".'
+	return ''
+})
+const budgetText = computed(() => {
+	if (form.budget !== CUSTOM_BUDGET) return form.budget
+	const [min, max] = [Number(form.budgetMin) || 0, Number(form.budgetMax) || 0]
+	if (min && max) return `${peso(min)} – ${peso(max)}`
+	return max ? `Up to ${peso(max)}` : min ? `From ${peso(min)}` : ''
+})
 
 const nearbyRadiusOptions = [
 	{ value: 10, label: '10 km' },
@@ -678,19 +711,40 @@ const form = reactive({
 
 	guests: '',
 	budget: '',
+	budgetMin: '',
+	budgetMax: '',
 	details: '',
 	services: [] as string[],
 })
 
-// Services listed organizers offer (open posting matches on these).
+// Services listed organizers offer (open posting matches on these), plus the whole catalog for the picker.
 const serviceOptions = ref<{ name: string, organizers: number }[]>([])
+const serviceCatalog = ref<{ name: string, category: string | null }[]>([])
+const serviceTagOptions = computed(() => {
+	const count = new Map(serviceOptions.value.map(s => [s.name.toLowerCase(), s.organizers]))
+	const hint = (name: string) => {
+		const n = count.get(name.toLowerCase()) ?? 0
+		return n ? `${n} ${n === 1 ? 'organizer' : 'organizers'}` : 'No organizers yet'
+	}
+	const fromCatalog = serviceCatalog.value.map(s => ({ value: s.name, label: s.name, group: s.category || 'Other', hint: hint(s.name) }))
+	// Services organizers offer that aren't (yet) in the catalog.
+	const known = new Set(fromCatalog.map(o => o.value.toLowerCase()))
+	const extra = serviceOptions.value.filter(s => !known.has(s.name.toLowerCase())).map(s => ({ value: s.name, label: s.name, group: 'Other', hint: hint(s.name) }))
+	// Offered services first, then the rest of the catalog, each alphabetical.
+	return [...fromCatalog, ...extra].sort((a, b) => Number(a.hint === 'No organizers yet') - Number(b.hint === 'No organizers yet') || a.label.localeCompare(b.label))
+})
 const servicesLoaded = ref(false)
 function toggleService(name: string) {
 	form.services = form.services.includes(name) ? form.services.filter(s => s !== name) : [...form.services, name]
 }
 onMounted(async () => {
 	try {
-		serviceOptions.value = (await useMarketplace().serviceNames()).filter(s => s.organizers > 0)
+		const [offered, catalog] = await Promise.all([
+			useMarketplace().serviceNames(),
+			useApi().get<{ name: string, category: string | null }[]>('/services').then(r => r.data).catch(() => []),
+		])
+		serviceOptions.value = offered.filter(s => s.organizers > 0)
+		serviceCatalog.value = catalog
 	} catch {
 		serviceOptions.value = []
 	} finally {
@@ -777,7 +831,7 @@ const missing = computed(() => {
 	else if (form.date < minimumEventDate.value || form.date > maximumEventDate.value) list.push({ key: 'schedule', label: `A date on or before ${maximumEventDateLabel.value}` })
 	if (!form.guests || Number(form.guests) < 1) list.push({ key: 'guests', label: 'Expected guests' })
 	if (!(hasSelectedLocation.value || Boolean(target.value && locationQuery.value.trim()))) list.push({ key: 'location', label: 'Location' })
-	if (!form.budget) list.push({ key: 'budget', label: 'Budget' })
+	if (!form.budget || customBudgetProblem.value) list.push({ key: 'budget', label: 'Budget' })
 	return list
 })
 const showMissing = (key: string) => attempted.value && missing.value.some(m => m.key === key)
@@ -803,6 +857,16 @@ function pointToFirstMissing() {
 	errorMessage.value = `Still needed: ${missing.value.map(m => m.label).join(', ')}.`
 	scrollToElement(document.getElementById(`field-${missing.value[0]?.key}`))
 }
+
+// A gentle notice only: some clients really do have two events in a day.
+const myRequests = ref<{ name: string, date: string | null }[]>([])
+onMounted(async () => {
+	const requests = await allItems(page => useInquiries().list(page)).catch(() => [])
+	myRequests.value = requests
+		.filter(i => !['draft', 'cancelled'].includes(i.status))
+		.map(i => ({ name: i.event_name || `${i.event_type ?? 'Event'} request`, date: i.requested_date }))
+})
+const sameDayEvent = computed(() => myRequests.value.find(r => form.date && r.date === form.date)?.name ?? '')
 
 const minimumEventDate = computed(() => {
 	const now = new Date()
@@ -1334,6 +1398,8 @@ async function renderMap() {
 					{
 						zoomControl:
 							true,
+						// Quarter steps, so the search area can fill the map neatly.
+						zoomSnap: 0.25,
 					}
 				)
 					.setView(
@@ -1363,11 +1429,6 @@ async function renderMap() {
 		}
 
 		clearMarkers()
-
-		const bounds =
-			L.latLngBounds([
-				center,
-			])
 
 		// Venue: a teardrop pin (different shape and colour from the organizer dots).
 		const venueMarker =
@@ -1404,7 +1465,6 @@ async function renderMap() {
 			fillColor: '#285F6b', fillOpacity: 0.07, interactive: false,
 		}).addTo(leafletMap)
 		leafletMarkers.push(searchArea)
-		bounds.extend(searchArea.getBounds())
 
 		for (
 			const organizer
@@ -1470,19 +1530,16 @@ async function renderMap() {
 			leafletMarkers.push(
 				marker
 			)
-
-			bounds.extend(
-				position
-			)
 		}
 
-		// Show the whole search area (and any organizer just outside its edge).
-		leafletMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 14 })
-
-		window.setTimeout(() => {
-			leafletMap
-				?.invalidateSize()
-		}, 0)
+		// Zoom in or out so the search area fills the map neatly (re-measured first:
+		// the map may have just been shown or resized).
+		const fitArea = () => {
+			leafletMap?.invalidateSize()
+			leafletMap?.fitBounds(searchArea.getBounds(), { padding: [16, 16], animate: false })
+		}
+		fitArea()
+		window.setTimeout(fitArea, 0)
 		showStaticMap.value = false
 
 	} catch (error) {
@@ -1737,7 +1794,9 @@ async function submitInquiry() {
 			?? types.find(t => t.name === 'Other')
 		// Budget range → min / max.
 		const amounts = (form.budget.match(/[\d,]+/g) ?? []).map(v => Number(v.replace(/,/g, '')))
-		const budget = form.budget.startsWith('Under')
+		const budget = form.budget === CUSTOM_BUDGET
+			? { budget_min: Number(form.budgetMin) || null, budget_max: Number(form.budgetMax) || null }
+			: form.budget.startsWith('Under')
 			? { budget_min: null, budget_max: amounts[0] ?? null }
 			: form.budget.startsWith('Over')
 				? { budget_min: amounts[0] ?? null, budget_max: null }

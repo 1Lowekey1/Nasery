@@ -2,11 +2,13 @@
 
 namespace Tests\Feature\Payments;
 
+use App\Mail\NotificationMail;
 use App\Models\User;
 use App\Services\Payments\PaymentGateway;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\Concerns\InteractsWithOrganizations;
@@ -70,6 +72,7 @@ class PaymentTest extends TestCase
 
     public function test_demo_checkout_issues_paid_tickets_with_the_platform_fee_deducted(): void
     {
+        $this->useTicketFee(0.05);
         [$org, $owner, $event, $tier] = $this->paidEvent();
         $buyer = User::factory()->create();
 
@@ -88,8 +91,8 @@ class PaymentTest extends TestCase
 
         $payment = DB::table('payments')->where('id', $res['checkout']['payment_id'])->first();
         $this->assertSame('paid', $payment->status);
-        $this->assertSame('16.00', DB::table('platform_fee_snapshots')->where('payment_id', $payment->id)->value('computed_amount')); // 1% default
-        $this->assertSame(['8.00', '8.00'], DB::table('tickets')->where('registration_id', $res['registration_id'])->orderBy('id')->pluck('platform_fee_amount')->all());
+        $this->assertSame('80.00', DB::table('platform_fee_snapshots')->where('payment_id', $payment->id)->value('computed_amount')); // 5% of ₱1,600
+        $this->assertSame(['40.00', '40.00'], DB::table('tickets')->where('registration_id', $res['registration_id'])->orderBy('id')->pluck('platform_fee_amount')->all());
         $this->assertSame('converted', DB::table('ticket_holds')->where('registration_id', $res['registration_id'])->value('status'));
 
         $this->actingAs($buyer)->spaJson('GET', "/api/v1/me/payments/{$payment->id}")->assertJsonPath('data.status', 'paid')->assertJsonPath('data.registration_status', 'confirmed');
@@ -99,13 +102,14 @@ class PaymentTest extends TestCase
 
         // Organizer view: gross, fee, net.
         $this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/events/{$event}/payments")->assertOk()
-            ->assertJsonPath('data.totals.gross', '1600.00')->assertJsonPath('data.totals.fees', '16.00')->assertJsonPath('data.totals.net', '1584.00');
+            ->assertJsonPath('data.totals.gross', '1600.00')->assertJsonPath('data.totals.fees', '80.00')->assertJsonPath('data.totals.net', '1520.00');
     }
 
     public function test_platform_fee_is_returned_only_for_a_valid_reason(): void
     {
+        $this->useTicketFee(0.05);
         [$org, $owner, $event, $tier] = $this->paidEvent();
-        $res = $this->buy(User::factory()->create(), $event, $tier)->json('data'); // ₱1,600, fee ₱16
+        $res = $this->buy(User::factory()->create(), $event, $tier)->json('data'); // ₱1,600, fee ₱80
         $this->demo($res['checkout']['checkout_url'], 'paid')->assertOk();
         $pay = $res['checkout']['payment_id'];
         $refund = fn (int $amount, string $category) => $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/events/{$event}/payments/{$pay}/refund",
@@ -114,15 +118,76 @@ class PaymentTest extends TestCase
 
         $refund(400, 'force_majeure');      // typhoon: a quarter of the fee back
         $refund(400, 'organizer_fault');    // negligence: NaSeRy keeps its fee
-        $this->assertSame(['4.00', '0.00'], $fees());
+        $this->assertSame(['20.00', '0.00'], $fees());
         $this->assertStringStartsWith('Organizer fault: ', DB::table('payment_refunds')->where('payment_id', $pay)->where('fee_portion_refunded', 0)->value('reason'));
 
         $refund(800, 'payment_error');      // the last refund takes all the fee left
-        $this->assertSame(['4.00', '0.00', '12.00'], $fees());
+        $this->assertSame(['20.00', '0.00', '60.00'], $fees());
 
         $this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/events/{$event}/payments")->assertOk()
-            ->assertJsonPath('data.totals.fees', '0.00')->assertJsonPath('data.totals.fee_returned', '16.00')
+            ->assertJsonPath('data.totals.fees', '0.00')->assertJsonPath('data.totals.fee_returned', '80.00')
             ->assertJsonPath('data.totals.refunds', '1600.00')->assertJsonPath('data.totals.net', '0.00');
+    }
+
+    public function test_a_buyer_asks_for_a_refund_and_the_organizer_declines_or_refunds_it(): void
+    {
+        [$org, $owner, $event, $tier] = $this->paidEvent();
+        $buyer = User::factory()->create();
+        $res = $this->buy($buyer, $event, $tier)->json('data');
+        $this->demo($res['checkout']['checkout_url'], 'paid')->assertOk();
+        $ticket = $this->actingAs($buyer)->spaJson('GET', '/api/v1/me/tickets')->assertJsonPath('data.0.refund.can_request', true)->json('data.0.id');
+        $ask = fn () => $this->actingAs($buyer)->spaJson('POST', "/api/v1/me/tickets/{$ticket}/refund-request", ['reason' => 'I can no longer attend']);
+
+        // Only the buyer can ask, and only once at a time.
+        $this->actingAs(User::factory()->create())->spaJson('POST', "/api/v1/me/tickets/{$ticket}/refund-request", ['reason' => 'Not mine'])->assertNotFound();
+        $ask()->assertOk();
+        $ask()->assertStatus(409);
+        $this->assertSame(1, DB::table('notifications')->where('recipient_user_id', $owner->id)->where('type', 'refund.requested')->count());
+
+        // The organizer sees it on the payment and declines it with a note.
+        $base = "/api/v1/organizations/{$org->id}/events/{$event}";
+        $request = $this->actingAs($owner)->spaJson('GET', "{$base}/payments")->assertOk()
+            ->assertJsonPath('data.payments.0.refund_request.reason', 'I can no longer attend')->json('data.payments.0.refund_request.id');
+        $this->actingAs($owner)->spaJson('POST', "{$base}/refund-requests/{$request}/decline", ['note' => 'No refunds a week before'])->assertOk();
+        $this->actingAs($buyer)->spaJson('GET', '/api/v1/me/tickets')->assertJsonPath('data.0.refund.request_status', 'declined')
+            ->assertJsonPath('data.0.refund.response_note', 'No refunds a week before')->assertJsonPath('data.0.refund.can_request', true);
+
+        // Asked again: refunding the payment answers it, and admins hear about the refund.
+        $ask()->assertOk();
+        $this->actingAs($owner)->spaJson('POST', "{$base}/payments/{$res['checkout']['payment_id']}/refund",
+            ['amount' => 1600, 'category' => 'buyer_request', 'reason' => 'Goodwill', 'cancel_tickets' => true], $this->key())->assertOk();
+        $this->assertSame(['declined', 'refunded'], DB::table('refund_requests')->where('payment_id', $res['checkout']['payment_id'])->orderBy('status')->pluck('status')->all());
+        $this->actingAs($buyer)->spaJson('GET', '/api/v1/me/tickets')->assertJsonPath('data.0.refund.can_request', false);
+        $this->assertGreaterThan(0, DB::table('notifications')->where('type', 'admin.refund')->count());
+    }
+
+    public function test_a_buyer_without_an_account_is_emailed_about_the_refund(): void
+    {
+        [$org, $owner, $event, $tier] = $this->paidEvent();
+        $res = $this->buy(User::factory()->create(), $event, $tier)->assertCreated()->json('data');
+        $this->demo($res['checkout']['checkout_url'], 'paid')->assertOk();
+        // As a guest checkout leaves it: no account, only the e-mail they bought with.
+        DB::table('registrations')->where('id', $res['registration_id'])->update(['purchaser_user_id' => null, 'purchaser_email' => 'guest.buyer@gmail.com', 'purchaser_name' => 'Gina Cruz']);
+        Mail::fake();
+
+        $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/events/{$event}/payments/{$res['checkout']['payment_id']}/refund",
+            ['amount' => 1600, 'category' => 'buyer_request', 'reason' => 'Cannot attend', 'cancel_tickets' => true], $this->key())->assertOk();
+
+        Mail::assertQueued(NotificationMail::class, fn ($m) => $m->hasTo('guest.buyer@gmail.com') && $m->guest
+            && str_contains($m->heading, '1,600.00 refunded') && $m->firstName === 'Gina');
+        $this->assertSame(0, DB::table('notifications')->where('type', 'payment.refunded')->where('data->payment_id', $res['checkout']['payment_id'])->count());
+    }
+
+    public function test_a_cancelled_event_leaves_the_marketplace_and_stops_selling(): void
+    {
+        [$org, $owner, $event, $tier] = $this->paidEvent();
+        $this->getJson('/api/v1/public-events')->assertJsonFragment(['id' => $event]);
+
+        $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/events/{$event}/cancel", ['reason' => 'Venue unavailable'])->assertOk();
+
+        $this->getJson('/api/v1/public-events')->assertJsonMissing(['id' => $event]);
+        $this->getJson("/api/v1/public-events/{$event}")->assertStatus(410)->assertJsonPath('error.message', 'This event was cancelled by its organizer. Ticket sales are closed.');
+        $this->buy(User::factory()->create(), $event, $tier)->assertNotFound();
     }
 
     public function test_demo_links_cannot_be_forged(): void

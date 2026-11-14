@@ -1,5 +1,5 @@
 <template>
-	<div class="mx-auto max-w-5xl">
+	<div>
 		<h1 class="text-2xl font-extrabold text-gray-900">Moderation</h1>
 		<p class="mt-1 text-gray-500">Reported reviews and refund fee claims. Every decision is logged and the people involved are notified.</p>
 

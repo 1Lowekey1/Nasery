@@ -8,8 +8,8 @@
 
 		<form class="mt-8 grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:grid-cols-[1fr_auto_auto]" role="search" @submit.prevent="apply">
 			<label class="sr-only" for="directory-search">Search organizers</label>
-			<input id="directory-search" v-model="filters.search" type="search" placeholder="Search by name, service or city…"
-				class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-primary-500 focus:outline-none">
+			<FormsSearchSuggest id="directory-search" v-model="filters.search" :suggestions="suggestions" placeholder="Search by name, service or city…"
+				input-class="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-primary-500 focus:outline-none" @pick="apply" />
 			<button type="button" class="rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold hover:bg-gray-50"
 				:class="near ? 'border-primary-500 bg-primary-50 text-primary-800' : ''" :disabled="locating" @click="toggleNear">
 				{{ locating ? 'Locating…' : near ? `Within ${filters.radius_km} km ✓` : 'Near me' }}
@@ -20,11 +20,14 @@
 		<p v-if="geoError" class="mt-2 text-sm text-rose-700">{{ geoError }}</p>
 
 		<div v-if="services.length" class="mt-4 flex flex-wrap gap-2" aria-label="Filter by service">
-			<button v-for="s in services" :key="s.name" type="button"
+			<button v-for="s in visibleServices" :key="s.name" type="button"
 				class="rounded-full border px-3 py-1.5 text-xs font-semibold"
 				:class="filters.service === s.name ? 'border-primary-600 bg-primary-600 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300'"
 				@click="toggleService(s.name)">
 				{{ s.name }} <span class="opacity-70">· {{ s.organizers }}</span>
+			</button>
+			<button v-if="services.length > TAGS_OVER" type="button" class="rounded-full px-3 py-1.5 text-xs font-bold text-primary-700 hover:underline" :aria-expanded="allTags" @click="allTags = !allTags">
+				{{ allTags ? 'Show fewer' : `Show ${services.length - visibleServices.length} more` }}
 			</button>
 		</div>
 
@@ -32,11 +35,7 @@
 			<span aria-live="polite">{{ loading ? 'Loading…' : `${pagination?.total ?? 0} organizer${pagination?.total === 1 ? '' : 's'}` }}</span>
 			<label class="flex items-center gap-2">
 				Sort
-				<select v-model="filters.sort" class="rounded-lg border border-gray-200 bg-white px-2 py-1.5" @change="apply">
-					<option value="rating">Top rated</option>
-					<option value="name">Name</option>
-					<option v-if="near" value="distance">Nearest</option>
-				</select>
+				<div class="w-36"><FormsSelect v-model="filters.sort" :can-clear="false" :options="[{ value: 'rating', label: 'Top rated' }, { value: 'name', label: 'Name' }, ...(near ? [{ value: 'distance', label: 'Nearest' }] : [])]" @update:model-value="nextTick(apply)" /></div>
 			</label>
 		</div>
 
@@ -84,6 +83,7 @@
 
 <script setup lang="ts">
 import type { DirectoryFilters, OrganizerCard } from '~/composables/useMarketplace'
+import { useOrganizerDirectory } from '~/services/organizerPortfolioService'
 
 definePageMeta({ layout: 'public' })
 useSeoMeta({ title: 'Browse event organizers | NaSeRy', description: 'Find reviewed event organizers near you on NaSeRy.' })
@@ -99,6 +99,19 @@ const pagination = ref<{ current_page: number, last_page: number, total: number 
 const services = ref<{ name: string, organizers: number }[]>([])
 const loading = ref(false)
 const error = ref('')
+const directory = useOrganizerDirectory()
+
+// Past this many service tags, show the first few; the chosen one always stays in view.
+const TAGS_OVER = 8
+const TAGS_FEW = 6
+const allTags = ref(false)
+const visibleServices = computed(() => (services.value.length <= TAGS_OVER || allTags.value
+	? services.value
+	: services.value.filter((s, i) => i < TAGS_FEW || s.name === filters.service)))
+const suggestions = computed(() => [
+	...organizerSuggestions(directory.data.value?.data ?? []),
+	...services.value.map(s => ({ label: s.name, kind: 'Service' })),
+])
 
 async function load(page = 1) {
 	loading.value = true

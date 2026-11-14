@@ -138,7 +138,7 @@ export interface AdminUser {
 
 export interface AdminMember { id: string, name: string, email: string, status: 'active' | 'suspended' | 'deactivated', invited: boolean, joined: string }
 
-export interface CatalogService { id: string, name: string, category: string | null, archived: boolean, uses: number }
+export interface CatalogService { id: string, name: string, category: string | null, archived: boolean, uses: number, requests?: number }
 
 export interface Announcement {
   id: string

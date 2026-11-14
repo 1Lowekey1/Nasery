@@ -45,7 +45,8 @@
 
 			<!-- Offers -->
 			<div class="space-y-5">
-				<article v-for="(offer, index) in visibleOffers" :key="offer.id"
+				<LivePill :count="isFreshOffer.count.value" one="offer updated" many="offers updated" />
+				<article v-for="(offer, index) in visibleOffers" :key="offer.id" :class="{ 'live-fresh': isFreshOffer(offer) }"
 					class="of-rise of-offer overflow-hidden rounded-3xl border border-gray-200 bg-white"
 					:style="{ '--d': 240 + index * 60 + 'ms' }">
 					<div class="p-6 sm:p-7">
@@ -428,6 +429,8 @@ onMounted(() => {
 })
 // Close to live (review #12): other people's changes appear without a reload.
 useLiveRefresh(() => loadOffers(true), { interval: 60000 })
+// An offer whose status or version changed glows for a moment.
+const isFreshOffer = useFreshKeys(() => offers.value, o => `${o.id}:${(o as { status?: string }).status ?? ''}`)
 // Summary tiles and filter chips (counted from the offers loaded above).
 type OfferFilter = 'all' | OrganizerOffer['quotation_status']
 const activeFilter = ref<OfferFilter>('all')

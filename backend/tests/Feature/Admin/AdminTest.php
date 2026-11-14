@@ -193,6 +193,7 @@ class AdminTest extends TestCase
 
     public function test_fee_claims_settings_and_the_platform_fee(): void
     {
+        $this->useTicketFee(0.05);
         $admin = $this->adminUser();
         [$org, $owner, $event, $pay, $tier] = $this->paidPurchase();
         $refund = fn (int $amount, string $category) => $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/events/{$event}/payments/{$pay}/refund",
@@ -202,7 +203,7 @@ class AdminTest extends TestCase
         $refund(400, 'organizer_fault'); // keeps the fee: not a claim
 
         $claims = $this->actingAs($admin)->spaJson('GET', '/api/v1/admin/moderation/fee-claims')->assertOk()->assertJsonPath('data.counts.pending', $pending + 1)
-            ->assertJsonPath('data.items.0.category', 'Force majeure')->assertJsonPath('data.items.0.fee_returned', 4);
+            ->assertJsonPath('data.items.0.category', 'Force majeure')->assertJsonPath('data.items.0.fee_returned', 20);
         $id = $claims->json('data.items.0.id');
         $this->actingAs($admin)->spaJson('POST', "/api/v1/admin/moderation/fee-claims/{$id}", ['outcome' => 'flagged'])->assertUnprocessable();
         $this->actingAs($admin)->spaJson('POST', "/api/v1/admin/moderation/fee-claims/{$id}", ['outcome' => 'flagged', 'note' => 'No typhoon that day.'])
@@ -223,7 +224,7 @@ class AdminTest extends TestCase
             ->assertOk()->assertJsonPath('data.current.percent', 2);
         $second = $this->pay($event, $tier);
         $this->assertSame('32.00', DB::table('platform_fee_snapshots')->where('payment_id', $second)->value('computed_amount'));
-        $this->assertSame('16.00', DB::table('platform_fee_snapshots')->where('payment_id', $pay)->value('computed_amount'));
+        $this->assertSame('80.00', DB::table('platform_fee_snapshots')->where('payment_id', $pay)->value('computed_amount'));
         $this->actingAs($admin)->spaJson('POST', '/api/v1/admin/settings/fee', ['enabled' => false, 'reason' => 'Free month'])->assertOk()
             ->assertJsonPath('data.current.enabled', false);
         $third = $this->pay($event, $tier);

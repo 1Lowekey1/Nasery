@@ -112,6 +112,32 @@ class GuestList
         return ['imported' => $tickets->count(), 'tickets' => $tickets];
     }
 
+    /** 0058: an optional seat or table for this guest; null clears it. */
+    public function setSeat(Event $event, Ticket $ticket, ?string $seat): void
+    {
+        $seat = $seat !== null ? trim($seat) : null;
+        $this->db->system('tickets.seat', fn () => DB::table('tickets')->where('id', $ticket->id)->update(['seat_label' => $seat ?: null]));
+        $this->audit->record('ticket.seat_set', $ticket, new: ['seat_label' => $seat ?: null], organizationId: $event->organization_id);
+    }
+
+    /**
+     * A private event's guests for the client who booked it: who is coming,
+     * their seat and whether they've arrived. No contact details.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function forClient(Event $event): Collection
+    {
+        if ($event->visibility !== 'private') {
+            return collect();
+        }
+
+        return $this->db->system('tickets.client_guests', fn () => $this->query($event, [])
+            ->whereIn('t.status', ['valid', 'used'])->limit(2000)->get())
+            ->map(fn ($r) => ['name' => $r->full_name, 'tier' => $r->tier, 'seat' => $r->seat_label, 'arrived' => $r->status === 'used'])
+            ->values();
+    }
+
     public function cancel(Event $event, Ticket $ticket, string $reason): void
     {
         $this->db->system('tickets.cancel', function () use ($ticket, $reason) {
@@ -274,7 +300,7 @@ class GuestList
             })
             ->orderBy('a.full_name')->orderBy('t.id')
             ->select(['t.id', 't.status', 't.admission_type', 't.issued_at', 't.cancellation_reason', 'a.full_name', 'a.email', 'a.contact_number',
-                'tt.name as tier', 'tt.zone_name', 'r.registration_source']);
+                'tt.name as tier', 'tt.zone_name', 'r.registration_source', 't.seat_label']);
     }
 
     /**
@@ -289,6 +315,7 @@ class GuestList
             'contact_number' => $r->contact_number,
             'tier' => $r->tier,
             'zone' => $r->zone_name,
+            'seat' => $r->seat_label,
             'status' => $r->status,
             'admission_type' => $r->admission_type,
             'source' => $r->registration_source,
@@ -323,6 +350,58 @@ class GuestList
             (bool) preg_match('/^9\d{9}$/', $digits) => '0'.$digits,
             default => $value,
         };
+    }
+
+    /**
+     * A contact number for spreadsheets: 0917-123-4567. With dashes it's text
+     * to Excel, so the leading 0 survives opening, saving and reopening (a
+     * ="0917…" cell turns into a plain number the first time the file is
+     * saved as CSV). localPhone() reads it back when imported.
+     */
+    public static function spreadsheetPhone(?string $value): ?string
+    {
+        $phone = self::localPhone($value);
+
+        return match (true) {
+            $phone === null => null,
+            (bool) preg_match('/^(0\d{3})(\d{3})(\d{4})$/', $phone, $m) => "{$m[1]}-{$m[2]}-{$m[3]}",
+            (bool) preg_match('/^(0\d{2})(\d{3,})$/', $phone, $m) => "{$m[1]}-{$m[2]}",
+            default => $phone,
+        };
+    }
+
+    /**
+     * An Excel workbook's first sheet as CSV text, so it goes through the same
+     * checks as a .csv upload. Numbers keep their digits (no "1.2E+10"); dates
+     * become YYYY-MM-DD. Unreadable files get a clear message.
+     */
+    public static function xlsxToCsv(string $path): string
+    {
+        $reader = new \OpenSpout\Reader\XLSX\Reader;
+        try {
+            $reader->open($path);
+            $out = fopen('php://temp', 'r+');
+            foreach ($reader->getSheetIterator() as $sheet) {
+                foreach ($sheet->getRowIterator() as $row) {
+                    fputcsv($out, array_map(function ($v) {
+                        return match (true) {
+                            $v instanceof \DateTimeInterface => $v->format('Y-m-d'),
+                            is_float($v) && floor($v) === $v && abs($v) < 1e15 => number_format($v, 0, '.', ''),
+                            is_bool($v) => $v ? 'TRUE' : 'FALSE',
+                            default => (string) $v,
+                        };
+                    }, $row->toArray()), escape: '\\');
+                }
+                break; // the first sheet only
+            }
+            rewind($out);
+
+            return (string) stream_get_contents($out);
+        } catch (\Throwable) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['file' => 'This Excel file could not be read. Save it again as .xlsx or .csv.']);
+        } finally {
+            $reader->close();
+        }
     }
 
     /**

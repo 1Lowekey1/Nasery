@@ -14,6 +14,7 @@ use App\Services\Admin\AccessRequests;
 use App\Services\Admin\PlatformAnalytics;
 use App\Services\Organizations\ApprovalWorkflow;
 use App\Services\Organizations\OfferedServices;
+use App\Services\Organizations\OrganizationDocuments;
 use App\Support\Database\DatabaseContext;
 use App\Support\Http\ApiResponse;
 use Carbon\CarbonImmutable;
@@ -40,6 +41,7 @@ class OrganizerApplicationController extends Controller
         private readonly OfferedServices $services,
         private readonly PlatformAnalytics $analytics,
         private readonly AccessRequests $access,
+        private readonly OrganizationDocuments $documents,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -109,6 +111,14 @@ class OrganizerApplicationController extends Controller
         ];
     }
 
+    public function note(Request $request, Organization $organization): JsonResponse
+    {
+        $data = $request->validate(['note' => ['required', 'string', 'min:3', 'max:1000']]);
+        $this->workflow->note($organization, $request->user(), $data['note']);
+
+        return ApiResponse::success($this->application($organization->refresh()), 'Note sent to the organizer.');
+    }
+
     public function decide(ApprovalDecisionRequest $request, Organization $organization): JsonResponse
     {
         $organization = $this->workflow->decide(
@@ -154,8 +164,9 @@ class OrganizerApplicationController extends Controller
                 ...$this->summary($organization),
                 'suspended_reason' => $organization->suspended_reason,
                 'allowed_decisions' => array_map(fn (ApprovalStatus $s) => $s->value, $this->workflow->allowedDecisions($organization)),
-                // Permits/documents are collected by email (V1 decision), so the
-                // owner's verified email is the reviewer's primary contact.
+                // Proof of business (0057); the reviewer can still reach the owner by e-mail.
+                'documents' => $this->documents->list($organization)->values(),
+                'documents_required' => OrganizationDocuments::required(),
                 'owner' => $owner ? [
                     'id' => $owner->id,
                     'full_name' => trim("{$owner->first_name} {$owner->last_name}"),

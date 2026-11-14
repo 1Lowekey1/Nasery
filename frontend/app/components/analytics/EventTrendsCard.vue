@@ -5,6 +5,7 @@
 			<div class="min-w-0">
 				<h2 class="text-base font-bold text-gray-950">Event trends on NaSeRy</h2>
 				<p class="mt-0.5 text-sm text-gray-500">{{ subtitle }}</p>
+				<NuxtLink v-if="breakdownLink" to="/organizer/analyticsdashboard/event-types" class="mt-1 inline-flex min-h-8 items-center gap-1 text-xs font-semibold text-primary-700 hover:underline">Full breakdown <IconBase name="arrow-right" class="h-3 w-3" /></NuxtLink>
 			</div>
 			<div class="inline-flex rounded-xl bg-gray-100 p-1" role="tablist" aria-label="Period">
 				<button v-for="m in PERIODS" :key="m" type="button" role="tab" :aria-selected="months === m"
@@ -53,7 +54,8 @@
 import type { ApexOptions } from 'apexcharts'
 import { CHART } from '~/utils/chartColors'
 
-defineProps<{ subtitle?: string }>()
+// breakdownLink: organizers get a link to Analytics → Event Types.
+defineProps<{ subtitle?: string, breakdownLink?: boolean }>()
 
 interface Trends {
 	months: string[]

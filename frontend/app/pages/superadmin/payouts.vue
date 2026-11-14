@@ -34,13 +34,13 @@
 									<p class="text-xs text-gray-400">{{ r.last_payout_at ? `Last payout ${dateLabel(r.last_payout_at)}` : 'Never paid out' }}</p>
 								</td>
 								<td class="py-3.5 pr-4">{{ pesoExact(r.gross) }}</td>
-								<td class="py-3.5 pr-4 text-rose-700">−{{ pesoExact(r.refunded) }}</td>
+								<td class="py-3.5 pr-4" :class="r.refunded ? 'text-rose-700' : 'text-gray-400'">{{ r.refunded ? `−${pesoExact(r.refunded)}` : '—' }}</td>
 								<td class="py-3.5 pr-4 text-slate-600">−{{ pesoExact(r.platform_fee) }}</td>
 								<td class="py-3.5 pr-4 font-semibold text-gray-900">{{ pesoExact(r.share) }}</td>
 								<td class="py-3.5 pr-4">{{ pesoExact(r.paid_out) }}</td>
 								<td class="py-3.5 pr-4 font-bold" :class="r.owed > 0 ? 'text-amber-600' : r.owed < 0 ? 'text-rose-600' : 'text-gray-400'">{{ pesoExact(r.owed) }}</td>
 								<td class="py-3.5 text-right">
-									<button type="button" class="text-xs font-semibold text-primary-700 hover:text-primary-900" @click="toggle(r.organization.id)">
+									<button type="button" class="tap-target text-xs font-semibold text-primary-700 hover:text-primary-900" @click="toggle(r.organization.id)">
 										{{ open === r.organization.id ? 'Close' : r.owed > 0 ? 'Record payout' : 'History' }}
 									</button>
 								</td>
@@ -52,9 +52,7 @@
 											<input v-model.number="form.amount" type="number" min="1" step="0.01" :max="r.owed" required class="mt-1 block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm">
 										</label>
 										<label class="text-xs font-semibold text-gray-600 sm:col-span-1">Method
-											<select v-model="form.method" class="mt-1 block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm">
-												<option v-for="(label, key) in methods" :key="key" :value="key">{{ label }}</option>
-											</select>
+											<FormsSelect v-model="form.method" class="mt-1" :can-clear="false" :options="Object.entries(methods).map(([value, label]) => ({ value, label }))" />
 										</label>
 										<label class="text-xs font-semibold text-gray-600 sm:col-span-2">Reference no.
 											<input v-model="form.reference" required minlength="3" maxlength="100" placeholder="e.g. GCash ref 1234 5678" class="mt-1 block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm">
@@ -95,11 +93,36 @@
 				</table>
 			</div>
 		</div>
+
+		<!-- Every refund that went back to a buyer, newest first. -->
+		<div class="mt-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+			<h2 class="text-base font-bold text-gray-900">Refunds returned to buyers</h2>
+			<p class="mt-0.5 text-sm text-gray-500">Sent back through PayMongo to the account each buyer paid with. Already taken out of the organizer's share above.</p>
+			<p v-if="!refunds.length" class="py-6 text-center text-sm text-gray-400">No refunds yet.</p>
+			<div v-else class="mt-4 overflow-x-auto">
+				<table v-table-cards class="w-full text-left text-sm">
+					<thead>
+						<tr class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wide text-gray-400">
+							<th class="pb-3 pr-4">Buyer</th><th class="pb-3 pr-4">Event</th><th class="pb-3 pr-4">Amount</th><th class="pb-3 pr-4">Reason</th><th class="pb-3 pr-4">Returned</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-100">
+						<tr v-for="x in refunds" :key="x.id">
+							<td data-card-title class="py-3 pr-4 font-semibold text-gray-900">{{ x.buyer || 'Buyer' }}</td>
+							<td class="py-3 pr-4"><p class="text-gray-900">{{ x.event }}</p><p class="text-xs text-gray-400">{{ x.organizer }}</p></td>
+							<td class="py-3 pr-4 font-semibold text-gray-900">{{ pesoExact(x.amount) }}</td>
+							<td class="max-w-xs py-3 pr-4 text-gray-600">{{ x.reason }}</td>
+							<td class="py-3 pr-4"><span class="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-700"><IconBase name="check-circle" class="h-3.5 w-3.5" />{{ dateLabel(x.refunded_at) }}</span></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import type { Payout, PayoutBalance } from '~/composables/useEarnings'
+import type { Payout, PayoutBalance, RecentRefund } from '~/composables/useEarnings'
 import { pesoExact } from '~/composables/useEarnings'
 
 definePageMeta({ layout: 'superadmin', middleware: ['superadmin'] })
@@ -110,6 +133,7 @@ const rows = ref<PayoutBalance[] | null>(null)
 const methods = ref<Record<string, string>>({ bank_transfer: 'Bank transfer', gcash: 'GCash', maya: 'Maya', other: 'Other' })
 const open = ref<string | null>(null)
 const history = ref<Payout[]>([])
+const refunds = ref<RecentRefund[]>([])
 const form = reactive({ amount: 0, method: 'gcash', reference: '', note: '' })
 const busy = ref(false)
 const error = ref('')
@@ -128,6 +152,7 @@ async function load(quiet = false) {
 		const data = await api.balances()
 		rows.value = data.organizers
 		methods.value = data.methods
+		refunds.value = data.refunds ?? []
 	} catch (e) {
 		error.value = authMessage(e)
 	}

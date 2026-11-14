@@ -40,10 +40,7 @@
 							<input v-model="deciding.name" required minlength="2" maxlength="80" class="mt-1 h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-normal text-gray-900">
 						</label>
 						<label v-else-if="deciding.action === 'merge'" class="min-w-0 flex-1 text-xs font-semibold text-gray-600">Existing event type
-							<select v-model="deciding.eventTypeId" required class="mt-1 h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-normal text-gray-900">
-								<option value="" disabled>Choose…</option>
-								<option v-for="t in tags" :key="t.id" :value="String(t.id)">{{ t.name }}</option>
-							</select>
+							<FormsSelect v-model="deciding.eventTypeId" class="mt-1" :can-clear="false" :options="tags.map(t => ({ value: String(t.id), label: t.name }))" placeholder="Choose…" />
 						</label>
 						<label class="min-w-0 flex-1 text-xs font-semibold text-gray-600">{{ deciding.action === 'reject' ? 'Reason (sent to the organizers)' : 'Note to the organizers (optional)' }}
 							<input v-model="deciding.note" :required="deciding.action === 'reject'" :minlength="deciding.action === 'reject' ? 3 : undefined" maxlength="500" class="mt-1 h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm font-normal text-gray-900">

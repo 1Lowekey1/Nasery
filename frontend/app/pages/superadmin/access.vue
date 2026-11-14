@@ -1,5 +1,5 @@
 <template>
-	<div class="mx-auto max-w-5xl">
+	<div>
 		<h1 class="text-2xl font-extrabold text-gray-900">Workspace Access</h1>
 		<p class="mt-1 text-gray-500">Organizers decide who from NaSeRy may look inside their workspace. Access is read-only and ends on its own.</p>
 

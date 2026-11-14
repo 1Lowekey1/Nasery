@@ -156,7 +156,7 @@ class AnalyticsTest extends TestCase
         ], $this->key())->json('data.id');
         $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/events/{$later}/publish")->assertOk();
 
-        $live = $this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/analytics/live")->assertOk()->json('data');
+        $live = $this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/live-events")->assertOk()->json('data');
         $this->assertCount(1, $live['live']);
         $e = $live['live'][0];
         $this->assertSame(['Door Open', 2, 1, 2, 3], [$e['name'], $e['expected'], $e['checked_in'], $e['walk_ins'], $e['arrived']]);
@@ -172,7 +172,7 @@ class AnalyticsTest extends TestCase
         $this->addStaff($org, $door);
         $this->assignToEvent($owner, $org, $event, $door, ['checkin.perform']);
         $this->actingAs($door)->spaJson('GET', "/api/v1/organizations/{$org->id}/analytics")->assertForbidden();
-        $this->actingAs($door)->spaJson('GET', "/api/v1/organizations/{$org->id}/analytics/live")->assertOk()
+        $this->actingAs($door)->spaJson('GET', "/api/v1/organizations/{$org->id}/live-events")->assertOk()
             ->assertJsonCount(1, 'data.live')->assertJsonCount(0, 'data.upcoming');
 
         // Outsiders see nothing.

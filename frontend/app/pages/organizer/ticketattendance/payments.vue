@@ -27,17 +27,26 @@
 								<td>{{ p.status === 'paid' ? p.tickets : '—' }}</td>
 								<td>{{ formatPeso(p.amount) }}</td>
 								<td class="text-gray-500">{{ p.fee ? formatPeso(p.fee) : '—' }}</td>
-								<td class="text-gray-500">{{ Number(p.refunded) ? formatPeso(p.refunded) : '—' }}</td>
+								<td class="text-gray-500">
+									<template v-if="Number(p.refunded)">
+										<span class="font-semibold text-sky-800">{{ formatPeso(p.refunded) }}</span>
+										<span v-if="p.refunded_at" class="block text-xs text-gray-500">Returned {{ new Date(p.refunded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }}</span>
+									</template>
+									<template v-else>—</template>
+								</td>
 								<td>
 									<span class="rounded-full px-2 py-0.5 text-xs font-semibold"
-										:class="p.status === 'paid' ? 'bg-green-50 text-green-700' : p.status === 'failed' ? 'bg-rose-50 text-rose-700' : 'bg-gray-100 text-gray-500'">
+										:class="p.status === 'paid' && Number(p.refunded) ? 'bg-sky-50 text-sky-800' : p.status === 'paid' ? 'bg-green-50 text-green-700' : p.status === 'failed' ? 'bg-rose-50 text-rose-700' : 'bg-gray-100 text-gray-500'">
 										{{ statusLabel(p) }}
 									</span>
 									<span v-if="p.failure_reason && p.status === 'failed'" class="block text-xs text-gray-400">{{ p.failure_reason }}</span>
+									<span v-if="p.refund_request" class="mt-1 block max-w-xs whitespace-normal text-xs font-semibold text-amber-700">Refund requested: “{{ p.refund_request.reason }}”</span>
 								</td>
 								<td class="text-right">
 									<button v-if="p.status === 'paid' && Number(p.refunded) < Number(p.amount)" type="button" class="rounded-lg px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50"
 										@click="startRefund(p)">Refund</button>
+									<button v-if="p.refund_request" type="button" class="rounded-lg px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100" :disabled="busy"
+										@click="declineRequest(p)">Decline</button>
 								</td>
 							</tr>
 							<tr v-if="!data.payments.length"><td colspan="7" class="py-6 text-center text-gray-400">No online payments yet.</td></tr>
@@ -60,10 +69,7 @@
 					</div>
 					<div>
 						<FormsLabel text="Why is this refunded?" />
-						<select v-model="refundForm.category" class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
-							<option value="" disabled>Choose a reason</option>
-							<option v-for="c in refundCategories" :key="c.value" :value="c.value">{{ c.label }}</option>
-						</select>
+						<FormsSelect v-model="refundForm.category" :options="refundCategories" :can-clear="false" placeholder="Choose a reason" />
 						<p v-if="chosenCategory" class="mt-1 text-xs text-gray-500">{{ chosenCategory.hint }}.</p>
 						<p v-if="chosenCategory" class="mt-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
 							:class="chosenCategory.returnsFee ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-800'">
@@ -136,7 +142,26 @@ function statusLabel(p: EventPayment) {
 function startRefund(p: EventPayment) {
 	formError.value = ''
 	refunding.value = p
-	Object.assign(refundForm, { amount: (Number(p.amount) - Number(p.refunded)).toFixed(2), category: '', reason: '', cancel_tickets: true })
+	// A buyer's request fills in its reason (0061).
+	Object.assign(refundForm, {
+		amount: (Number(p.amount) - Number(p.refunded)).toFixed(2), category: p.refund_request ? 'buyer_request' : '', reason: p.refund_request?.reason.slice(0, 300) ?? '', cancel_tickets: true,
+	})
+}
+
+async function declineRequest(p: EventPayment) {
+	const note = await promptDialog(`Decline ${p.buyer ?? 'this buyer'}'s refund request? They'll get your note.`, { title: 'Decline refund request', placeholder: 'e.g. Tickets are non-refundable this close to the event', confirmLabel: 'Decline request' })
+	if (note === null) return
+	busy.value = true
+	error.value = ''
+	try {
+		await api.declineRefundRequest(organization.value!.id, eventId.value!, p.refund_request!.id, note.trim() || null)
+		notice.value = 'Request declined. The buyer was told.'
+		await load(true)
+	} catch (e) {
+		error.value = authMessage(e)
+	} finally {
+		busy.value = false
+	}
 }
 
 async function refund() {

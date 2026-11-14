@@ -3,8 +3,10 @@
 use App\Http\Controllers\Api\V1\MediaController;
 use App\Http\Controllers\Api\V1\Admin\OrganizerApplicationController;
 use App\Http\Controllers\Api\V1\Organizations\ApprovalController;
+use App\Http\Controllers\Api\V1\Organizations\OrganizationDocumentController;
 use App\Http\Controllers\Api\V1\Organizations\EventTypeController;
 use App\Http\Controllers\Api\V1\Organizations\EventTypeSuggestionController;
+use App\Http\Controllers\Api\V1\Organizations\ServiceSuggestionController;
 use App\Http\Controllers\Api\V1\Organizations\OfferedServiceController;
 use App\Http\Controllers\Api\V1\Organizations\PriceOptionController;
 use App\Http\Controllers\Api\V1\Organizations\OrganizationController;
@@ -58,14 +60,24 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
             // 0054: suggest a new event type for NaSeRy's standard list (admins decide).
             Route::get('event-type-suggestions', [EventTypeSuggestionController::class, 'index'])->name('event-type-suggestions.index');
             Route::post('event-type-suggestions', [EventTypeSuggestionController::class, 'store'])->middleware('throttle:sensitive')->name('event-type-suggestions.store');
+            // 0056: services not in the catalog: the organization's own right away, and a suggestion for the catalog.
+            Route::get('service-suggestions', [ServiceSuggestionController::class, 'index'])->name('service-suggestions.index');
+            Route::post('service-suggestions', [ServiceSuggestionController::class, 'store'])->middleware('throttle:sensitive')->name('service-suggestions.store');
 
             Route::get('approval', [ApprovalController::class, 'show'])->name('approval.show');
+            // 0057: proof of business, uploaded here instead of by e-mail.
+            Route::get('documents', [OrganizationDocumentController::class, 'index'])->name('documents.index');
+            Route::post('documents', [OrganizationDocumentController::class, 'store'])->middleware('throttle:sensitive')->name('documents.store');
+            Route::delete('documents/{document}', [OrganizationDocumentController::class, 'destroy'])->whereUuid('document')->middleware('throttle:sensitive')->name('documents.destroy');
+            Route::get('documents/{document}/file', [OrganizationDocumentController::class, 'file'])->whereUuid('document')->name('documents.file');
             Route::post('approval/resubmit', [ApprovalController::class, 'resubmit'])->middleware('throttle:sensitive')->name('approval.resubmit');
         });
 
         Route::prefix('admin')->name('admin.')->middleware('account:admin')->group(function () {
             Route::get('organizer-applications', [OrganizerApplicationController::class, 'index'])->name('applications.index');
             Route::get('organizer-applications/{organization}', [OrganizerApplicationController::class, 'show'])->name('applications.show');
+            Route::post('organizer-applications/{organization}/note', [OrganizerApplicationController::class, 'note'])
+                ->middleware(['throttle:sensitive', 'idempotent'])->name('applications.note');
             Route::post('organizer-applications/{organization}/decision', [OrganizerApplicationController::class, 'decide'])
                 ->middleware(['throttle:sensitive', 'idempotent'])->name('applications.decide');
         });

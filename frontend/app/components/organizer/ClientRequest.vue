@@ -15,12 +15,12 @@
 		<div v-if="open" class="space-y-5 border-t border-gray-100 px-5 py-5 sm:px-6">
 			<p v-if="inquiry.revised_at" class="rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">The client changed this request on {{ date(inquiry.revised_at) }}.</p>
 
-			<dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
+			<dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm" :class="compact ? '' : 'sm:grid-cols-4'">
 				<div><dt class="text-xs font-medium text-gray-500">Event</dt><dd class="font-semibold text-gray-900">{{ inquiry.event_type || 'Event' }}</dd></div>
 				<div><dt class="text-xs font-medium text-gray-500">Date</dt><dd class="font-semibold text-gray-900">{{ inquiry.requested_date ? date(inquiry.requested_date) : 'Not set' }}</dd></div>
 				<div><dt class="text-xs font-medium text-gray-500">Guests</dt><dd class="font-semibold text-gray-900">{{ inquiry.guest_count ?? '—' }}</dd></div>
 				<div><dt class="text-xs font-medium text-gray-500">Budget</dt><dd class="font-semibold text-gray-900">{{ budgetLabel(inquiry.budget_min, inquiry.budget_max) }}</dd></div>
-				<div v-if="inquiry.location_text" class="col-span-2 sm:col-span-4"><dt class="text-xs font-medium text-gray-500">Location</dt><dd class="font-semibold text-gray-900">{{ inquiry.location_text }}</dd></div>
+				<div v-if="inquiry.location_text" class="col-span-2" :class="compact ? '' : 'sm:col-span-4'"><dt class="text-xs font-medium text-gray-500">Location</dt><dd class="font-semibold text-gray-900">{{ inquiry.location_text }}</dd></div>
 			</dl>
 
 			<div v-if="inquiry.services.length">
@@ -58,7 +58,7 @@
 				<p v-if="quotation.terms" class="mt-2 text-xs text-gray-500"><span class="font-semibold">Terms:</span> {{ quotation.terms }}</p>
 			</div>
 
-			<div class="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
+			<div v-if="!compact" class="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
 				<button type="button" class="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary-700 px-4 text-sm font-bold text-white transition hover:bg-primary-800 disabled:opacity-60"
 					:disabled="opening" @click="message">
 					<IconBase name="message" class="h-4 w-4" /> {{ opening ? 'Opening…' : `Message ${firstName}` }}
@@ -87,11 +87,11 @@ import type { OrganizerQuotation } from '~/composables/useQuotations'
 import { budgetLabel } from '~/composables/useInquiries'
 import { formatPeso } from '~/composables/useMarketplace'
 
-const props = defineProps<{ organizationId: string, inquiryId: string | null, quotationId?: string | null, collapsible?: boolean }>()
+const props = defineProps<{ organizationId: string, inquiryId: string | null, quotationId?: string | null, collapsible?: boolean, compact?: boolean, startOpen?: boolean }>()
 
 const inquiry = ref<OrganizerInquiry | null>(null)
 const quotation = ref<OrganizerQuotation | null>(null)
-const open = ref(!props.collapsible)
+const open = ref(!props.collapsible || Boolean(props.startOpen))
 const threads = useOrganizerThreads()
 const opening = ref(false)
 const messageError = ref('')

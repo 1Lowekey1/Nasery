@@ -37,6 +37,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
             ->middleware(['throttle:checkout', 'idempotent'])->name('public-events.register');
         Route::get('me/tickets', [PublicEventController::class, 'myTickets'])->name('me.tickets');
         Route::post('me/tickets/{ticket}/cancel', [PublicEventController::class, 'cancelMine'])->middleware('throttle:sensitive')->name('me.tickets.cancel');
+        Route::post('me/tickets/{ticket}/refund-request', [PublicEventController::class, 'requestRefund'])->middleware('throttle:sensitive')->name('me.tickets.refund');
         Route::get('me/tickets/{ticket}/pdf', [PublicEventController::class, 'myTicketPdf'])->name('me.tickets.pdf');
         Route::post('me/tickets/{ticket}/email', [PublicEventController::class, 'emailMine'])->middleware('throttle:sensitive')->name('me.tickets.email');
 
@@ -55,6 +56,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
                 Route::get('tickets/{ticket}/pdf', [TicketingController::class, 'ticketPdf'])->name('tickets.pdf');
                 Route::post('tickets/{ticket}/email', [TicketingController::class, 'emailTicket'])->middleware('throttle:sensitive')->name('tickets.email');
                 Route::post('tickets/{ticket}/reissue-qr', [TicketingController::class, 'reissueQr'])->middleware('throttle:sensitive')->name('tickets.reissue');
+                Route::patch('tickets/{ticket}/seat', [TicketingController::class, 'seat'])->middleware('throttle:sensitive')->name('tickets.seat');
                 Route::post('tickets/{ticket}/cancel', [TicketingController::class, 'cancelTicket'])->middleware('throttle:sensitive')->name('tickets.cancel');
             });
     });

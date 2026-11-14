@@ -1,5 +1,5 @@
 <template>
-	<div class="mx-auto max-w-4xl">
+	<div>
 		<h1 class="text-2xl font-extrabold text-gray-900">Admin Team</h1>
 		<p class="mt-1 text-gray-500">Everyone who can run NaSeRy. New admins get an e-mail with a “Set up my admin account” link and choose their own password; nobody else ever sees it.</p>
 

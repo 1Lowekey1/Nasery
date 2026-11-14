@@ -1,8 +1,9 @@
 <template>
 	<Teleport to="body">
-		<div v-if="open" class="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/55 p-4 backdrop-blur-sm sm:items-center"
+		<div v-if="open" class="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-950/55 p-4 backdrop-blur-sm"
 			role="dialog" aria-modal="true" :aria-labelledby="titleId" @click.self="close">
-			<div class="my-6 w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+			<!-- Auto margins centre it when it fits and let it scroll from the top when it doesn't (short laptop screens). -->
+			<div class="my-6 w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl sm:my-auto">
 				<div class="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5">
 					<div>
 						<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-primary-700">Attendee management</p>
@@ -36,9 +37,9 @@
 						<ol class="mt-2 list-decimal space-y-1 pl-5 text-sm text-gray-600">
 							<li>Open the template in Excel or Google Sheets (or use your own sheet with the same column names).</li>
 							<li>Keep the <strong>first row as the column names</strong>, then put <strong>one guest per row</strong>.</li>
-							<li>Save it as <strong>CSV</strong>: Excel → File → Save As → “CSV UTF-8 (Comma delimited)”; Google Sheets → File → Download → “Comma-separated values (.csv)”.</li>
+							<li>Save it as an <strong>Excel workbook (.xlsx)</strong>, Excel's normal format, or as <strong>CSV</strong>. Google Sheets: File → Download → “Microsoft Excel (.xlsx)”.</li>
 						</ol>
-						<p class="mt-2 text-xs text-gray-500">Excel may drop the first 0 of a mobile number (0917… becomes 917…). That's fine: NaSeRy puts it back when you import.</p>
+						<p class="mt-2 text-xs text-gray-500">Write mobile numbers with dashes (0917-123-4567) so Excel keeps the first 0. If Excel asks about leading zeros, choose Don't Convert. If a 0 does get dropped, NaSeRy puts it back when you import.</p>
 						<div class="mt-3 overflow-x-auto rounded-xl border border-gray-200">
 							<table class="w-full text-left text-xs">
 								<thead class="bg-gray-50 text-gray-500">
@@ -61,16 +62,18 @@
 
 					<!-- 2. File -->
 					<section>
-						<h3 class="text-sm font-bold text-gray-900">2. Choose the CSV file</h3>
+						<h3 class="text-sm font-bold text-gray-900">2. Choose the file</h3>
 						<label class="mt-2 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-6 text-center transition"
 							:class="dragging ? 'border-primary-400 bg-primary-50' : 'border-gray-200 hover:border-primary-300'"
 							@dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="onDrop">
 							<IconBase name="upload" class="h-6 w-6 text-primary-700" />
-							<span class="text-sm font-semibold text-gray-700">{{ file ? file.name : 'Click to choose a .csv file, or drop it here' }}</span>
+							<span class="text-sm font-semibold text-gray-700">{{ file ? file.name : 'Click to choose an .xlsx or .csv file, or drop it here' }}</span>
 							<span v-if="file" class="text-xs text-gray-400">{{ (file.size / 1024).toFixed(1) }} KB · click to choose another</span>
-							<input ref="input" type="file" accept=".csv,text/csv" class="sr-only" @change="onPick">
+							<input ref="input" type="file" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="sr-only" @change="onPick">
 						</label>
 
+						<!-- Excel workbooks are checked by NaSeRy on import (same rules); CSVs get a preview here. -->
+						<p v-if="file && !preview" class="mt-3 text-sm text-green-700"><span class="font-semibold">Excel file ready.</span> NaSeRy reads the first sheet and checks every row when you import.</p>
 						<div v-if="preview" class="mt-3">
 							<p class="text-sm" :class="problems.length ? 'text-rose-700' : 'text-green-700'">
 								<span class="font-semibold">{{ preview.rows.length }} {{ preview.rows.length === 1 ? 'guest' : 'guests' }} found.</span>
@@ -98,10 +101,7 @@
 					<section class="grid gap-4 sm:grid-cols-2">
 						<div>
 							<h3 class="text-sm font-bold text-gray-900">3. Default ticket tier <span class="text-rose-500">*</span></h3>
-							<select v-model="tierId" class="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" :class="attempted && !tierId && 'border-rose-400'">
-								<option value="" disabled>Choose a tier</option>
-								<option v-for="t in tiers" :key="t.id" :value="String(t.id)">{{ t.name }}</option>
-							</select>
+							<FormsSelect v-model="tierId" class="mt-2" :can-clear="false" :options="tiers.map(t => ({ value: String(t.id), label: t.name }))" placeholder="Choose a tier" />
 							<p class="mt-1 text-xs" :class="attempted && !tierId ? 'font-semibold text-rose-600' : 'text-gray-400'">
 								{{ !tiers.length ? 'Create a ticket tier for this event first.' : 'Used for rows with a blank “tier”.' }}</p>
 						</div>
@@ -247,17 +247,22 @@ const problems = computed(() => {
 	return list
 })
 
-const blocker = computed(() => !file.value ? 'Choose a CSV file first.'
+const blocker = computed(() => !file.value ? 'Choose an .xlsx or .csv file first.'
 	: problems.value.length ? 'Fix the rows listed above, save the file, and choose it again.'
 		: !tierId.value ? 'Choose the default ticket tier.' : '')
 
 async function load(f: File | undefined | null) {
 	serverErrors.value = []
 	if (!f) return
+	if (/\.xlsx$/i.test(f.name)) {
+		file.value = f
+		preview.value = null
+		return
+	}
 	if (!/\.(csv|txt)$/i.test(f.name)) {
 		file.value = null
 		preview.value = null
-		serverErrors.value = [`“${f.name}” isn't a CSV file. In Excel use File → Save As → “CSV UTF-8 (Comma delimited)”, then choose that file.`]
+		serverErrors.value = [`“${f.name}” isn't an .xlsx or .csv file. In Excel use File → Save As → “Excel Workbook (.xlsx)”, then choose that file.`]
 		return
 	}
 	file.value = f
@@ -268,7 +273,7 @@ function onDrop(e: DragEvent) { dragging.value = false; void load(e.dataTransfer
 
 function downloadTemplate() {
 	const [first, second] = [props.tiers[0]?.name ?? '', props.tiers[1]?.name ?? props.tiers[0]?.name ?? '']
-	const rows = [['name', 'email', 'contact', 'tier'], ['Juan Dela Cruz', 'juan@example.com', '0917 123 4567', first], ['Maria Santos', '', '0918 765 4321', second], ['Pedro Reyes', 'pedro@example.com', '', '']]
+	const rows = [['name', 'email', 'contact', 'tier'], ['Juan Dela Cruz', 'juan@example.com', '0917-123-4567', first], ['Maria Santos', '', '0918-765-4321', second], ['Pedro Reyes', 'pedro@example.com', '', '']]
 	const csv = '﻿' + rows.map(r => r.map(v => (/[",;\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)).join(',')).join('\r\n')
 	const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
 	const a = document.createElement('a')

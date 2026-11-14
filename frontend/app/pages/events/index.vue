@@ -5,7 +5,8 @@
 		<p class="mt-2 max-w-2xl text-gray-500">Concerts, conferences and gatherings by organizers reviewed by NaSeRy. Register to get your QR ticket.</p>
 
 		<form class="mt-6 flex max-w-xl gap-2" @submit.prevent="load(1)">
-			<FormsTextField v-model="search" placeholder="Search events, organizers or places" class="flex-1" aria-label="Search events" />
+			<FormsSearchSuggest v-model="search" :suggestions="suggestions" placeholder="Search events, organizers or places" aria-label="Search events" wrapper-class="flex-1"
+				input-class="w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-sm focus:border-primary-500 focus:outline-none" @pick="load(1)" />
 			<button type="submit" class="rounded-lg bg-primary-700 px-5 py-2.5 text-sm font-bold text-white">Search</button>
 		</form>
 
@@ -37,6 +38,7 @@
 
 <script setup lang="ts">
 import type { PublicEventCard } from '~/composables/useTicketing'
+import { useEventMarketplace } from '~/services/eventMarketplaceService'
 
 definePageMeta({ layout: 'public' })
 useSeoMeta({ title: 'Events | NaSeRy', description: 'Public events by NaSeRy organizers. Register and get your QR ticket.' })
@@ -46,6 +48,8 @@ const events = ref<PublicEventCard[]>([])
 const pagination = ref<{ current_page: number, last_page: number, total: number } | null>(null)
 const page = ref(1)
 const search = ref('')
+const allEvents = useEventMarketplace()
+const suggestions = computed(() => eventSuggestions(allEvents.data.value?.data ?? []))
 const loading = ref(true)
 const error = ref('')
 

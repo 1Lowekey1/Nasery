@@ -13,8 +13,8 @@ export interface AttendanceReport {
   sessions: { label: string, checked_in: number, walk_ins: number }[]
   timeline: { bucket_minutes: number, buckets: { label: string, starts_at: string, check_ins: number, walk_ins: number }[], peak: { label: string, check_ins: number, walk_ins: number } | null }
   revenue?: { online_gross: string, platform_fee: string, refunds: string, online_net: string, door_cash: string, total: string }
-  attendees?: { name: string, email: string | null, tier: string, zone: string | null, source: string, status: 'attended' | 'no_show' | 'cancelled', first_check_in: string | null, sessions_attended: number, method: string | null }[]
-  walk_in_names?: { name: string, at: string }[]
+  attendees?: { name: string, email: string | null, tier: string, zone: string | null, source: string, status: 'attended' | 'no_show' | 'cancelled', first_check_in: string | null, checked_in_at?: string | null, sessions_attended: number, method: string | null }[]
+  walk_in_names?: { name: string, at: string, checked_in_at?: string | null }[]
 }
 
 export interface ReportShare { version: number, note: string | null, includes_revenue: boolean, shared_by?: string, shared_at: string }

@@ -95,6 +95,32 @@ class TicketingTest extends TestCase
         $this->actingAs($owner)->spaJson('POST', "{$base}/tickets/{$created['ticket_id']}/cancel", ['reason' => 'again'])->assertConflict();
     }
 
+    public function test_excel_workbooks_import_like_csv(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $event = $this->event($owner, $org, ['visibility' => 'private']);
+        $guestTier = $this->tier($owner, $org, $event, ['name' => 'Guest', 'price' => 0, 'capacity' => 100]);
+        $url = $this->base($org, $event).'/guests/import';
+        $post = fn (UploadedFile $file) => $this->actingAs($owner)->post($url, ['file' => $file, 'ticket_type_id' => $guestTier, 'admission_type' => 'invited'],
+            [...self::SPA, 'Accept' => 'application/json', 'Idempotency-Key' => (string) Str::uuid()]);
+
+        $path = tempnam(sys_get_temp_dir(), 'xlsx').'.xlsx';
+        $writer = new \OpenSpout\Writer\XLSX\Writer;
+        $writer->openToFile($path);
+        foreach ([['Full name', 'Email', 'Mobile'], ['Ana Cruz', 'ana@example.com', 9171234567], ['Ben Reyes', '', '0918-765-4321']] as $cells) {
+            $writer->addRow(\OpenSpout\Common\Entity\Row::fromValues($cells));
+        }
+        $writer->close();
+
+        $post(new UploadedFile($path, 'guests.xlsx', null, null, true))->assertCreated()->assertJsonPath('data.imported', 2);
+        $contacts = DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')->where('t.event_id', $event)->pluck('a.contact_number', 'a.full_name');
+        $this->assertSame('09171234567', $contacts['Ana Cruz']); // a number cell, its 0 put back
+        @unlink($path);
+
+        $post(UploadedFile::fake()->createWithContent('broken.xlsx', 'not really excel'))->assertUnprocessable()
+            ->assertJsonPath('error.details.fields.file.0', 'This Excel file could not be read. Save it again as .xlsx or .csv.');
+    }
+
     public function test_csv_import_is_all_or_nothing(): void
     {
         [$org, $owner] = $this->listedOrganizer();
@@ -132,7 +158,8 @@ class TicketingTest extends TestCase
         // Exported CSV neutralizes the formula-looking name and keeps phone numbers as text for Excel.
         $csv = $this->actingAs($owner)->get($this->base($org, $event).'/guests/export')->assertOk()->streamedContent();
         $this->assertStringContainsString("'=HYPERLINK", $csv);
-        $this->assertStringContainsString('"=""09171234567"""', $csv);
+        $this->assertStringContainsString('0917-123-4567', $csv);
+        $this->assertStringNotContainsString('=' . chr(34) . chr(34), $csv);
     }
 
     public function test_capacity_is_enforced_per_tier_and_per_event(): void

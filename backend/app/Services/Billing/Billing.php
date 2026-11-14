@@ -78,6 +78,13 @@ class Billing
             'open_invoice' => $this->openInvoice($org->id),
             'scheduled_change' => $this->scheduled($org->id),
             'payment_mode' => $this->gateway->mode(),
+            // NaSeRy's current cut of each online ticket sale (same for every plan); null when the fee is off.
+            'fee_percent' => (function () {
+                $fee = DB::table('platform_fee_configs')->where('effective_from', '<=', now())
+                    ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>', now()))->orderByDesc('effective_from')->first();
+
+                return $fee && $fee->is_enabled && $fee->percentage_rate !== null ? round((float) $fee->percentage_rate * 100, 2) : null;
+            })(),
             'invoices' => DB::table('subscription_invoices as i')->join('subscriptions as s', 's.id', '=', 'i.subscription_id')
                 ->join('plans as p', 'p.id', '=', 's.plan_id')->where('s.organization_id', $org->id)->whereIn('i.status', ['issued', 'paid'])
                 ->orderByDesc('i.created_at')->limit(24)

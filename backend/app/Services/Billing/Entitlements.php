@@ -33,7 +33,7 @@ class Entitlements
     ];
 
     public const FEATURES = [
-        'advanced_reports' => 'Quarterly analytics and report CSV exports',
+        'advanced_reports' => 'Quarterly analytics and earnings CSV exports',
     ];
 
     public function __construct(private readonly DatabaseContext $db) {}

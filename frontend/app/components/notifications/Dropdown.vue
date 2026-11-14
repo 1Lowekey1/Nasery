@@ -15,9 +15,14 @@
 					<p class="text-sm font-bold text-gray-900">Notifications</p>
 					<p class="mt-0.5 text-xs text-gray-500">{{ unreadCount ? `${unreadCount} unread update${unreadCount === 1 ? '' : 's'}` : 'You are all caught up' }}</p>
 				</div>
-				<button v-if="unreadCount" type="button" class="text-xs font-bold text-primary-700 hover:text-primary-900" @click="markAllRead">
-					Mark all read
-				</button>
+				<div class="flex items-center gap-3">
+					<button v-if="unreadCount" type="button" class="text-xs font-bold text-primary-700 hover:text-primary-900" @click="markAllRead">
+						Mark all read
+					</button>
+					<button v-if="items.length" type="button" class="text-xs font-bold text-gray-500 hover:text-rose-700" @click="clearAll">
+						Clear all
+					</button>
+				</div>
 			</header>
 
 			<div class="max-h-[min(24rem,calc(100dvh-10rem))] overflow-y-auto overscroll-contain">
@@ -28,7 +33,7 @@
 					<p class="mt-1 text-xs text-gray-500">{{ emptyMessage }}</p>
 				</div>
 
-				<article v-for="item in items" :key="item.id" class="group flex gap-3 border-b border-gray-100 px-4 py-3.5 last:border-b-0 hover:bg-gray-50" :class="{ 'bg-primary-50/50': !item.read_at }">
+				<article v-for="item in items" :key="item.id" class="group flex gap-3 border-b border-gray-100 px-4 py-3.5 last:border-b-0 hover:bg-gray-50" :class="{ 'bg-primary-50/50': !item.read_at, 'live-fresh': isFreshItem(item) }">
 					<span class="mt-1.5 h-2 w-2 shrink-0 rounded-full" :class="item.read_at ? 'bg-gray-300' : 'bg-primary-600'" />
 					<button type="button" class="min-w-0 flex-1 text-left" @click="openItem(item)">
 						<p class="text-sm font-semibold leading-5 text-gray-900">{{ item.data.message }}</p>
@@ -41,7 +46,7 @@
 						<button v-if="!item.read_at" type="button" class="rounded-lg p-1.5 text-gray-400 hover:bg-white hover:text-primary-700" title="Mark as read" @click="toggleRead(item)">
 							<IconBase :name="item.read_at ? 'mail' : 'check'" class="h-4 w-4" />
 						</button>
-						<button v-if="false" type="button" class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Delete notification" @click="remove(item.id)">
+						<button type="button" class="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Clear this notification" :aria-label="`Clear: ${item.data.message}`" @click="remove(item.id)">
 							<IconBase name="trash" class="h-4 w-4" />
 						</button>
 					</div>
@@ -116,7 +121,12 @@ async function load(nextPage = 1, append = false) {
 
 async function togglePanel() { open.value = !open.value; if (open.value) await load() }
 async function toggleRead(item: OrganizerNotification) { await notifications.read(item.id); await load(page.value) }
-async function remove(_id: string) {}
+async function remove(id: string) { await notifications.remove(id); items.value = items.value.filter(i => i.id !== id) }
+async function clearAll() {
+	if (!(await confirmDialog('Clear all your notifications? They disappear from this list.', { confirmLabel: 'Clear all' }))) return
+	await notifications.clearAll()
+	items.value = []
+}
 async function markAllRead() { await notifications.readAll(); await load() }
 
 async function openItem(item: OrganizerNotification & { url?: string | null }) {
@@ -161,6 +171,9 @@ async function checkForNew() {
 	if (unreadCount.value > before) await load()
 }
 function onVisible() { if (!document.hidden) void checkForNew() }
+// Live updates (option B): the bell follows the shared change check.
+useLiveRefresh(checkForNew, { interval: 60_000 })
+const isFreshItem = useFreshKeys(() => items.value, i => i.id)
 
 onMounted(() => {
 	window.addEventListener('dashboard:close-notifications', closePanel)
@@ -168,7 +181,8 @@ onMounted(() => {
 	window.addEventListener('keydown', onKey)
 	document.addEventListener('visibilitychange', onVisible)
 	load()
-	poll = setInterval(checkForNew, 20_000)
+	// A slow safety net: the shared change check below catches new notices within seconds.
+	poll = setInterval(checkForNew, 60_000)
 })
 
 onBeforeUnmount(() => {

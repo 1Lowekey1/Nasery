@@ -36,10 +36,8 @@
 							</div>
 							<div>
 								<FormsLabel text="Group" />
-								<select v-model="editing.organization_service_id" class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm">
-									<option :value="null">Add-ons (clients may pick any)</option>
-									<option v-for="s in services" :key="s.id" :value="s.id">{{ s.name }} (clients pick one)</option>
-								</select>
+								<FormsSelect v-model="editing.organization_service_id" :options="services.map(s => ({ value: s.id, label: `${s.name} (clients pick one)` }))" placeholder="No group: an add-on (clients may pick any)" />
+								<p class="mt-1.5 text-xs text-gray-500">Groups are the services you offer: add or remove them in <NuxtLink to="/organizer/business-profile" class="font-semibold text-primary-700 underline">Business Profile</NuxtLink>. Options without a group are add-ons.</p>
 							</div>
 						</div>
 
@@ -170,10 +168,12 @@
 							<FormsLabel text="Service charge (%)" />
 							<FormsTextField v-model="settings.service_charge" type="number" min="0" max="30" step="0.5" placeholder="e.g. 10" :error="settingsCheck.err('service_charge')" />
 						</div>
-						<div data-field="tax">
-							<FormsLabel text="VAT (%)" />
-							<FormsTextField v-model="settings.tax" type="number" min="0" max="20" step="0.5" placeholder="e.g. 12" :error="settingsCheck.err('tax')" />
-						</div>
+						<!-- VAT: NaSeRy's rate; the organizer only says whether they charge it (VAT-registered). -->
+						<label class="flex cursor-pointer items-start gap-2.5 self-end rounded-xl border border-gray-200 px-3.5 py-3 text-sm">
+							<input v-model="settings.chargesVat" type="checkbox" class="mt-0.5 accent-[#285F6b]">
+							<span><span class="font-semibold text-gray-900">We charge VAT ({{ vatRate }}%)</span>
+								<span class="block text-xs text-gray-500">For VAT-registered businesses. NaSeRy sets the rate and adds it to your estimates and offers.</span></span>
+						</label>
 						<div class="sm:col-span-2">
 							<FormsLabel text="Note shown under every estimate" />
 							<FormsTextField v-model="settings.note" maxlength="500" placeholder="e.g. Final price confirmed after a site visit." />
@@ -354,18 +354,18 @@ function move(list: PriceOption[], i: number, dir: -1 | 1) {
 }
 
 // ---- estimate settings ----------------------------------------------------------
-const settings = reactive({ service_charge: '', tax: '', note: '' })
+const settings = reactive({ service_charge: '', chargesVat: false, note: '' })
+const vatRate = ref(12)
 const savedSettings = ref<EstimateSettings>({})
 const savingSettings = ref(false)
 const previewKey = ref(0)
 const previewSettings = computed<EstimateSettings>(() => ({
 	service_charge_percent: num(settings.service_charge),
-	tax_percent: num(settings.tax),
+	tax_percent: settings.chargesVat ? vatRate.value : null,
 	note: settings.note.trim() || null,
 }))
 const settingsCheck = useFormCheck(() => ({
 	service_charge: settings.service_charge !== '' && (Number(settings.service_charge) < 0 || Number(settings.service_charge) > 30) ? 'Use 0 to 30 %.' : '',
-	tax: settings.tax !== '' && (Number(settings.tax) < 0 || Number(settings.tax) > 20) ? 'Use 0 to 20 %.' : '',
 }))
 
 async function saveSettings() {
@@ -376,13 +376,13 @@ async function saveSettings() {
 	try {
 		await orgApi.updateProfile({
 			estimate_service_charge_percent: num(settings.service_charge),
-			estimate_tax_percent: num(settings.tax),
+			estimate_tax_percent: settings.chargesVat ? vatRate.value : null,
 			estimate_note: settings.note.trim() || null,
 		} as never)
 		savedSettings.value = { ...previewSettings.value }
 		notice.value = 'Estimate settings saved.'
 	} catch (e: unknown) {
-		if (!settingsCheck.fromServer(e, { estimate_service_charge_percent: 'service_charge', estimate_tax_percent: 'tax' })) error.value = authMessage(e) || 'Unable to save the settings.'
+		if (!settingsCheck.fromServer(e, { estimate_service_charge_percent: 'service_charge' })) error.value = authMessage(e) || 'Unable to save the settings.'
 	} finally {
 		savingSettings.value = false
 	}
@@ -403,9 +403,10 @@ onMounted(async () => {
 		services.value = list.filter(s => s.is_active).map(s => ({ id: s.id, name: s.custom_name || s.name }))
 		const profileTags = ((org.profile as { event_tags?: string[] } | undefined)?.event_tags ?? []).filter(Boolean)
 		eventTypeChoices.value = profileTags.length ? profileTags : types.map(t => t.name).filter(n => n !== 'Other')
-		const p = org.profile as (typeof org.profile & { estimate_service_charge_percent?: number | null, estimate_tax_percent?: number | null, estimate_note?: string | null }) | undefined
+		const p = org.profile as (typeof org.profile & { estimate_service_charge_percent?: number | null, estimate_tax_percent?: number | null, estimate_note?: string | null, vat_rate?: number }) | undefined
 		settings.service_charge = p?.estimate_service_charge_percent != null ? String(p.estimate_service_charge_percent) : ''
-		settings.tax = p?.estimate_tax_percent != null ? String(p.estimate_tax_percent) : ''
+		vatRate.value = p?.vat_rate ?? 12
+		settings.chargesVat = (p?.estimate_tax_percent ?? 0) > 0
 		settings.note = p?.estimate_note ?? ''
 	} catch (e: unknown) {
 		error.value = authMessage(e) || (e as Error).message || 'Unable to load your price list.'

@@ -24,9 +24,7 @@
 			<div class="flex flex-wrap items-end gap-3">
 				<div>
 					<label for="access-hours" class="text-xs font-semibold text-gray-600">For</label>
-					<select id="access-hours" v-model.number="hours" class="mt-1 block rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">
-						<option v-for="h in hourOptions" :key="h" :value="h">{{ h }} hour{{ h === 1 ? '' : 's' }}</option>
-					</select>
+					<div class="mt-1 w-40"><FormsSelect id="access-hours" v-model="hours" :can-clear="false" :options="hourOptions.map(h => ({ value: h, label: `${h} hour${h === 1 ? '' : 's'}` }))" /></div>
 				</div>
 				<button type="submit" :disabled="busy || reason.trim().length < 5" class="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Request access</button>
 			</div>

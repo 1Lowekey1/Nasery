@@ -34,6 +34,9 @@
             </table>
         @endforeach
 
+        @if ($cards->contains(fn ($c) => (float) ($c['price'] ?? 0) > 0))
+            <p style="margin:0 0 6px;color:#6b7280;font-size:13px;">Need a refund? Contact {{ $cards->first()['organizer'] }}, who handles refunds for this event. With a NaSeRy account you can also ask from <a href="{{ $myTickets }}" style="color:#285F6b;">My Tickets</a>. Refunds go back to the account you paid with.</p>
+        @endif
         <p style="margin:0 0 6px;color:#6b7280;font-size:13px;">Keep your QR private: anyone with the code can use it. If you have a NaSeRy account, your tickets are also in <a href="{{ $myTickets }}" style="color:#285F6b;">My Tickets</a>.</p>
     </td></tr>
 </table>

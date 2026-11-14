@@ -62,8 +62,8 @@
 		<div v-else-if="team" class="tm-stage">
 			<Transition name="tm-xfade">
 				<!-- Badge view -->
-				<div v-if="view === 'badges'" :key="`badges-${filterKey}`" class="grid grid-cols-1 gap-x-5 gap-y-8 pt-3 sm:grid-cols-2 xl:grid-cols-4">
-					<article v-for="(m, index) in filteredMembers" :key="m.id" class="tm-badge-wrap" :style="{ '--i': index }">
+				<div v-if="view === 'badges'" :key="`badges-${filterKey}`" class="flex flex-wrap justify-center gap-x-5 gap-y-8 pt-3">
+					<article v-for="(m, index) in filteredMembers" :key="m.id" class="tm-badge-wrap w-full sm:w-[calc(50%-0.625rem)] xl:w-[calc(25%-0.9375rem)]" :style="{ '--i': index }">
 						<button type="button" class="tm-badge text-left" :class="m.status === 'deactivated' ? 'is-off' : ''" :aria-label="`Open ${m.name}`" @click="openMember(m)" @pointermove="spotlight">
 							<span class="tm-clip" aria-hidden="true" />
 							<div class="tm-badge-band" :style="{ backgroundColor: brandColor }" />
@@ -85,7 +85,7 @@
 						</button>
 					</article>
 
-					<article v-if="team.can_manage && !isFiltered" class="tm-badge-wrap" :style="{ '--i': filteredMembers.length }">
+					<article v-if="team.can_manage && !isFiltered" class="tm-badge-wrap w-full sm:w-[calc(50%-0.625rem)] xl:w-[calc(25%-0.9375rem)]" :style="{ '--i': filteredMembers.length }">
 						<button type="button" class="tm-seat group" @click="openAdd">
 							<span class="flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-gray-300 text-gray-400 transition group-hover:scale-105 group-hover:border-primary-400 group-hover:text-primary-600"><IconBase name="plus" class="h-6 w-6" /></span>
 							<span class="mt-3 text-sm font-semibold text-gray-700">Invite someone</span>
@@ -131,19 +131,36 @@
 					<p class="mt-0.5 text-sm text-gray-500">A role is a set of permissions across your whole organization. Owners always have every permission. For event-only access, add people to an event's team instead.</p>
 				</div>
 			</div>
-			<ul class="divide-y divide-gray-100">
+			<!-- The explanation above stays visible; the list and the form fold away. -->
+			<details class="group border-b border-gray-100 last:border-b-0">
+				<summary class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-6 py-3 text-sm font-bold text-gray-900 transition hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
+					<span>All roles and what they can do <span class="font-normal text-gray-400">· {{ team.roles.length + unusedPresets.length }}</span></span>
+					<IconBase name="chevron-down" class="h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180" />
+				</summary>
+				<ul class="divide-y divide-gray-100 border-t border-gray-100">
 				<li v-for="r in team.roles" :key="r.id" class="flex flex-wrap items-start justify-between gap-3 px-6 py-3.5 text-sm">
 					<div class="min-w-0">
 						<p class="flex items-center gap-2 font-semibold text-gray-950"><span class="h-2 w-2 rounded-full" :style="{ backgroundColor: roleColor(r.name) }" />{{ r.name }} <span class="font-normal text-gray-400">· {{ r.members }} member{{ r.members === 1 ? '' : 's' }}</span></p>
+						<p v-if="r.description" class="mt-0.5 text-xs leading-5 text-gray-700">{{ r.description }}</p>
 						<p class="mt-0.5 text-xs leading-5 text-gray-500">{{ r.permissions.length ? r.permissions.map(permLabel).join(', ') : 'Only what they are given on assigned events' }}</p>
 					</div>
 					<button v-if="team.can_manage && !r.members" type="button" class="tm-inline-btn text-red-600" :disabled="busy" @click="act(() => api.removeRole(orgId, r.id), 'Role removed.', true)">Remove</button>
 				</li>
-				<li v-if="!team.roles.length" class="px-6 py-4 text-sm text-gray-400">No roles yet. Invite someone with one of the suggested roles, or create your own.</li>
-			</ul>
-			<form v-if="team.can_manage" class="border-t border-gray-100 bg-gray-50/60 px-6 py-5" @submit.prevent="createRole">
-				<h3 class="text-sm font-bold text-gray-950">Create a role</h3>
-				<input v-model="roleForm.name" type="text" maxlength="60" placeholder="Role name, e.g. Stage Crew" aria-label="Role name" class="tm-input mt-2 !w-full sm:!w-80" />
+				<!-- Presets nobody uses yet: they become a real role the first time someone is given one. -->
+				<li v-for="p in unusedPresets" :key="p.key" class="px-6 py-3.5 text-sm">
+					<p class="flex items-center gap-2 font-semibold text-gray-950"><span class="h-2 w-2 rounded-full" :style="{ backgroundColor: roleColor(p.name) }" />{{ p.name }} <span class="font-normal text-gray-400">· suggested, not used yet</span></p>
+					<p class="mt-0.5 text-xs leading-5 text-gray-700">{{ p.description }}</p>
+					<p class="mt-0.5 text-xs leading-5 text-gray-500">{{ p.permissions.length ? p.permissions.map(permLabel).join(', ') : 'Only what they are given on assigned events' }}</p>
+				</li>
+				</ul>
+			</details>
+			<details v-if="team.can_manage" class="group">
+				<summary class="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-6 py-3 text-sm font-bold text-gray-900 transition hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
+					<span>Create a role</span>
+					<IconBase name="chevron-down" class="h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180" />
+				</summary>
+				<form class="border-t border-gray-100 bg-gray-50/60 px-6 py-5" @submit.prevent="createRole">
+				<input v-model="roleForm.name" type="text" maxlength="60" placeholder="Role name, e.g. Stage Crew" aria-label="Role name" class="tm-input !w-full sm:!w-80" />
 				<fieldset class="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
 					<legend class="sr-only">Permissions</legend>
 					<label v-for="p in team.permissions" :key="p.key" class="flex min-h-10 cursor-pointer items-start gap-2.5 py-1.5 text-sm text-gray-700">
@@ -152,7 +169,8 @@
 					</label>
 				</fieldset>
 				<button type="submit" :disabled="busy || roleForm.name.trim().length < 2" class="tm-btn-primary mt-4 h-10 px-4 disabled:opacity-50">Create role</button>
-			</form>
+				</form>
+			</details>
 		</section>
 
 		<!-- Side panel -->
@@ -277,10 +295,7 @@
 								<li v-for="t in removing.tasks" :key="t.id"><span class="font-semibold text-gray-800">{{ t.name }}</span> · {{ t.event.name }}<template v-if="t.due_at"> · due {{ new Date(t.due_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) }}</template></li>
 							</ul>
 							<label class="mt-3 block text-sm font-semibold text-gray-800" for="reassign">Hand them over to</label>
-							<select id="reassign" v-model="removing.reassignTo" class="tm-field mt-1">
-								<option value="">Nobody yet (mark them "Needs a new assignee")</option>
-								<option v-for="o in reassignOptions" :key="o.id" :value="o.id">{{ o.name }} ({{ o.role }})</option>
-							</select>
+							<FormsSelect id="reassign" v-model="removing.reassignTo" class="mt-1" :options="reassignOptions.map(o => ({ value: o.id, label: `${o.name} (${o.role})` }))" placeholder="Nobody yet (mark them &quot;Needs a new assignee&quot;)" />
 						</div>
 						<p v-else class="mt-4 rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-600">They have no open tasks.</p>
 						<div class="mt-6 flex justify-end gap-2">
@@ -348,6 +363,8 @@ function initialsOf(name: string) {
 function formatDate(value: string) { return new Date(value).toLocaleDateString('en-PH', { day: 'numeric', month: 'short', year: 'numeric' }) }
 function statusLabel(m: TeamMember) { return m.status === 'invited' ? (m.account_pending ? 'Waiting for set-up' : 'Invited') : m.status === 'active' ? 'Active' : 'Removed' }
 function statusDot(m: TeamMember) { return m.status === 'active' ? 'bg-green-500' : m.status === 'invited' ? 'bg-amber-400' : 'bg-gray-300' }
+// Presets without a role of that name yet (same rule as RoleSelect).
+const unusedPresets = computed(() => (team.value?.presets ?? []).filter(p => !team.value?.roles.some(r => r.name === p.name)))
 function permLabel(key: string) { return team.value?.permissions.find(p => p.key === key)?.description ?? key }
 function rolePerms(roleId: string | null) {
 	const perms = team.value?.roles.find(r => r.id === roleId)?.permissions

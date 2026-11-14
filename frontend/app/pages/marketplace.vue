@@ -43,8 +43,8 @@
 					<label for="event-search" class="mb-2 block text-xs font-semibold text-gray-600">
 						Search events
 					</label>
-					<input id="event-search" v-model="search" type="search" placeholder="Event, organizer, or venue…"
-						class="marketplace-search h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm transition-colors placeholder:text-gray-400 focus:border-primary-500 focus:ring-0">
+					<FormsSearchSuggest id="event-search" v-model="search" :suggestions="suggestions" placeholder="Event, organizer, or venue…"
+						input-class="marketplace-search h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm transition-colors placeholder:text-gray-400 focus:border-primary-500 focus:ring-0" />
 				</div>
 				<div>
 					<label class="mb-2 block text-xs font-semibold text-gray-600">
@@ -220,12 +220,13 @@ const location = ref('')
 const { data, status, error, refresh } = await useEventMarketplace()
 const events = computed(() => data.value?.data ?? [])
 const eventTypes = computed(() => [...new Set(events.value.map(event => event.event_type).filter(Boolean))].sort())
-const locations = computed(() => [...new Set(events.value.map(event => event.location).filter((value): value is string => Boolean(value)))].sort())
+const locations = computed(() => [...new Set(events.value.map(event => event.location).filter(Boolean).map(cityOf))].sort())
+const suggestions = computed(() => eventSuggestions(events.value))
 const filteredEvents = computed(() => {
 	const query = search.value.trim().toLowerCase()
 	return events.value.filter(event =>
 		(!eventType.value || event.event_type === eventType.value)
-		&& (!location.value || event.location === location.value)
+		&& (!location.value || cityOf(event.location) === location.value)
 		&& (!query || [event.name, event.event_type, event.description, event.location, event.organizer.name]
 			.filter(Boolean).join(' ').toLowerCase().includes(query))
 	)

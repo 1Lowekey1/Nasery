@@ -21,11 +21,13 @@ use App\Services\CheckIn\CheckInDesk;
 use App\Services\CheckIn\WalkInDesk;
 use App\Services\Events\EventActivities;
 use App\Services\Events\EventManager;
+use App\Services\Inquiries\BookingCancellations;
 use App\Services\Inquiries\InquiryManager;
 use App\Services\Inquiries\InquiryThreads;
 use App\Services\Inquiries\OrganizerInquiries;
 use App\Services\Marketplace\EventTypeSuggestions;
 use App\Services\Organizations\ApprovalWorkflow;
+use App\Services\Organizations\OrganizationDocuments;
 use App\Services\Organizations\OfferedServices;
 use App\Services\Organizations\OrganizerOnboarding;
 use App\Services\Payments\Earnings;
@@ -44,6 +46,7 @@ use App\Services\Ticketing\GuestList;
 use App\Services\Ticketing\SelfRegistration;
 use App\Services\Ticketing\TierManager;
 use App\Support\Database\DatabaseContext;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Console\Attributes\Description;
@@ -281,9 +284,11 @@ class SeedDemo extends Command
         // Price list (B: 0048): service => [name, unit, price, unit label, min qty, max qty, min guests]
         $prices = [
             'dream' => [
-                'Event Coordination' => [['Full wedding coordination', 'flat', 45000], ['Day-of coordination only', 'flat', 25000]],
+                'Event Coordination' => [['Full wedding coordination', 'flat', 45000], ['Day-of coordination only', 'flat', 25000], ['Partial planning', 'flat', 35000],
+                    ['Month-of coordination', 'flat', 18000], ['Rehearsal coordination', 'flat', 8000]],
                 'Venue Styling' => [['Garden styling', 'per_guest', 350, null, null, null, 50], ['Grand ballroom styling', 'per_guest', 550, null, null, null, 80]],
                 'Hosting / Emcee' => [['Emcee', 'per_hour', 2000, null, 3, 8]],
+                'Lights & Sound' => [['Basic lights and sound', 'flat', 18000], ['Stage lighting package', 'flat', 30000]],
                 null => [['Same-day edit video', 'flat', 15000]],
             ],
             'grand' => [
@@ -336,6 +341,8 @@ class SeedDemo extends Command
                 'profile' => ['business_name' => $name, 'description' => $about, 'location_text' => $location, 'latitude' => $lat, 'longitude' => $lng,
                     'contact_email' => "hello@{$key}.{$this->domain}", 'contact_phone' => '082 '.random_int(200, 299).' '.random_int(1000, 9999)],
             ]));
+
+            $this->seedDocuments($org, $owner, $status);
 
             if ($status === ApprovalStatus::Rejected) {
                 $this->as($this->u('admin'), fn () => app(ApprovalWorkflow::class)->decide($org, ApprovalStatus::Rejected,
@@ -399,6 +406,28 @@ class SeedDemo extends Command
      * Seed shortcut: an active paid plan bought when the organizer joined, with
      * one paid invoice per billing period since (monthly) or per year (yearly).
      */
+    /**
+     * 0057: sample proof of business, marked as samples. Pending applicants get
+     * none, so uploading (and the locked Approve button) can be shown live.
+     */
+    private function seedDocuments(Organization $org, User $owner, ApprovalStatus $status): void
+    {
+        $files = match ($status) {
+            ApprovalStatus::Pending => [],
+            ApprovalStatus::Rejected => ['business_permit' => 'Business Permit'],
+            default => ['business_permit' => 'Business Permit', 'registration' => 'DTI or SEC Registration'],
+        };
+
+        foreach ($files as $type => $title) {
+            $html = '<div style="font-family:DejaVu Sans;text-align:center;padding-top:160px">'
+                .'<h1>'.e($title).'</h1><p>'.e($org->display_name).'</p>'
+                .'<p style="color:#b91c1c;font-weight:bold">SAMPLE FOR DEMONSTRATION ONLY. NOT A REAL DOCUMENT.</p></div>';
+            $bytes = Pdf::loadHTML($html)->setPaper('a4')->output();
+            $name = Str::slug($org->display_name.' '.$title).'.pdf';
+            $this->as($owner, fn () => app(OrganizationDocuments::class)->save($org, $owner, $bytes, $type, $name));
+        }
+    }
+
     private function plan(Organization $org, string $slug, int $months): void
     {
         if ($slug === 'free') {
@@ -532,11 +561,20 @@ class SeedDemo extends Command
         $birthdayEvent = $this->eventFrom($grand, 'carlo', $birthday, 'Joshua\'s 18th Birthday', 'Seda Abreeza, Davao City', 5, inDays: 25);
         $this->as($this->u('carlo'), fn () => app(EventManager::class)->transition($birthdayEvent->refresh(), 'publish'));
         $this->prepare($birthdayEvent, 'grand');
+        // A cancellation request waiting for the organizer's answer (0060).
+        $this->as($this->u('joshua'), fn () => app(BookingCancellations::class)->request(Inquiry::query()->find($birthdayEvent->inquiry_id), $this->u('joshua'), 'client', 'We may need to move the party abroad.'));
 
         // 3b. Bea's wedding with Davao Dream in 40 days, and a corporate night in 9 days: the team is busy.
         $beaWedding = $this->won('bea', 'Wedding', 150, [$dream], $dream, 'maria', 'Grand Ballroom Wedding', 215000, daysAgo: 70, eventName: 'Santos–Lim Wedding');
         $beaEvent = $this->eventFrom($dream, 'maria', $beaWedding, 'Santos–Lim Wedding', 'Marco Polo Davao', 8, inDays: 40);
-        $this->as($this->u('maria'), fn () => app(EventManager::class)->transition($beaEvent->refresh(), 'publish'));
+        // Its guest list (guests() also publishes), the first tables already assigned for the seat demo.
+        $this->guests($beaEvent, 'maria', 'Guest list', 0, ['Ramon Santos', 'Celia Santos', 'Henry Lim', 'Grace Lim', 'Paolo Reyes', 'Mia Tan',
+            'Andrea Go', 'Benjie Uy', 'Carla Sy', 'Dennis Ong', 'Ericka Chua', 'Francis Yap']);
+        $seated = DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')->where('t.event_id', $beaEvent->id)
+            ->orderBy('a.full_name')->limit(6)->pluck('t.id');
+        foreach ($seated as $i => $ticketId) {
+            DB::table('tickets')->where('id', $ticketId)->update(['seat_label' => 'Table '.($i < 3 ? 1 : 2)]);
+        }
         $this->prepare($beaEvent, 'dream');
         $corpNight = $this->won('dana', 'Corporate Event', 180, [$dream, $grand], $dream, 'maria', 'Corporate Anniversary Night', 260000, daysAgo: 65,
             loserOrg: $grand, loserOwner: 'carlo', loserAmount: 245000, eventName: 'Mintal Agri 25th Anniversary Night');
@@ -554,6 +592,8 @@ class SeedDemo extends Command
 
         // 5. Sofia's debut: Samal quoted, Davao Dream declined (fully booked).
         $debut = $this->inquiry('sofia', 'Debut', 150, [$samal, $dream], daysAgo: 2, eventName: 'Sofia\'s Sunset Debut');
+        // An event the type list doesn't cover: Maria can answer it from her whole price list.
+        $this->inquiry('andrea', 'Other', 120, [$dream], daysAgo: 1, eventName: 'Davao Pet Adoption Fair');
         $this->quote($samal, 'liza', $debut, 'Sunset Debut on the Beach', 98000);
         $this->as($this->u('maria'), fn () => app(OrganizerInquiries::class)->decline($dream, Inquiry::query()->findOrFail($debut), 'We are fully booked on that date. Congratulations in advance!'));
 
@@ -624,8 +664,16 @@ class SeedDemo extends Command
         $types->suggest($this->orgs['tagum'], $this->u('ramon'), 'Kiddie Party', true);
         $types->suggest($this->orgs['grand'], $this->u('carlo'), 'Product Launch', true);
         foreach (['Gender Reveal' => ['approve', null, 'Added. Thanks for the suggestion!'], 'Kiddie Party' => ['merge', 'Birthday Party', 'Kiddie parties are listed under Birthday Party.']] as $name => [$decision, $into, $note]) {
-            $id = DB::table('event_type_suggestions')->where('name', $name)->value('id');
-            $types->decide($admin, $id, $decision, $decision === 'approve' ? $name : null, $into ? $this->typeId($into) : null, $note);
+            // A rebuild finds an approved type already standard (purges keep reference data): nothing left to decide.
+            $id = DB::table('event_type_suggestions')->where('name', $name)->where('status', 'pending')->value('id');
+            if ($id !== null) {
+                $types->decide($admin, $id, $decision, $decision === 'approve' ? $name : null, $into ? $this->typeId($into) : null, $note);
+            }
+        }
+        // Bajada offers Gender Reveal either way (approval adds it; on a rebuild the type already exists).
+        $tags = json_decode((string) DB::table('organization_profiles')->where('organization_id', $this->orgs['bajada']->id)->value('event_tags'), true) ?: [];
+        if (! in_array('Gender Reveal', $tags, true)) {
+            DB::table('organization_profiles')->where('organization_id', $this->orgs['bajada']->id)->update(['event_tags' => json_encode([...$tags, 'Gender Reveal'])]);
         }
 
         // Mindanao Grand asked NaSeRy support to look at their workspace (waiting for an admin).
@@ -712,6 +760,7 @@ class SeedDemo extends Command
         $summits = ['Agri-Tech', 'Fintech', 'Tourism', 'Startup', 'Health'];
 
         $clients = $this->crowd;
+        $titles = [];
         for ($i = 0; $i < 34; $i++) {
             $type = array_keys($kinds)[$i % count($kinds)];
             [$gMin, $gMax, $pMin, $pMax, $orgKeys, $pattern] = $kinds[$type];
@@ -733,6 +782,11 @@ class SeedDemo extends Command
                 'Christening' => sprintf($pattern, $this->pick(self::FIRST)),
                 default => sprintf($pattern, $client->first_name),
             };
+            // Two bookings with the same title read as a mistake in a demo: add the event's month to a repeat.
+            if (isset($titles[$title])) {
+                $title .= ' ('.CarbonImmutable::now('Asia/Manila')->subDays($eventDaysAgo)->format('M Y').')';
+            }
+            $titles[$title] = true;
 
             $quotation = $this->won($clientKey, $type, $guests, $loserKey ? [$winner, $this->orgs[$loserKey]] : [$winner], $winner, $this->ownerOf($winnerKey),
                 "{$type} Package", $amount, daysAgo: $eventDaysAgo + mt_rand(35, 80),
@@ -1138,8 +1192,10 @@ class SeedDemo extends Command
 
     private function typeId(string $name): ?string
     {
-        return DB::table('event_types')->whereNull('organization_id')->where('name', $name)->value('id')
-            ?? DB::table('event_types')->whereNull('organization_id')->where('name', 'Other')->value('id');
+        // Live types only: admins can remove a type (even "Other"), and an event doesn't need one.
+        $live = fn (string $type) => DB::table('event_types')->whereNull('organization_id')->whereNull('deleted_at')->where('name', $type)->value('id');
+
+        return $live($name) ?? $live('Other');
     }
 
     /** @param  list<Organization>  $orgs */

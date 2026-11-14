@@ -66,6 +66,7 @@ class CreateTestAccounts extends Command
                 'location_text' => 'Poblacion, Davao City', 'latitude' => 7.0731, 'longitude' => 125.6128,
                 'contact_email' => 'hello@organizer.nasery.test', 'contact_phone' => '0917 555 0100'],
         ]));
+        config(['nasery.organizer_documents.required' => false]); // a manual-check account, no paperwork
         $ctx->asUser($admin->id, fn () => app(ApprovalWorkflow::class)->decide($org, ApprovalStatus::Approved, null));
         DB::table('organization_profiles')->where('organization_id', $org->id)->update(['is_published' => true]);
 

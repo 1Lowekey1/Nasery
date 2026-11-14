@@ -68,9 +68,30 @@ class CheckInDesk
      *
      * @return array<string, mixed>
      */
-    public function manual(Event $event, OrganizationMember $by, string $ticketId, ?string $sessionId): array
+    /**
+     * Door check-in without a QR scan. A name alone isn't proof, so staff also
+     * enter the last 4 characters of the guest's ticket ID. A guest who truly
+     * has no ticket ID can still come in with a reason, which is logged.
+     */
+    public function manual(Event $event, OrganizationMember $by, string $ticketId, ?string $sessionId, ?string $code = null, ?string $noTicketReason = null): array
     {
-        return $this->admit($event, $by, $ticketId, $sessionId, 'manual');
+        $noTicketReason = $noTicketReason !== null ? trim($noTicketReason) : null;
+
+        if ($noTicketReason === null || $noTicketReason === '') {
+            $expected = strtoupper(substr(str_replace('-', '', $ticketId), -4));
+            if (strtoupper(trim((string) $code)) !== $expected) {
+                $message = 'That doesn’t match this guest’s ticket. Check the last 4 characters of the ticket ID.';
+                throw new ApiException(ErrorCode::ValidationError, $message, 422, ['fields' => ['ticket_code' => [$message]]]);
+            }
+        }
+
+        $outcome = $this->admit($event, $by, $ticketId, $sessionId, 'manual');
+
+        if ($noTicketReason && ($outcome['result'] ?? null) === 'checked_in') {
+            $this->audit->record('checkin.no_ticket_id', ['tickets', $ticketId], organizationId: $event->organization_id, reason: $noTicketReason);
+        }
+
+        return $outcome;
     }
 
     public function undo(Event $event, string $attendanceId, string $reason): void
@@ -144,7 +165,9 @@ class CheckInDesk
      */
     public function search(Event $event, string $term): Collection
     {
-        $like = '%'.addcslashes(trim($term), '%_\\').'%';
+        // Exports write ticket IDs as T-3B8D41D8A6, so that form finds the ticket too.
+        $term = preg_replace('/^T-(?=[0-9a-f]{4,}$)/i', '', trim($term));
+        $like = '%'.addcslashes($term, '%_\\').'%';
 
         return $this->db->system('checkin.search', fn () => DB::table('tickets as t')
             ->join('attendees as a', 'a.id', '=', 't.attendee_id')
@@ -155,10 +178,10 @@ class CheckInDesk
                 // The ticket ID printed on tickets: the last 10 characters of the ticket id.
                 ->orWhereRaw("upper(right(replace(t.id::text, '-', ''), 10)) like ?", [strtoupper(str_replace('-', '', trim($term))).'%']))
             ->orderBy('a.full_name')->limit(15)
-            ->get(['t.id', 't.status', 'a.full_name', 'a.email', 'tt.name as tier', 'tt.zone_name',
+            ->get(['t.id', 't.status', 'a.full_name', 'a.email', 'tt.name as tier', 'tt.zone_name', 't.seat_label',
                 DB::raw('(select max(ar.checked_in_at) from attendance_records ar where ar.ticket_id = t.id) as last_checked_in_at')])
             ->map(fn ($r) => [
-                'ticket_id' => $r->id, 'name' => $r->full_name, 'email' => $r->email, 'tier' => $r->tier, 'zone' => $r->zone_name,
+                'ticket_id' => $r->id, 'name' => $r->full_name, 'email' => $r->email, 'tier' => $r->tier, 'zone' => $r->zone_name, 'seat' => $r->seat_label,
                 'status' => $r->status, 'last_checked_in_at' => $r->last_checked_in_at ? CarbonImmutable::parse($r->last_checked_in_at)->toIso8601String() : null,
             ]));
     }
@@ -276,13 +299,13 @@ class CheckInDesk
             ])->all();
     }
 
-    /** @return array{name: string, tier: string, zone: ?string, benefits: list<string>} */
+    /** @return array{name: string, tier: string, zone: ?string, seat: ?string, benefits: list<string>} */
     private function guest(string $ticketId): array
     {
         $r = DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')->join('ticket_types as tt', 'tt.id', '=', 't.ticket_type_id')
-            ->where('t.id', $ticketId)->first(['a.full_name', 'tt.name', 'tt.zone_name', 'tt.benefits']);
+            ->where('t.id', $ticketId)->first(['a.full_name', 'tt.name', 'tt.zone_name', 'tt.benefits', 't.seat_label']);
 
-        return ['name' => $r->full_name, 'tier' => $r->name, 'zone' => $r->zone_name, 'benefits' => json_decode((string) $r->benefits, true) ?? []];
+        return ['name' => $r->full_name, 'tier' => $r->name, 'zone' => $r->zone_name, 'seat' => $r->seat_label, 'benefits' => json_decode((string) $r->benefits, true) ?? []];
     }
 
     private function memberName(?string $memberId): ?string

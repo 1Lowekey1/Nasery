@@ -42,7 +42,9 @@
 					<IconBase name="clock" class="h-4 w-4" />
 				</span>
 				<p class="pt-1 text-sm leading-6 text-gray-600">
-					This event is marked <strong class="text-gray-900">{{ formatEventStatus(selectedEvent.status) }}</strong>, not "Ongoing" yet. The numbers below are real, but check-in activity usually starts once you mark the event Ongoing in Event Management.
+					<template v-if="selectedEvent.status === 'completed'">This event has <strong class="text-gray-900">ended</strong>. These are its final numbers.</template>
+					<template v-else-if="selectedEvent.status === 'cancelled'">This event was <strong class="text-gray-900">cancelled</strong>. These are the numbers from before it was cancelled.</template>
+					<template v-else>This event is marked <strong class="text-gray-900">{{ formatEventStatus(selectedEvent.status) }}</strong>, not "Ongoing" yet. The numbers below are real, but check-in activity usually starts once you mark the event Ongoing in Event Management.</template>
 				</p>
 			</div>
 
@@ -84,15 +86,15 @@
 						<div>
 							<div class="mb-2 flex items-center justify-between text-sm">
 								<span class="font-bold text-gray-900">Overall capacity</span>
-								<span class="font-semibold text-gray-500">{{ summary.total_registered }} / {{ summary.capacity }}</span>
+								<span class="font-semibold text-gray-500">{{ summary.arrived }} / {{ summary.capacity }}</span>
 							</div>
 							<div class="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
-								<div class="le-bar h-full rounded-full bg-[#eb6834]" :style="{ width: Math.max(summary.capacity_percent, summary.total_registered ? 1.5 : 0) + '%' }" />
+								<div class="le-bar h-full rounded-full bg-[#eb6834]" :style="{ width: Math.min(100, Math.max(summary.capacity_percent, summary.arrived ? 1.5 : 0)) + '%' }" />
 							</div>
 						</div>
 
 						<p class="text-xs leading-5 text-gray-400">
-							Check-in progress is out of registered attendees. Capacity is out of all available spots.
+							Check-in progress is out of registered attendees. Capacity counts everyone inside (checked in plus walk-ins) out of the event's capacity.
 						</p>
 					</div>
 				</div>
@@ -179,6 +181,8 @@ interface AttendeeSummary {
 	total_registered: number
 	checked_in: number
 	walk_ins: number
+	/** Everyone inside: checked-in guests plus walk-ins. */
+	arrived: number
 	capacity: number
 	capacity_percent: number
 }
@@ -187,7 +191,7 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const events = ref<OrganizerEvent[]>([])
 const selectedEventId = ref<number | null>(null)
-const summary = ref<AttendeeSummary>({ total_registered: 0, checked_in: 0, walk_ins: 0, capacity: 0, capacity_percent: 0 })
+const summary = ref<AttendeeSummary>({ total_registered: 0, checked_in: 0, walk_ins: 0, arrived: 0, capacity: 0, capacity_percent: 0 })
 const checkinActivity = ref<Array<{ id: number, name: string, checked_in_at: string, badge: string }>>([])
 
 const selectedEvent = computed(() => events.value.find(event => event.id === selectedEventId.value) ?? null)
@@ -326,6 +330,7 @@ async function loadEventData(quiet = false) {
 			total_registered: data.expected,
 			checked_in: data.checked_in,
 			walk_ins: data.walk_ins + (data.door_sales ?? 0),
+			arrived: data.arrived,
 			capacity,
 			capacity_percent: capacity ? Math.round((data.arrived / capacity) * 100) : 0,
 		}

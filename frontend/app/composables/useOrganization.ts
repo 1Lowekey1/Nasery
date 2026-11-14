@@ -58,7 +58,7 @@ export interface Organization {
 export interface ApprovalHistoryEntry {
   status: ApprovalStatus
   decision_reason: string | null
-  kind: 'submission' | 'decision'
+  kind: 'submission' | 'decision' | 'note'
   submitted_at: string | null
   decided_at: string | null
 }

@@ -53,6 +53,22 @@
 				</div>
 			</section>
 
+			<OrganizerEventSummaryCard v-if="event && event.id && event.status === 'completed'" :organization-id="coverOrgId" :event-id="String(event.id)" />
+
+			<!-- Mock defense: organizers had no way to cancel their own (non-booked) event, so it kept selling.
+			     Booked events are cancelled with the client instead (BookingCancellation). -->
+			<section v-if="event && event.id && !isEditMode && !event.inquiry_id && (event as { can_cancel?: boolean }).can_cancel && ['draft', 'published', 'ongoing'].includes(String(event.status))"
+				class="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4">
+				<div class="min-w-0">
+					<p class="text-sm font-bold text-gray-950">Need to call this event off?</p>
+					<p class="mt-0.5 text-sm text-gray-500">Cancelling takes it off the Marketplace, stops ticket sales and voids every ticket. Ticket holders are told.</p>
+					<p v-if="cancelError" class="mt-1 text-sm font-semibold text-red-600" role="alert">{{ cancelError }}</p>
+				</div>
+				<button type="button" class="tap-target rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50" :disabled="lifecycleBusy" @click="cancelEvent">Cancel event</button>
+			</section>
+
+			<BookingCancellation v-if="event && event.id && !isEditMode && event.inquiry_id && coverOrgId" :inquiry-id="String(event.inquiry_id)" :organization-id="coverOrgId" other-name="The client" />
+
 			<!-- What the client asked for (events booked through a request) -->
 			<OrganizerClientRequest v-if="event && event.id && !isEditMode && event.inquiry_id" :organization-id="coverOrgId"
 				:inquiry-id="String(event.inquiry_id)" :quotation-id="event.quotation_id ? String(event.quotation_id) : null" />
@@ -147,12 +163,12 @@
 									</div>
 								</div>
 								<div>
-									<label for="ed-guests" class="ed-label">Expected guests</label>
+									<label for="ed-guests" class="ed-label">Capacity</label>
 									<div class="relative max-w-xs">
 										<IconBase name="users" class="ed-icon" />
 										<input id="ed-guests" v-model="editForm.expectedGuests" type="number" min="0" class="ed-field !pl-10" placeholder="e.g. 150" />
 									</div>
-									<p class="mt-1.5 text-xs text-gray-500">Used to plan seating, catering and check-in.</p>
+									<p class="mt-1.5 text-xs text-gray-500">The most people allowed in: ticket holders, invited guests and walk-ins together. Check-in warns at 90% and stops walk-ins when it’s full. Starts as the client’s guest count.</p>
 								</div>
 							</div>
 
@@ -181,7 +197,7 @@
 										<p class="flex items-center gap-2 font-semibold text-gray-900"><IconBase name="users" class="h-4 w-4 text-primary-700" />Invite your guests</p>
 										<p>After saving, add guests in <strong class="font-semibold text-gray-900">Ticketing &amp; Attendance → Attendees</strong>, one by one or with <strong class="font-semibold text-gray-900">Bulk Import</strong> from a spreadsheet. Each guest gets a QR invite your team scans at the door.</p>
 										<p class="text-xs text-gray-500">
-											Room for {{ guestListCapacity }} invited guests<template v-if="editForm.privateTickets && ticketSeats"> ({{ roomSize }} expected guests − {{ ticketSeats }} ticket seats)</template><template v-else> (Expected guests under Venue)</template>.<template v-if="invitedSoFar"> {{ invitedSoFar }} invited so far.</template>
+											Room for {{ guestListCapacity }} invited guests<template v-if="editForm.privateTickets && ticketSeats"> ({{ roomSize }} capacity − {{ ticketSeats }} ticket seats)</template><template v-else> (Capacity under Venue)</template>.<template v-if="invitedSoFar"> {{ invitedSoFar }} invited so far.</template>
 										</p>
 									</div>
 									<button type="button" role="switch" :aria-checked="editForm.privateTickets" class="group flex w-full items-center justify-between gap-4 rounded-2xl border border-gray-200 px-4 py-3.5 text-left transition hover:border-gray-300" @click="togglePrivateTickets">
@@ -206,7 +222,7 @@
 								</div>
 								<p v-if="privateSeatProblem" class="flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700" role="alert"><IconBase name="x-circle" class="mt-px h-3.5 w-3.5 shrink-0" />{{ privateSeatProblem }}</p>
 								<p v-else-if="editForm.visibility === 'private' && roomSize" class="text-xs text-gray-500">{{ ticketSeats }} of {{ roomSize }} seats go to tickets; the other {{ Math.max(0, roomSize - ticketSeats) }} stay for invited guests.</p>
-								<p v-else-if="ticketSummary.guests && ticketSummary.capacity < ticketSummary.guests" class="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"><IconBase name="sparkles" class="h-3.5 w-3.5" />You have {{ ticketSummary.guests - ticketSummary.capacity }} fewer seats than expected guests.</p>
+								<p v-else-if="ticketSummary.guests && ticketSummary.capacity < ticketSummary.guests" class="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"><IconBase name="sparkles" class="h-3.5 w-3.5" />You have {{ ticketSummary.guests - ticketSummary.capacity }} fewer ticket seats than the event’s capacity.</p>
 
 								<TransitionGroup tag="div" name="ed-card" class="space-y-3">
 									<div v-for="(type, index) in editForm.ticketTypes" :key="ticketKey(type, index)" class="relative scroll-mt-24 overflow-hidden rounded-2xl border border-gray-200 p-4 pl-5" data-ticket-card>
@@ -403,6 +419,8 @@
 			</div>
 
 			<!-- The request and the accepted offer (receipt), with Message / Call / E-mail -->
+			<BookingCancellation v-if="apiQuotationIds && coverOrgId" class="mt-6" :inquiry-id="apiQuotationIds.inquiry" :organization-id="coverOrgId" other-name="The client" />
+
 			<OrganizerClientRequest v-if="apiQuotationIds" class="mt-6" :organization-id="coverOrgId"
 				:inquiry-id="apiQuotationIds.inquiry" :quotation-id="apiQuotationIds.quotation" />
 
@@ -461,6 +479,24 @@ async function saveCover(file: File) {
 // Going live and finishing the event (no other screen does this).
 const lifecycleBusy = ref(false)
 const lifecycleError = ref('')
+const cancelError = ref('')
+async function cancelEvent() {
+	if (!event.value) return
+	const why = await promptDialog(`Cancel ${event.value.name}? It comes off the Marketplace, ticket sales stop and every ticket stops working. Ticket holders are told. Paid buyers are refunded in Ticketing & Attendance → Payments. This can't be undone. Say why.`,
+		{ title: 'Cancel event', confirmLabel: 'Cancel event', placeholder: 'e.g. The venue is no longer available', minLength: 3, danger: true })
+	if (why === null) return
+	lifecycleBusy.value = true
+	cancelError.value = ''
+	try {
+		await useOrganizerEvents().transition(coverOrgId.value, String(event.value.id), 'cancel', why.trim())
+		event.value = await loadEvent(String(event.value.id)) as unknown as typeof event.value
+	} catch (e: unknown) {
+		cancelError.value = authMessage(e) || 'That didn’t work. Try again.'
+	} finally {
+		lifecycleBusy.value = false
+	}
+}
+
 async function runLifecycle(action: 'start' | 'stop' | 'complete') {
 	if (!event.value) return
 	let reason: string | undefined
@@ -927,8 +963,8 @@ async function loadEvent(id: string) {
 		useApi().get<{ tiers: { id: string, name: string, price: string, capacity: number, status: string, sold: number }[] }>(`/organizations/${orgId}/events/${id}/ticket-types`)
 			.then(r => r.data.tiers).catch(() => []),
 	])
-	const extra = apiEvent as { private_link_key?: string | null, price?: EventPrice, can?: { set_price?: boolean } }
-	return { ...toLegacyEvent(apiEvent), private_link_key: extra.private_link_key ?? null, price: extra.price ?? null, can_set_price: !!extra.can?.set_price, ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity, status: t.status, sold: t.sold })) }
+	const extra = apiEvent as { private_link_key?: string | null, price?: EventPrice, can?: { set_price?: boolean, cancel?: boolean } }
+	return { ...toLegacyEvent(apiEvent), private_link_key: extra.private_link_key ?? null, price: extra.price ?? null, can_set_price: !!extra.can?.set_price, can_cancel: !!extra.can?.cancel, ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity, status: t.status, sold: t.sold })) }
 }
 
 function addTicketType() {
@@ -1289,7 +1325,7 @@ const privacyOptions = [
 	{ value: 'private' as const, title: 'Private', hint: 'Invited guests only, e.g. birthdays and weddings. Not listed on NaSeRy.', icon: 'shield-check' },
 	{ value: 'public' as const, title: 'Public', hint: 'Listed on the Event Marketplace. Anyone can get a ticket, e.g. concerts and fairs.', icon: 'globe' },
 ]
-// Private events: Expected guests is the room. Ticket seats come out of it and the rest
+// Private events: Capacity is the room. Ticket seats come out of it and the rest
 // is kept for invitations, so ticket sales never take an invited guest's seat.
 const roomSize = computed(() => Number(editForm.expectedGuests) || 0)
 const ticketSeats = computed(() => editForm.privateTickets ? editForm.ticketTypes.filter(t => t.name.trim()).reduce((s, t) => s + (Number(t.capacity) || 0), 0) : 0)
@@ -1304,8 +1340,8 @@ const privateSeatProblem = computed(() => {
 	const free = roomSize.value - invitedSoFar.value
 	if (ticketSeats.value <= free) return ''
 	return invitedSoFar.value
-		? `Only ${Math.max(0, free)} seats are free after the ${invitedSoFar.value} guests you invited. Lower the ticket seats or raise Expected guests.`
-		: `Ticket seats (${ticketSeats.value}) are more than Expected guests (${roomSize.value}). Lower the ticket seats or raise Expected guests.`
+		? `Only ${Math.max(0, free)} seats are free after the ${invitedSoFar.value} guests you invited. Lower the ticket seats or raise the Capacity.`
+		: `Ticket seats (${ticketSeats.value}) are more than the Capacity (${roomSize.value}). Lower the ticket seats or raise the Capacity.`
 })
 function setVisibility(value: Visibility) {
 	editForm.visibility = value
@@ -1433,7 +1469,7 @@ const viewRows = computed(() => {
 		{ label: 'Date', icon: 'calendar', section: 'basic', value: e.event_date ? formatDate(e.event_date) : 'Not set', empty: !e.event_date },
 		{ label: 'Time', icon: 'clock', section: 'basic', value: time || 'Not set', empty: !time },
 		{ label: 'Venue', icon: 'map-pin', section: 'venue', value: e.location || 'Not set', empty: !e.location },
-		{ label: 'Expected guests', icon: 'users', section: 'venue', value: e.expected_guests ? `${e.expected_guests} guests` : 'Not set', empty: !e.expected_guests },
+		{ label: 'Capacity', icon: 'users', section: 'venue', value: e.expected_guests ? `${e.expected_guests} people` : 'Not set', empty: !e.expected_guests },
 		{ label: 'Who can come', icon: 'ticket', section: 'tickets', value: e.ticket_types?.length ? who : 'Not chosen yet', empty: !e.ticket_types?.length },
 		{ label: 'Contact', icon: 'phone', section: 'contact', value: [e.contact_name, e.contact_phone || e.contact_email].filter(Boolean).join(' · ') || 'Not set', empty: !e.contact_name && !e.contact_phone && !e.contact_email },
 	]

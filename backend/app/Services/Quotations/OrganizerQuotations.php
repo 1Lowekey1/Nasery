@@ -2,6 +2,7 @@
 
 namespace App\Services\Quotations;
 
+use App\Services\Admin\PlatformSettings;
 use App\Enums\InquiryOrgStatus;
 use App\Enums\QuotationStatus;
 use App\Exceptions\ApiException;
@@ -220,7 +221,7 @@ class OrganizerQuotations
      */
     private function write(Quotation $quotation, Organization $organization, string $inquiryId, array $data): Quotation
     {
-        $lines = $this->lines($organization, $data['items']);
+        $lines = $this->withVat($organization, $this->lines($organization, $data['items']));
         $total = array_sum(array_column($lines, 'subtotal_cents'));
 
         if ($total > 999_999_999_999) {
@@ -291,6 +292,35 @@ class OrganizerQuotations
                 'subtotal_cents' => intdiv($qty * $price + 50, 100),
             ];
         }, array_values($items));
+    }
+
+    /**
+     * Mock defense: VAT is never typed. Any line called "VAT…" is dropped and,
+     * when the organizer charges VAT, one VAT line at NaSeRy's rate is added on
+     * the other lines (so it only changes when the prices do).
+     *
+     * @param  list<array{organization_service_id: ?string, description: string, quantity: string, unit_price: string, subtotal_cents: int}>  $lines
+     * @return list<array{organization_service_id: ?string, description: string, quantity: string, unit_price: string, subtotal_cents: int}>
+     */
+    private function withVat(Organization $organization, array $lines): array
+    {
+        $lines = array_values(array_filter($lines, fn ($l) => ! self::isVatLine($l['description'])));
+        $stored = DB::table('organization_profiles')->where('organization_id', $organization->id)->value('estimate_tax_percent');
+        $rate = app(PlatformSettings::class)->vatFor($stored);
+        $base = array_sum(array_column($lines, 'subtotal_cents'));
+
+        if ($rate !== null && $rate > 0 && $base > 0) {
+            $vat = (int) round($base * $rate / 100);
+            $label = rtrim(rtrim(number_format($rate, 2, '.', ''), '0'), '.');
+            $lines[] = ['organization_service_id' => null, 'description' => "VAT ({$label}%)", 'quantity' => '1.00', 'unit_price' => self::money($vat), 'subtotal_cents' => $vat];
+        }
+
+        return $lines;
+    }
+
+    public static function isVatLine(string $description): bool
+    {
+        return (bool) preg_match('/^\s*VAT\b/i', $description);
     }
 
     private static function cents(int|float|string $value): int
