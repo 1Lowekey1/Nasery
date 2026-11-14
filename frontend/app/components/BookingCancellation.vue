@@ -31,7 +31,15 @@
 			</template>
 
 			<template v-if="state.can_request">
-				<button v-if="!asking" type="button" class="text-sm font-semibold text-rose-700 hover:underline" :class="open ? 'mt-3' : ''" @click="asking = true">Need to cancel this booking?</button>
+				<!-- Organizer's event page: the same "call it off" box as events without a client. -->
+				<div v-if="eventStyle && !asking" class="flex flex-wrap items-center justify-between gap-3" :class="open ? 'mt-3' : ''">
+					<div class="min-w-0">
+						<p class="text-sm font-bold text-gray-950">Need to call this event off?</p>
+						<p class="mt-0.5 text-sm text-gray-500">{{ otherName }} booked this event, so they're asked first. If they don't answer within {{ state.grace_hours }} hours, it's cancelled.</p>
+					</div>
+					<button type="button" class="tap-target rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50" @click="asking = true">Cancel event</button>
+				</div>
+				<button v-else-if="!asking" type="button" class="text-sm font-semibold text-rose-700 hover:underline" :class="open ? 'mt-3' : ''" @click="asking = true">Need to cancel this booking?</button>
 				<form v-else class="mt-1" @submit.prevent="ask">
 					<label :for="`cancel-reason-${inquiryId}`" class="block text-sm font-bold text-gray-950">Why do you need to cancel?</label>
 					<p class="mt-0.5 text-xs text-gray-500">{{ otherName }} can agree or keep the booking. If they don’t answer within {{ state.grace_hours }} hours, it will be cancelled.</p>
@@ -51,7 +59,7 @@
 import type { BookingCancellationState } from '~/composables/useBookingCancellation'
 
 // Backing out after an offer is accepted: ask with a reason, or answer the other side.
-const props = defineProps<{ inquiryId: string, organizationId?: string | null, otherName: string }>()
+const props = defineProps<{ inquiryId: string, organizationId?: string | null, otherName: string, /** Show a "Cancel event" box (organizer event page) instead of a text link. */ eventStyle?: boolean }>()
 const emit = defineEmits<{ changed: [] }>()
 
 const api = useBookingCancellation(props.inquiryId, props.organizationId)

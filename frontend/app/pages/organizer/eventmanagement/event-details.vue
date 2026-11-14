@@ -67,7 +67,7 @@
 				<button type="button" class="tap-target rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50" :disabled="lifecycleBusy" @click="cancelEvent">Cancel event</button>
 			</section>
 
-			<BookingCancellation v-if="event && event.id && !isEditMode && event.inquiry_id && coverOrgId" :inquiry-id="String(event.inquiry_id)" :organization-id="coverOrgId" other-name="The client" />
+			<BookingCancellation v-if="event && event.id && !isEditMode && event.inquiry_id && coverOrgId" class="mb-6" :inquiry-id="String(event.inquiry_id)" :organization-id="coverOrgId" other-name="The client" event-style />
 
 			<!-- What the client asked for (events booked through a request) -->
 			<OrganizerClientRequest v-if="event && event.id && !isEditMode && event.inquiry_id" :organization-id="coverOrgId"
@@ -216,11 +216,11 @@
 									<div class="rounded-xl bg-gray-50 px-4 py-3"><p class="text-xs text-gray-500">Ticket types</p><p class="text-lg font-extrabold tabular-nums text-gray-950">{{ ticketSummary.types }}</p></div>
 									<div class="rounded-xl bg-gray-50 px-4 py-3">
 										<p class="text-xs text-gray-500">Total seats</p>
-										<p class="text-lg font-extrabold tabular-nums text-gray-950">{{ ticketSummary.capacity }}<span v-if="ticketSummary.guests" class="text-xs font-medium text-gray-400"> / {{ ticketSummary.guests }} guests</span></p>
+										<p class="text-lg font-extrabold tabular-nums" :class="seatProblem ? 'text-red-700' : 'text-gray-950'">{{ ticketSummary.capacity }}<span v-if="ticketSummary.guests" class="text-xs font-medium" :class="seatProblem ? 'text-red-600' : 'text-gray-400'"> / {{ ticketSummary.guests }} capacity</span></p>
 									</div>
 									<div class="rounded-xl bg-gray-50 px-4 py-3"><p class="text-xs text-gray-500">If all sell</p><p class="text-lg font-extrabold tabular-nums text-primary-700">{{ formatCurrency(ticketSummary.revenue) }}</p></div>
 								</div>
-								<p v-if="privateSeatProblem" class="flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700" role="alert"><IconBase name="x-circle" class="mt-px h-3.5 w-3.5 shrink-0" />{{ privateSeatProblem }}</p>
+								<p v-if="seatProblem" class="flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700" role="alert"><IconBase name="x-circle" class="mt-px h-3.5 w-3.5 shrink-0" />{{ seatProblem }}</p>
 								<p v-else-if="editForm.visibility === 'private' && roomSize" class="text-xs text-gray-500">{{ ticketSeats }} of {{ roomSize }} seats go to tickets; the other {{ Math.max(0, roomSize - ticketSeats) }} stay for invited guests.</p>
 								<p v-else-if="ticketSummary.guests && ticketSummary.capacity < ticketSummary.guests" class="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"><IconBase name="sparkles" class="h-3.5 w-3.5" />You have {{ ticketSummary.guests - ticketSummary.capacity }} fewer ticket seats than the event’s capacity.</p>
 
@@ -1150,8 +1150,8 @@ async function saveEvent() {
 		return
 	}
 
-	if (privateSeatProblem.value) {
-		saveError.value = privateSeatProblem.value
+	if (seatProblem.value) {
+		saveError.value = seatProblem.value
 		activeEditTab.value = 'Ticket Types'
 		return
 	}
@@ -1334,14 +1334,19 @@ const guestListCapacity = computed(() => {
 	if (!roomSize.value) return Math.max(1, 100, invitedSoFar.value)
 	return Math.max(1, invitedSoFar.value, roomSize.value - ticketSeats.value)
 })
-/** Why a private event's ticket seats don't fit (empty when they do). */
-const privateSeatProblem = computed(() => {
-	if (editForm.visibility !== 'private' || !editForm.privateTickets || !roomSize.value) return ''
+/** Seats on sale: every named ticket type (public), or the private event's optional tickets. */
+const sellingSeats = computed(() => editForm.visibility === 'public'
+	? editForm.ticketTypes.filter(t => t.name.trim()).reduce((s, t) => s + (Number(t.capacity) || 0), 0)
+	: ticketSeats.value)
+/** Why the ticket seats don't fit in the Capacity (empty when they do). Sales stop at the Capacity anyway, so more seats would only mislead. */
+const seatProblem = computed(() => {
+	const selling = editForm.visibility === 'public' || editForm.privateTickets
+	if (!selling || !roomSize.value) return ''
 	const free = roomSize.value - invitedSoFar.value
-	if (ticketSeats.value <= free) return ''
+	if (sellingSeats.value <= free) return ''
 	return invitedSoFar.value
 		? `Only ${Math.max(0, free)} seats are free after the ${invitedSoFar.value} guests you invited. Lower the ticket seats or raise the Capacity.`
-		: `Ticket seats (${ticketSeats.value}) are more than the Capacity (${roomSize.value}). Lower the ticket seats or raise the Capacity.`
+		: `Ticket seats (${sellingSeats.value}) are more than the Capacity (${roomSize.value}). Lower the ticket seats or raise the Capacity under Venue.`
 })
 function setVisibility(value: Visibility) {
 	editForm.visibility = value
