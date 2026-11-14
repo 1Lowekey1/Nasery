@@ -129,16 +129,16 @@ Secrets (`.env` files, server keys, payment keys) never go in this repository.
 
 ## Team
 
-Capstone project, <!-- school / program -->, 2026.
+Capstone project, Bachelor of Science in Information Technology, STI College of Davao, 2026.
 
 | Name | Role |
 |---|---|
-| <!-- name --> | <!-- e.g. Project lead, backend --> |
-| <!-- name --> | <!-- e.g. Frontend and design --> |
-| <!-- name --> | <!-- e.g. Documentation and testing --> |
-| <!-- name --> | <!-- e.g. Research and QA --> |
+| Sevilla, Nathaniel Glenn P. | Project lead, backend |
+| Axalan, Sean Kenneth H. | Frontend and design |
+| Manco, Rylle S | Documentation and testing |
+| Banico, John Samuel A. | Research and QA |
 
-Adviser: <!-- name -->
+Adviser: Bantigue, Dominic R.
 
 ---
 
