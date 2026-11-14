@@ -216,13 +216,15 @@
 									<div class="rounded-xl bg-gray-50 px-4 py-3"><p class="text-xs text-gray-500">Ticket types</p><p class="text-lg font-extrabold tabular-nums text-gray-950">{{ ticketSummary.types }}</p></div>
 									<div class="rounded-xl bg-gray-50 px-4 py-3">
 										<p class="text-xs text-gray-500">Total seats</p>
-										<p class="text-lg font-extrabold tabular-nums" :class="seatProblem ? 'text-red-700' : 'text-gray-950'">{{ ticketSummary.capacity }}<span v-if="ticketSummary.guests" class="text-xs font-medium" :class="seatProblem ? 'text-red-600' : 'text-gray-400'"> / {{ ticketSummary.guests }} capacity</span></p>
+										<p class="text-lg font-extrabold tabular-nums" :class="seatProblem ? 'text-red-700' : 'text-gray-950'">{{ ticketSummary.capacity }}<span v-if="ticketSummary.guests" class="text-xs font-medium" :class="seatProblem ? 'text-red-600' : 'text-gray-400'"> / {{ invitedSoFar ? `${Math.max(0, ticketSummary.guests - invitedSoFar)} free` : `${ticketSummary.guests} capacity` }}</span></p>
 									</div>
 									<div class="rounded-xl bg-gray-50 px-4 py-3"><p class="text-xs text-gray-500">If all sell</p><p class="text-lg font-extrabold tabular-nums text-primary-700">{{ formatCurrency(ticketSummary.revenue) }}</p></div>
 								</div>
 								<p v-if="seatProblem" class="flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700" role="alert"><IconBase name="x-circle" class="mt-px h-3.5 w-3.5 shrink-0" />{{ seatProblem }}</p>
 								<p v-else-if="editForm.visibility === 'private' && roomSize" class="text-xs text-gray-500">{{ ticketSeats }} of {{ roomSize }} seats go to tickets; the other {{ Math.max(0, roomSize - ticketSeats) }} stay for invited guests.</p>
-								<p v-else-if="ticketSummary.guests && ticketSummary.capacity < ticketSummary.guests" class="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"><IconBase name="sparkles" class="h-3.5 w-3.5" />You have {{ ticketSummary.guests - ticketSummary.capacity }} fewer ticket seats than the event’s capacity.</p>
+								<!-- Public events: invited guests take places too, so compare with what's left after them. -->
+								<p v-else-if="roomSize && invitedSoFar" class="text-xs text-gray-500">{{ roomSize }} capacity: {{ invitedSoFar }} invited guest{{ invitedSoFar === 1 ? '' : 's' }} + {{ sellingSeats }} ticket seats.<template v-if="sellingSeats < roomSize - invitedSoFar"> {{ roomSize - invitedSoFar - sellingSeats }} more can go to tickets.</template></p>
+								<p v-else-if="roomSize && sellingSeats < roomSize" class="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800"><IconBase name="sparkles" class="h-3.5 w-3.5" />You have {{ roomSize - sellingSeats }} fewer ticket seats than the event’s capacity.</p>
 
 								<TransitionGroup tag="div" name="ed-card" class="space-y-3">
 									<div v-for="(type, index) in editForm.ticketTypes" :key="ticketKey(type, index)" class="relative scroll-mt-24 overflow-hidden rounded-2xl border border-gray-200 p-4 pl-5" data-ticket-card>
