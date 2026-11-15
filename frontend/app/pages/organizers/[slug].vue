@@ -80,15 +80,15 @@
 					</p>
 					<div v-if="organizer.website || organizer.facebook || organizer.instagram"
 						class="mt-5 flex flex-wrap gap-4 text-sm font-semibold">
-						<a v-if="organizer.website" :href="organizer.website" target="_blank" rel="noopener noreferrer"
+						<a v-if="organizer.website && /^https?:\/\//i.test(organizer.website)" :href="organizer.website" target="_blank" rel="noopener noreferrer"
 							class="text-primary-700 underline">
 							Website ↗
 						</a>
-						<a v-if="organizer.facebook" :href="organizer.facebook" target="_blank"
+						<a v-if="socialLink('facebook', organizer.facebook)" :href="socialLink('facebook', organizer.facebook)!" target="_blank"
 							rel="noopener noreferrer" class="text-primary-700 underline">
 							Facebook ↗
 						</a>
-						<a v-if="organizer.instagram" :href="organizer.instagram" target="_blank"
+						<a v-if="socialLink('instagram', organizer.instagram)" :href="socialLink('instagram', organizer.instagram)!" target="_blank"
 							rel="noopener noreferrer" class="text-primary-700 underline">
 							Instagram ↗
 						</a>

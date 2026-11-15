@@ -36,27 +36,6 @@ export interface User {
     organizer?: OrganizerAuthProfile | null
 }
 
-export interface RegisterPayload {
-    firstname: string
-    middlename?: string
-    lastname: string
-
-    email: string
-    email_verification_token: string
-    phone: string
-    address: string
-
-    password: string
-    role: UserRole
-
-    location?: string
-    google_place_id?: string
-
-    latitude?: number | null
-    longitude?: number | null
-
-    service_radius_km?: number
-}
 
 export interface RegisterResponse {
     message: string

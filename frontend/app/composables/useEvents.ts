@@ -136,14 +136,6 @@ export interface ClientEvent extends NaseryEvent {
   organizer: { display_name: string, slug: string | null, contact_email: string | null, contact_phone: string | null } | null
 }
 
-export const eventStatusLabels: Record<EventStatus, string> = {
-  draft: 'Draft',
-  published: 'Published',
-  ongoing: 'Happening now',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-}
-
 /** "Sat, Feb 14, 2027 · 5:00 PM – 10:00 PM" in the event's own timezone. */
 export function sessionLabel(s: Pick<EventSession, 'starts_at' | 'ends_at'>, timeZone: string): string {
   const start = new Date(s.starts_at)

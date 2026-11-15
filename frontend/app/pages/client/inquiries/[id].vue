@@ -8,6 +8,7 @@
 		<h1 class="mt-1 text-2xl font-black tracking-tight text-gray-900 sm:text-3xl">Your request</h1>
 
 		<Alert v-if="error" type="danger" :text="error" class="mt-4" />
+		<Alert v-if="notice" type="success" :text="notice" class="mt-4" />
 		<div v-if="!inquiry && !error" class="mt-6 rounded-2xl border border-gray-200 bg-white p-10 text-center">
 			<IconBase name="refresh-cw" class="mx-auto h-5 w-5 animate-spin text-gray-400" />
 			<p class="mt-2 text-sm text-gray-500">Loading your request…</p>
@@ -147,15 +148,6 @@ const clientLabels: Record<string, string> = {
 const quotations = ref<ClientQuotation[]>([])
 // Once the client picks an organizer, that offer leads and the rest fold into compact rows.
 const winner = computed(() => quotations.value.find(q => q.status === 'accepted') ?? null)
-const orderedQuotations = computed(() => winner.value ? [winner.value, ...quotations.value.filter(q => q.id !== winner.value!.id)] : quotations.value)
-const expanded = ref(new Set<string>())
-function toggleOffer(id: string) {
-	const next = new Set(expanded.value)
-	if (!next.delete(id)) next.add(id)
-	expanded.value = next
-}
-const declining = ref<ClientQuotation | null>(null)
-const declineReason = ref('')
 const notice = ref('')
 const isOpen = computed(() => inquiry.value !== null && ['submitted', 'receiving_bids'].includes(inquiry.value.status))
 
@@ -246,35 +238,6 @@ async function inviteOrganizer(id: string) {
 		notice.value = 'Organizer invited.'
 	} catch (e) {
 		error.value = authMessage(e)
-	} finally {
-		busy.value = false
-	}
-}
-
-async function acceptQuotation(q: ClientQuotation) {
-	if (!(await confirmDialog(`Accept ${q.organizer.display_name}'s quotation for ${formatPeso(q.total_amount)}? The other offers will be declined and ${q.organizer.display_name} will receive your contact details.`, { title: 'Accept this quotation?', confirmLabel: 'Yes, accept', danger: false }))) return
-	busy.value = true
-	try {
-		await quotationsApi.accept(q.id)
-		notice.value = `You accepted ${q.organizer.display_name}'s quotation. They'll contact you to agree the final terms.`
-		await load()
-	} catch (e) {
-		error.value = authMessage(e)
-	} finally {
-		busy.value = false
-	}
-}
-
-async function confirmDecline() {
-	if (!declining.value) return
-	busy.value = true
-	try {
-		await quotationsApi.decline(declining.value.id, declineReason.value.trim())
-		declining.value = null
-		await load()
-	} catch (e) {
-		error.value = authMessage(e)
-		declining.value = null
 	} finally {
 		busy.value = false
 	}

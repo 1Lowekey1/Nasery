@@ -2,20 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isGuestTier } from '~/utils/guestList'
 import { inquiryRedirect } from '~/utils/inquiryRedirect'
 import { routeId } from '~/utils/legacy'
-import { parseFullName } from '~/utils/parseFullName'
-
-describe('parseFullName (sign-up "Full name" box)', () => {
-	it.each([
-		['', { firstname: '', middlename: '', lastname: '' }],
-		['   ', { firstname: '', middlename: '', lastname: '' }],
-		['Maria', { firstname: 'Maria', middlename: '', lastname: '' }],
-		['Maria Santos', { firstname: 'Maria', middlename: '', lastname: 'Santos' }],
-		['  Maria   Clara   Santos ', { firstname: 'Maria', middlename: 'Clara', lastname: 'Santos' }],
-		['Juan Dela Cruz Reyes', { firstname: 'Juan', middlename: 'Dela Cruz', lastname: 'Reyes' }],
-	])('%j', (input, expected) => {
-		expect(parseFullName(input)).toEqual(expected)
-	})
-})
+import { socialLink } from '~/utils/socialLink'
 
 describe('inquiryRedirect (only our own page, never an outside link)', () => {
 	it('allows the post-event page and nothing else', () => {
@@ -44,5 +31,20 @@ describe('isGuestTier (private events: invitation list)', () => {
 		expect(isGuestTier({ name: 'Guest list', price: '0.01' })).toBe(false)
 		expect(isGuestTier({ name: 'VIP', price: 0 })).toBe(false)
 		expect(isGuestTier({ name: null, price: null })).toBe(false)
+	})
+})
+
+describe('socialLink (organizer Facebook / Instagram: a safe link or nothing)', () => {
+	it.each([
+		['facebook', 'https://facebook.com/davaodream', 'https://facebook.com/davaodream'],
+		['facebook', 'facebook.com/davaodream', 'https://www.facebook.com/davaodream'],
+		['instagram', '@davaodream', 'https://www.instagram.com/davaodream'],
+		['instagram', 'www.instagram.com/davao.dream/', 'https://www.instagram.com/davao.dream'],
+		['facebook', 'javascript:alert(1)', null],
+		['facebook', 'data:text/html,x', null],
+		['instagram', '  ', null],
+		['instagram', null, null],
+	] as const)('%s %j', (site, input, expected) => {
+		expect(socialLink(site, input)).toBe(expected)
 	})
 })

@@ -67,15 +67,6 @@ export interface PriceOption {
   sort_order?: number
 }
 
-export const quotationStatusClasses: Record<QuotationStatus, string> = {
-  draft: 'bg-gray-100 text-gray-600',
-  submitted: 'bg-primary-50 text-primary-700',
-  accepted: 'bg-green-50 text-green-700',
-  rejected: 'bg-rose-50 text-rose-700',
-  withdrawn: 'bg-amber-50 text-amber-700',
-  cancelled: 'bg-gray-100 text-gray-500',
-}
-
 /** Line subtotal in the same cents arithmetic as the server (half-up). */
 export function lineSubtotal(quantity: string | number, unitPrice: string | number): number {
   const q = Math.round(Number(quantity || 0) * 100)
