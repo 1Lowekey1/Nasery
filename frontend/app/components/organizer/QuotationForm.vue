@@ -173,6 +173,9 @@ onMounted(async () => {
 	try {
 		const org = await useOrganization().fetchOrganization()
 		vatRate.value = (org?.profile as { estimate_tax_percent?: number | null } | undefined)?.estimate_tax_percent || null
+		// 0062: no VAT for this request's event type when the organizer exempts it.
+		const request = await useOrganizerInquiries().show(props.organizationId, props.inquiryId).catch(() => null)
+		if (request && request.vat_applies === false) vatRate.value = null
 	} catch {
 		// Without the profile the form still works; the server adds VAT anyway.
 	}

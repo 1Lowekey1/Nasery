@@ -80,9 +80,25 @@ class PublicEventController extends Controller
             throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
         }
 
+        if ($request->query('format') === 'png') {
+            return $this->ticketPng($ticket);
+        }
+
         return response($this->pdf->render($this->cards->load([$ticket])), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="ticket-'.strtolower(substr(str_replace('-', '', $ticket), -8)).'.pdf"',
+        ]);
+    }
+
+    /** "Save image": one ticket as a PNG (QR with the event, type, name and seat on it). */
+    private function ticketPng(string $ticketId): Response
+    {
+        $card = $this->cards->load([$ticketId])->first()
+            ?? throw new ApiException(ErrorCode::NotFound, 'The requested resource was not found.', 404);
+
+        return response(app(\App\Support\Qr\TicketImage::class)->png($card), 200, [
+            'Content-Type' => 'image/png',
+            'Content-Disposition' => 'attachment; filename="ticket-'.strtolower($card['code']).'.png"',
         ]);
     }
 

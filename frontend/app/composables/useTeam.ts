@@ -76,6 +76,8 @@ export interface MyTask {
   review_note?: string | null
   event_type?: string | null
   event_starts_at?: string | null
+  /** 0062: the client's mood board for this task's event. */
+  mood_board?: { id: string, url: string | null, caption: string | null }[]
 }
 
 /** Permissions that can be given per event (matches EventTeam::EVENT_PERMISSIONS). */

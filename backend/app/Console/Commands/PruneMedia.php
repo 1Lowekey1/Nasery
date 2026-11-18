@@ -32,6 +32,12 @@ class PruneMedia extends Command
             ->merge(DB::connection('system')->table('public.organization_profiles')->whereNotNull('logo_path')->pluck('logo_path'))
             ->merge(DB::connection('system')->table('public.organization_profiles')->whereNotNull('cover_path')->pluck('cover_path'))
             ->merge(DB::connection('system')->table('public.events')->whereNotNull('cover_path')->pluck('cover_path'))
+            // 0062/0063: price list item pictures (galleries) and clients' mood boards.
+            ->merge(DB::connection('system')->table('public.organization_price_options')->whereNotNull('image_path')->pluck('image_path'))
+            ->merge(DB::connection('system')->table('public.organization_price_options')->where('images', '!=', '[]')->pluck('images')
+                ->flatMap(fn ($list) => array_filter(json_decode((string) $list, true) ?: [], 'is_string')))
+            ->merge(DB::connection('system')->table('public.inquiries')->where('mood_board', '!=', '[]')->pluck('mood_board')
+                ->flatMap(fn ($board) => array_column(json_decode((string) $board, true) ?: [], 'path')))
             ->flip();
 
         $removed = 0;

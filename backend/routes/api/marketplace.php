@@ -24,7 +24,8 @@ Route::prefix('marketplace')->name('marketplace.')
 // Uploaded pictures (profile photos, logos, covers): public by link, served
 // with a fixed image type; the path must be a known folder + UUID.webp.
 Route::get('media/{folder}/{file}', [MediaController::class, 'show'])
-    ->whereIn('folder', ['avatars', 'logos', 'covers', 'event-covers'])
+    // Every picture folder ImageStore writes to (0062 added price-options and mood-boards).
+    ->whereIn('folder', array_column(\App\Services\Media\ImageStore::KINDS, 0))
     ->where('file', '[0-9a-f-]{36}\.webp')
     ->withoutMiddleware('throttle:api')->middleware('throttle:public')
     ->name('media.show');

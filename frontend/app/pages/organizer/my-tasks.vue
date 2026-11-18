@@ -34,6 +34,11 @@
 							<template v-if="t.due_at"> · <span :class="overdue(t) ? 'font-semibold text-rose-700' : ''">due {{ due(t.due_at) }}{{ overdue(t) ? ' (overdue)' : '' }}</span></template>
 						</p>
 						<p v-if="t.description" class="mt-1 text-sm text-gray-600">{{ t.description }}</p>
+						<!-- 0062 (organizer field test): the client's mood board, one tap away while working. -->
+						<button v-if="t.mood_board?.length" type="button" class="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-800 hover:bg-primary-100"
+							@click="moodFor = t">
+							<IconBase name="camera" class="h-3.5 w-3.5" />Mood board ({{ t.mood_board.length }})
+						</button>
 					</div>
 					<div class="flex items-center gap-2">
 						<span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="priorityClasses[t.priority]">{{ t.priority }}</span>
@@ -62,6 +67,20 @@
 			</ul>
 		</section>
 		</div>
+
+		<!-- The client's mood board for this task's event. -->
+		<div v-if="moodFor" class="fixed inset-0 z-[120] flex items-end justify-center bg-gray-900/40 p-4 sm:items-center" @click.self="moodFor = null" @keydown.esc="moodFor = null">
+			<section class="max-h-[85dvh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" :aria-label="`Mood board for ${moodFor.event}`">
+				<div class="mb-4 flex items-start justify-between gap-3">
+					<div class="min-w-0">
+						<p class="text-xs font-bold uppercase tracking-wide text-primary-700">Client's mood board</p>
+						<h2 class="truncate text-lg font-bold text-gray-900">{{ moodFor.event }}</h2>
+					</div>
+					<button type="button" class="tap-target rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Close" @click="moodFor = null"><IconBase name="x" class="h-5 w-5" /></button>
+				</div>
+				<MoodBoard :images="moodFor.mood_board ?? []" />
+			</section>
+		</div>
 	</div>
 </template>
 
@@ -83,6 +102,7 @@ const loading = ref(true)
 const error = ref('')
 const pending = reactive(new Set<string>())
 const highlighted = computed(() => typeof route.query.task === 'string' ? route.query.task : null)
+const moodFor = ref<MyTask | null>(null)
 
 // Sorting (kept per browser). Finished and cancelled tasks always sink to the bottom.
 type SortKey = 'due' | 'newest' | 'priority' | 'status' | 'event'

@@ -47,6 +47,8 @@ class OrganizationProfileResource extends JsonResource
             'estimate_tax_percent' => app(PlatformSettings::class)->vatFor($extra('estimate_tax_percent')),
             // NaSeRy's VAT rate, for the "We charge VAT" switch.
             'vat_rate' => (float) app(PlatformSettings::class)->get('vat_percent'),
+            // 0062: event types with no VAT (ids).
+            'vat_exempt_event_types' => $extra('vat_exempt_event_types', []),
             'estimate_note' => $extra('estimate_note'),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

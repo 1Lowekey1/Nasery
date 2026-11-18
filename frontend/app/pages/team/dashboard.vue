@@ -37,8 +37,16 @@
                             <p class="mt-0.5 text-sm text-gray-500">{{ group.event.event_type }} · {{
                                 formatDate(group.event.event_date) }}</p>
                         </div>
-                    </div><span class="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">{{
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- 0062 (organizer field test): the client's mood board, one tap away while working. -->
+                        <button v-if="group.event.mood_board.length" type="button" class="inline-flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-800 hover:bg-primary-100"
+                            @click="moodFor = group.event">
+                            <IconBase name="camera" class="h-3.5 w-3.5" />Mood board ({{ group.event.mood_board.length }})
+                        </button>
+                        <span class="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">{{
                         group.tasks.length }} task{{ group.tasks.length === 1 ? '' : 's' }}</span>
+                    </div>
                 </div>
                 <div class="divide-y divide-gray-100">
                     <div v-for="task in group.tasks" :key="task.id" class="py-5 last:pb-0">
@@ -80,12 +88,28 @@
                 <p class="mt-1 text-sm text-gray-500">New assignments from your organizer will appear here.</p>
             </div>
         </div>
+
+        <!-- The client's mood board for this event. -->
+        <div v-if="moodFor" class="fixed inset-0 z-[120] flex items-end justify-center bg-gray-900/40 p-4 sm:items-center" @click.self="moodFor = null" @keydown.esc="moodFor = null">
+            <section class="max-h-[85dvh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" :aria-label="`Mood board for ${moodFor.name}`">
+                <div class="mb-4 flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold uppercase tracking-wide text-primary-700">Client's mood board</p>
+                        <h2 class="truncate text-lg font-bold text-gray-900">{{ moodFor.name }}</h2>
+                    </div>
+                    <button type="button" class="tap-target rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Close" @click="moodFor = null"><IconBase name="x" class="h-5 w-5" /></button>
+                </div>
+                <MoodBoard :images="moodFor.mood_board" />
+            </section>
+        </div>
     </div>
 </template>
 <script setup lang="ts">
 // My Assignments: tasks assigned to me across my organization's events (our /my-tasks),
 // finished with a note for the organizer to verify (0044 reviews).
-interface Task { id: string; label: string; is_completed: boolean; completion_note: string | null; review_status: string; review_note: string | null; event: { id: string; name: string; event_type: string; event_date: string | null } }
+interface Task { id: string; label: string; is_completed: boolean; completion_note: string | null; review_status: string; review_note: string | null; event: { id: string; name: string; event_type: string; event_date: string | null; mood_board: MoodImage[] } }
+type MoodImage = { id: string, url: string | null, caption: string | null }
+const moodFor = ref<Task['event'] | null>(null)
 definePageMeta({ layout: 'team', middleware: ['team'] })
 const { firstName } = useAuth('team_member')
 const tasks = ref<Task[]>([]), loading = ref(true), errorMessage = ref(''), completingId = ref<string | null>(null), notes = reactive<Record<string, string>>({})
@@ -117,7 +141,7 @@ async function load(quiet = false) {
         completion_note: t.completion_note ?? null,
         review_status: t.review_status ?? 'pending',
         review_note: t.review_note ?? null,
-        event: { id: t.event_id, name: t.event, event_type: t.event_type ?? 'Event', event_date: t.event_starts_at ?? null },
+        event: { id: t.event_id, name: t.event, event_type: t.event_type ?? 'Event', event_date: t.event_starts_at ?? null, mood_board: t.mood_board ?? [] },
       }))
   } catch (error: unknown) {
     errorMessage.value = authMessage(error) || 'Unable to load assignments.'

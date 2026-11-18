@@ -128,6 +128,9 @@ class PurgeTestData extends Command
                 'payment_webhook_events' => $db->table('payment_webhook_events')->whereIn('payment_id', $payments)->delete(),
                 'platform_fee_snapshots' => $db->table('platform_fee_snapshots')->whereIn('payment_id', $payments)->delete(),
                 'payment_refunds' => $db->table('payment_refunds')->whereIn('payment_id', $payments)->delete(),
+                // 0061: buyers' refund requests on test events or by test users (before their payments).
+                'refund_requests' => $db->table('refund_requests')->whereIn('payment_id', $payments)->orWhereIn('registration_id', $registrations)
+                    ->orWhereIn('event_id', $events)->orWhereIn('organization_id', $orgs)->orWhereIn('requested_by', $users)->delete(),
                 'payments' => $db->table('payments')->whereIn('id', $payments)->delete(),
                 'attendance_records' => $db->table('attendance_records')->whereIn('ticket_id', $tickets)->orWhereIn('event_id', $events)->delete(),
                 'walk_in_records' => $db->table('walk_in_records')->whereIn('event_id', $events)->delete(),

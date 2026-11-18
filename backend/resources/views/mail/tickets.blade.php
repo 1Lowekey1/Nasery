@@ -24,7 +24,7 @@
                     @if ($card['venue'])<p style="margin:2px 0 0;font-size:14px;color:#374151;">{{ $card['venue'] }}</p>@endif
                     <p style="margin:12px 0 0;font-size:15px;font-weight:bold;">{{ $card['attendee'] }}</p>
                     @if ($pngs[$card['id']])
-                        <p style="margin:10px 0 0;text-align:center;"><img src="{{ $message->embedData($pngs[$card['id']], 'qr-'.$card['code'].'.png', 'image/png') }}" width="220" height="220" alt="QR code for {{ $card['attendee'] }}" style="display:inline-block;"></p>
+                        <p style="margin:10px 0 0;text-align:center;"><img src="{{ $message->embedData($pngs[$card['id']], 'ticket-'.$card['code'].'.png', 'image/png') }}" width="300" alt="Ticket with QR code for {{ $card['attendee'] }}" style="display:inline-block;max-width:100%;height:auto;border:1px solid #e5e7eb;border-radius:8px;"></p>
                     @else
                         <p style="margin:10px 0 0;color:#9f1239;font-weight:bold;">This ticket is no longer valid.</p>
                     @endif

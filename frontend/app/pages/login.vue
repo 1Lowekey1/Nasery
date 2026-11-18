@@ -123,6 +123,8 @@ useSeoMeta({ title: 'Sign in | NaSeRy' })
 const nextInquiry = computed(() => inquiryRedirect(route.query.redirect))
 onMounted(() => {
 	if (typeof route.query.social_error === 'string') errorMessage.value = route.query.social_error
+	// Kept for Google sign-in and e-mail verification, which leave this page.
+	rememberInquiry(route.query.redirect)
 })
 // Staff sign in on their own portal (the staff form turns other accounts away the same way).
 const staffAccount = ref(false)
@@ -133,7 +135,8 @@ async function finishLogin(user: SessionUser) {
 		staffAccount.value = true
 		return
 	}
-	if (user.role === 'client' && nextInquiry.value) {
+	if (user.role === 'client' && user.email_verified && nextInquiry.value) {
+		takeInquiry()
 		return await navigateTo(nextInquiry.value)
 	}
 	return await redirectByRole(user)

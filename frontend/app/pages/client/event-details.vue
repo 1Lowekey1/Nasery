@@ -176,7 +176,7 @@
 							<template v-if="receipt.charges.length">
 								<div class="flex justify-between gap-3 border-b border-gray-100 bg-gray-50/60 px-3 py-2 text-gray-600"><span>Subtotal</span><span class="tabular-nums">{{ formatCurrency(receipt.subtotal) }}</span></div>
 								<div v-for="(c, i) in receipt.charges" :key="`c${i}`" class="flex justify-between gap-3 border-b border-gray-100 px-3 py-2 text-gray-600">
-									<span>{{ c.label }} <span class="text-gray-400">({{ c.percent }}%)</span></span><span class="tabular-nums">{{ formatCurrency(c.amount) }}</span>
+									<span>{{ c.label }} <span v-if="c.percent" class="text-gray-400">({{ c.percent }}%)</span></span><span class="tabular-nums">{{ formatCurrency(c.amount) }}</span>
 								</div>
 							</template>
 							<div class="flex justify-between gap-3 bg-gray-50 px-3 py-2.5 font-extrabold text-gray-950"><span>Total</span><span class="tabular-nums">{{ formatCurrency(eventData.quotation.quotation_amount) }}</span></div>
@@ -1044,14 +1044,15 @@ const stateCopy = computed(() => ({
 // The accepted offer as a receipt: items, then service charge / VAT on the subtotal.
 const receipt = computed(() => {
 	const lines = (eventData.value?.quotation.inclusions ?? []) as Array<{ description: string, quantity?: number, amount?: number }>
-	const charge = /^(Service charge|VAT) \((\d+(?:\.\d+)?)%\)$/
+	// "Miscellaneous charges" is the VAT line as clients see it (no rate shown).
+	const charge = /^(Service charge|VAT) \((\d+(?:\.\d+)?)%\)$|^(Miscellaneous charges)$/
 	const items = lines.filter(l => !charge.test(l.description)).map(l => ({
 		label: `${l.description}${l.quantity && l.quantity !== 1 ? ` × ${l.quantity.toLocaleString('en-PH')}` : ''}`,
 		amount: l.amount ?? 0,
 	}))
 	const charges = lines.flatMap((l) => {
 		const m = l.description.match(charge)
-		return m ? [{ label: m[1]!, percent: m[2]!, amount: l.amount ?? 0 }] : []
+		return m ? [{ label: (m[1] ?? m[3])!, percent: m[2] ?? '', amount: l.amount ?? 0 }] : []
 	})
 	return { items, charges, subtotal: items.reduce((sum, l) => sum + l.amount, 0) }
 })

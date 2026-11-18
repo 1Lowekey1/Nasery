@@ -155,6 +155,29 @@ class QuotationTest extends TestCase
             ->assertJsonPath('data.items.1.description', 'VAT (12%)')->assertJsonPath('data.items.1.subtotal', '1200.00');
     }
 
+    public function test_vat_free_event_types_and_clients_see_a_miscellaneous_charge(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        DB::table('platform_settings')->updateOrInsert(['key' => 'vat_percent'], ['value' => json_encode(12)]);
+        $wedding = DB::table('event_types')->whereNull('organization_id')->where('name', 'Wedding')->value('id');
+        $items = ['items' => [['description' => 'Package', 'quantity' => 1, 'unit_price' => 10000]]];
+
+        // Charges VAT, but not for weddings (the organizer covers it): the wedding offer has no VAT line.
+        $this->actingAs($owner)->spaJson('PATCH', "/api/v1/organizations/{$org->id}/profile", ['estimate_tax_percent' => 12, 'vat_exempt_event_types' => [$wedding]])
+            ->assertOk()->assertJsonPath('data.vat_exempt_event_types.0', $wedding);
+        $id = $this->inquiry($org);
+        $this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/inquiries/{$id}")->assertJsonPath('data.vat_applies', false);
+        $this->quote($owner, $org, $id, $items)->assertCreated()->assertJsonPath('data.total_amount', '10000.00')->assertJsonCount(1, 'data.items');
+
+        // Not exempt any more: VAT is added; the organizer sees "VAT", the client "Miscellaneous charges" (same amount).
+        $this->actingAs($owner)->spaJson('PATCH', "/api/v1/organizations/{$org->id}/profile", ['vat_exempt_event_types' => []])->assertOk();
+        $other = $this->inquiry($org);
+        $this->quote($owner, $org, $other, $items)->assertCreated()->assertJsonPath('data.total_amount', '11200.00')->assertJsonPath('data.items.1.description', 'VAT (12%)');
+        $this->actingAs($this->client)->spaJson('GET', "/api/v1/inquiries/{$other}/quotations")->assertOk()
+            ->assertJsonPath('data.0.items.1.description', 'Miscellaneous charges')->assertJsonPath('data.0.items.1.subtotal', '1200.00');
+        $this->assertStringNotContainsString('VAT', $this->actingAs($this->client)->spaJson('GET', "/api/v1/inquiries/{$other}/quotations")->getContent());
+    }
+
     public function test_revising_replaces_the_offer_and_keeps_the_earlier_version(): void
     {
         [$org, $owner] = $this->listedOrganizer();

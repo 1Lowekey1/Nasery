@@ -45,6 +45,11 @@ Run them with PHP 8.5.10: `C:\xampp\php8.5.10\php.exe artisan …`
   - Davao Tech Summit (**live now**: doors open, check-ins and walk-ins)
   - Sunset Acoustic Night (upcoming)
   - Davao Food Expo (last month, completed)
+- **Organizer field test (2026-11-18):**
+  - Davao Dream's and Mindanao Grand's main price list items have a description and an "includes" list (shown as package cards on their pages). No pictures: organizers add their own.
+  - Davao Dream doesn't charge VAT on **weddings** (set after the past bookings, so their offers keep VAT). **Faith & Marco Garden Wedding** (Faith, open, no offer yet): Maria's offer has no VAT. Miguel's corporate offers show VAT as "Miscellaneous charges".
+  - Mood boards (colour palettes): Faith's wedding (2), Miguel's Northwind anniversary (1), Bea's **Santos–Lim Wedding** (3), which Ken sees in My Assignments.
+  - **Enzo's refund request** on the Kadayawan Street Food Festival waits for Maria (Ticketing & Attendance → Payments: Refund or Decline).
 - **Newer features (2026-11):**
   - requests carry the client's event name ("Northwind Davao 10th Anniversary", "Sofia's Sunset Debut"); Rafael's has none, so it shows the default "Reunion for Rafael …"
   - event tags include **Seminar** (Mindanao Grand, Davao Ushers) and **Reunion** (Matina Kitchen, Calinan Garden)

@@ -54,6 +54,8 @@
 										<td class="px-3 py-2">Mobile number, e.g. 0917 123 4567 (up to 40 characters).</td></tr>
 									<tr><td class="px-3 py-2 font-mono font-semibold">tier</td><td class="px-3 py-2 text-gray-500">Optional</td>
 										<td class="px-3 py-2">A ticket tier name of this event: <span class="font-semibold">{{ tierNames || 'none yet' }}</span>. Blank uses the default tier below.</td></tr>
+									<tr><td class="px-3 py-2 font-mono font-semibold">seat</td><td class="px-3 py-2 text-gray-500">Optional</td>
+										<td class="px-3 py-2">Their table or seat, e.g. Table 4 or A12 (up to 30 characters). It's printed on their ticket.</td></tr>
 								</tbody>
 							</table>
 						</div>
@@ -84,11 +86,11 @@
 							</ul>
 							<div v-if="preview.rows.length" class="mt-3 overflow-x-auto rounded-xl border border-gray-200">
 								<table class="w-full text-left text-xs">
-									<thead class="bg-gray-50 text-gray-500"><tr><th class="px-3 py-2">#</th><th class="px-3 py-2">Name</th><th class="px-3 py-2">E-mail</th><th class="px-3 py-2">Contact</th><th class="px-3 py-2">Tier</th></tr></thead>
+									<thead class="bg-gray-50 text-gray-500"><tr><th class="px-3 py-2">#</th><th class="px-3 py-2">Name</th><th class="px-3 py-2">E-mail</th><th class="px-3 py-2">Contact</th><th class="px-3 py-2">Tier</th><th class="px-3 py-2">Seat</th></tr></thead>
 									<tbody class="divide-y divide-gray-100 text-gray-700">
 										<tr v-for="(r, i) in preview.rows.slice(0, 5)" :key="i">
 											<td class="px-3 py-1.5 text-gray-400">{{ i + 2 }}</td><td class="px-3 py-1.5 font-semibold">{{ r.name }}</td>
-											<td class="px-3 py-1.5">{{ r.email }}</td><td class="px-3 py-1.5">{{ r.contact }}</td><td class="px-3 py-1.5">{{ r.tier || defaultTierName }}</td>
+											<td class="px-3 py-1.5">{{ r.email }}</td><td class="px-3 py-1.5">{{ r.contact }}</td><td class="px-3 py-1.5">{{ r.tier || defaultTierName }}</td><td class="px-3 py-1.5">{{ r.seat || '—' }}</td>
 										</tr>
 									</tbody>
 								</table>
@@ -148,7 +150,7 @@
 import { ApiError } from '~/composables/useApi'
 
 type Tier = { id: string | number, name: string }
-type Row = { name: string, email: string, contact: string, tier: string }
+type Row = { name: string, email: string, contact: string, tier: string, seat: string }
 
 const props = defineProps<{
 	open: boolean
@@ -192,6 +194,7 @@ const aliases: Record<string, string> = {
 	'full name': 'name', 'full_name': 'name', 'guest': 'name', 'guest name': 'name', 'attendee': 'name',
 	'e-mail': 'email', 'email address': 'email', 'phone': 'contact', 'contact number': 'contact', 'mobile': 'contact',
 	'mobile number': 'contact', 'phone number': 'contact', 'ticket': 'tier', 'ticket type': 'tier', 'ticket tier': 'tier', 'zone': 'tier',
+	'table': 'seat', 'table number': 'seat', 'table no': 'seat', 'table no.': 'seat', 'seat number': 'seat', 'seating': 'seat', 'table or seat': 'seat',
 	'first name': 'first_name', 'firstname': 'first_name', 'given name': 'first_name',
 	'last name': 'last_name', 'lastname': 'last_name', 'surname': 'last_name', 'family name': 'last_name',
 }
@@ -224,7 +227,7 @@ function parse(text: string) {
 		const cells = splitLine(line, d)
 		const get = (k: string) => { const i = header.indexOf(k); return i >= 0 ? cells[i] ?? '' : '' }
 		const name = get('name') || `${get('first_name')} ${get('last_name')}`.trim()
-		return { name, email: get('email'), contact: get('contact'), tier: get('tier') }
+		return { name, email: get('email'), contact: get('contact'), tier: get('tier'), seat: get('seat') }
 	})
 	return { rows, headerOk }
 }
@@ -242,6 +245,7 @@ const problems = computed(() => {
 		else if (r.name.length > 120) list.push(`Row ${line}: the name is longer than 120 characters.`)
 		if (r.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email)) list.push(`Row ${line}: “${r.email}” isn't a valid e-mail address.`)
 		if (r.contact.length > 40) list.push(`Row ${line}: the contact number is too long.`)
+		if (r.seat.length > 30) list.push(`Row ${line}: the table or seat is too long (up to 30 characters).`)
 		if (r.tier && !known.has(r.tier.toLowerCase())) list.push(`Row ${line}: there's no ticket tier called “${r.tier}”${tierNames.value ? ` (tiers: ${tierNames.value})` : ''}.`)
 	})
 	return list
@@ -273,7 +277,7 @@ function onDrop(e: DragEvent) { dragging.value = false; void load(e.dataTransfer
 
 function downloadTemplate() {
 	const [first, second] = [props.tiers[0]?.name ?? '', props.tiers[1]?.name ?? props.tiers[0]?.name ?? '']
-	const rows = [['name', 'email', 'contact', 'tier'], ['Juan Dela Cruz', 'juan@example.com', '0917-123-4567', first], ['Maria Santos', '', '0918-765-4321', second], ['Pedro Reyes', 'pedro@example.com', '', '']]
+	const rows = [['name', 'email', 'contact', 'tier', 'seat'], ['Juan Dela Cruz', 'juan@example.com', '0917-123-4567', first, 'Table 1'], ['Maria Santos', '', '0918-765-4321', second, 'Table 2'], ['Pedro Reyes', 'pedro@example.com', '', '', '']]
 	const csv = '﻿' + rows.map(r => r.map(v => (/[",;\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)).join(',')).join('\r\n')
 	const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
 	const a = document.createElement('a')

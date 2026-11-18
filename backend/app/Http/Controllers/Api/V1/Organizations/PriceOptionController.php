@@ -7,6 +7,7 @@ use App\Models\Organization;
 use App\Models\OrganizationPriceOption;
 use App\Models\OrganizationService;
 use App\Services\Billing\Entitlements;
+use App\Services\Media\ImageStore;
 use App\Support\Audit\AuditLogger;
 use App\Support\Http\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -71,6 +72,55 @@ class PriceOptionController extends Controller
         return ApiResponse::success(null, 'Price option removed.');
     }
 
+    /** 0063: add a picture to the item's gallery (up to 10; the first is the cover). */
+    public function storeImage(Request $request, Organization $organization, OrganizationPriceOption $priceOption, ImageStore $images): JsonResponse
+    {
+        Gate::authorize('manage', $organization);
+        $request->validate(['image' => ['required', 'file', 'max:'.(int) ceil(config('nasery.media.max_bytes') / 1024)]],
+            ['image.required' => 'Choose an image to upload.', 'image.max' => 'Choose an image under 5 MB.']);
+        if (count($priceOption->images ?? []) >= OrganizationPriceOption::IMAGE_LIMIT) {
+            throw ValidationException::withMessages(['image' => 'You can add up to '.OrganizationPriceOption::IMAGE_LIMIT.' pictures. Remove one first.']);
+        }
+
+        $path = $images->store($request->file('image'), 'price-option');
+        try {
+            $priceOption->forceFill(['images' => [...($priceOption->images ?? []), $path]])->save();
+        } catch (\Throwable $e) {
+            $images->delete($path);
+            throw $e;
+        }
+        $this->audit->record('organization.price_option_image_added', $priceOption, organizationId: $organization->id);
+
+        return ApiResponse::success($priceOption->toApi(), 'Picture added.');
+    }
+
+    public function destroyImage(Organization $organization, OrganizationPriceOption $priceOption, string $image, ImageStore $images): JsonResponse
+    {
+        Gate::authorize('manage', $organization);
+        $path = "price-options/{$image}.webp";
+        $current = $priceOption->images ?? [];
+        if (in_array($path, $current, true)) {
+            $priceOption->forceFill(['images' => array_values(array_filter($current, fn ($p) => $p !== $path))])->save();
+            $images->delete($path);
+            $this->audit->record('organization.price_option_image_removed', $priceOption, organizationId: $organization->id);
+        }
+
+        return ApiResponse::success($priceOption->toApi(), 'Picture removed.');
+    }
+
+    /** 0063: make a picture the cover (first in the gallery). */
+    public function coverImage(Organization $organization, OrganizationPriceOption $priceOption, string $image): JsonResponse
+    {
+        Gate::authorize('manage', $organization);
+        $path = "price-options/{$image}.webp";
+        $current = $priceOption->images ?? [];
+        if (in_array($path, $current, true)) {
+            $priceOption->forceFill(['images' => [$path, ...array_values(array_filter($current, fn ($p) => $p !== $path))]])->save();
+        }
+
+        return ApiResponse::success($priceOption->toApi(), 'Cover picture changed.');
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -92,6 +142,9 @@ class PriceOptionController extends Controller
             // 0052: event types the option is for (names, like the profile's event tags); none = every type.
             'event_tags' => ['sometimes', 'array', 'max:30'],
             'event_tags.*' => ['string', 'distinct', 'max:60'],
+            // 0062: what the item includes, one short line each.
+            'includes' => ['sometimes', 'array', 'max:20'],
+            'includes.*' => ['nullable', 'string', 'max:80'],
             'is_active' => ['sometimes', 'boolean'],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:1000'],
         ]);
@@ -109,6 +162,9 @@ class PriceOptionController extends Controller
         }
         if (array_key_exists('event_tags', $data)) {
             $data['event_tags'] = array_values(array_unique(array_filter(array_map(fn ($t) => trim((string) $t), $data['event_tags']), 'strlen')));
+        }
+        if (array_key_exists('includes', $data)) {
+            $data['includes'] = array_values(array_unique(array_filter(array_map(fn ($t) => trim((string) $t), $data['includes']), 'strlen')));
         }
         if (isset($data['min_quantity'], $data['max_quantity']) && $data['max_quantity'] < $data['min_quantity']) {
             throw ValidationException::withMessages(['max_quantity' => 'The most a client can pick must be at least the least.']);

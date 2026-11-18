@@ -38,6 +38,11 @@
 				<p class="whitespace-pre-line text-sm leading-6 text-gray-700">{{ inquiry.additional_requirements }}</p>
 			</div>
 
+			<div v-if="inquiry.mood_board?.length">
+				<p class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Mood board · {{ inquiry.mood_board.length }} picture{{ inquiry.mood_board.length === 1 ? '' : 's' }}</p>
+				<MoodBoard :images="inquiry.mood_board" :compact="compact" />
+			</div>
+
 			<div v-if="quotation">
 				<p class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Your accepted offer<template v-if="quotation.package_name"> · {{ quotation.package_name }}</template></p>
 				<div class="rounded-xl border border-gray-100">

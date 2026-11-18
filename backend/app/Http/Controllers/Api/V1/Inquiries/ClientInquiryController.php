@@ -61,6 +61,71 @@ class ClientInquiryController extends Controller
         return ApiResponse::success($this->detail($inquiry));
     }
 
+    /**
+     * 0062 (organizer field test): mood board and colour palette pictures. The
+     * client adds them until the event is over; organizers who get the request
+     * see them, and the booked organizer's team sees them while preparing.
+     */
+    public function addMoodImage(Request $request, Inquiry $inquiry, \App\Services\Media\ImageStore $images): JsonResponse
+    {
+        $this->assertBoardOpen($request, $inquiry);
+        $request->validate([
+            'image' => ['required', 'file', 'max:'.(int) ceil(config('nasery.media.max_bytes') / 1024)],
+            'caption' => ['nullable', 'string', 'max:120'],
+        ], ['image.required' => 'Choose an image to upload.', 'image.max' => 'Choose an image under 5 MB.']);
+
+        if (count($inquiry->mood_board ?? []) >= Inquiry::MOOD_BOARD_LIMIT) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['image' => 'You can add up to '.Inquiry::MOOD_BOARD_LIMIT.' pictures. Remove one first.']);
+        }
+
+        $path = $images->store($request->file('image'), 'mood');
+        $caption = filled($request->input('caption')) ? trim((string) $request->input('caption')) : null;
+        try {
+            $this->db->system('inquiry.mood_add', function () use ($inquiry, $path, $caption) {
+                $board = json_decode((string) DB::table('inquiries')->where('id', $inquiry->id)->lockForUpdate()->value('mood_board'), true) ?: [];
+                $board[] = ['path' => $path, 'caption' => $caption];
+                DB::table('inquiries')->where('id', $inquiry->id)->update(['mood_board' => json_encode(array_slice($board, 0, Inquiry::MOOD_BOARD_LIMIT)), 'updated_at' => now()]);
+            });
+        } catch (\Throwable $e) {
+            $images->delete($path);
+            throw $e;
+        }
+
+        return ApiResponse::created($this->detail($inquiry->refresh()), 'Picture added.');
+    }
+
+    public function removeMoodImage(Request $request, Inquiry $inquiry, string $image, \App\Services\Media\ImageStore $images): JsonResponse
+    {
+        $this->assertBoardOpen($request, $inquiry);
+        $path = "mood-boards/{$image}.webp";
+
+        $this->db->system('inquiry.mood_remove', function () use ($inquiry, $path) {
+            $board = json_decode((string) DB::table('inquiries')->where('id', $inquiry->id)->lockForUpdate()->value('mood_board'), true) ?: [];
+            $kept = array_values(array_filter($board, fn ($i) => ($i['path'] ?? null) !== $path));
+            DB::table('inquiries')->where('id', $inquiry->id)->update(['mood_board' => json_encode($kept), 'updated_at' => now()]);
+        });
+        $images->delete($path);
+
+        return ApiResponse::success($this->detail($inquiry->refresh()), 'Picture removed.');
+    }
+
+    /** Cancelled requests and finished (or cancelled) events keep their pictures as they are. */
+    private function boardClosed(Inquiry $inquiry): bool
+    {
+        return $inquiry->status->value === 'cancelled' || $this->db->system('inquiry.event_done', fn () => DB::table('events')
+            ->where('inquiry_id', $inquiry->id)->whereNull('deleted_at')->whereIn('status', ['completed', 'cancelled'])->exists());
+    }
+
+    private function assertBoardOpen(Request $request, Inquiry $inquiry): void
+    {
+        if ($inquiry->client_user_id !== $request->user()->id) {
+            throw new \App\Exceptions\ApiException(\App\Support\Http\ErrorCode::NotFound, 'The requested resource was not found.', 404);
+        }
+        if ($this->boardClosed($inquiry)) {
+            throw new \App\Exceptions\ApiException(\App\Support\Http\ErrorCode::InvalidStateTransition, 'This request is closed; its pictures can no longer change.', 409);
+        }
+    }
+
     public function update(InquiryRequest $request, Inquiry $inquiry): JsonResponse
     {
         // A draft is edited freely; a sent, open request is revised (0051).
@@ -158,6 +223,8 @@ class ClientInquiryController extends Controller
             'longitude' => $inquiry->longitude !== null ? (float) $inquiry->longitude : null,
             'match_radius_km' => $inquiry->match_radius_km !== null ? (float) $inquiry->match_radius_km : null,
             'additional_requirements' => $inquiry->additional_requirements,
+            'mood_board' => Inquiry::moodBoard($inquiry->mood_board),
+            'mood_board_open' => ! $this->boardClosed($inquiry),
             // 0051: changes after sending (capped).
             'revised_at' => $inquiry->revised_at?->toIso8601String(),
             'revisions_left' => max(0, Inquiry::MAX_REVISIONS - $inquiry->revision_count),

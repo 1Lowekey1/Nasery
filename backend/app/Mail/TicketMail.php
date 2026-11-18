@@ -2,7 +2,6 @@
 
 namespace App\Mail;
 
-use App\Support\Qr\QrImage;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
@@ -42,14 +41,15 @@ class TicketMail extends Mailable
 
     public function content(): Content
     {
-        $qr = app(QrImage::class);
+        $image = app(\App\Support\Qr\TicketImage::class);
 
         return new Content(
             view: 'mail.tickets',
             text: 'mail.tickets-text',
             with: [
                 'cards' => $this->cards,
-                'pngs' => $this->cards->mapWithKeys(fn ($c) => [$c['id'] => $c['token'] ? $qr->png($c['token'], 6) : null])->all(),
+                // Field test (Nov 2026): the image itself shows the event, ticket type, name and seat.
+                'pngs' => $this->cards->mapWithKeys(fn ($c) => [$c['id'] => $c['token'] ? $image->png($c) : null])->all(),
                 'reminder' => $this->kind === 'ticket_reminder',
                 'name' => $this->recipientName,
                 'myTickets' => config('nasery.auth.frontend_url').'/my-tickets',

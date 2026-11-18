@@ -54,7 +54,7 @@ class GuestList
     }
 
     /**
-     * CSV columns (header row, case-insensitive): name, email, contact, tier.
+     * CSV columns (header row, case-insensitive): name, email, contact, tier, seat (table or seat, optional).
      * All-or-nothing: any invalid row or insufficient capacity rejects the
      * whole file, with every problem listed.
      *
@@ -73,6 +73,7 @@ class GuestList
                 'name' => ['required', 'string', 'min:2', 'max:120'],
                 'email' => ['nullable', 'email', 'max:254'],
                 'contact' => ['nullable', 'string', 'max:40'],
+                'seat' => ['nullable', 'string', 'max:30'],
             ]);
 
             if ($v->fails()) {
@@ -92,7 +93,8 @@ class GuestList
                 }
             }
 
-            $guests[] = ['full_name' => $row['name'], 'email' => $row['email'] ?? null, 'contact_number' => self::localPhone($row['contact'] ?? null), 'tier' => $tier];
+            $guests[] = ['full_name' => $row['name'], 'email' => $row['email'] ?? null, 'contact_number' => self::localPhone($row['contact'] ?? null), 'tier' => $tier,
+                'seat_label' => filled($row['seat'] ?? null) ? trim($row['seat']) : null];
         }
 
         if ($rows !== [] && ! array_key_exists('name', $rows[0])) {
@@ -100,7 +102,7 @@ class GuestList
         }
 
         if ($guests === [] && $errors === []) {
-            $errors[] = 'The file has no guests. The first row must be the column names (name, email, contact, tier), then one guest per row.';
+            $errors[] = 'The file has no guests. The first row must be the column names (name, email, contact, tier, seat), then one guest per row.';
         }
 
         if ($errors !== []) {
@@ -265,7 +267,14 @@ class GuestList
                     'created_by_member_id' => $by->id,
                 ]);
 
-                return $this->issuer->issue($registration, $guest['tier'], [$guest], $admission)->first();
+                $ticket = $this->issuer->issue($registration, $guest['tier'], [$guest], $admission)->first();
+                // Organizer field test (Nov 2026): the import can give each guest a table or seat.
+                if (filled($guest['seat_label'] ?? null)) {
+                    DB::table('tickets')->where('id', $ticket->id)->update(['seat_label' => $guest['seat_label']]);
+                    $ticket->seat_label = $guest['seat_label'];
+                }
+
+                return $ticket;
             });
         });
 
@@ -422,6 +431,7 @@ class GuestList
         $aliases = ['full name' => 'name', 'full_name' => 'name', 'guest' => 'name', 'guest name' => 'name', 'attendee' => 'name',
             'e-mail' => 'email', 'email address' => 'email', 'phone' => 'contact', 'contact number' => 'contact', 'mobile' => 'contact',
             'mobile number' => 'contact', 'phone number' => 'contact', 'ticket' => 'tier', 'ticket type' => 'tier', 'ticket tier' => 'tier', 'zone' => 'tier',
+            'table' => 'seat', 'table number' => 'seat', 'table no' => 'seat', 'table no.' => 'seat', 'seat number' => 'seat', 'seating' => 'seat', 'table or seat' => 'seat',
             'first name' => 'first_name', 'firstname' => 'first_name', 'given name' => 'first_name',
             'last name' => 'last_name', 'lastname' => 'last_name', 'surname' => 'last_name', 'family name' => 'last_name'];
         $header = array_map(fn ($h) => $aliases[Str::lower(trim((string) $h))] ?? Str::lower(trim((string) $h)), str_getcsv(array_shift($lines), $delimiter));

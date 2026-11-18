@@ -221,7 +221,7 @@ class OrganizerQuotations
      */
     private function write(Quotation $quotation, Organization $organization, string $inquiryId, array $data): Quotation
     {
-        $lines = $this->withVat($organization, $this->lines($organization, $data['items']));
+        $lines = $this->withVat($organization, $this->lines($organization, $data['items']), $inquiryId);
         $total = array_sum(array_column($lines, 'subtotal_cents'));
 
         if ($total > 999_999_999_999) {
@@ -302,11 +302,19 @@ class OrganizerQuotations
      * @param  list<array{organization_service_id: ?string, description: string, quantity: string, unit_price: string, subtotal_cents: int}>  $lines
      * @return list<array{organization_service_id: ?string, description: string, quantity: string, unit_price: string, subtotal_cents: int}>
      */
-    private function withVat(Organization $organization, array $lines): array
+    private function withVat(Organization $organization, array $lines, ?string $inquiryId = null): array
     {
         $lines = array_values(array_filter($lines, fn ($l) => ! self::isVatLine($l['description'])));
-        $stored = DB::table('organization_profiles')->where('organization_id', $organization->id)->value('estimate_tax_percent');
-        $rate = app(PlatformSettings::class)->vatFor($stored);
+        $profile = DB::table('organization_profiles')->where('organization_id', $organization->id)->first(['estimate_tax_percent', 'vat_exempt_event_types']);
+        $rate = app(PlatformSettings::class)->vatFor($profile?->estimate_tax_percent);
+
+        // 0062 (organizer field test): no VAT for the event types the organizer exempts (e.g. weddings).
+        if ($rate !== null && $inquiryId !== null) {
+            $type = $this->db->system('quotation.event_type', fn () => DB::table('inquiries')->where('id', $inquiryId)->value('event_type_id'));
+            if ($type !== null && in_array($type, json_decode((string) ($profile->vat_exempt_event_types ?? '[]'), true) ?: [], true)) {
+                $rate = null;
+            }
+        }
         $base = array_sum(array_column($lines, 'subtotal_cents'));
 
         if ($rate !== null && $rate > 0 && $base > 0) {
@@ -316,6 +324,18 @@ class OrganizerQuotations
         }
 
         return $lines;
+    }
+
+    /**
+     * What a client sees for a cost line. Organizer field test (Nov 2026): clients were put
+     * off by a separate "VAT" line, so they see it as "Miscellaneous charges" (same amount).
+     * Organizers still see VAT on their side; it stays a VAT line in the database.
+     */
+    public const CLIENT_VAT_LABEL = 'Miscellaneous charges';
+
+    public static function forClient(string $description): string
+    {
+        return self::isVatLine($description) ? self::CLIENT_VAT_LABEL : $description;
     }
 
     public static function isVatLine(string $description): bool

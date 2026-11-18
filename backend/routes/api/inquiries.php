@@ -35,6 +35,10 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
             Route::post('{inquiry}/cancellation/respond', [BookingCancellationController::class, 'clientRespond'])->middleware('throttle:sensitive')->name('cancellation.respond');
             Route::delete('{inquiry}/cancellation', [BookingCancellationController::class, 'clientWithdraw'])->middleware('throttle:sensitive')->name('cancellation.withdraw');
             Route::post('{inquiry}/cancel', [ClientInquiryController::class, 'cancel'])->middleware('throttle:sensitive')->name('cancel');
+            // 0062: mood board / colour palette pictures.
+            Route::post('{inquiry}/mood-board', [ClientInquiryController::class, 'addMoodImage'])->middleware('throttle:sensitive')->name('mood.store');
+            Route::delete('{inquiry}/mood-board/{image}', [ClientInquiryController::class, 'removeMoodImage'])
+                ->where('image', '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')->middleware('throttle:sensitive')->name('mood.destroy');
         });
 
         // Organizers ("Matching inquiries")

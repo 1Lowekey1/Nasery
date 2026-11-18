@@ -201,6 +201,11 @@
 							{{ inquiry.additional_details }}
 						</p>
 					</div>
+					<!-- 0062 (organizer field test): the client's mood board / colour palette. -->
+					<div v-if="inquiry.mood_board?.length" class="mt-3">
+						<p class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">Mood board · {{ inquiry.mood_board.length }}</p>
+						<MoodBoard :images="inquiry.mood_board" compact />
+					</div>
 				</div>
 
 				<div
@@ -381,7 +386,7 @@
 								</label>
 							</div>
 							<p v-if="!shownOptions.length" class="text-sm text-gray-500">None of your options are tagged for {{ offerForm.eventType || 'this event' }}. Tick “Show all my options”, or tag them in <NuxtLink to="/organizer/price-list" class="font-semibold text-primary-700 underline">Price list</NuxtLink>.</p>
-							<PricingPriceCalculator v-else :key="showAllOptions ? 'all' : 'fit'" compact :collapse-over="8" :options="shownOptions" :services="builderServices" :settings="builderSettings"
+							<PricingPriceCalculator v-else :key="showAllOptions ? 'all' : 'fit'" organizer-view compact :collapse-over="8" :options="shownOptions" :services="builderServices" :settings="{ ...builderSettings, tax_percent: orgVatRate || null }"
 								:initial-guests="Number(offerForm.guests) || 1">
 								<template #action="{ estimate, guests }">
 									<div class="mt-3 flex justify-end">
@@ -546,6 +551,8 @@ interface InquiryClient {
 
 interface MatchingInquiry {
 	id: number
+	/** 0062: the client's mood board / colour palette pictures. */
+	mood_board?: { id: string, url: string | null, caption: string | null }[]
 	client_id: number
 	event_title: string | null
 	event_type: string
@@ -725,6 +732,8 @@ async function loadMatchingInquiries(quiet = false) {
 			allItems(page => useOrganizerInquiries().list(orgId, ['pending', 'viewed'], page)),
 			useOrganizerQuotations().list(orgId).catch(() => null),
 		])
+		// 0062: VAT per request (organizers can make some event types VAT-free).
+		vatApplies.value = Object.fromEntries(invited.map(i => [String(i.inquiry_id), i.vat_applies !== false]))
 		inquiries.value = invited
 			.filter(i => i.is_open && (!i.quotation || i.quotation.status === 'draft'))
 			.map(i => {
@@ -751,6 +760,7 @@ async function loadMatchingInquiries(quiet = false) {
 					created_at: i.invited_at,
 					updated_at: i.responded_at ?? i.invited_at,
 					quotations_count: 0,
+					mood_board: i.mood_board ?? [],
 					client: { id: 0, user_id: 0, user: { id: 0, firstname: firstname ?? i.client, middlename: null, lastname: rest.join(' ') } },
 				}
 			})
@@ -1016,7 +1026,11 @@ const breakdown = computed(() => {
 	]
 	return { subtotal, charges, total: cents(subtotal + service + vat) }
 })
-const orgVatRate = computed(() => Number((useOrganization().organization.value?.profile as { estimate_tax_percent?: number | null } | undefined)?.estimate_tax_percent) || 0)
+const vatApplies = ref<Record<string, boolean>>({})
+const orgVatRate = computed(() => {
+	if (selectedInquiryId.value !== null && vatApplies.value[String(selectedInquiryId.value)] === false) return 0
+	return Number((useOrganization().organization.value?.profile as { estimate_tax_percent?: number | null } | undefined)?.estimate_tax_percent) || 0
+})
 function removeCharge(key: 'service' | 'vat') {
 	offerForm.chargePercents = { ...offerForm.chargePercents, [key]: 0 }
 }

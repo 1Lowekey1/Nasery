@@ -45,6 +45,10 @@ export interface ClientInquiry {
   longitude?: number | null
   match_radius_km?: number | null
   additional_requirements?: string | null
+  /** 0062: mood board / colour palette pictures. */
+  mood_board?: { id: string, url: string | null, caption: string | null }[]
+  /** 0062: false once the request is cancelled or its event is over. */
+  mood_board_open?: boolean
   /** 0051: when the client last changed the request after sending it, and how many changes remain. */
   revised_at?: string | null
   revisions_left?: number
@@ -74,6 +78,10 @@ export interface OrganizerInquiry {
   location_text: string | null
   services: { name: string | null, notes: string | null }[]
   additional_requirements: string | null
+  /** 0062: the client's mood board / colour palette pictures. */
+  mood_board?: { id: string, url: string | null, caption: string | null }[]
+  /** 0062: whether NaSeRy adds VAT to this organizer's offer (some event types can be VAT-free). */
+  vat_applies?: boolean
   /** This organization's latest quotation for the inquiry (B5). */
   quotation: { id: string, status: 'draft' | 'submitted' | 'accepted' | 'rejected' | 'withdrawn' | 'cancelled', total_amount: string, before_changes?: boolean } | null
   /** 0051: when the client last changed the request after sending it. */
@@ -115,6 +123,14 @@ export const useInquiries = () => {
       return { items: r.data, pagination: r.meta?.pagination as { current_page: number, last_page: number, total: number } }
     },
     show: async (id: string) => (await api.get<ClientInquiry>(`/inquiries/${id}`)).data,
+    /** 0062: add a mood board picture / remove one. Both return the updated request. */
+    addMoodImage: async (id: string, file: File, caption?: string | null) => {
+      const data = new FormData()
+      data.append('image', file)
+      if (caption) data.append('caption', caption)
+      return (await api.post<ClientInquiry>(`/inquiries/${id}/mood-board`, data)).data
+    },
+    removeMoodImage: async (id: string, imageId: string) => (await api.delete<ClientInquiry>(`/inquiries/${id}/mood-board/${imageId}`)).data,
     create: async (payload: InquiryPayload) => (await api.post<ClientInquiry>('/inquiries', payload)).data,
     update: async (id: string, payload: InquiryPayload) => (await api.patch<ClientInquiry>(`/inquiries/${id}`, payload)).data,
     remove: (id: string) => api.delete(`/inquiries/${id}`),

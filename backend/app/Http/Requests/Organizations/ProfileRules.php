@@ -34,6 +34,9 @@ final class ProfileRules
             // A full http(s) address, "facebook.com/page" or "@handle": never another scheme (javascript:, data:).
             "{$prefix}facebook" => ['nullable', 'string', 'max:255', 'regex:~^(https?://\S+|@?[A-Za-z0-9._\-/]+)$~i'],
             "{$prefix}instagram" => ['nullable', 'string', 'max:255', 'regex:~^(https?://\S+|@?[A-Za-z0-9._\-/]+)$~i'],
+            // 0062: event types the organizer doesn't charge VAT for (ids).
+            "{$prefix}vat_exempt_event_types" => ['sometimes', 'array', 'max:50'],
+            "{$prefix}vat_exempt_event_types.*" => ['uuid', 'distinct'],
             "{$prefix}banner_color" => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             // 0048: estimate settings.
             "{$prefix}estimate_service_charge_percent" => ['nullable', 'numeric', 'min:0', 'max:30', 'decimal:0,2'],

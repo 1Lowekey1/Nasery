@@ -14,7 +14,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     // 0046: details from the business profile panel.
     'years_experience', 'service_radius_km', 'event_tags', 'specialties', 'website', 'facebook', 'instagram', 'banner_color',
     // 0048: estimate settings shown with every client estimate.
-    'estimate_service_charge_percent', 'estimate_tax_percent', 'estimate_note'])]
+    'estimate_service_charge_percent', 'estimate_tax_percent', 'estimate_note',
+    // 0062: event types with no VAT (e.g. weddings, where the organizer covers it).
+    'vat_exempt_event_types'])]
 class OrganizationProfile extends Model
 {
     protected $attributes = [
@@ -39,6 +41,7 @@ class OrganizationProfile extends Model
             'estimate_service_charge_percent' => 'decimal:2',
             'estimate_tax_percent' => 'decimal:2',
             'specialties' => 'array',
+            'vat_exempt_event_types' => 'array',
         ];
     }
 

@@ -61,7 +61,7 @@ class AttendanceReport
             'event_type' => $typeId ? DB::table('event_types')->where('id', $typeId)->value('name') : null,
             'requested_guests' => $inquiry?->guest_count,
             'description' => $event->description,
-            'package' => $withPackage ? $this->package($event) : null,
+            'package' => $withPackage ? $this->package($event, $forClient) : null,
             'tasks' => ['done' => $tasks->filter(fn ($s) => $s === 'done')->count(), 'total' => $tasks->count()],
             'program' => $program->map(fn ($a) => [
                 'title' => $a->title,
@@ -74,7 +74,7 @@ class AttendanceReport
     }
 
     /** @return array<string, mixed>|null the accepted offer and the final agreed price */
-    private function package(Event $event): ?array
+    private function package(Event $event, bool $forClient = false): ?array
     {
         $quotation = $event->accepted_quotation_id
             ? DB::table('quotations')->where('id', $event->accepted_quotation_id)->first(['id', 'package_name', 'total_amount'])
@@ -87,7 +87,8 @@ class AttendanceReport
             'name' => $quotation?->package_name,
             'items' => $quotation ? DB::table('quotation_items')->where('quotation_id', $quotation->id)->orderBy('created_at')
                 ->get(['description', 'quantity', 'subtotal'])->map(fn ($i) => [
-                    'description' => $i->description, 'quantity' => (float) $i->quantity, 'subtotal' => $i->subtotal,
+                    'description' => $forClient ? \App\Services\Quotations\OrganizerQuotations::forClient($i->description) : $i->description,
+                    'quantity' => (float) $i->quantity, 'subtotal' => $i->subtotal,
                 ])->values()->all() : [],
             'quoted_total' => $quotation?->total_amount,
             'agreed_amount' => $event->agreed_amount,

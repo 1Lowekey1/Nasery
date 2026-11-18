@@ -121,6 +121,7 @@ class EventTeamController extends Controller
             ->join('checklists as c', 'c.id', '=', 't.checklist_id')
             ->join('events as e', 'e.id', '=', 'c.event_id')
             ->leftJoin('event_types as et', 'et.id', '=', 'e.event_type_id')
+            ->leftJoin('inquiries as iq', 'iq.id', '=', 'e.inquiry_id')
             ->where('em.organization_member_id', $member->id)->where('em.status', MembershipStatus::Active->value)->whereNull('em.deleted_at')
             ->whereNull('t.deleted_at')->whereNull('c.deleted_at')->whereNull('e.deleted_at')
             ->whereIn('e.status', ['draft', 'published', 'ongoing'])
@@ -129,7 +130,7 @@ class EventTeamController extends Controller
             ->limit(200)
             ->get(['t.id', 't.name', 't.description', 't.status', 't.priority', 't.due_at', 'ta.assigned_at', 'c.name as checklist', 'e.id as event_id', 'e.name as event', 'e.timezone',
                 // 0044 review state, and the event's type and first session (team dashboard).
-                't.completion_note', 't.review_status', 't.review_note', 'et.name as event_type',
+                't.completion_note', 't.review_status', 't.review_note', 'et.name as event_type', 'iq.mood_board',
                 DB::raw('(select min(s.starts_at) from event_sessions s where s.event_id = e.id and s.deleted_at is null) as event_starts_at')]);
 
         return ApiResponse::success($tasks->map(fn ($t) => [
@@ -139,6 +140,8 @@ class EventTeamController extends Controller
             'assigned_at' => CarbonImmutable::parse($t->assigned_at)->toIso8601String(),
             'completion_note' => $t->completion_note, 'review_status' => $t->review_status, 'review_note' => $t->review_note,
             'event_type' => $t->event_type,
+            // 0062: the client's mood board, while the team prepares.
+            'mood_board' => \App\Models\Inquiry::moodBoard($t->mood_board),
             'event_starts_at' => $t->event_starts_at ? CarbonImmutable::parse($t->event_starts_at)->setTimezone($t->timezone)->toIso8601String() : null,
         ])->values());
     }

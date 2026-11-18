@@ -179,4 +179,71 @@ class ImageUploadTest extends TestCase
             $this->get($path)->assertNotFound();
         }
     }
+
+    /** 0062 (organizer field test): price list items get a picture and an "includes" list. */
+    public function test_price_list_items_have_pictures_and_inclusions(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        [, $other] = $this->listedOrganizer();
+        $base = "/api/v1/organizations/{$org->id}/price-options";
+        $id = $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'Bridal package', 'pricing_unit' => 'flat', 'price' => 50000,
+            'includes' => ['Bridal car', ' 2 photographers ', '', 'Bridal car']])->assertCreated()
+            ->assertJsonPath('data.includes', ['Bridal car', '2 photographers'])->assertJsonPath('data.image_url', null)->json('data.id');
+
+        $this->upload($other, "{$base}/{$id}/images", 'car.png', $this->png(800, 600))->assertNotFound();
+        $url = $this->upload($owner, "{$base}/{$id}/images", 'car.png', $this->png(800, 600))->assertOk()->json('data.image_url');
+        $this->assertFileExists($this->stored($url));
+        $this->get(Str::after($url, url('/')))->assertOk()->assertHeader('Content-Type', 'image/webp');
+
+        // 0063: a gallery of up to 10; the first is the cover, and any can be made the cover.
+        $images = $this->upload($owner, "{$base}/{$id}/images", 'car2.png', $this->png(640, 480))->assertOk()
+            ->assertJsonPath('data.image_url', $url)->assertJsonCount(2, 'data.images')->json('data.images');
+        $this->getJson("/api/v1/marketplace/organizers/{$org->slug}")->assertOk()
+            ->assertJsonPath('data.price_options.0.image_url', $url)->assertJsonPath('data.price_options.0.images.1.url', $images[1]['url'])
+            ->assertJsonPath('data.price_options.0.includes.1', '2 photographers');
+        $this->actingAs($owner)->spaJson('POST', "{$base}/{$id}/images/{$images[1]['id']}/cover")->assertOk()
+            ->assertJsonPath('data.image_url', $images[1]['url'])->assertJsonPath('data.images.1.id', $images[0]['id']);
+        for ($i = 2; $i < 10; $i++) {
+            $this->upload($owner, "{$base}/{$id}/images", "p{$i}.png", $this->png(300, 200))->assertOk();
+        }
+        $this->upload($owner, "{$base}/{$id}/images", 'p10.png', $this->png(300, 200))->assertUnprocessable();
+
+        // Removing deletes the file and keeps the rest.
+        $this->actingAs($owner)->spaJson('DELETE', "{$base}/{$id}/images/{$images[0]['id']}")->assertOk()
+            ->assertJsonCount(9, 'data.images')->assertJsonPath('data.image_url', $images[1]['url']);
+        $this->assertFileDoesNotExist($this->stored($url));
+    }
+
+    /** 0062: the client's mood board, seen by organizers who get the request and the event team. */
+    public function test_clients_add_mood_board_pictures_that_invited_organizers_see(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $client = User::factory()->create();
+        $stranger = User::factory()->create();
+        $id = $this->actingAs($client)->spaJson('POST', '/api/v1/inquiries', [
+            'event_type_id' => DB::table('event_types')->whereNull('organization_id')->where('name', 'Wedding')->value('id'),
+            'requested_date' => now()->addMonths(3)->toDateString(), 'guest_count' => 80, 'location_text' => 'Lanang, Davao City',
+            'services' => [['custom_service_name' => 'Wedding coordination']],
+        ])->assertCreated()->json('data.id');
+        $board = "/api/v1/inquiries/{$id}/mood-board";
+
+        $this->upload($stranger, $board, 'palette.png', $this->png(600, 400))->assertNotFound();
+        $first = $this->actingAs($client)->call('POST', $board, ['caption' => 'Sage and cream'], [], ['image' => UploadedFile::fake()->createWithContent('palette.png', $this->png(600, 400))],
+            $this->transformHeadersToServerVars([...self::SPA, 'Accept' => 'application/json']))
+            ->assertCreated()->assertJsonPath('data.mood_board.0.caption', 'Sage and cream')->json('data.mood_board.0');
+        $this->get(Str::after($first['url'], url('/')))->assertOk()->assertHeader('Content-Type', 'image/webp');
+        $this->upload($client, $board, 'tables.png', $this->png(600, 400))->assertCreated()->assertJsonCount(2, 'data.mood_board');
+
+        $this->actingAs($client)->spaJson('POST', "/api/v1/inquiries/{$id}/submit", ['mode' => 'direct', 'organization_ids' => [$org->id]],
+            ['Idempotency-Key' => (string) Str::uuid()])->assertOk();
+        $this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/inquiries/{$id}")->assertOk()
+            ->assertJsonCount(2, 'data.mood_board')->assertJsonPath('data.mood_board.0.url', $first['url']);
+
+        $this->actingAs($client)->spaJson('DELETE', "{$board}/{$first['id']}")->assertOk()->assertJsonCount(1, 'data.mood_board');
+        $this->assertFileDoesNotExist($this->stored($first['url']));
+
+        // At most 8 pictures.
+        DB::table('inquiries')->where('id', $id)->update(['mood_board' => json_encode(array_fill(0, 8, ['path' => 'mood-boards/'.Str::uuid().'.webp', 'caption' => null]))]);
+        $this->upload($client, $board, 'one-more.png', $this->png(600, 400))->assertUnprocessable();
+    }
 }

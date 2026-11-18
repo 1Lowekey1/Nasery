@@ -31,6 +31,9 @@ class ImageStore
         'logo' => ['logos', 512, 512, 'contain'],
         'cover' => ['covers', 1600, 600, 'cover'],
         'event-cover' => ['event-covers', 1600, 900, 'cover'],
+        // 0062 (organizer field test): a picture per price list item, and the client's mood board.
+        'price-option' => ['price-options', 1200, 900, 'cover'],
+        'mood' => ['mood-boards', 1600, 1200, 'contain'],
     ];
 
     private const TYPES = [IMAGETYPE_JPEG => 'image/jpeg', IMAGETYPE_PNG => 'image/png', IMAGETYPE_WEBP => 'image/webp'];

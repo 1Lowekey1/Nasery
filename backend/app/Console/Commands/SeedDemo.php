@@ -140,6 +140,9 @@ class SeedDemo extends Command
         $this->publicEvents();
         $this->platform();
         $this->payouts();
+        // Field test: Davao Dream covers VAT on weddings. Set last, so the offers above keep theirs.
+        DB::table('organization_profiles')->where('organization_id', $this->orgs['dream']->id)
+            ->update(['vat_exempt_event_types' => json_encode(array_values(array_filter([$this->typeId('Wedding')])))]);
         $this->backdate();
         $this->call('nasery:demo:event');
 
@@ -325,6 +328,34 @@ class SeedDemo extends Command
                 'Security & Ushers' => [['Usher (8-hour shift)', 'per_unit', 1200, 'usher', 2, 40], ['Licensed security guard (8 hours)', 'per_unit', 1500, 'guard', 2, 30]],
             ],
         ];
+        // 0062 (field test): what the main items include, shown on the package cards and full view.
+        // label => [description, includes]. No pictures yet: organizers add their own.
+        $optionDetails = [
+            'dream' => [
+                'Full wedding coordination' => ['From your first planning meeting to the last dance: one lead coordinator, a full team on the day, and a timeline everyone can follow.',
+                    ['Lead coordinator from day one', 'Supplier sourcing and contracts', '3 planning meetings', 'Day-of team of 6', 'Ceremony and reception program', 'Rehearsal on the eve']],
+                'Day-of coordination only' => ['You plan it; we run it. We take over a week before so you can enjoy the day.',
+                    ['Final walkthrough a week before', 'Day-of team of 4', 'Supplier calls on the day']],
+                'Partial planning' => ['We join halfway: you have the venue, we bring the suppliers together and run the day.',
+                    ['2 planning meetings', 'Supplier shortlist', 'Day-of team of 4']],
+                'Garden styling' => ['Fresh, natural styling for garden and outdoor venues: greenery, florals and warm lighting.',
+                    ['Ceremony aisle florals', 'Fairy-light canopy', 'Table centerpieces', 'Welcome signage']],
+                'Grand ballroom styling' => ['Elegant ballroom set-ups with draping, chandeliers and a stage backdrop.',
+                    ['Ceiling draping', 'Stage backdrop', 'Chandelier accents', 'Sweetheart table']],
+                'Emcee' => ['A bilingual host who keeps the program on time and the guests involved.', ['Program script', 'Games for guests', 'Coordination with the band or DJ']],
+                'Basic lights and sound' => ['A sound system and lighting for programs up to 200 guests, with an operator.',
+                    ['2 speakers and a mixer', '2 wireless mics', 'Warm wash lights', 'Operator for the event']],
+                'Same-day edit video' => ['A 3–4 minute highlight film, edited during the reception and shown before the night ends.',
+                    ['2 videographers', '3–4 minute film', 'Shown at the reception', 'Full-HD file the next day']],
+            ],
+            'grand' => [
+                'Filipino buffet' => ['Home-style Filipino favorites, cooked in our Lanang kitchen and served hot.', ['5 main dishes', 'Rice and dessert', 'Iced tea', 'Buffet staff for 4 hours']],
+                'International buffet' => ['A wider spread for corporate guests, with halal-friendly options on request.', ['7 main dishes', 'Carving station', 'Dessert bar', 'Coffee and tea']],
+                'Conference setup and coordination' => ['Registration, room set-up and a stage manager for talks and workshops.',
+                    ['Registration desk', 'Theater or classroom set-up', 'Stage manager', 'Name tags']],
+            ],
+        ];
+
         // Service charge %, VAT %, note under the estimate
         $estimates = [
             'dream' => [10, 12, 'Out-of-town events add a transport fee.'],
@@ -376,7 +407,7 @@ class SeedDemo extends Command
                 $offered[$service] = DB::table('organization_services')->where('organization_id', $org->id)->where('service_id', $serviceId)->whereNull('deleted_at')->value('id');
             }
             if (isset($prices[$key])) {
-                $this->as($owner, function () use ($org, $prices, $key, $offered, $optionTags) {
+                $this->as($owner, function () use ($org, $prices, $key, $offered, $optionTags, $optionDetails) {
                     $sort = 0;
                     foreach ($prices[$key] as $service => $options) {
                         foreach ($options as $o) {
@@ -386,6 +417,8 @@ class SeedDemo extends Command
                                 'name' => $label, 'pricing_unit' => $unit, 'price' => $price, 'is_active' => true, 'sort_order' => $sort++,
                                 'unit_label' => $o[3] ?? null, 'min_quantity' => $o[4] ?? null, 'max_quantity' => $o[5] ?? null, 'min_guests' => $o[6] ?? null,
                                 'event_tags' => $optionTags[$key][$label] ?? [],
+                                'description' => $optionDetails[$key][$label][0] ?? null,
+                                'includes' => $optionDetails[$key][$label][1] ?? [],
                             ]);
                         }
                     }
@@ -597,6 +630,22 @@ class SeedDemo extends Command
         $this->quote($samal, 'liza', $debut, 'Sunset Debut on the Beach', 98000);
         $this->as($this->u('maria'), fn () => app(OrganizerInquiries::class)->decline($dream, Inquiry::query()->findOrFail($debut), 'We are fully booked on that date. Congratulations in advance!'));
 
+        // 5b. Faith's wedding (field test): no offer yet. Davao Dream doesn't charge VAT on weddings,
+        // so Maria's offer shows none; the client attached a colour palette.
+        $faithWedding = $this->inquiry('faith', 'Wedding', 120, [$dream], daysAgo: 1, eventName: 'Faith & Marco Garden Wedding');
+        $this->moodBoard($faithWedding, [
+            ['Sage & ivory', ['#9caf88', '#c8d5b9', '#f4f1e8', '#e8dcc4', '#b5a48b']],
+            ['Dusty rose accents', ['#dcae96', '#e8c4b8', '#f6e4dc', '#b47a6a', '#7a4e44']],
+        ]);
+        $this->moodBoard($corporate, [
+            ['Northwind brand colours', ['#0b3c5d', '#328cc1', '#d9b310', '#f4f4f4', '#1d2731']],
+        ]);
+        $this->moodBoard((string) DB::table('quotations')->where('id', $beaWedding)->value('inquiry_id'), [
+            ['Gold and white ballroom', ['#c9a227', '#e5cf7b', '#fbf6e3', '#ffffff', '#8a6f1b']],
+            ['Table flowers', ['#f2e6e9', '#d8a7b1', '#b6465f', '#6b8f71', '#fdfbf7']],
+            ['Entourage colours', ['#a8b5a2', '#e9e4d4', '#c9a227', '#5b6b5a', '#f7f3ea']],
+        ]);
+
         // 6. Rafael's family reunion dinner (months ago): Davao Dream lost to Mindanao Grand (analytics history).
         $this->won('rafael', 'Reunion', 50, [$dream, $grand], $grand, 'carlo', 'Family Reunion Dinner', 42000, daysAgo: 100, loserOrg: $dream, loserOwner: 'maria', loserAmount: 55000);
     }
@@ -619,6 +668,13 @@ class SeedDemo extends Command
         if ($payment = $paid['carl']) {
             $this->as($this->u('maria'), fn () => app(Payments::class)->refund($payment->refresh(), 800, RefundReason::ForceMajeure,
                 'Buyer\'s flight from Manila was cancelled by the typhoon', $this->u('maria'), false));
+        }
+        // 0061: Enzo asked for a refund; Maria decides (Payments: Refund or Decline).
+        $enzoTicket = $this->ctx->system('demo.refund_ticket', fn () => DB::table('tickets as t')->join('registrations as r', 'r.id', '=', 't.registration_id')
+            ->where('r.event_id', $fest->id)->where('r.purchaser_user_id', $this->u('enzo')->id)->whereNull('t.deleted_at')->value('t.id'));
+        if ($enzoTicket) {
+            app(\App\Services\Payments\RefundRequests::class)->request($this->u('enzo'), (string) $enzoTicket,
+                'Our family trip was moved to that weekend, so none of us can come. Sorry!');
         }
 
         // Davao Tech Summit (Mindanao Grand): happening right now, doors open, people checking in.
@@ -1369,6 +1425,31 @@ class SeedDemo extends Command
         $payment = Payment::query()->findOrFail($checkout['payment_id']);
 
         return app(Payments::class)->settle($payment->paymongo_payment_intent_id, 'seed');
+    }
+
+    /**
+     * Field test (0062): a client's mood board, as plain colour-palette pictures
+     * (no photos in the demo; organizers and clients add their own).
+     *
+     * @param  list<array{0: string, 1: list<string>}>  $boards  caption => hex colours
+     */
+    private function moodBoard(string $inquiryId, array $boards): void
+    {
+        $store = app(\App\Services\Media\ImageStore::class);
+        $items = [];
+        foreach ($boards as [$caption, $colors]) {
+            $img = imagecreatetruecolor(1200, 900);
+            $w = intdiv(1200, count($colors));
+            foreach ($colors as $i => $hex) {
+                [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
+                imagefilledrectangle($img, $i * $w, 0, $i === count($colors) - 1 ? 1199 : ($i + 1) * $w - 1, 899, imagecolorallocate($img, $r, $g, $b));
+            }
+            $tmp = (string) tempnam(sys_get_temp_dir(), 'mood');
+            imagepng($img, $tmp);
+            $items[] = ['path' => $store->store(new \Illuminate\Http\UploadedFile($tmp, 'palette.png', 'image/png', null, true), 'mood'), 'caption' => $caption];
+            @unlink($tmp);
+        }
+        $this->ctx->system('demo.mood_board', fn () => DB::table('inquiries')->where('id', $inquiryId)->update(['mood_board' => json_encode($items)]));
     }
 
     private function message(string $inquiryId, Organization $org, string $senderKey, string $body): void

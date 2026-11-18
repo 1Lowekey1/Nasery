@@ -22,9 +22,19 @@
 						<span class="flex min-w-0 items-start gap-2.5">
 							<input :type="group.single ? 'radio' : 'checkbox'" :name="`${uid}-${group.key}`" :checked="o.id in chosen" class="mt-1 accent-[#285F6b]"
 								:aria-label="`${group.label}: ${o.name}`" @click="toggle(group, o)">
+							<!-- 0062 (organizer field test): a picture, so clients see what they're choosing. -->
+							<button v-if="o.image_url" type="button" class="shrink-0 overflow-hidden rounded-lg ring-1 ring-black/5 transition hover:ring-primary-300"
+								:class="compact ? 'h-12 w-14' : 'h-16 w-20'" :aria-label="`See the picture of ${o.name}`" @click.prevent="zoom = { url: o.image_url, name: o.name }">
+								<img :src="o.image_url" :alt="o.name" class="h-full w-full object-cover" loading="lazy">
+							</button>
 							<span class="min-w-0 break-words">
 								<span class="font-semibold">{{ o.name }}</span>
-								<span v-if="o.description" class="block text-xs text-gray-500">{{ o.description }}</span>
+								<span v-if="o.description && showDetails" class="block text-xs text-gray-500">{{ o.description }}</span>
+								<span v-if="o.includes?.length && showDetails" class="mt-1 block space-y-0.5">
+									<span v-for="(line, li) in o.includes" :key="li" class="flex items-start gap-1.5 text-xs text-gray-600">
+										<IconBase name="check" class="mt-0.5 h-3 w-3 shrink-0 text-primary-600" />{{ line }}
+									</span>
+								</span>
 								<span v-if="o.pricing_unit === 'per_guest' && o.min_guests" class="block text-xs text-gray-400">Minimum {{ o.min_guests }} guests</span>
 								<span v-else-if="picksQuantity(o) && (o.min_quantity || o.max_quantity)" class="block text-xs text-gray-400">{{ rangeText(o) }}</span>
 							</span>
@@ -47,6 +57,18 @@
 				{{ expanded[group.key] ? 'Show fewer' : `Show ${group.options.length - visibleOptions(group).length} more` }}
 			</button>
 		</fieldset>
+
+		<!-- A price list picture, larger (Esc or a click closes it). -->
+		<Teleport to="body">
+			<div v-if="zoom" class="fixed inset-0 z-[210] flex items-center justify-center bg-gray-950/70 p-4" role="dialog" aria-modal="true" :aria-label="zoom.name"
+				tabindex="-1" @click="zoom = null" @keydown.esc="zoom = null">
+				<figure class="max-h-full max-w-3xl" @click.stop>
+					<img :src="zoom.url" :alt="zoom.name" class="max-h-[80dvh] w-auto rounded-2xl bg-white object-contain shadow-2xl">
+					<figcaption class="mt-2 flex items-center justify-between gap-3 text-sm font-semibold text-white">{{ zoom.name }}
+						<button type="button" class="rounded-lg bg-white/15 px-3 py-1.5 text-xs hover:bg-white/25" @click="zoom = null">Close</button></figcaption>
+				</figure>
+			</div>
+		</Teleport>
 
 		<!-- Breakdown -->
 		<div class="mt-6 rounded-xl bg-primary-50 p-4">
@@ -72,7 +94,8 @@
 						<td class="text-right text-gray-700">{{ formatPeso(estimate.serviceCharge) }}</td>
 					</tr>
 					<tr v-if="estimate.tax">
-						<td class="text-gray-600">VAT ({{ estimate.taxPercent }}%)</td>
+						<!-- Clients see VAT as "Miscellaneous charges" (organizer field test); organizers see VAT. -->
+						<td class="text-gray-600">{{ organizerView ? `VAT (${estimate.taxPercent}%)` : 'Miscellaneous charges' }}</td>
 						<td class="text-right text-gray-700">{{ formatPeso(estimate.tax) }}</td>
 					</tr>
 					<tr>
@@ -105,27 +128,30 @@ const props = withDefaults(defineProps<{
 	compact?: boolean
 	/** Past this many options, each service shows its first few with "Show more". Off when 0. */
 	collapseOver?: number
-}>(), { services: () => [], settings: null, initialGuests: 100, compact: false, collapseOver: 0 })
+	/** Organizer's own screens: the VAT line says VAT. Clients see "Miscellaneous charges". */
+	organizerView?: boolean
+	/** Options already picked (id → quantity), e.g. added from the package view. */
+	initialPicks?: Record<string, number>
+	/** Descriptions and "includes" lists (off where the package view already shows them). */
+	showDetails?: boolean
+}>(), { services: () => [], settings: null, initialGuests: 100, compact: false, collapseOver: 0, organizerView: false, initialPicks: () => ({}), showDetails: true })
+const emit = defineEmits<{ change: [picks: Record<string, number>] }>()
 
 const uid = useId()
+const zoom = ref<{ url: string, name: string } | null>(null)
 const guests = ref(clampGuests(props.initialGuests))
 const chosen = reactive<Record<string, number>>({})
 const FEW = 3
 const expanded = reactive<Record<string, boolean>>({})
 
-const groups = computed(() => {
-	const sorted = [...props.options].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-	const byService = new Map<string | null, PriceOption[]>()
-	for (const o of sorted) byService.set(o.organization_service_id, [...(byService.get(o.organization_service_id) ?? []), o])
-	return [...byService.entries()]
-		.map(([serviceId, options]) => ({
-			key: serviceId ?? 'addons',
-			label: serviceId ? props.services.find(s => s.id === serviceId)?.name ?? 'Options' : 'Add-ons',
-			single: serviceId !== null,
-			options,
-		}))
-		.sort((a, b) => Number(!a.single) - Number(!b.single))
-})
+const groups = computed(() => groupOptions(props.options, props.services))
+
+// The organizer page keeps the client's picks between the package view and this calculator.
+for (const [id, n] of Object.entries(props.initialPicks ?? {})) {
+	const o = props.options.find(x => x.id === id)
+	if (o) chosen[id] = picksQuantity(o) ? Math.max(quantityBounds(o).min, n || 0) : 1
+}
+watch(chosen, value => emit('change', { ...value }), { deep: true })
 
 // Picked options stay in view even when their service is folded.
 function visibleOptions(group: { key: string, options: PriceOption[] }) {

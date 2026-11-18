@@ -143,8 +143,11 @@ class MarketplaceDirectory
                 // Quotation calculator (0033): the organizer's own price list.
                 'price_options' => DB::table('public_organization_price_options')->where('organization_id', $profile->organization_id)
                     ->orderBy('sort_order')->orderBy('name')
-                    ->get(['id', 'organization_service_id', 'name', 'description', 'pricing_unit', 'price', 'min_guests', 'unit_label', 'min_quantity', 'max_quantity'])
-                    ->map(fn ($o) => (array) $o)->all(),
+                    ->get(['id', 'organization_service_id', 'name', 'description', 'pricing_unit', 'price', 'min_guests', 'unit_label', 'min_quantity', 'max_quantity', 'includes', 'images'])
+                    ->map(fn ($o) => [...collect((array) $o)->except('images')->all(),
+                        'includes' => json_decode((string) $o->includes, true) ?: [],
+                        // 0063: the gallery (cover first).
+                        ...\App\Models\OrganizationPriceOption::gallery($o->images)])->all(),
                 'event_types' => DB::table('public_event_types')->where('organization_id', $profile->organization_id)
                     ->orderBy('name')->get(['id', 'name', 'description'])->map(fn ($t) => (array) $t)->all(),
                 'rating' => [

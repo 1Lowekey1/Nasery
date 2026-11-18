@@ -91,6 +91,22 @@ export function buildEstimate(options: PriceOption[], chosen: Record<string, num
 }
 
 /** "id:qty,id:qty" for links (quantity only where the client chose it). */
+/** A service's options are alternatives (pick one); options without a service are add-ons (pick any), listed last. */
+export interface OptionGroup { key: string, label: string, single: boolean, options: PriceOption[] }
+export function groupOptions(options: PriceOption[], services: { id: string, name: string }[] = []): OptionGroup[] {
+  const sorted = [...options].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+  const byService = new Map<string | null, PriceOption[]>()
+  for (const o of sorted) byService.set(o.organization_service_id, [...(byService.get(o.organization_service_id) ?? []), o])
+  return [...byService.entries()]
+    .map(([serviceId, list]) => ({
+      key: serviceId ?? 'addons',
+      label: serviceId ? services.find(s => s.id === serviceId)?.name ?? 'Options' : 'Add-ons',
+      single: serviceId !== null,
+      options: list,
+    }))
+    .sort((a, b) => Number(!a.single) - Number(!b.single))
+}
+
 export function encodePicks(options: PriceOption[], chosen: Record<string, number>): string {
   return options.filter(o => o.id in chosen).map(o => (picksQuantity(o) ? `${o.id}:${chosen[o.id]}` : o.id)).join(',')
 }

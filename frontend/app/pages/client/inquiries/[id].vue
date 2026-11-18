@@ -72,6 +72,11 @@
 				</ul>
 				<p v-else class="mt-2 text-sm text-gray-500">None listed.</p>
 				<div v-if="inquiry.additional_requirements" class="mt-4 rounded-2xl bg-gray-50 px-4 py-3"><p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Your notes</p><p class="mt-1 whitespace-pre-line text-sm text-gray-700">{{ inquiry.additional_requirements }}</p></div>
+			<!-- 0062 (organizer field test): inspiration pictures and colour palettes. -->
+				<div v-if="moodEditable || inquiry.mood_board?.length" class="mt-5">
+					<h3 class="text-sm font-bold text-gray-900">Mood board &amp; colour palette</h3>
+					<MoodBoard class="mt-2" :images="inquiry.mood_board ?? []" :editable="moodEditable" :busy="moodBusy" @add="addMood" @remove="removeMood" />
+				</div>
 			</section>
 
 			<section v-if="inquiry.status !== 'draft'" class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
@@ -134,7 +139,7 @@ import type { OrganizerCard } from '~/composables/useMarketplace'
 definePageMeta({ layout: 'client' })
 
 const route = useRoute()
-const { show, cancel, remove, invite } = useInquiries()
+const { show, cancel, remove, invite, addMoodImage, removeMoodImage } = useInquiries()
 const { organizers: searchDirectory } = useMarketplace()
 const organizerSearch = ref('')
 const organizerResults = ref<OrganizerCard[]>([])
@@ -158,6 +163,33 @@ const threads = ref<ThreadSummary[]>([])
 const selectedThread = ref<string | null>(typeof route.query.thread === 'string' ? route.query.thread : null)
 const markThreadRead = (id: string) => { const t = threads.value.find(x => x.id === id); if (t) t.unread = 0 }
 const busy = ref(false)
+
+// 0062: the client adds or removes mood board pictures until the request is closed.
+const moodBusy = ref(false)
+const moodEditable = computed(() => !!inquiry.value && inquiry.value.mood_board_open !== false)
+async function addMood(files: File[]) {
+	if (!inquiry.value) return
+	moodBusy.value = true
+	error.value = ''
+	try {
+		for (const f of files) inquiry.value = await addMoodImage(inquiry.value.id, f)
+	} catch (e) {
+		error.value = authMessage(e)
+	} finally {
+		moodBusy.value = false
+	}
+}
+async function removeMood(id: string) {
+	if (!inquiry.value || !(await confirmDialog('Remove this picture from your mood board?', { confirmLabel: 'Remove' }))) return
+	moodBusy.value = true
+	try {
+		inquiry.value = await removeMoodImage(inquiry.value.id, id)
+	} catch (e) {
+		error.value = authMessage(e)
+	} finally {
+		moodBusy.value = false
+	}
+}
 
 // Editing a sent request (0051).
 const editing = ref(false)

@@ -52,6 +52,12 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
             Route::post('price-options', [PriceOptionController::class, 'store'])->middleware('throttle:sensitive')->name('price-options.store');
             Route::patch('price-options/{priceOption}', [PriceOptionController::class, 'update'])->middleware('throttle:sensitive')->name('price-options.update');
             Route::delete('price-options/{priceOption}', [PriceOptionController::class, 'destroy'])->middleware('throttle:sensitive')->name('price-options.destroy');
+            // 0063: each item's gallery (up to 10 pictures; the first is the cover).
+            Route::post('price-options/{priceOption}/images', [PriceOptionController::class, 'storeImage'])->middleware('throttle:sensitive')->name('price-options.images.store');
+            Route::delete('price-options/{priceOption}/images/{image}', [PriceOptionController::class, 'destroyImage'])
+                ->whereUuid('image')->middleware('throttle:sensitive')->name('price-options.images.destroy');
+            Route::post('price-options/{priceOption}/images/{image}/cover', [PriceOptionController::class, 'coverImage'])
+                ->whereUuid('image')->middleware('throttle:sensitive')->name('price-options.images.cover');
 
             Route::get('event-types', [EventTypeController::class, 'index'])->name('event-types.index');
             Route::post('event-types', [EventTypeController::class, 'store'])->middleware('throttle:sensitive')->name('event-types.store');

@@ -5,7 +5,7 @@
 				class="mx-auto grid max-w-7xl gap-10 px-5 py-14 sm:px-8 sm:py-20 lg:grid-cols-[1.35fr_.65fr] lg:items-end">
 				<div>
 					<p class="mb-5 text-xs font-bold uppercase tracking-[.2em] text-primary-200">
-						The organizer directory
+						Event organizers in Davao
 					</p>
 					<h1 class="max-w-2xl text-3xl font-bold leading-[1.12] tracking-tight sm:text-5xl lg:text-6xl">
 						Great events start<br />with the <span
@@ -44,35 +44,21 @@
 		</section>
 
 		<section aria-labelledby="directory-heading" class="mx-auto max-w-7xl px-5 pt-10 sm:px-8 sm:pt-14">
-			<div class="mb-6">
-				<h2 id="directory-heading" class="text-2xl font-bold tracking-tight">
-					Discover event organizers
-				</h2>
-				<p class="mt-2 text-sm text-gray-500">
-					Different specialties. A shared passion for bringing people together.
-				</p>
+			<!-- Featured organizers only; the full directory (search, Near me, filters) is /organizers. -->
+			<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+				<div>
+					<h2 id="directory-heading" class="text-2xl font-bold tracking-tight">
+						Featured organizers
+					</h2>
+					<p class="mt-2 text-sm text-gray-500">
+						Top-rated teams on NaSeRy. Different specialties, a shared passion for bringing people together.
+					</p>
+				</div>
+				<NuxtLink to="/organizers" class="inline-flex min-h-11 items-center gap-2 rounded-lg border border-primary-200 bg-white px-4 text-sm font-bold text-primary-800 hover:bg-primary-50">
+					Browse all {{ organizers.length || '' }} organizers <IconBase name="arrow-right" class="h-4 w-4" />
+				</NuxtLink>
 			</div>
-			<div class="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 md:grid-cols-[2fr_1fr_1fr]">
-				<div>
-					<label for="organizer-search" class="mb-2 block text-xs font-semibold text-gray-600">
-						Search organizers
-					</label>
-					<FormsSearchSuggest id="organizer-search" v-model="search" :suggestions="suggestions"
-						placeholder="Name, location, or service…"
-						input-class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm" />
-				</div>
-				<div>
-					<label class="mb-2 block text-xs font-semibold text-gray-600">
-						Event specialty
-					</label>
-					<FormsSelect v-model="specialty" :options="specialties" placeholder="All specialties" />
-				</div>
-				<div>
-					<label class="mb-2 block text-xs font-semibold text-gray-600">Location</label>
-					<FormsSelect v-model="region" :options="regions" placeholder="All locations" />
-				</div>
-			</div>
-			<div v-if="status === 'pending'" class="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3"
+			<div v-if="status === 'pending'" class="grid gap-6 md:grid-cols-2 xl:grid-cols-3"
 				aria-label="Loading organizers" aria-live="polite">
 				<div v-for="item in 3" :key="item"
 					class="h-96 animate-pulse rounded-2xl border border-gray-200 bg-white">
@@ -84,10 +70,10 @@
 					</div>
 				</div>
 			</div>
-			<div v-else-if="error" class="mt-8 rounded-2xl border border-red-200 bg-red-50 px-6 py-12 text-center"
+			<div v-else-if="error" class="rounded-2xl border border-red-200 bg-red-50 px-6 py-12 text-center"
 				role="alert">
 				<h3 class="text-lg font-bold text-red-900">
-					We couldn’t load the organizer directory
+					We couldn’t load the organizers
 				</h3>
 				<p class="mt-2 text-sm text-red-700">
 					Check that the NaSeRy API is running, then try again.
@@ -98,23 +84,8 @@
 				</button>
 			</div>
 			<template v-else>
-				<div class="my-6 flex flex-wrap items-center justify-between gap-4 text-sm">
-					<div class="flex items-center gap-3">
-						<p role="status" aria-live="polite"><span class="font-bold">{{ filtered.length }}</span> {{
-							filtered.length
-								=== 1 ? 'organizer' : 'organizers' }}<span class="text-gray-500"> to explore</span></p>
-						<button v-if="hasFilters" class="font-semibold text-primary-700 underline"
-							@click="resetFilters">
-							Clear filters
-						</button>
-					</div>
-					<div class="flex items-center gap-2"><label class="text-gray-500">Sort by</label>
-						<FormsSelect v-model="sort" class="min-w-56" :options="sortOptions" :can-clear="false"
-							:searchable="false" />
-					</div>
-				</div>
-				<div v-if="filtered.length" class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-					<article v-for="organizer in filtered" :key="organizer.slug"
+				<div v-if="featured.length" class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+					<article v-for="organizer in featured" :key="organizer.slug"
 						class="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-lg">
 						<PortfolioCover :color="organizer.banner_color" :label="organizer.specialties[0] || 'Events'" :image="organizer.cover_url"
 							compact />
@@ -127,9 +98,10 @@
 									<h3 class="font-bold">{{ organizer.name }}</h3>
 									<p class="mt-1 text-xs text-gray-500">{{ organizer.location || 'Location not added'
 									}}</p>
+									<p v-if="organizer.reviews_count" class="mt-1 text-xs font-semibold text-amber-700">★ {{ organizer.average_rating.toFixed(1) }} · {{ organizer.reviews_count }} {{ organizer.reviews_count === 1 ? 'review' : 'reviews' }}</p>
 								</div>
 							</div>
-							<p class="text-sm leading-relaxed text-gray-600">
+							<p class="line-clamp-3 text-sm leading-relaxed text-gray-600">
 								{{
 									organizer.bio ||
 									'Open this profile to see the organizer’s specialties and completed events.'
@@ -156,13 +128,13 @@
 					</article>
 				</div>
 				<div v-else class="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center">
-					<h3 class="text-xl font-bold">{{ emptyTitle }}</h3>
-					<p class="mt-2 text-sm text-gray-500">{{ emptyDescription }}</p>
-					<button v-if="hasFilters"
-						class="mt-6 rounded-lg bg-primary-700 px-5 py-3 text-sm font-semibold text-white hover:bg-primary-900"
-						@click="resetFilters">
-						Clear all filters
-					</button>
+					<h3 class="text-xl font-bold">No organizer profiles are available yet</h3>
+					<p class="mt-2 text-sm text-gray-500">Organizer profiles will appear here after accounts are created.</p>
+				</div>
+				<div v-if="organizers.length > featured.length" class="mt-6 text-center">
+					<NuxtLink to="/organizers" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary-700 px-5 text-sm font-bold text-white hover:bg-primary-900">
+						See all {{ organizers.length }} organizers: search, filter and find who's near you <IconBase name="arrow-right" class="h-4 w-4" />
+					</NuxtLink>
 				</div>
 			</template>
 			<div v-if="canPostEvent"
@@ -188,36 +160,19 @@
 <script setup lang="ts">
 import { useOrganizerDirectory } from '~/services/organizerPortfolioService'
 
-definePageMeta({ layout: 'public', alias: ['/organizers'] })
-useSeoMeta({ title: 'Browse Event Organizers | NaSeRy', description: 'Explore organizer profiles, services, and past events. Browse without an account and sign in when you are ready to post an inquiry.' })
+// The home page: welcome, how it works, and a few featured organizers. The full
+// directory (search, Near me, filters) is /organizers.
+definePageMeta({ layout: 'public' })
+useSeoMeta({ title: 'NaSeRy | Find event organizers in Davao', description: 'Explore organizer profiles, services, and past events. Browse without an account and sign in when you are ready to post an inquiry.' })
 
-const search = ref('')
-const specialty = ref('')
-const region = ref('')
-const sort = ref('name')
-const sortOptions = [
-	{ value: 'name', label: 'Name (A–Z)' },
-	{ value: 'work', label: 'Most portfolio projects' },
-]
 const { user } = useAuth()
 const { data, status, error, refresh } = await useOrganizerDirectory()
 const organizers = computed(() => data.value?.data ?? [])
-const specialties = computed(() => [...new Set(organizers.value.flatMap(item => item.specialties))].sort())
-const regions = computed(() => [...new Set(organizers.value.map(item => item.location).filter(Boolean).map(cityOf))].sort())
-const suggestions = computed(() => organizerSuggestions(organizers.value))
-const filtered = computed(() => {
-	const query = search.value.trim().toLowerCase()
-	return organizers.value.filter(item =>
-		(!specialty.value || item.specialties.includes(specialty.value)) &&
-		(!region.value || cityOf(item.location) === region.value) &&
-		(!query || [item.name, item.location, item.bio, ...item.specialties].filter(Boolean).join(' ').toLowerCase().includes(query))
-	).sort((a, b) => sort.value === 'work' ? b.portfolio_events_count - a.portfolio_events_count || a.name.localeCompare(b.name) : a.name.localeCompare(b.name))
-})
-const hasFilters = computed(() => Boolean(search.value || specialty.value || region.value))
-const emptyTitle = computed(() => hasFilters.value ? 'No organizers match your search' : 'No organizer profiles are available yet')
-const emptyDescription = computed(() => hasFilters.value ? 'Try another name, specialty, or location.' : 'Organizer profiles will appear here after accounts are created.')
+// Top rated first (then most reviews, then most completed events); six on the home page.
+const featured = computed(() => [...organizers.value]
+	.sort((a, b) => b.average_rating - a.average_rating || b.reviews_count - a.reviews_count || b.portfolio_events_count - a.portfolio_events_count || a.name.localeCompare(b.name))
+	.slice(0, 6))
 const canPostEvent = computed(() => !user.value || user.value.role === 'client')
-function resetFilters() { search.value = ''; specialty.value = ''; region.value = '' }
 function initials(name: string) {
 	return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part.charAt(0).toUpperCase()).join('') || 'OR'
 }

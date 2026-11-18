@@ -45,6 +45,7 @@
 						{{ { valid: 'Ready to use', used: 'Checked in', cancelled: 'Cancelled', invalidated: 'No longer valid' }[t.status] }}
 					</p>
 					<button v-if="t.qr_token" type="button" class="ml-3 text-xs font-semibold text-primary-700" @click="downloadPdf(t)">Download PDF</button>
+					<button v-if="t.qr_token" type="button" class="ml-3 text-xs font-semibold text-primary-700" @click="downloadPdf(t, 'png')">Save image</button>
 					<button v-if="t.cancellable" type="button" class="ml-3 text-xs font-semibold text-rose-700" @click="cancel(t)">Cancel ticket</button>
 					<button v-if="t.refund?.can_request && t.event_status !== 'completed'" type="button" class="ml-3 text-xs font-semibold text-rose-700" @click="askRefund(t)">Request a refund</button>
 					<p v-if="t.refund?.request_status === 'pending'" class="mt-2 text-xs font-semibold text-amber-700">Refund requested. Waiting for {{ t.organizer }} to answer.</p>
@@ -120,12 +121,12 @@ async function release(registrationId: string) {
 	}
 }
 
-async function downloadPdf(t: MyTicket) {
+async function downloadPdf(t: MyTicket, format: 'pdf' | 'png' = 'pdf') {
 	try {
-		const url = URL.createObjectURL(await api.myTicketPdf(t.id))
+		const url = URL.createObjectURL(await (format === 'png' ? api.myTicketImage(t.id) : api.myTicketPdf(t.id)))
 		const a = document.createElement('a')
 		a.href = url
-		a.download = `ticket-${t.event.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${t.attendee.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.pdf`
+		a.download = `ticket-${t.event.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${t.attendee.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${format}`
 		a.click()
 		URL.revokeObjectURL(url)
 	} catch (e) {

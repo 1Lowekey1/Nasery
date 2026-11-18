@@ -37,7 +37,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 
-const { user, verifyEmail, sendVerificationCode, homePath, logout } = useAuth()
+const { user, verifyEmail, sendVerificationCode, redirectByRole, logout } = useAuth()
 
 async function signOut() {
 	await logout()
@@ -63,7 +63,7 @@ function startCooldown(seconds: number) {
 
 onMounted(() => {
 	if (user.value?.email_verified) {
-		navigateTo(homePath())
+		redirectByRole(user.value)
 		return
 	}
 	startCooldown(cooldown.value)
@@ -78,7 +78,7 @@ async function handleVerify() {
 	submitting.value = true
 	try {
 		const verified = await verifyEmail(code.value)
-		await navigateTo(homePath(verified))
+		await redirectByRole(verified)
 	} catch (e) {
 		error.value = authMessage(e)
 		if (e instanceof ApiError && typeof e.details.attempts_remaining === 'number') {

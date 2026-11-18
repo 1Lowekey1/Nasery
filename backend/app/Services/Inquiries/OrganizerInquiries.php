@@ -139,7 +139,13 @@ class OrganizerInquiries
             ->orderByDesc('created_at')->get(['id', 'inquiry_id', 'status', 'total_amount', 'submitted_at'])
             ->unique('inquiry_id')->keyBy('inquiry_id');
 
+        // 0062: does this organizer add VAT to offers for each request's event type?
+        $profile = DB::table('organization_profiles')->where('organization_id', $organization->id)->first(['estimate_tax_percent', 'vat_exempt_event_types']);
+        $chargesVat = app(\App\Services\Admin\PlatformSettings::class)->vatFor($profile?->estimate_tax_percent) !== null;
+        $vatFree = json_decode((string) ($profile->vat_exempt_event_types ?? '[]'), true) ?: [];
+
         return [
+            'vat' => ['charges' => $chargesVat, 'exempt' => $vatFree],
             'quotations' => $quotations,
             'types' => DB::table('event_types')->whereIn('id', $inquiries->pluck('event_type_id')->filter()->unique())->pluck('name', 'id'),
             'services' => $requested->map(function ($s) use ($catalog) {
@@ -187,6 +193,9 @@ class OrganizerInquiries
                 'notes' => $detailed ? $s->notes : null,
             ])->values(),
             'additional_requirements' => $detailed ? $inquiry->additional_requirements : null,
+            // 0062: whether NaSeRy adds VAT to this organizer's offer for this request.
+            'vat_applies' => ($extras['vat']['charges'] ?? false) && ! in_array($inquiry->event_type_id, $extras['vat']['exempt'] ?? [], true),
+            'mood_board' => $detailed ? \App\Models\Inquiry::moodBoard($inquiry->mood_board) : [],
             'quotation' => ($q = $extras['quotations'][$inquiry->id] ?? null)
                 ? ['id' => $q->id, 'status' => $q->status->value, 'total_amount' => $q->total_amount,
                     'before_changes' => OrganizerQuotations::beforeChanges($q, $inquiry)]

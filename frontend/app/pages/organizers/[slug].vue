@@ -55,10 +55,16 @@
 						class="inline-flex min-h-11 items-center justify-center rounded-lg border border-gray-200 px-3 text-center text-sm font-semibold hover:bg-gray-50 sm:px-5">
 						Explore past work ↓
 					</a>
-					<NuxtLink v-if="canRequestQuote" :to="{ path: '/client/post-event', query: { organizer: identifier } }"
-						class="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-700 px-3 text-center text-sm font-bold text-white hover:bg-primary-900 sm:px-5">
+					<button v-if="profile?.price_options.length" type="button"
+						class="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 text-center text-sm font-bold text-primary-800 hover:bg-primary-100 sm:px-5"
+						@click="showCalculator = true">
+						<IconBase name="peso" class="h-4 w-4" />Estimate your price
+					</button>
+					<button v-if="canRequestQuote" type="button"
+						class="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary-700 px-3 text-center text-sm font-bold text-white hover:bg-primary-900 sm:px-5"
+						:class="profile?.price_options.length ? 'col-span-2 sm:col-span-1' : ''" @click="request()">
 						Request a quotation
-					</NuxtLink>
+					</button>
 				</div>
 			</div>
 		</section>
@@ -94,6 +100,21 @@
 						</a>
 					</div>
 				</section>
+				<!-- Field test follow-up (Nov 2026): packages first, each one opens in full; the calculator is its own button. -->
+				<section v-if="profile?.price_options.length" id="packages" aria-labelledby="packages-heading" class="scroll-mt-24 rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
+					<div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+						<div>
+							<p class="mb-2 text-xs font-bold uppercase tracking-widest text-primary-700">What they offer</p>
+							<h2 id="packages-heading" class="text-xl font-bold">Packages & prices</h2>
+							<p class="mt-1 text-sm text-gray-500">Tap a package to see its pictures and everything it includes.</p>
+						</div>
+						<button type="button" class="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-4 text-sm font-bold text-primary-800 hover:bg-primary-100" @click="showCalculator = true">
+							<IconBase name="peso" class="h-4 w-4" />Estimate your price<template v-if="pickCount"> ({{ pickCount }})</template>
+						</button>
+					</div>
+					<PricingServiceShowcase :options="profile.price_options" :services="profile.services" :picks="picks" @open="openId = $event" />
+				</section>
+
 				<section aria-labelledby="services-heading"
 					class="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
 					<h2 id="services-heading" class="text-xl font-bold">Services & expertise</h2>
@@ -154,25 +175,6 @@
 					</div>
 				</section>
 
-				<section v-if="profile?.price_options.length" aria-labelledby="calculator-heading"
-					class="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
-					<p class="mb-3 text-xs font-bold uppercase tracking-widest text-primary-700">Quick estimate</p>
-					<h2 id="calculator-heading" class="text-xl font-bold">Quotation calculator</h2>
-					<p class="mt-2 text-sm text-gray-500">Pick what you need for an estimate from {{ organizer.name }}’s own prices.</p>
-
-					<PricingPriceCalculator class="mt-5" :options="profile.price_options" :services="profile.services" :settings="profile.estimate">
-						<template #action="{ estimate, picks, guests }">
-							<div v-if="canRequestQuote" class="mt-4 flex justify-end">
-								<NuxtLink :to="{ path: '/client/post-event', query: { organizer: identifier, guests: String(guests), options: picks } }"
-									class="rounded-lg bg-primary-700 px-5 py-3 text-sm font-bold text-white hover:bg-primary-900"
-									:class="{ 'pointer-events-none opacity-50': !estimate.lines.length }" :aria-disabled="!estimate.lines.length">
-									Request a quotation with these
-								</NuxtLink>
-							</div>
-						</template>
-					</PricingPriceCalculator>
-				</section>
-
 				<section aria-labelledby="reviews-heading" class="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
 					<h2 id="reviews-heading" class="text-xl font-bold">Client reviews</h2>
 					<p v-if="!reviews.length" class="mt-4 text-sm text-gray-500">No reviews yet. Reviews come only from clients who completed an event with this organizer.</p>
@@ -207,14 +209,16 @@
 					offers from matching organizers. Asking doesn’t book anyone.
 				</p>
 				<template v-if="canRequestQuote">
-					<NuxtLink :to="{ path: '/client/post-event', query: { organizer: identifier } }"
-						class="mt-6 block rounded-lg bg-primary-700 px-5 py-3 text-center text-sm font-bold text-white hover:bg-primary-900">
+					<button type="button" class="mt-6 block w-full rounded-lg bg-primary-700 px-5 py-3 text-center text-sm font-bold text-white hover:bg-primary-900" @click="request()">
 						Request a quotation from {{ organizer.name }}
-					</NuxtLink>
-					<NuxtLink to="/client/post-event"
-						class="mt-2 block rounded-lg border border-primary-200 bg-white px-5 py-3 text-center text-sm font-semibold text-primary-800 hover:bg-primary-50">
+					</button>
+					<button v-if="profile?.price_options.length" type="button"
+						class="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary-200 bg-white px-5 py-3 text-center text-sm font-bold text-primary-800 hover:bg-primary-50" @click="showCalculator = true">
+						<IconBase name="peso" class="h-4 w-4" />Estimate your price<template v-if="pickCount"> ({{ pickCount }})</template>
+					</button>
+					<button type="button" class="mt-2 block w-full rounded-lg px-5 py-2 text-center text-sm font-semibold text-primary-800 underline-offset-2 hover:underline" @click="request({}, false)">
 						Or post to nearby organizers
-					</NuxtLink>
+					</button>
 					<p class="mt-3 text-center text-xs text-gray-500">
 						{{
 							user?.role === 'client' ?
@@ -236,12 +240,68 @@
 				</div>
 			</aside>
 		</div>
+
+		<!-- One package in full -->
+		<PricingPackageOverlay v-if="openOption && openGroup" :option="openOption" :siblings="openGroup.options" :group-label="openGroup.label"
+			:picked="openOption.id in picks" :can-request="canRequestQuote" :organizer-name="organizer.name"
+			@close="openId = null" @open="openId = $event" @toggle="togglePick" @request="requestOne" />
+
+		<!-- The calculator, in its own panel (full screen on phones) -->
+		<Teleport to="body">
+			<div v-if="showCalculator && profile" class="fixed inset-0 z-[150] flex justify-end bg-gray-950/60" role="dialog" aria-modal="true" aria-labelledby="calculator-heading"
+				@click.self="showCalculator = false" @keydown.esc="showCalculator = false">
+				<div ref="calculatorPanel" tabindex="-1" class="flex h-full w-full max-w-2xl flex-col bg-white shadow-2xl outline-none">
+					<div class="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 sm:px-6">
+						<div>
+							<p class="text-xs font-bold uppercase tracking-widest text-primary-700">Quick estimate</p>
+							<h2 id="calculator-heading" class="mt-1 text-xl font-bold">Estimate your price</h2>
+							<p class="mt-1 text-sm text-gray-500">Pick what you need from {{ organizer.name }}’s own prices.</p>
+						</div>
+						<button type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100" aria-label="Close" @click="showCalculator = false"><IconBase name="x" class="h-5 w-5" /></button>
+					</div>
+					<div class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+						<PricingPriceCalculator :options="profile.price_options" :services="profile.services" :settings="profile.estimate" :initial-picks="picks" :show-details="false" @change="picks = $event">
+							<template #action="{ estimate, picks: chosenPicks, guests }">
+								<div v-if="canRequestQuote" class="mt-4 flex justify-end">
+									<button type="button" class="rounded-lg bg-primary-700 px-5 py-3 text-sm font-bold text-white hover:bg-primary-900 disabled:opacity-50"
+										:disabled="!estimate.lines.length" @click="request({ guests: String(guests), options: chosenPicks })">
+										Request a quotation with these
+									</button>
+								</div>
+							</template>
+						</PricingPriceCalculator>
+					</div>
+				</div>
+			</div>
+		</Teleport>
+
+		<!-- Not signed in: say why, keep their picks, and bring them back to the request -->
+		<Teleport to="body">
+			<div v-if="signInTarget" class="fixed inset-0 z-[160] flex items-end justify-center bg-gray-950/60 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="signin-heading"
+				@click.self="signInTarget = null" @keydown.esc="signInTarget = null">
+				<div ref="signInPanel" tabindex="-1" class="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl outline-none">
+					<div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-50 text-primary-700"><IconBase name="send" class="h-5 w-5" /></div>
+					<h2 id="signin-heading" class="mt-4 text-lg font-bold text-gray-900">Sign in to send your request</h2>
+					<p class="mt-1 text-sm leading-6 text-gray-600">
+						Requests are sent from a free client account, so the organizer can reply with their quotation.
+						<template v-if="signInTarget.includes('options=')">Your picks are saved and</template><template v-else>You'll</template>
+						come right back to the request form.
+					</p>
+					<div class="mt-5 grid gap-2">
+						<NuxtLink :to="{ path: '/register', query: { redirect: signInTarget } }" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary-700 px-4 text-sm font-bold text-white hover:bg-primary-900">Create a free account</NuxtLink>
+						<NuxtLink :to="{ path: '/login', query: { redirect: signInTarget } }" class="inline-flex min-h-11 items-center justify-center rounded-xl border border-gray-200 px-4 text-sm font-bold text-gray-800 hover:bg-gray-50">I already have an account</NuxtLink>
+						<button type="button" class="min-h-10 text-sm font-semibold text-gray-500 hover:text-gray-700" @click="signInTarget = null">Keep browsing</button>
+					</div>
+				</div>
+			</div>
+		</Teleport>
 	</div>
 </template>
 
 <script setup lang="ts">
 import { useOrganizerPortfolio } from '~/services/organizerPortfolioService'
 import type { OrganizerPublicProfile, PublicReview } from '~/composables/useMarketplace'
+import type { PriceOption } from '~/composables/useQuotations'
 
 definePageMeta({ layout: 'public', key: route => route.path })
 const route = useRoute()
@@ -256,6 +316,57 @@ const { user } = useAuth()
 // Only clients (and guests, who are sent to sign in) ask for quotations; organizers, team
 // members and admins never see the button (an admin following it landed on the admin home).
 const canRequestQuote = computed(() => !user.value || user.value.role === 'client')
+
+// Field test follow-up (Nov 2026): packages first, the calculator in its own panel; picks are shared.
+const router = useRouter()
+const picks = ref<Record<string, number>>({})
+const pickCount = computed(() => Object.keys(picks.value).length)
+const openId = ref<string | null>(null)
+const showCalculator = ref(false)
+const signInTarget = ref<string | null>(null)
+const calculatorPanel = ref<HTMLElement | null>(null)
+const signInPanel = ref<HTMLElement | null>(null)
+const optionGroups = computed(() => groupOptions(profile.value?.price_options ?? [], profile.value?.services ?? []))
+const openGroup = computed(() => optionGroups.value.find(g => g.options.some(o => o.id === openId.value)))
+const openOption = computed(() => openGroup.value?.options.find(o => o.id === openId.value))
+const firstQuantity = (o: PriceOption) => (picksQuantity(o) ? quantityBounds(o).min : 1)
+
+function togglePick(id: string) {
+	const group = optionGroups.value.find(g => g.options.some(o => o.id === id))
+	const option = group?.options.find(o => o.id === id)
+	if (!group || !option) return
+	const next = { ...picks.value }
+	if (id in next) delete next[id]
+	else {
+		if (group.single) group.options.forEach(o => delete next[o.id])
+		next[id] = firstQuantity(option)
+	}
+	picks.value = next
+}
+
+// Signed-out visitors get a short explanation; their request (and picks) survive signing in.
+function request(query: Record<string, string> = {}, toThisOrganizer = true) {
+	const target = router.resolve({ path: '/client/post-event', query: toThisOrganizer ? { organizer: identifier.value, ...query } : query }).fullPath
+	if (!user.value) {
+		signInTarget.value = target
+		return
+	}
+	showCalculator.value = false
+	openId.value = null
+	return navigateTo(target)
+}
+function requestOne(id: string) {
+	const option = profile.value?.price_options.find(o => o.id === id)
+	if (option) request({ options: encodePicks(profile.value!.price_options, { [id]: firstQuantity(option) }) })
+}
+
+// Overlays: no page scroll behind them, and keyboard focus moves in.
+watch(() => Boolean(openId.value || showCalculator.value || signInTarget.value), open => {
+	if (import.meta.client) document.body.style.overflow = open ? 'hidden' : ''
+})
+watch(showCalculator, async open => { if (open) { await nextTick(); calculatorPanel.value?.focus() } })
+watch(signInTarget, async open => { if (open) { await nextTick(); signInPanel.value?.focus() } })
+onBeforeUnmount(() => { if (import.meta.client) document.body.style.overflow = '' })
 
 // Our marketplace profile: the price list (calculator) and reviews the portfolio shape leaves out.
 const profile = ref<OrganizerPublicProfile | null>(null)

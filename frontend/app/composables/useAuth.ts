@@ -274,7 +274,11 @@ export const useAuth = (requiredRole?: AuthRole) => {
     }
   }
 
-  const redirectByRole = (u: AuthUser | SessionUser | null = account.value) => navigateTo(homePath(u))
+  // A client who started a quotation request before signing in goes back to it (with their picks).
+  const redirectByRole = (u: AuthUser | SessionUser | null = account.value) => {
+    const pending = u?.email_verified && roleOf(u) === 'client' ? takeInquiry() : undefined
+    return navigateTo(pending ?? homePath(u))
+  }
 
   return {
     user,

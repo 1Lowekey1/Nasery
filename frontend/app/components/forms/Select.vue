@@ -108,7 +108,8 @@ const classes = {
     box-shadow: 0 12px 32px -8px rgba(16, 63, 77, 0.18), 0 2px 6px -2px rgba(16, 63, 77, 0.08);
     max-height: 260px;
     overflow-y: auto;
-    z-index: 60;
+    /* Above side panels and dialogs (z 110-200): a menu moved to <body> (append-to-body) must not open behind them. */
+    z-index: 300;
     animation: ns-select-in 0.12s ease-out;
 }
 .multiselect-dropdown.ns-select-dropdown.is-top { bottom: auto; top: -6px; transform: translateY(-100%); border-radius: 0.75rem; }

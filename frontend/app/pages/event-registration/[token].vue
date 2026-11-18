@@ -179,6 +179,11 @@
                                             @click="downloadTicket(ticket)">
                                             Download PDF Ticket
                                         </button>
+                                        <button type="button"
+                                            class="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                                            @click="downloadTicket(ticket, 'png')">
+                                            Save Ticket Image
+                                        </button>
 
                                         <button type="button"
                                             class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-50"
@@ -1734,7 +1739,8 @@ const openPayMongoCheckout = () => {
 }
 
 const downloadTicket = (
-    ticket: RegisteredTicket
+    ticket: RegisteredTicket,
+    format: 'pdf' | 'png' = 'pdf'
 ) => {
     if (!ticket.qr_token) {
         errorMessage.value =
@@ -1744,7 +1750,7 @@ const downloadTicket = (
     }
 
     window.open(
-        `${apiBaseURL}/public-registrations/${registrationId.value}/tickets/${ticket.id}/pdf?access=${registrationAccess.value}`,
+        `${apiBaseURL}/public-registrations/${registrationId.value}/tickets/${ticket.id}/pdf?access=${registrationAccess.value}${format === 'png' ? '&format=png' : ''}`,
         '_blank',
         'noopener,noreferrer'
     )

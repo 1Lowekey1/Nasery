@@ -59,7 +59,27 @@ class Inquiry extends Model
             'match_radius_km' => 'decimal:1',
             'revised_at' => 'datetime',
             'revision_count' => 'integer',
+            'mood_board' => 'array',
         ];
+    }
+
+    public const MOOD_BOARD_LIMIT = 8;
+
+    /**
+     * 0062: the client's mood board / colour palette pictures, with their URLs.
+     *
+     * @param  mixed  $board  the stored JSON (array or string)
+     * @return list<array{id: string, url: ?string, caption: ?string}>
+     */
+    public static function moodBoard(mixed $board): array
+    {
+        $items = is_string($board) ? (json_decode($board, true) ?: []) : ($board ?? []);
+
+        return array_values(array_map(fn ($i) => [
+            'id' => basename((string) ($i['path'] ?? ''), '.webp'),
+            'url' => \App\Services\Media\ImageStore::url($i['path'] ?? null),
+            'caption' => $i['caption'] ?? null,
+        ], array_filter((array) $items, 'is_array')));
     }
 
     public function client(): BelongsTo

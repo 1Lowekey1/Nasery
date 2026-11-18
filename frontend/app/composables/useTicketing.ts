@@ -182,6 +182,8 @@ export const usePublicEvents = () => {
     cancelMine: (ticketId: string) => api.post(`/me/tickets/${ticketId}/cancel`),
     requestRefund: (ticketId: string, reason: string) => api.post(`/me/tickets/${ticketId}/refund-request`, { reason }),
     myTicketPdf: (ticketId: string) => api.blob(`/me/tickets/${ticketId}/pdf`),
+    /** The ticket as an image: QR with the event, type, name and seat (field test, Nov 2026). */
+    myTicketImage: (ticketId: string) => api.blob(`/me/tickets/${ticketId}/pdf?format=png`),
   }
 }
 

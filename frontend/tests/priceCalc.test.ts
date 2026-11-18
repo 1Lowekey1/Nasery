@@ -1,10 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import type { PriceOption } from '~/composables/useQuotations'
-import { buildEstimate, clampGuests, decodePicks, encodePicks, MAX_GUESTS, optionQuantity, priceSuffix, quantityBounds, unitName } from '~/utils/priceCalc'
+import { buildEstimate, clampGuests, decodePicks, encodePicks, groupOptions, MAX_GUESTS, optionQuantity, priceSuffix, quantityBounds, unitName } from '~/utils/priceCalc'
 
 function option(over: Partial<PriceOption>): PriceOption {
 	return { id: 'o1', organization_service_id: null, name: 'Option', description: null, pricing_unit: 'flat', price: '0', min_guests: null, ...over }
 }
+
+describe('groupOptions (packages by service, add-ons last)', () => {
+	it('groups by service in sort order, with options without a service as add-ons', () => {
+		const groups = groupOptions([
+			option({ id: 'video', sort_order: 1 }),
+			option({ id: 'full', organization_service_id: 's1', sort_order: 2 }),
+			option({ id: 'day', organization_service_id: 's1', sort_order: 1 }),
+		], [{ id: 's1', name: 'Event Coordination' }])
+		expect(groups.map(g => [g.label, g.single, g.options.map(o => o.id)])).toEqual([
+			['Event Coordination', true, ['day', 'full']],
+			['Add-ons', false, ['video']],
+		])
+	})
+})
 
 describe('clampGuests (calculator guest box, 1 to 100,000)', () => {
 	it.each([

@@ -155,6 +155,17 @@ class TicketingTest extends TestCase
         $contacts = DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')->where('t.event_id', $event)->pluck('a.contact_number', 'a.full_name');
         $this->assertSame(['09171234567', '09187654321', '09191112222', '(02) 8123 4567'], [$contacts['Gio Sy'], $contacts['Hana Go'], $contacts['Ivy Lao'], $contacts['Jun Co']]);
 
+        // 0062: a table/seat column ("Table" works too) sets each guest's seat, shown on the ticket and its image.
+        $post("name,table
+Kai Ong,Table 7
+Lia Sy,")->assertCreated()->assertJsonPath('data.imported', 2);
+        $kai = DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')->where('a.full_name', 'Kai Ong')->first(['t.id', 't.seat_label']);
+        $this->assertSame('Table 7', $kai->seat_label);
+        $this->assertNull(DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')->where('a.full_name', 'Lia Sy')->value('t.seat_label'));
+        $png = $this->actingAs($owner)->get($this->base($org, $event)."/tickets/{$kai->id}/pdf?format=png")->assertOk()->assertHeader('Content-Type', 'image/png')->getContent();
+        $this->assertSame('89504e47', bin2hex(substr($png, 0, 4)));
+        $this->assertSame(720, getimagesizefromstring($png)[0]);
+
         // Exported CSV neutralizes the formula-looking name and keeps phone numbers as text for Excel.
         $csv = $this->actingAs($owner)->get($this->base($org, $event).'/guests/export')->assertOk()->streamedContent();
         $this->assertStringContainsString("'=HYPERLINK", $csv);

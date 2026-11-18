@@ -63,8 +63,11 @@ class ClientQuotations
             $q = $entry['quotation'];
             $org = $organizers[$orgId] ?? null;
 
+            $content = OrganizerQuotations::content($q, $items[$q->id] ?? collect());
+            $content['items'] = $content['items']->map(fn (array $i) => [...$i, 'description' => OrganizerQuotations::forClient($i['description'])])->values();
+
             return [
-                ...OrganizerQuotations::content($q, $items[$q->id] ?? collect()),
+                ...$content,
                 'earlier_versions' => $entry['earlier_versions'],
                 // 0051: sent before the client's latest change to the request.
                 'before_changes' => OrganizerQuotations::beforeChanges($q, $inquiry),

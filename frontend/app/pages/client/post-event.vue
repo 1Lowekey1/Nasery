@@ -200,6 +200,16 @@
 									class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-400">Searching…</span>
 								<div v-if="showLocationSuggestions"
 									class="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
+									<!-- Field test (Nov 2026): some venues aren't listed. Keep the address as typed. -->
+									<button v-if="!isSearchingLocation && locationQuery.trim().length >= 3" type="button"
+										class="flex w-full items-start gap-3 border-b border-gray-100 bg-gray-50/60 px-3.5 py-3 text-left hover:bg-gray-100"
+										@mousedown.prevent="useTypedLocation()">
+										<IconBase name="edit" class="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+										<div class="min-w-0">
+											<p class="truncate text-sm font-semibold text-gray-800">Use “{{ locationQuery.trim() }}”</p>
+											<p class="mt-0.5 text-xs text-gray-500">Not in the list? Keep your address as typed. We’ll pin the nearest area we can find.</p>
+										</div>
+									</button>
 									<button v-for="(place, index) in locationSuggestions"
 										:key="locationSuggestionKey(place, index)" type="button"
 										class="flex w-full items-start gap-3 border-b border-gray-100 px-3.5 py-3 text-left last:border-b-0 hover:bg-gray-50"
@@ -215,13 +225,13 @@
 										</div>
 									</button>
 									<div v-if="!isSearchingLocation && locationSuggestions.length === 0"
-										class="px-4 py-3 text-sm text-gray-500">No matching locations found.</div>
+										class="px-4 py-3 text-sm text-gray-500">No matching places. Use your address as typed above.</div>
 									<div
 										class="border-t border-gray-100 px-3.5 py-2 text-right text-[11px] text-gray-400">
 										Search by LocationIQ</div>
 								</div>
 							</div>
-							<p class="mt-1.5 text-xs text-gray-400">{{ target ? 'Select a result so your organizer sees the exact venue.' : 'Select a result so nearby organizers can be matched accurately.' }}</p>
+							<p class="mt-1.5 text-xs text-gray-400">Pick a suggestion, or keep your address as typed if your venue isn’t listed.</p>
 						</div>
 						<div class="border-t border-gray-100 pt-5">
 							<div class="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
@@ -287,7 +297,7 @@
 					<div v-if="locationError"
 						class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{
 							locationError }}</div>
-					<p v-if="showMissing('location')" class="mt-2 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">{{ target ? 'Enter where the event will be.' : 'Choose a place from the suggestions (or use your current location) so NaSeRy can find organizers near it.' }}</p>
+					<p v-if="showMissing('location')" class="mt-2 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">{{ target ? 'Enter where the event will be.' : 'Enter where the event will be: pick a suggestion or type the address.' }}</p>
 					<div v-if="hasSelectedLocation"
 						class="mt-5 overflow-hidden rounded-2xl border border-primary-100 bg-primary-50/40">
 						<div class="flex items-start gap-3 p-4"><span
@@ -302,6 +312,7 @@
 										confirmed</span>
 								</div>
 								<p class="mt-1 text-sm text-gray-500">{{ form.venueAddress }}</p>
+								<p v-if="typedLocationNote" class="mt-1 text-xs text-amber-700">{{ typedLocationNote }}</p>
 							</div><button type="button"
 								class="shrink-0 text-xs font-bold text-primary-700 hover:text-primary-900"
 								@click="resetLocation">Change</button>
@@ -335,6 +346,9 @@
 					<textarea v-model="form.details" rows="5"
 						placeholder="Describe the mood, theme, must-haves, special requests, or anything else organizers should know…"
 						class="w-full resize-y rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-sm leading-relaxed text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15" />
+					<!-- 0062 (organizer field test): inspiration pictures, colour palettes, mood boards. Sent with the request. -->
+					<label class="mb-1.5 mt-5 block text-sm font-semibold text-gray-700">Mood board &amp; colour palette <span class="font-normal text-gray-400">(optional)</span></label>
+					<MoodBoard :images="moodPicks" editable :busy="isSubmitting" @add="addMoodPicks" @remove="removeMoodPick" />
 				</section>
 
 				<!-- A direct request goes to one organizer only: no "organizers near you" (#10) -->
@@ -830,7 +844,7 @@ const missing = computed(() => {
 	if (!form.date || !form.startTime || !form.endTime || timeError.value) list.push({ key: 'schedule', label: 'Date and time' })
 	else if (form.date < minimumEventDate.value || form.date > maximumEventDate.value) list.push({ key: 'schedule', label: `A date on or before ${maximumEventDateLabel.value}` })
 	if (!form.guests || Number(form.guests) < 1) list.push({ key: 'guests', label: 'Expected guests' })
-	if (!(hasSelectedLocation.value || Boolean(target.value && locationQuery.value.trim()))) list.push({ key: 'location', label: 'Location' })
+	if (!(hasSelectedLocation.value || locationQuery.value.trim().length >= 3)) list.push({ key: 'location', label: 'Location' })
 	if (!form.budget || customBudgetProblem.value) list.push({ key: 'budget', label: 'Budget' })
 	return list
 })
@@ -893,10 +907,9 @@ const showLocationSuggestions =
 		return Boolean(
 			isLocationInputFocused.value &&
 			locationQuery.value.trim().length >= 3 &&
-			(
-				isSearchingLocation.value ||
-				locationSuggestions.value.length > 0
-			)
+			Boolean(locationIqApiKey.value) &&
+			// Also with no matches: the list then offers to keep the address as typed.
+			!hasSelectedLocation.value
 		)
 	})
 
@@ -1137,6 +1150,7 @@ function selectActiveLocationSuggestion() {
 		index < 0 ||
 		!locationSuggestions.value[index]
 	) {
+		if (locationQuery.value.trim().length >= 3 && !isSearchingLocation.value) void useTypedLocation()
 		return
 	}
 
@@ -1153,6 +1167,59 @@ function locationSuggestionKey(
 		place.place_id
 		|| `${place.osm_type || 'place'}:${place.osm_id || index}`
 	)
+}
+
+// Field test (Nov 2026): some venues and addresses aren't in LocationIQ. The client's
+// typed address is kept as is (organizers see it); the map pin goes to the nearest
+// area found, trying the full text, then without its first part each time
+// ("Villa Alma, Catalunan Grande, Davao City" -> "Catalunan Grande, Davao City").
+const typedLocationNote = ref('')
+let placingTypedLocation = false
+async function useTypedLocation(): Promise<boolean> {
+	const typed = locationQuery.value.trim()
+	if (typed.length < 3 || !locationIqApiKey.value || placingTypedLocation) return false
+	placingTypedLocation = true
+	isSearchingLocation.value = true
+	locationError.value = ''
+	const parts = typed.split(',').map(p => p.trim()).filter(Boolean)
+	const tries = parts.map((_, i) => parts.slice(i).join(', '))
+	try {
+		for (const [i, q] of tries.entries()) {
+			if (i > 0) await new Promise(r => setTimeout(r, 550)) // LocationIQ allows 2 requests a second
+			const params = new URLSearchParams({ key: locationIqApiKey.value, q, countrycodes: 'ph', limit: '1', format: 'json', 'accept-language': 'en' })
+			const response = await fetch(`https://api.locationiq.com/v1/search?${params.toString()}`).catch(() => null)
+			if (!response?.ok) continue
+			const data = await response.json().catch(() => null)
+			const hit = Array.isArray(data) ? data[0] as LocationIqResult | undefined : undefined
+			const latitude = Number(hit?.lat)
+			const longitude = Number(hit?.lon)
+			if (!hit || !Number.isFinite(latitude) || !Number.isFinite(longitude)) continue
+
+			form.location = typed
+			form.venueName = parts[0] ?? typed
+			form.venueAddress = typed
+			form.locationIqPlaceId = ''
+			form.latitude = latitude
+			form.longitude = longitude
+			locationQuery.value = typed
+			typedLocationNote.value = i === 0 ? '' : `Map pin is approximate: near ${q}.`
+			locationSuggestions.value = []
+			activeLocationSuggestionIndex.value = -1
+			isLocationInputFocused.value = false
+			nearbyError.value = ''
+			nearbyOrganizers.value = []
+			showStaticMap.value = false
+			await nextTick()
+			await fetchNearbyOrganizers()
+			await renderMap()
+			return true
+		}
+		locationError.value = 'We couldn’t find that area on the map. Add the barangay or city (e.g. “Matina, Davao City”), or pick a suggestion.'
+		return false
+	} finally {
+		placingTypedLocation = false
+		isSearchingLocation.value = false
+	}
 }
 
 async function selectLocation(
@@ -1216,6 +1283,7 @@ async function selectLocation(
 
 	locationQuery.value =
 		venueAddress
+	typedLocationNote.value = ''
 
 	locationSuggestions.value = []
 	activeLocationSuggestionIndex.value = -1
@@ -1763,6 +1831,17 @@ function goToMyEvents() {
 // The draft made by a failed attempt is reused on retry (no pile of unsent drafts).
 let draftId: string | null = null
 
+// 0062: mood board pictures picked here, uploaded when the request is sent.
+const moodPicks = ref<{ id: string, url: string, caption: null, file: File, uploaded: boolean }[]>([])
+function addMoodPicks(files: File[]) {
+	moodPicks.value = [...moodPicks.value, ...files.map(file => ({ id: crypto.randomUUID(), url: URL.createObjectURL(file), caption: null, file, uploaded: false }))]
+}
+function removeMoodPick(id: string) {
+	const pick = moodPicks.value.find(p => p.id === id)
+	if (pick) URL.revokeObjectURL(pick.url)
+	moodPicks.value = moodPicks.value.filter(p => p.id !== id)
+}
+
 async function submitInquiry() {
 	if (!isValid.value) {
 		showSubmitConfirmation.value = false
@@ -1771,6 +1850,11 @@ async function submitInquiry() {
 	}
 
 
+	// Typed but not picked: keep the address as typed and pin the nearest area.
+	if (form.latitude === null && locationQuery.value.trim() && locationIqApiKey.value) {
+		await useTypedLocation()
+	}
+
 	if (
 		!target.value &&
 		(form.latitude === null ||
@@ -1778,7 +1862,7 @@ async function submitInquiry() {
 	) {
 		showSubmitConfirmation.value = false
 		errorMessage.value =
-			'Please select a valid location.'
+			locationError.value || 'Please enter where the event will be.'
 
 		return
 	}
@@ -1828,6 +1912,11 @@ Estimate from ${target.value.display_name}${/s$/i.test(target.value.display_name
 		draftId = draftId
 			? (await clientInquiries.update(draftId, payload)).id
 			: (await clientInquiries.create(payload)).id
+		// Mood board pictures go up with the draft, before it's sent (a retry skips the ones already up).
+		for (const pick of moodPicks.value.filter(p => !p.uploaded)) {
+			await clientInquiries.addMoodImage(draftId, pick.file)
+			pick.uploaded = true
+		}
 		// Straight to the chosen organizer, or to listed organizers within the chosen distance.
 		await clientInquiries.submit(draftId, target.value
 			? { mode: 'direct', organization_ids: [target.value.id] }

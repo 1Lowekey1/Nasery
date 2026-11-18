@@ -223,6 +223,8 @@ const { register, isLoading, errorMessage } = useAuth()
 
 onMounted(() => {
 	if (typeof authRoute.query.social_error === 'string') errorMessage.value = authRoute.query.social_error
+	// Kept through e-mail verification, so a new client lands back on their request.
+	rememberInquiry(authRoute.query.redirect)
 })
 
 const form = reactive({
@@ -383,7 +385,7 @@ async function handleSubmit() {
 
 		if (conversion.active) {
 			// The code already confirmed the e-mail: straight into the new account.
-			await navigateTo(role.value === 'organizer' ? '/organizer/home' : '/client/my-events')
+			await navigateTo(role.value === 'organizer' ? '/organizer/home' : (takeInquiry() ?? '/client/my-events'))
 			return
 		}
 		showSuccessModal.value =

@@ -95,8 +95,40 @@
 
 						<div>
 							<FormsLabel text="Description" />
-							<textarea v-model="editing.description" rows="2" maxlength="500" placeholder="What's included (shown to clients)"
+							<textarea v-model="editing.description" rows="2" maxlength="500" placeholder="A short description clients see"
 								class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm focus:border-primary-500 focus:outline-none" />
+						</div>
+
+						<!-- Organizer field test (Nov 2026): what it includes, and pictures so clients see what they're choosing. -->
+						<div class="space-y-4">
+							<div data-field="includes">
+								<FormsLabel text="What's included (one per line)" />
+								<textarea v-model="editing.includes" rows="4" placeholder="e.g.&#10;Bridal car&#10;2 photographers&#10;Same-day edit video"
+									class="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm focus:border-primary-500 focus:outline-none" />
+								<p class="mt-1 text-xs" :class="check.err('includes') ? 'font-semibold text-rose-600' : 'text-gray-400'">{{ check.err('includes') || 'Up to 20 lines, shown as a checklist to clients.' }}</p>
+							</div>
+							<!-- 0063: up to 10 pictures (examples of this package); the first is the cover. -->
+							<div>
+								<FormsLabel :text="`Pictures (optional) · ${tiles.length} of ${IMAGE_LIMIT}`" />
+								<ul class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+									<li v-for="(t, i) in tiles" :key="t.key" class="group relative overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+										<img :src="t.url" :alt="`Picture ${i + 1} of this option`" class="aspect-[4/3] w-full object-cover">
+										<span v-if="i === 0" class="absolute left-1.5 top-1.5 rounded-full bg-primary-700 px-2 py-0.5 text-[10px] font-bold text-white">Cover</span>
+										<div class="flex items-center justify-between gap-1 px-1.5 py-1 text-[11px] font-semibold">
+											<button v-if="i > 0" type="button" class="text-primary-700 hover:underline" @click="makeCover(i)">Make cover</button>
+											<span v-else class="text-gray-400">Shown first</span>
+											<button type="button" class="rounded p-0.5 text-gray-500 hover:text-rose-600" :aria-label="`Remove picture ${i + 1}`" @click="removeTile(i)"><IconBase name="trash" class="h-3.5 w-3.5" /></button>
+										</div>
+									</li>
+									<li v-if="tiles.length < IMAGE_LIMIT">
+										<label class="flex aspect-[4/3] h-full w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-gray-300 text-center text-xs font-semibold text-gray-500 transition hover:border-primary-300 hover:text-primary-700">
+											<IconBase name="camera" class="h-5 w-5" />Add pictures
+											<input type="file" class="sr-only" :accept="imageRules.accept" multiple @change="pickImages">
+										</label>
+									</li>
+								</ul>
+								<p class="mt-1 text-xs" :class="imageError ? 'font-semibold text-rose-600' : 'text-gray-400'">{{ imageError || 'JPG, PNG or WebP, up to 10. Show examples of this package; clients see the cover first and can swipe through the rest.' }}</p>
+							</div>
 						</div>
 
 						<label class="flex items-center gap-2 text-sm text-gray-700">
@@ -133,12 +165,14 @@
 					</div>
 					<ul class="divide-y divide-gray-100">
 						<li v-for="(o, i) in group.options" :key="o.id" class="pl-row group flex flex-wrap items-center gap-x-3 gap-y-2 px-6 py-4 transition-colors hover:bg-gray-50/70" :class="o.is_active ? '' : 'bg-gray-50/80'">
+							<img v-if="o.image_url" :src="o.image_url" :alt="o.name" class="h-12 w-16 shrink-0 rounded-lg object-cover" loading="lazy">
 							<div class="min-w-0 flex-1">
 								<p class="flex flex-wrap items-center gap-2 break-words text-sm font-bold" :class="o.is_active ? 'text-gray-900' : 'text-gray-400'">
 									{{ o.name }}
 									<span v-if="!o.is_active" class="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-bold text-gray-600">Hidden</span>
 								</p>
 								<p v-if="o.description" class="mt-0.5 truncate text-xs text-gray-500">{{ o.description }}</p>
+								<p v-if="o.includes?.length" class="mt-0.5 truncate text-xs text-gray-500">Includes {{ o.includes.join(' · ') }}</p>
 								<p v-if="o.pricing_unit === 'per_guest' && o.min_guests" class="mt-0.5 text-xs text-gray-400">min {{ o.min_guests }} guests</p>
 								<p v-else-if="picksQuantity(o) && (o.min_quantity || o.max_quantity)" class="mt-0.5 text-xs text-gray-400">{{ quantityBounds(o).min }}{{ quantityBounds(o).max ? `–${quantityBounds(o).max}` : '+' }} {{ unitName(o, 2) }}</p>
 								<p class="mt-0.5 truncate text-xs text-primary-700/80">{{ o.event_tags?.length ? o.event_tags.join(' · ') : 'All events' }}</p>
@@ -174,6 +208,19 @@
 							<span><span class="font-semibold text-gray-900">We charge VAT ({{ vatRate }}%)</span>
 								<span class="block text-xs text-gray-500">For VAT-registered businesses. NaSeRy sets the rate and adds it to your estimates and offers.</span></span>
 						</label>
+						<!-- Organizer field test (Nov 2026): some events are VAT-free, e.g. weddings where the organizer covers it. -->
+						<div v-if="settings.chargesVat && vatTypeChoices.length" class="sm:col-span-2">
+							<FormsLabel text="Event types with no VAT" />
+							<p class="-mt-1 mb-2 text-xs text-gray-500">Offers for these event types won't include VAT. Clients see VAT as “Miscellaneous charges”; you still see it as VAT.</p>
+							<div class="flex flex-wrap gap-2">
+								<button v-for="t in vatTypeChoices" :key="t.id" type="button" :aria-pressed="settings.vatExempt.includes(t.id)"
+									class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+									:class="settings.vatExempt.includes(t.id) ? 'border-primary-700 bg-primary-700 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-primary-300'"
+									@click="settings.vatExempt = settings.vatExempt.includes(t.id) ? settings.vatExempt.filter(x => x !== t.id) : [...settings.vatExempt, t.id]">
+									<IconBase v-if="settings.vatExempt.includes(t.id)" name="check" class="h-3 w-3" />{{ t.name }}
+								</button>
+							</div>
+						</div>
 						<div class="sm:col-span-2">
 							<FormsLabel text="Note shown under every estimate" />
 							<FormsTextField v-model="settings.note" maxlength="500" placeholder="e.g. Final price confirmed after a site visit." />
@@ -191,7 +238,7 @@
 				<p class="text-[11px] font-bold uppercase tracking-widest text-primary-700">Live preview</p>
 				<h2 class="mt-0.5 text-sm font-bold text-gray-900">What clients see</h2>
 				<p class="mt-0.5 text-xs text-gray-500">Only options you show. Try it like a client would.</p>
-				<PricingPriceCalculator :key="previewKey" compact class="mt-3" :options="visibleOptions" :services="services" :settings="previewSettings" />
+				<PricingPriceCalculator :key="previewKey" organizer-view compact class="mt-3" :options="visibleOptions" :services="services" :settings="previewSettings" />
 			</aside>
 		</div>
 	</div>
@@ -205,7 +252,7 @@ import type { PriceOption, PricingUnit } from '~/composables/useQuotations'
 definePageMeta({ layout: 'dashboard' })
 useSeoMeta({ title: 'Price List | NaSeRy' })
 
-type Draft = { id: string | null, name: string, organization_service_id: string | null, pricing_unit: PricingUnit, price: string, unit_label: string, min_guests: string, min_quantity: string, max_quantity: string, description: string, is_active: boolean, event_tags: string[] }
+type Draft = { id: string | null, name: string, organization_service_id: string | null, pricing_unit: PricingUnit, price: string, unit_label: string, min_guests: string, min_quantity: string, max_quantity: string, description: string, is_active: boolean, event_tags: string[], includes: string, images: { id: string, url: string | null }[] }
 
 const api = usePriceOptions()
 const orgApi = useOrganization()
@@ -239,7 +286,51 @@ const groups = computed(() => {
 const visibleOptions = computed(() => options.value.filter(o => o.is_active))
 
 // ---- add / edit ------------------------------------------------------------
-const blank = (): Draft => ({ id: null, name: '', organization_service_id: null, pricing_unit: 'flat', price: '', unit_label: '', min_guests: '', min_quantity: '', max_quantity: '', description: '', is_active: true, event_tags: [] })
+const blank = (): Draft => ({ id: null, name: '', organization_service_id: null, pricing_unit: 'flat', price: '', unit_label: '', min_guests: '', min_quantity: '', max_quantity: '', description: '', is_active: true, event_tags: [], includes: '', images: [] })
+
+// 0063: the pictures change with Save (a new option needs its id first): removed ones
+// are deleted, new ones uploaded in order, then the first becomes the cover.
+const IMAGE_LIMIT = 10
+type Tile = { key: string, url: string, id?: string, file?: File }
+const tiles = ref<Tile[]>([])
+const removedImageIds = ref<string[]>([])
+const imageError = ref('')
+function resetImage(images: { id: string, url: string | null }[] = []) {
+	tiles.value.forEach(t => t.file && URL.revokeObjectURL(t.url))
+	tiles.value = images.filter(i => i.url).map(i => ({ key: i.id, url: i.url!, id: i.id }))
+	removedImageIds.value = []
+	imageError.value = ''
+}
+function pickImages(e: Event) {
+	const input = e.target as HTMLInputElement
+	const files = [...(input.files ?? [])]
+	input.value = ''
+	imageError.value = files.map(f => imageProblem(f) || (f.size > imageRules.maxBytes ? 'Choose images under 5 MB each.' : '')).find(Boolean) ?? ''
+	if (imageError.value) return
+	const room = IMAGE_LIMIT - tiles.value.length
+	if (files.length > room) imageError.value = `Only ${room} more picture${room === 1 ? '' : 's'} fit; the first ${room} were added.`
+	tiles.value.push(...files.slice(0, room).map(f => ({ key: `${f.name}-${f.size}-${Math.random()}`, url: URL.createObjectURL(f), file: f })))
+}
+function removeTile(i: number) {
+	const [t] = tiles.value.splice(i, 1)
+	if (t?.file) URL.revokeObjectURL(t.url)
+	else if (t?.id) removedImageIds.value.push(t.id)
+}
+function makeCover(i: number) {
+	const [t] = tiles.value.splice(i, 1)
+	if (t) tiles.value.unshift(t)
+}
+async function saveImages(id: string, coverBefore: string | null) {
+	for (const imageId of removedImageIds.value) await api.removeImage(orgId.value, id, imageId)
+	for (const t of tiles.value) {
+		if (!t.file) continue
+		const saved = await api.uploadImage(orgId.value, id, t.file)
+		t.id = saved.images?.at(-1)?.id
+	}
+	const cover = tiles.value[0]?.id
+	if (cover && cover !== coverBefore && tiles.value.length > 1) await api.coverImage(orgId.value, id, cover)
+}
+const includesList = (text: string) => [...new Set(text.split('\n').map(l => l.trim()).filter(Boolean))]
 // The event types this organizer handles (profile's event tags); every type until they pick some.
 const eventTypeChoices = ref<string[]>([])
 // Tags already on the option stay visible (and removable) even if the profile dropped them.
@@ -263,10 +354,12 @@ const check = useFormCheck((): Record<string, string> => {
 		min_guests: d.pricing_unit === 'per_guest' && num(d.min_guests) !== null && num(d.min_guests)! < 1 ? 'Use 1 or more, or leave it blank.' : '',
 		min_quantity: picksQuantity(d) && minQ !== null && minQ < 1 ? 'Use 1 or more, or leave it blank.' : '',
 		max_quantity: picksQuantity(d) && maxQ !== null && (maxQ < 1 || (minQ !== null && maxQ < minQ)) ? 'Must be at least the least amount.' : '',
+		includes: includesList(d.includes).length > 20 ? 'Up to 20 lines.' : includesList(d.includes).some(l => l.length > 80) ? 'Keep each line under 80 characters.' : '',
 	}
 })
 
 function startNew() {
+	resetImage()
 	editing.value = blank()
 	check.reset()
 	nextTick(() => scrollToElement(editorEl.value))
@@ -278,12 +371,15 @@ function startEdit(o: PriceOption) {
 		unit_label: o.unit_label ?? '', min_guests: o.min_guests ? String(o.min_guests) : '', min_quantity: o.min_quantity ? String(o.min_quantity) : '',
 		max_quantity: o.max_quantity ? String(o.max_quantity) : '', description: o.description ?? '', is_active: o.is_active ?? true,
 		event_tags: [...(o.event_tags ?? [])],
+		includes: (o.includes ?? []).join('\n'), images: [...(o.images ?? [])],
 	}
+	resetImage(o.images ?? [])
 	check.reset()
 	nextTick(() => scrollToElement(editorEl.value))
 }
 
 function cancelEdit() {
+	resetImage()
 	editing.value = null
 	check.reset()
 }
@@ -307,15 +403,19 @@ async function save() {
 		min_quantity: qty ? num(d.min_quantity) : null,
 		max_quantity: qty ? num(d.max_quantity) : null,
 		event_tags: d.event_tags,
+		includes: includesList(d.includes),
 	}
 	try {
+		let id = d.id
 		if (d.id) {
 			await api.update(orgId.value, d.id, payload)
 			notice.value = `“${payload.name}” was updated.`
 		} else {
-			await api.create(orgId.value, { ...payload, sort_order: (Math.max(0, ...options.value.map(o => o.sort_order ?? 0)) + 1) })
+			id = (await api.create(orgId.value, { ...payload, sort_order: (Math.max(0, ...options.value.map(o => o.sort_order ?? 0)) + 1) })).id
 			notice.value = `“${payload.name}” was added.`
 		}
+		if (id) await saveImages(id, d.images[0]?.id ?? null)
+		resetImage()
 		editing.value = null
 		await loadOptions()
 	} catch (e: unknown) {
@@ -354,7 +454,9 @@ function move(list: PriceOption[], i: number, dir: -1 | 1) {
 }
 
 // ---- estimate settings ----------------------------------------------------------
-const settings = reactive({ service_charge: '', chargesVat: false, note: '' })
+const settings = reactive({ service_charge: '', chargesVat: false, note: '', vatExempt: [] as string[] })
+// 0062: NaSeRy's event types, for "Event types with no VAT".
+const vatTypeChoices = ref<{ id: string, name: string }[]>([])
 const vatRate = ref(12)
 const savedSettings = ref<EstimateSettings>({})
 const savingSettings = ref(false)
@@ -377,6 +479,7 @@ async function saveSettings() {
 		await orgApi.updateProfile({
 			estimate_service_charge_percent: num(settings.service_charge),
 			estimate_tax_percent: settings.chargesVat ? vatRate.value : null,
+			vat_exempt_event_types: settings.chargesVat ? settings.vatExempt : [],
 			estimate_note: settings.note.trim() || null,
 		} as never)
 		savedSettings.value = { ...previewSettings.value }
@@ -407,6 +510,8 @@ onMounted(async () => {
 		settings.service_charge = p?.estimate_service_charge_percent != null ? String(p.estimate_service_charge_percent) : ''
 		vatRate.value = p?.vat_rate ?? 12
 		settings.chargesVat = (p?.estimate_tax_percent ?? 0) > 0
+		settings.vatExempt = [...((p as { vat_exempt_event_types?: string[] } | undefined)?.vat_exempt_event_types ?? [])]
+		vatTypeChoices.value = types.filter(t => t.name !== 'Other').map(t => ({ id: String(t.id), name: t.name }))
 		settings.note = p?.estimate_note ?? ''
 	} catch (e: unknown) {
 		error.value = authMessage(e) || (e as Error).message || 'Unable to load your price list.'

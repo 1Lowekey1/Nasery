@@ -63,6 +63,11 @@ export interface PriceOption {
   max_quantity?: number | null
   /** 0052: event types it's for (empty = every event type). Organizer's own list only. */
   event_tags?: string[]
+  /** 0062: what the item includes (short lines) and its picture. */
+  includes?: string[]
+  image_url?: string | null
+  /** 0063: up to 10 pictures; the first is the cover (image_url). */
+  images?: { id: string, url: string | null }[]
   is_active?: boolean
   sort_order?: number
 }
@@ -130,5 +135,14 @@ export const usePriceOptions = () => {
     create: async (orgId: string, payload: Partial<PriceOption>) => (await api.post<PriceOption>(base(orgId), payload)).data,
     update: async (orgId: string, id: string, payload: Partial<PriceOption>) => (await api.patch<PriceOption>(`${base(orgId)}/${id}`, payload)).data,
     remove: (orgId: string, id: string) => api.delete(`${base(orgId)}/${id}`),
+    /** 0062: the item's picture. */
+    /** 0063: the item's gallery (add one picture, remove one, make one the cover). */
+    uploadImage: async (orgId: string, id: string, file: File) => {
+      const data = new FormData()
+      data.append('image', file)
+      return (await api.post<PriceOption>(`${base(orgId)}/${id}/images`, data)).data
+    },
+    removeImage: async (orgId: string, id: string, imageId: string) => (await api.delete<PriceOption>(`${base(orgId)}/${id}/images/${imageId}`)).data,
+    coverImage: async (orgId: string, id: string, imageId: string) => (await api.post<PriceOption>(`${base(orgId)}/${id}/images/${imageId}/cover`)).data,
   }
 }
