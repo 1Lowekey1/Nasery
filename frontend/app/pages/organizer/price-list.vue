@@ -344,7 +344,11 @@ function pickImages(e: Event) {
 	if (files.length > room) imageError.value = `Only ${room} more picture${room === 1 ? '' : 's'} fit; the first ${room} were added.`
 	tiles.value.push(...files.slice(0, room).map(f => ({ key: `${f.name}-${f.size}-${Math.random()}`, url: URL.createObjectURL(f), file: f })))
 }
-function removeTile(i: number) {
+async function removeTile(i: number) {
+	const saved = Boolean(tiles.value[i]?.id)
+	if (!(await confirmDialog(saved
+		? 'It’s deleted when you press Save changes, and clients stop seeing it.'
+		: 'It hasn’t been uploaded yet, so it’s simply left out.', { title: 'Remove this picture?', confirmLabel: 'Remove' }))) return
 	const [t] = tiles.value.splice(i, 1)
 	if (t?.file) URL.revokeObjectURL(t.url)
 	else if (t?.id) removedImageIds.value.push(t.id)
