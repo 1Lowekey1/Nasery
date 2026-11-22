@@ -38,9 +38,14 @@
 				<p class="whitespace-pre-line text-sm leading-6 text-gray-700">{{ inquiry.additional_requirements }}</p>
 			</div>
 
-			<div v-if="inquiry.mood_board?.length">
-				<p class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Mood board · {{ inquiry.mood_board.length }} picture{{ inquiry.mood_board.length === 1 ? '' : 's' }}</p>
-				<MoodBoard :images="inquiry.mood_board" :compact="compact" />
+			<!-- Field test (Nov 2026): once booked, the team adds to it (e.g. the agreed palette) and removes only what it added. -->
+			<div v-if="inquiry.mood_board?.length || inquiry.mood_board_editable">
+				<p class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Mood board<template v-if="inquiry.mood_board?.length"> · {{ inquiry.mood_board.length }} picture{{ inquiry.mood_board.length === 1 ? '' : 's' }}</template></p>
+				<MoodBoard :images="inquiry.mood_board ?? []" :compact="compact" :editable="Boolean(inquiry.mood_board_editable)" :busy="moodBusy"
+					:title="`${firstName}'s event`" :can-remove="img => img.by_organization === organizationId"
+					hint="Add the agreed palette or reference pictures for your team. You can remove the ones you add; the client removes theirs."
+					@add="addMood" @remove="removeMood" />
+				<p v-if="moodError" class="mt-1 text-xs font-semibold text-rose-600">{{ moodError }}</p>
 			</div>
 
 			<div v-if="quotation">
@@ -128,6 +133,34 @@ async function message() {
 		messageError.value = authMessage(e) || 'Unable to open messages.'
 	} finally {
 		opening.value = false
+	}
+}
+
+// Field test (Nov 2026): the booked organizer's own mood board pictures.
+const moodBusy = ref(false)
+const moodError = ref('')
+async function addMood(files: File[]) {
+	if (!inquiry.value) return
+	moodBusy.value = true
+	moodError.value = ''
+	try {
+		for (const file of files) inquiry.value = await useOrganizerInquiries().addMoodImage(props.organizationId, inquiry.value.inquiry_id, file)
+	} catch (e) {
+		moodError.value = Object.values(fieldErrors(e))[0] || authMessage(e) || 'The picture could not be added.'
+	} finally {
+		moodBusy.value = false
+	}
+}
+async function removeMood(id: string) {
+	if (!inquiry.value || !(await confirmDialog('Remove this picture from the mood board?', { confirmLabel: 'Remove' }))) return
+	moodBusy.value = true
+	moodError.value = ''
+	try {
+		inquiry.value = await useOrganizerInquiries().removeMoodImage(props.organizationId, inquiry.value.inquiry_id, id)
+	} catch (e) {
+		moodError.value = authMessage(e) || 'The picture could not be removed.'
+	} finally {
+		moodBusy.value = false
 	}
 }
 

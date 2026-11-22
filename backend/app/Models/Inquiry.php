@@ -79,6 +79,9 @@ class Inquiry extends Model
             'id' => basename((string) ($i['path'] ?? ''), '.webp'),
             'url' => \App\Services\Media\ImageStore::url($i['path'] ?? null),
             'caption' => $i['caption'] ?? null,
+            // Field test (Nov 2026): who added it (the booked organizer's name; null = the client).
+            'added_by' => $i['by_name'] ?? null,
+            'by_organization' => $i['by'] ?? null,
         ], array_filter((array) $items, 'is_array')));
     }
 

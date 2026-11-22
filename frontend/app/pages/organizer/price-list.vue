@@ -177,12 +177,13 @@
 								<p v-else-if="picksQuantity(o) && (o.min_quantity || o.max_quantity)" class="mt-0.5 text-xs text-gray-400">{{ quantityBounds(o).min }}{{ quantityBounds(o).max ? `–${quantityBounds(o).max}` : '+' }} {{ unitName(o, 2) }}</p>
 								<p class="mt-0.5 truncate text-xs text-primary-700/80">{{ o.event_tags?.length ? o.event_tags.join(' · ') : 'All events' }}</p>
 							</div>
-							<div class="shrink-0 text-right">
+							<!-- Wide screens: the price rests at the right edge and slides left as the actions appear (hover or keyboard focus). -->
+							<div class="shrink-0 text-right transition-transform duration-300 ease-out motion-reduce:transition-none sm:translate-x-[12.75rem] sm:group-hover:translate-x-0 sm:group-focus-within:translate-x-0">
 								<p class="text-sm font-extrabold tabular-nums text-gray-950">{{ formatPeso(o.price) }}</p>
 								<span class="mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold" :class="o.pricing_unit === 'flat' ? 'bg-gray-100 text-gray-500' : 'bg-primary-50 text-primary-700'">{{ o.pricing_unit === 'flat' ? 'flat' : `per ${unitName(o)}` }}</span>
 							</div>
 							<!-- Phones: the actions get their own row under the name and price -->
-							<div class="flex shrink-0 items-center gap-1 opacity-100 transition max-sm:-mr-2 max-sm:w-full max-sm:justify-end sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+							<div class="flex shrink-0 items-center justify-end gap-1 opacity-100 transition-opacity duration-300 motion-reduce:transition-none max-sm:-mr-2 max-sm:w-full sm:pointer-events-none sm:w-[12rem] sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:focus-within:pointer-events-auto sm:focus-within:opacity-100">
 								<button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 disabled:opacity-30" :disabled="i === 0 || busy" :aria-label="`Move ${o.name} up`" @click="move(group.options, i, -1)"><IconBase name="chevron-down" class="h-4 w-4 rotate-180" /></button>
 								<button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 disabled:opacity-30" :disabled="i === group.options.length - 1 || busy" :aria-label="`Move ${o.name} down`" @click="move(group.options, i, 1)"><IconBase name="chevron-down" class="h-4 w-4" /></button>
 								<button type="button" class="rounded-lg px-2.5 py-1.5 text-xs font-bold text-gray-500 transition hover:bg-gray-100" :disabled="busy" @click="toggleActive(o)">{{ o.is_active ? 'Hide' : 'Show' }}</button>
@@ -238,7 +239,8 @@
 				<p class="text-[11px] font-bold uppercase tracking-widest text-primary-700">Live preview</p>
 				<h2 class="mt-0.5 text-sm font-bold text-gray-900">What clients see</h2>
 				<p class="mt-0.5 text-xs text-gray-500">Only options you show. Try it like a client would.</p>
-				<PricingPriceCalculator :key="previewKey" organizer-view compact class="mt-3" :options="visibleOptions" :services="services" :settings="previewSettings" />
+				<!-- "What clients see": VAT shows as "Miscellaneous charges" here too, as it does for clients. -->
+				<PricingPriceCalculator :key="previewKey" compact class="mt-3" :options="visibleOptions" :services="services" :settings="previewSettings" />
 			</aside>
 		</div>
 	</div>

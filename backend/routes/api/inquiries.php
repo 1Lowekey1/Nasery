@@ -50,6 +50,10 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
             Route::post('{inquiry}/cancellation/respond', [BookingCancellationController::class, 'organizerRespond'])->middleware('throttle:sensitive')->name('cancellation.respond');
             Route::delete('{inquiry}/cancellation', [BookingCancellationController::class, 'organizerWithdraw'])->middleware('throttle:sensitive')->name('cancellation.withdraw');
             Route::post('{inquiry}/decline', [OrganizerInquiryController::class, 'decline'])->middleware('throttle:sensitive')->name('decline');
+            // Field test (Nov 2026): the booked organizer adds to the client's mood board.
+            Route::post('{inquiry}/mood-board', [OrganizerInquiryController::class, 'addMoodImage'])->middleware('throttle:sensitive')->name('mood.store');
+            Route::delete('{inquiry}/mood-board/{image}', [OrganizerInquiryController::class, 'removeMoodImage'])
+                ->whereUuid('image')->middleware('throttle:sensitive')->name('mood.destroy');
         });
 
         // Client–organizer threads (0042). The service checks who is a participant.

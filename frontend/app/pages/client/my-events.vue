@@ -302,6 +302,24 @@
 				</div>
 			</div>
 
+			<!-- Field test (Nov 2026): requests started but not sent yet (saved in this browser as the form is filled in). -->
+			<div v-if="unfinished.length" class="me-rise mb-5 rounded-3xl border border-amber-200 bg-amber-50/60 p-4 sm:p-5" style="--d: 320ms">
+				<p class="text-sm font-extrabold text-gray-950">Unfinished requests <span class="font-semibold text-gray-500">· not sent yet</span></p>
+				<p class="mt-0.5 text-xs text-gray-500">Saved on this device as you filled in the form. Organizers can't see them until you send them.</p>
+				<ul class="mt-3 space-y-2">
+					<li v-for="d in unfinished" :key="d.key" class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-white px-4 py-3">
+						<div class="min-w-0">
+							<p class="truncate text-sm font-bold text-gray-900">{{ d.title }}</p>
+							<p class="truncate text-xs text-gray-500">{{ [d.organizer ? `To ${d.organizerName ?? 'one organizer'}` : null, d.detail, `saved ${savedAgo(d.savedAt)}`].filter(Boolean).join(' · ') }}</p>
+						</div>
+						<div class="flex shrink-0 items-center gap-2">
+							<button type="button" class="rounded-lg px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-100 hover:text-rose-700" @click="discardUnfinished(d)">Discard</button>
+							<NuxtLink :to="{ path: '/client/post-event', query: d.organizer ? { organizer: d.organizer } : {} }" class="rounded-lg bg-primary-700 px-4 py-2 text-xs font-bold text-white hover:bg-primary-900">Continue</NuxtLink>
+						</div>
+					</li>
+				</ul>
+			</div>
+
 			<!-- Loading -->
 			<div v-if="isLoading"
 				class="rounded-3xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
@@ -1241,6 +1259,54 @@ async function acceptQuotation(
 	}
 }
 
+// Field test (Nov 2026): request forms saved in this browser but not sent (useDraft keys
+// "inquiry:new" and "inquiry:to:<organizer slug>"), so a client can pick up where they left off.
+type Unfinished = { key: string, organizer: string | null, organizerName: string | null, title: string, detail: string | null, savedAt: number }
+const unfinished = ref<Unfinished[]>([])
+function loadUnfinished() {
+	const uid = useAuth().user.value?.id
+	if (!import.meta.client || !uid) return
+	const prefix = `nasery:draft:${uid}:inquiry:`
+	const list: Unfinished[] = []
+	try {
+		for (const key of Object.keys(window.localStorage).filter(k => k.startsWith(prefix))) {
+			const saved = JSON.parse(window.localStorage.getItem(key) ?? 'null') as { v?: Record<string, unknown>, at?: number } | null
+			const v = saved?.v
+			if (!v || !saved?.at || Date.now() - saved.at > 14 * 24 * 60 * 60 * 1000) continue
+			const rest = key.slice(prefix.length)
+			const organizer = rest.startsWith('to:') ? rest.slice(3) : null
+			// Old drafts were saved under the organizer's id, which the form can't open: skip those.
+			if (organizer && /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(organizer)) continue
+			const type = typeof v.eventType === 'string' ? v.eventType : ''
+			const title = (typeof v.title === 'string' && v.title.trim()) || (type ? `${type} request` : 'Untitled request')
+			const date = typeof v.date === 'string' && v.date ? new Date(`${v.date}T00:00:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : null
+			const guests = v.guests ? `${v.guests} guests` : null
+			list.push({ key, organizer, organizerName: null, title, detail: [date, guests].filter(Boolean).join(' · ') || null, savedAt: saved.at })
+		}
+	} catch {
+		// Storage blocked: nothing was saved either.
+	}
+	unfinished.value = list.sort((a, b) => b.savedAt - a.savedAt)
+	// Show the organizer's name rather than their web address.
+	for (const d of unfinished.value.filter(x => x.organizer)) {
+		useMarketplace().organizer(d.organizer!).then((org) => { d.organizerName = org.display_name }).catch(() => {})
+	}
+}
+async function discardUnfinished(d: Unfinished) {
+	if (!(await confirmDialog(`Discard “${d.title}”? What you typed is deleted from this device.`, { confirmLabel: 'Discard' }))) return
+	try { window.localStorage.removeItem(d.key) } catch { /* storage blocked */ }
+	unfinished.value = unfinished.value.filter(x => x.key !== d.key)
+}
+function savedAgo(at: number) {
+	const mins = Math.round((Date.now() - at) / 60000)
+	if (mins < 1) return 'just now'
+	if (mins < 60) return `${mins} min ago`
+	const hours = Math.round(mins / 60)
+	if (hours < 24) return `${hours} h ago`
+	return new Date(at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
+}
+onMounted(loadUnfinished)
+
 /** The client's inquiries (their "events" here), with how many quotations each has. */
 async function loadClientInquiries(quiet = false) {
 	errorMessage.value = ''
@@ -1262,7 +1328,8 @@ async function loadClientInquiries(quiet = false) {
 		// As organizers see it: "Nicole D." (for the default "Wedding for Nicole D." name).
 		const me = useAuth().user.value
 		const myShortName = `${me?.first_name ?? ''} ${me?.last_name ? `${me.last_name[0]}.` : ''}`.trim() || 'you'
-		clientEvents.value = inquiries.map((i, index) => {
+		// A request that never went out (a failed send) isn't an event yet: its form draft is under "Unfinished requests".
+		clientEvents.value = inquiries.flatMap((i, index) => i.status === 'draft' ? [] : [(() => {
 			const list = quotes[index] ?? []
 			const accepted = list.find(q => q.status === 'accepted')
 			const event = eventByInquiry.get(String(i.id))
@@ -1292,7 +1359,7 @@ async function loadClientInquiries(quiet = false) {
 				created_at: i.created_at,
 				updated_at: i.created_at,
 			} as ClientInquiry
-		})
+		})()])
 	} catch (error: unknown) {
 		errorMessage.value = authMessage(error) || 'Unable to load your events.'
 	} finally {

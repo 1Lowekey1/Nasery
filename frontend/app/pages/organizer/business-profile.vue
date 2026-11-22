@@ -260,7 +260,8 @@
 						</div>
 						<div class="border-t border-gray-100 pt-5">
 							<p class="bp-label">Services you offer</p>
-							<p class="mb-3 text-xs text-gray-400">Clients’ requests reach you based on these, and they appear as tags on your public page. Your detailed rates go in the Price list below. Saved straight away. Not in NaSeRy’s list? Add it anyway: it’s yours right away, and NaSeRy reviews it for everyone.</p>
+							<p class="text-xs text-gray-400">Clients’ requests reach you based on these, and they appear as tags on your public page. Your detailed rates go in the Price list below. Saved straight away.</p>
+							<p class="mb-3 mt-1 text-xs text-gray-500"><span class="font-semibold text-gray-700">Don’t see yours?</span> Type it in the box below and press Add. You can use it right away, and NaSeRy reviews it so clients can pick it too.</p>
 							<ul v-if="catalog.length" class="divide-y divide-gray-100 rounded-xl ring-1 ring-gray-200">
 								<li v-for="s in catalog" :key="s.id" class="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
 									<span class="min-w-0 truncate font-semibold text-gray-900">{{ s.name }}<span v-if="s.base_price" class="font-normal text-gray-500"> · from {{ money(Number(s.base_price)) }}</span></span>
@@ -733,9 +734,18 @@ function useExistingType(name: string) {
 	suggestReply.value = { kind: 'info', text: `“${name}” is picked above. Save your profile to keep it.` }
 	suggestName.value = ''
 }
+// Field test (Nov 2026): a new name is sent to NaSeRy's admins and can't be changed after,
+// so check the spelling first. Names already on NaSeRy's list are just added (nothing is sent).
+async function confirmNewName(name: string, kind: 'service' | 'event type', known: string[]) {
+	if (known.some(k => k.trim().toLowerCase() === name.toLowerCase())) return true
+	return confirmDialog(`“${name}” isn’t on NaSeRy’s list yet. It will be added for you and sent to NaSeRy for review. Please check the spelling: the name can’t be changed once it’s sent.`,
+		{ title: `Add a new ${kind}?`, confirmLabel: `Yes, add “${name}”`, cancelLabel: 'Let me fix it', danger: false })
+}
+
 async function suggestType(confirmNew: boolean) {
 	const org = await orgApi.fetchOrganization()
 	if (!org || suggestName.value.trim().length < 2) return
+	if (!confirmNew && !(await confirmNewName(suggestName.value.trim(), 'event type', eventTypeOptions.value))) return
 	suggestBusy.value = true
 	try {
 		const r = await api.post<{ result: 'exists' | 'similar' | 'already_suggested' | 'pending', event_type?: string }>(`/organizations/${org.id}/event-type-suggestions`,
@@ -803,6 +813,7 @@ async function addCatalogService(confirmNew: boolean) {
 	const org = await orgApi.fetchOrganization()
 	const name = newCatalog.custom_name.trim()
 	if (!org || name.length < 2) return
+	if (!confirmNew && !(await confirmNewName(name, 'service', presetServices.value))) return
 	catalogError.value = ''
 	serviceBusy.value = true
 	try {

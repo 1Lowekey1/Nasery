@@ -1,13 +1,13 @@
 <template>
 	<!-- One package in full: its pictures, description and what it includes (field test follow-up, Nov 2026). -->
 	<Teleport to="body">
-		<div class="fixed inset-0 z-[150] flex items-stretch justify-center bg-gray-950/70 sm:items-center sm:p-6" role="dialog" aria-modal="true"
+		<div class="fixed inset-0 z-[155] flex items-stretch justify-center bg-gray-950/70 sm:items-center sm:p-6" role="dialog" aria-modal="true"
 			:aria-label="option.name" tabindex="-1" @click.self="emit('close')" @keydown.esc="emit('close')" @keydown.left="photo(-1)" @keydown.right="photo(1)">
-			<div ref="panel" class="flex max-h-[100dvh] w-full max-w-6xl flex-col overflow-hidden bg-white shadow-2xl outline-none sm:max-h-[92dvh] sm:rounded-3xl lg:flex-row" tabindex="-1">
+			<div ref="panel" class="flex max-h-[100dvh] w-full max-w-6xl flex-col overflow-hidden bg-white shadow-2xl outline-none sm:max-h-[92dvh] sm:rounded-3xl lg:h-[min(88dvh,46rem)] lg:flex-row" tabindex="-1">
 				<!-- Pictures -->
 				<div class="relative flex shrink-0 flex-col bg-gray-950 lg:w-[60%]">
 					<div class="relative flex aspect-[4/3] w-full items-center justify-center lg:aspect-auto lg:flex-1" @touchstart.passive="touchX = $event.touches[0]?.clientX ?? null" @touchend="swipe">
-						<img v-if="current" :key="current.id" :src="current.url ?? ''" :alt="`${option.name}, picture ${shown + 1} of ${images.length}`" class="h-full max-h-[70dvh] w-full object-contain">
+						<img v-if="current" :key="current.id" :src="current.url ?? ''" :alt="`${option.name}, picture ${shown + 1} of ${images.length}`" class="h-full max-h-[70dvh] w-full object-contain lg:max-h-none">
 						<div v-else class="flex h-full min-h-56 w-full flex-col items-center justify-center gap-2 text-primary-200">
 							<IconBase name="tag" class="h-12 w-12" /><span class="text-sm">No pictures yet</span>
 						</div>
@@ -54,10 +54,11 @@
 					<div class="space-y-2 border-t border-gray-100 px-5 py-4 sm:px-6">
 						<div class="grid gap-2 sm:grid-cols-2">
 							<button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-bold transition"
-								:class="picked ? 'border-primary-700 bg-primary-50 text-primary-800' : 'border-gray-200 text-gray-800 hover:bg-gray-50'" :aria-pressed="picked" @click="emit('toggle', option.id)">
-								<IconBase :name="picked ? 'check' : 'plus'" class="h-4 w-4" />{{ picked ? 'In your estimate' : 'Add to my estimate' }}
+								:class="picked ? 'border-primary-700 bg-primary-50 text-primary-800' : selectMode ? 'border-primary-700 bg-primary-700 text-white hover:bg-primary-900' : 'border-gray-200 text-gray-800 hover:bg-gray-50'"
+								:aria-pressed="picked" @click="choose">
+								<IconBase :name="picked ? 'check' : 'plus'" class="h-4 w-4" />{{ picked ? (selectMode ? 'Selected · tap to remove' : 'In your estimate') : (selectMode ? 'Select this package' : 'Add to my estimate') }}
 							</button>
-							<button v-if="canRequest" type="button" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary-700 px-4 text-sm font-bold text-white hover:bg-primary-900" @click="emit('request', option.id)">
+							<button v-if="canRequest && !selectMode" type="button" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary-700 px-4 text-sm font-bold text-white hover:bg-primary-900" @click="emit('request', option.id)">
 								Request a quotation
 							</button>
 						</div>
@@ -76,8 +77,15 @@
 <script setup lang="ts">
 import type { PriceOption } from '~/composables/useQuotations'
 
-const props = defineProps<{ option: PriceOption, siblings: PriceOption[], groupLabel: string, picked: boolean, canRequest: boolean, organizerName: string }>()
+const props = defineProps<{ option: PriceOption, siblings: PriceOption[], groupLabel: string, picked: boolean, canRequest: boolean, organizerName: string,
+	/** Opened from the calculator: "Select this package" picks it and goes back. */
+	selectMode?: boolean }>()
 const emit = defineEmits<{ close: [], open: [id: string], toggle: [id: string], request: [id: string] }>()
+
+function choose() {
+	emit('toggle', props.option.id)
+	if (props.selectMode && !props.picked) emit('close')
+}
 
 const images = computed(() => (props.option.images ?? []).filter(i => i.url))
 const shown = ref(0)

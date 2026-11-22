@@ -70,7 +70,9 @@ class OrganizerInquiries
 
         $invitation->setRelation('inquiry', $inquiry);
 
-        return $this->present($invitation, $this->extras(collect([$inquiry]), $organization), detailed: true);
+        return [...$this->present($invitation, $this->extras(collect([$inquiry]), $organization), detailed: true),
+            // Field test (Nov 2026): the booked organizer adds to the mood board until the event is over.
+            'mood_board_editable' => app(MoodBoards::class)->bookedBy($inquiry, $organization)];
     }
 
     /**

@@ -15,7 +15,7 @@
 			<legend class="text-sm font-bold text-gray-900">{{ group.label }}
 				<span class="font-normal text-gray-400">· {{ group.single ? 'choose one' : 'choose any' }}</span></legend>
 			<div class="mt-2 grid gap-2" :class="compact ? '' : 'sm:grid-cols-2'">
-				<div v-for="o in visibleOptions(group)" :key="o.id"
+				<div v-for="o in visibleOptions(group)" :key="o.id" @mouseenter="emit('hover', o.id)" @mouseleave="emit('hover', null)"
 					class="min-w-0 rounded-xl border text-sm transition" :class="[compact ? 'px-3 py-2' : 'px-3.5 py-2.5', o.id in chosen ? 'border-primary-600 bg-primary-50' : 'border-gray-200 hover:border-primary-200']">
 					<!-- Compact (narrow panels): price goes under the name so nothing spills out. -->
 					<label class="flex cursor-pointer items-start justify-between gap-3" :class="compact ? 'flex-wrap gap-y-0.5' : ''">
@@ -41,6 +41,11 @@
 						</span>
 						<span class="font-semibold text-gray-700" :class="compact ? 'basis-full pl-6' : 'shrink-0 whitespace-nowrap text-right'">{{ formatPeso(o.price) }}<span class="font-normal text-gray-500">{{ priceSuffix(o) }}</span></span>
 					</label>
+					<!-- The organizer page: each option's full view (pictures, description, what's included). -->
+					<button v-if="detailsButton" type="button" class="ml-6 mt-1 inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:underline" @click="emit('details', o.id)">
+						Details<template v-if="(o.images?.length ?? 0) > 0"> · {{ o.images!.length }} photo{{ o.images!.length === 1 ? '' : 's' }}</template>
+						<IconBase name="arrow-right" class="h-3 w-3" />
+					</button>
 					<div v-if="o.id in chosen && picksQuantity(o)" class="mt-2 flex items-center gap-2 pl-6">
 						<span class="text-xs text-gray-500">How many {{ unitName(o, 2) }}?</span>
 						<button type="button" class="h-7 w-7 rounded-lg border border-gray-200 bg-white font-bold text-gray-700 disabled:opacity-40"
@@ -134,8 +139,10 @@ const props = withDefaults(defineProps<{
 	initialPicks?: Record<string, number>
 	/** Descriptions and "includes" lists (off where the package view already shows them). */
 	showDetails?: boolean
-}>(), { services: () => [], settings: null, initialGuests: 100, compact: false, collapseOver: 0, organizerView: false, initialPicks: () => ({}), showDetails: true })
-const emit = defineEmits<{ change: [picks: Record<string, number>] }>()
+	/** A "Details" link on each option (emits details). */
+	detailsButton?: boolean
+}>(), { services: () => [], settings: null, initialGuests: 100, compact: false, collapseOver: 0, organizerView: false, initialPicks: () => ({}), showDetails: true, detailsButton: false })
+const emit = defineEmits<{ change: [picks: Record<string, number>], details: [id: string], hover: [id: string | null] }>()
 
 const uid = useId()
 const zoom = ref<{ url: string, name: string } | null>(null)
@@ -152,6 +159,12 @@ for (const [id, n] of Object.entries(props.initialPicks ?? {})) {
 	if (o) chosen[id] = picksQuantity(o) ? Math.max(quantityBounds(o).min, n || 0) : 1
 }
 watch(chosen, value => emit('change', { ...value }), { deep: true })
+// Picks changed outside (e.g. "Select this package" in the package view): follow them.
+watch(() => props.initialPicks, (next) => {
+	if (JSON.stringify(next ?? {}) === JSON.stringify(chosen)) return
+	for (const id of Object.keys(chosen)) if (!(id in (next ?? {}))) delete chosen[id]
+	for (const [id, n] of Object.entries(next ?? {})) chosen[id] = n
+}, { deep: true })
 
 // Picked options stay in view even when their service is folded.
 function visibleOptions(group: { key: string, options: PriceOption[] }) {

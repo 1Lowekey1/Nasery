@@ -917,7 +917,8 @@ const showLocationSuggestions =
 const route = useRoute()
 const target = ref<{ id: string, display_name: string, picks: { custom_service_name: string, notes: string }[], estimate: number | null } | null>(null)
 // Unfinished inquiry kept in this browser (one per organizer for direct requests).
-const draft = useDraft(() => (target.value ? `inquiry:to:${target.value.id}` : 'inquiry:new'), form)
+// Saved per organizer by the page's own address (its slug), so My Events can bring the client back here.
+const draft = useDraft(() => (target.value && typeof route.query.organizer === 'string' ? `inquiry:to:${route.query.organizer}` : 'inquiry:new'), form)
 
 onMounted(async () => {
 	if (typeof route.query.organizer !== 'string') return

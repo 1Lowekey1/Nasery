@@ -50,7 +50,7 @@
 						</p>
 					</div>
 				</div>
-				<div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3 lg:self-auto">
+				<div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-3 lg:shrink-0 lg:flex-nowrap lg:self-auto">
 					<a href="#past-events"
 						class="inline-flex min-h-11 items-center justify-center rounded-lg border border-gray-200 px-3 text-center text-sm font-semibold hover:bg-gray-50 sm:px-5">
 						Explore past work ↓
@@ -243,13 +243,29 @@
 
 		<!-- One package in full -->
 		<PricingPackageOverlay v-if="openOption && openGroup" :option="openOption" :siblings="openGroup.options" :group-label="openGroup.label"
-			:picked="openOption.id in picks" :can-request="canRequestQuote" :organizer-name="organizer.name"
-			@close="openId = null" @open="openId = $event" @toggle="togglePick" @request="requestOne" />
+			:picked="openOption.id in picks" :can-request="canRequestQuote" :organizer-name="organizer.name" :select-mode="fromCalculator"
+			@close="openId = null; fromCalculator = false" @open="openId = $event" @toggle="togglePick" @request="requestOne" />
 
 		<!-- The calculator, in its own panel (full screen on phones) -->
 		<Teleport to="body">
 			<div v-if="showCalculator && profile" class="fixed inset-0 z-[150] flex justify-end bg-gray-950/60" role="dialog" aria-modal="true" aria-labelledby="calculator-heading"
 				@click.self="showCalculator = false" @keydown.esc="showCalculator = false">
+				<!-- Wide screens: hovering an option previews it here (pictures cycle); "Details" opens it in full. -->
+				<div v-if="hoverOption && !openId" class="pointer-events-none fixed left-8 top-1/2 hidden w-[min(34rem,calc(100vw-42rem-4rem))] -translate-y-1/2 overflow-hidden rounded-3xl bg-white shadow-2xl xl:block" aria-hidden="true">
+					<div class="relative aspect-[4/3] bg-gray-950">
+						<img v-if="hoverImages[hoverShown]?.url" :key="hoverImages[hoverShown]!.id" :src="hoverImages[hoverShown]!.url!" alt="" class="h-full w-full object-cover">
+						<div v-else class="flex h-full flex-col items-center justify-center gap-2 text-sm text-primary-200"><IconBase name="tag" class="h-10 w-10" />No pictures yet</div>
+						<span v-if="hoverImages.length > 1" class="absolute bottom-3 right-3 rounded-full bg-gray-900/70 px-2.5 py-0.5 text-xs font-semibold text-white">{{ hoverShown + 1 }} / {{ hoverImages.length }}</span>
+					</div>
+					<div class="p-5">
+						<p class="text-lg font-bold text-gray-900">{{ hoverOption.name }}</p>
+						<p class="font-bold text-primary-800">{{ formatPeso(hoverOption.price) }}<span class="text-sm font-normal text-gray-500">{{ priceSuffix(hoverOption) }}</span></p>
+						<p v-if="hoverOption.description" class="mt-2 line-clamp-3 text-sm text-gray-600">{{ hoverOption.description }}</p>
+						<ul v-if="hoverOption.includes?.length" class="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+							<li v-for="(line, i) in hoverOption.includes.slice(0, 8)" :key="i" class="flex items-start gap-1.5 text-xs text-gray-600"><IconBase name="check" class="mt-0.5 h-3 w-3 shrink-0 text-primary-600" />{{ line }}</li>
+						</ul>
+					</div>
+				</div>
 				<div ref="calculatorPanel" tabindex="-1" class="flex h-full w-full max-w-2xl flex-col bg-white shadow-2xl outline-none">
 					<div class="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 sm:px-6">
 						<div>
@@ -260,7 +276,8 @@
 						<button type="button" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100" aria-label="Close" @click="showCalculator = false"><IconBase name="x" class="h-5 w-5" /></button>
 					</div>
 					<div class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-						<PricingPriceCalculator :options="profile.price_options" :services="profile.services" :settings="profile.estimate" :initial-picks="picks" :show-details="false" @change="picks = $event">
+						<PricingPriceCalculator :options="profile.price_options" :services="profile.services" :settings="profile.estimate" :initial-picks="picks" :show-details="false"
+							details-button @change="picks = $event" @details="openFromCalculator" @hover="hoverId = $event">
 							<template #action="{ estimate, picks: chosenPicks, guests }">
 								<div v-if="canRequestQuote" class="mt-4 flex justify-end">
 									<button type="button" class="rounded-lg bg-primary-700 px-5 py-3 text-sm font-bold text-white hover:bg-primary-900 disabled:opacity-50"
@@ -329,6 +346,28 @@ const signInPanel = ref<HTMLElement | null>(null)
 const optionGroups = computed(() => groupOptions(profile.value?.price_options ?? [], profile.value?.services ?? []))
 const openGroup = computed(() => optionGroups.value.find(g => g.options.some(o => o.id === openId.value)))
 const openOption = computed(() => openGroup.value?.options.find(o => o.id === openId.value))
+// The calculator: an option's full view on top ("Select this package"), and a hover preview on wide screens.
+const fromCalculator = ref(false)
+function openFromCalculator(id: string) {
+	hoverId.value = null
+	fromCalculator.value = true
+	openId.value = id
+}
+const hoverId = ref<string | null>(null)
+const hoverOption = computed(() => profile.value?.price_options.find(o => o.id === hoverId.value) ?? null)
+const hoverImages = computed(() => (hoverOption.value?.images ?? []).filter(i => i.url))
+const hoverShown = ref(0)
+let hoverTimer: ReturnType<typeof setInterval> | null = null
+watch(hoverId, () => {
+	hoverShown.value = 0
+	if (hoverTimer) clearInterval(hoverTimer)
+	hoverTimer = null
+	if (hoverImages.value.length > 1 && !(import.meta.client && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)) {
+		hoverTimer = setInterval(() => { hoverShown.value = (hoverShown.value + 1) % hoverImages.value.length }, 1300)
+	}
+})
+watch(showCalculator, open => { if (!open) hoverId.value = null })
+onBeforeUnmount(() => { if (hoverTimer) clearInterval(hoverTimer) })
 const firstQuantity = (o: PriceOption) => (picksQuantity(o) ? quantityBounds(o).min : 1)
 
 function togglePick(id: string) {

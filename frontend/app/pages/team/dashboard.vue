@@ -90,18 +90,7 @@
         </div>
 
         <!-- The client's mood board for this event. -->
-        <div v-if="moodFor" class="fixed inset-0 z-[120] flex items-end justify-center bg-gray-900/40 p-4 sm:items-center" @click.self="moodFor = null" @keydown.esc="moodFor = null">
-            <section class="max-h-[85dvh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" :aria-label="`Mood board for ${moodFor.name}`">
-                <div class="mb-4 flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <p class="text-xs font-bold uppercase tracking-wide text-primary-700">Client's mood board</p>
-                        <h2 class="truncate text-lg font-bold text-gray-900">{{ moodFor.name }}</h2>
-                    </div>
-                    <button type="button" class="tap-target rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Close" @click="moodFor = null"><IconBase name="x" class="h-5 w-5" /></button>
-                </div>
-                <MoodBoard :images="moodFor.mood_board" />
-            </section>
-        </div>
+        <MoodBoardViewer v-if="moodFor" :images="moodFor.mood_board" :title="moodFor.name" @close="moodFor = null" />
     </div>
 </template>
 <script setup lang="ts">

@@ -246,4 +246,46 @@ class ImageUploadTest extends TestCase
         DB::table('inquiries')->where('id', $id)->update(['mood_board' => json_encode(array_fill(0, 8, ['path' => 'mood-boards/'.Str::uuid().'.webp', 'caption' => null]))]);
         $this->upload($client, $board, 'one-more.png', $this->png(600, 400))->assertUnprocessable();
     }
+
+    /** Field test (Nov 2026): once booked, the organizer adds to the mood board and removes only its own pictures. */
+    public function test_the_booked_organizer_adds_to_the_mood_board_and_removes_only_its_own(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        $key = fn () => ['Idempotency-Key' => (string) Str::uuid()];
+        [$org, $owner] = $this->listedOrganizer();
+        [$rival, $rivalOwner] = $this->listedOrganizer();
+        $client = User::factory()->create();
+        $id = $this->actingAs($client)->spaJson('POST', '/api/v1/inquiries', [
+            'event_type_id' => DB::table('event_types')->whereNull('organization_id')->where('name', 'Wedding')->value('id'),
+            'requested_date' => now()->addMonths(2)->toDateString(), 'guest_count' => 90, 'location_text' => 'Lanang, Davao City',
+        ])->json('data.id');
+        $clientPicture = $this->upload($client, "/api/v1/inquiries/{$id}/mood-board", 'palette.png', $this->png(600, 400))->assertCreated()->json('data.mood_board.0');
+        $this->actingAs($client)->spaJson('POST', "/api/v1/inquiries/{$id}/submit", ['mode' => 'direct', 'organization_ids' => [$org->id, $rival->id]], $key())->assertOk();
+        $orgBoard = "/api/v1/organizations/{$org->id}/inquiries/{$id}/mood-board";
+
+        // Not booked yet: no changes.
+        $this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/inquiries/{$id}")->assertJsonPath('data.mood_board_editable', false);
+        $this->upload($owner, $orgBoard, 'final.png', $this->png(600, 400))->assertStatus(409);
+
+        $quotation = $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/inquiries/{$id}/quotations",
+            ['items' => [['description' => 'Package', 'quantity' => 1, 'unit_price' => 50000]], 'submit' => true], $key())->json('data.id');
+        $this->actingAs($client)->spaJson('POST', "/api/v1/quotations/{$quotation}/accept", [], $key())->assertOk();
+        $start = now('Asia/Manila')->addDays(30);
+        $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/quotations/{$quotation}/event", [
+            'name' => 'Palette Wedding', 'sessions' => [['starts_at' => $start->format('Y-m-d\TH:i'), 'ends_at' => $start->addHours(4)->format('Y-m-d\TH:i')]],
+        ], $key())->assertCreated();
+
+        // Booked: the team adds a picture, labelled as theirs; the client sees it.
+        $this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/inquiries/{$id}")->assertJsonPath('data.mood_board_editable', true);
+        $ours = $this->upload($owner, $orgBoard, 'final.png', $this->png(600, 400))->assertCreated()
+            ->assertJsonCount(2, 'data.mood_board')->assertJsonPath('data.mood_board.1.added_by', $org->display_name)->json('data.mood_board.1');
+        $this->actingAs($client)->spaJson('GET', "/api/v1/inquiries/{$id}")->assertJsonPath('data.mood_board.1.added_by', $org->display_name)
+            ->assertJsonPath('data.mood_board.0.added_by', null);
+
+        // The losing organizer can't; the booked one can't remove the client's picture, only its own.
+        $this->upload($rivalOwner, "/api/v1/organizations/{$rival->id}/inquiries/{$id}/mood-board", 'x.png', $this->png(300, 200))->assertStatus(409);
+        $this->actingAs($owner)->spaJson('DELETE', "{$orgBoard}/{$clientPicture['id']}")->assertForbidden();
+        $this->actingAs($owner)->spaJson('DELETE', "{$orgBoard}/{$ours['id']}")->assertOk()->assertJsonCount(1, 'data.mood_board');
+        $this->assertFileDoesNotExist($this->stored($ours['url']));
+    }
 }
