@@ -3,14 +3,12 @@
 	<Teleport to="body">
 		<div class="fixed inset-0 z-[155] flex items-stretch justify-center bg-gray-950/70 sm:items-center sm:p-6" role="dialog" aria-modal="true"
 			:aria-label="option.name" tabindex="-1" @click.self="emit('close')" @keydown.esc="emit('close')" @keydown.left="photo(-1)" @keydown.right="photo(1)">
-			<div ref="panel" class="flex max-h-[100dvh] w-full max-w-6xl flex-col overflow-hidden bg-white shadow-2xl outline-none sm:max-h-[92dvh] sm:rounded-3xl lg:h-[min(88dvh,46rem)] lg:flex-row" tabindex="-1">
+			<div ref="panel" class="flex max-h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl outline-none sm:max-h-[92dvh] sm:rounded-3xl lg:flex-row" tabindex="-1"
+				:class="images.length ? 'max-w-6xl lg:h-[min(88dvh,46rem)]' : 'max-w-xl'">
 				<!-- Pictures -->
-				<div class="relative flex shrink-0 flex-col bg-gray-950 lg:w-[60%]">
+				<div v-if="images.length" class="relative flex shrink-0 flex-col bg-gray-950 lg:w-[60%]">
 					<div class="relative flex aspect-[4/3] w-full items-center justify-center lg:aspect-auto lg:flex-1" @touchstart.passive="touchX = $event.touches[0]?.clientX ?? null" @touchend="swipe">
-						<img v-if="current" :key="current.id" :src="current.url ?? ''" :alt="`${option.name}, picture ${shown + 1} of ${images.length}`" class="h-full max-h-[70dvh] w-full object-contain lg:max-h-none">
-						<div v-else class="flex h-full min-h-56 w-full flex-col items-center justify-center gap-2 text-primary-200">
-							<IconBase name="tag" class="h-12 w-12" /><span class="text-sm">No pictures yet</span>
-						</div>
+						<div class="h-full max-h-[70dvh] w-full lg:max-h-none"><PricingImageCycle v-model:index="shown" :images="images" fit="contain" :alt="`${option.name}, picture ${shown + 1} of ${images.length}`" /></div>
 						<template v-if="images.length > 1">
 							<button type="button" class="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-800 shadow hover:bg-white" aria-label="Previous picture" @click="photo(-1)"><IconBase name="arrow-left" class="h-5 w-5" /></button>
 							<button type="button" class="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-800 shadow hover:bg-white" aria-label="Next picture" @click="photo(1)"><IconBase name="arrow-right" class="h-5 w-5" /></button>
@@ -36,7 +34,7 @@
 							<p v-if="option.pricing_unit === 'per_guest' && option.min_guests" class="text-xs text-gray-500">Minimum {{ option.min_guests }} guests</p>
 							<p v-else-if="picksQuantity(option) && (option.min_quantity || option.max_quantity)" class="text-xs text-gray-500">{{ rangeText }}</p>
 						</div>
-						<button type="button" class="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 lg:flex" aria-label="Close" @click="emit('close')"><IconBase name="x" class="h-5 w-5" /></button>
+						<button type="button" class="h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100" :class="images.length ? 'hidden lg:flex' : 'flex'" aria-label="Close" @click="emit('close')"><IconBase name="x" class="h-5 w-5" /></button>
 					</div>
 					<div class="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
 						<p v-if="option.description" class="whitespace-pre-line text-sm leading-6 text-gray-700">{{ option.description }}</p>

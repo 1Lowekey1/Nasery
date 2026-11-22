@@ -9,10 +9,10 @@
 			<ul class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 				<li v-for="o in group.options" :key="o.id">
 					<button type="button" class="group flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-white text-left transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-						:class="o.id in picks ? 'border-primary-600 ring-1 ring-primary-600' : 'border-gray-200'" :aria-label="`See ${o.name} in full`" @click="emit('open', o.id)">
-						<div class="relative aspect-[4/3] w-full overflow-hidden bg-primary-50">
-							<img v-if="o.image_url" :src="o.image_url" :alt="o.name" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" loading="lazy">
-							<div v-else class="flex h-full w-full items-center justify-center text-primary-300"><IconBase name="tag" class="h-10 w-10" /></div>
+						:class="o.id in picks ? 'border-primary-600 ring-1 ring-primary-600' : 'border-gray-200'" :aria-label="`See ${o.name} in full`" @click="emit('open', o.id)"
+						@mouseenter="hovered = o.id" @mouseleave="hovered = null" @focus="hovered = o.id" @blur="hovered = null">
+						<div v-if="o.images?.length" class="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
+							<PricingImageCycle :images="o.images" :autoplay="hovered === o.id" :alt="o.name" fit="contain" />
 							<span v-if="(o.images?.length ?? 0) > 1" class="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-gray-900/70 px-2 py-0.5 text-[11px] font-semibold text-white">
 								<IconBase name="camera" class="h-3 w-3" />{{ o.images!.length }}
 							</span>
@@ -21,6 +21,7 @@
 							</span>
 						</div>
 						<div class="flex flex-1 flex-col p-4">
+							<p v-if="!o.images?.length && o.id in picks" class="mb-1.5 inline-flex w-fit items-center gap-1 rounded-full bg-primary-700 px-2 py-0.5 text-[11px] font-bold text-white"><IconBase name="check" class="h-3 w-3" />In your estimate</p>
 							<p class="font-bold text-gray-900">{{ o.name }}</p>
 							<p class="mt-0.5 text-sm font-semibold text-primary-800">{{ formatPeso(o.price) }}<span class="font-normal text-gray-500">{{ priceSuffix(o) }}</span></p>
 							<p v-if="o.description" class="mt-2 line-clamp-2 text-sm text-gray-600">{{ o.description }}</p>
@@ -45,4 +46,5 @@ import type { PriceOption } from '~/composables/useQuotations'
 const props = defineProps<{ options: PriceOption[], services: { id: string, name: string }[], picks: Record<string, number> }>()
 const emit = defineEmits<{ open: [id: string] }>()
 const groups = computed(() => groupOptions(props.options, props.services))
+const hovered = ref<string | null>(null)
 </script>

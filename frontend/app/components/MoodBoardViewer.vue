@@ -64,7 +64,7 @@ const props = withDefaults(defineProps<{
 	limit?: number
 	problem?: string
 	canRemove?: (img: MoodImage) => boolean
-}>(), { start: 0, title: null, editable: false, busy: false, limit: 8, problem: '', canRemove: () => true })
+}>(), { start: 0, title: null, editable: false, busy: false, limit: 20, problem: '', canRemove: () => true })
 const emit = defineEmits<{ close: [], pick: [event: Event], remove: [id: string] }>()
 
 const index = ref(Math.min(props.start, Math.max(0, props.images.length - 1)))

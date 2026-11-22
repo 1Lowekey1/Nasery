@@ -25,15 +25,20 @@ use Illuminate\Validation\ValidationException;
  */
 class ImageStore
 {
-    /** kind => [folder, width, height, fit: cover (crop to fill) | contain (whole image, transparent padding)] */
+    /**
+     * kind => [folder, width, height, fit, WebP quality (default 82)]. fit: cover (crop to fill) |
+     * contain (whole image, transparent padding) | within (whole image, its own shape, only
+     * shrunk to fit the box, never enlarged: for pictures people look at closely).
+     */
     public const KINDS = [
         'avatar' => ['avatars', 512, 512, 'cover'],
         'logo' => ['logos', 512, 512, 'contain'],
         'cover' => ['covers', 1600, 600, 'cover'],
         'event-cover' => ['event-covers', 1600, 900, 'cover'],
         // 0062 (organizer field test): a picture per price list item, and the client's mood board.
-        'price-option' => ['price-options', 1200, 900, 'cover'],
-        'mood' => ['mood-boards', 1600, 1200, 'contain'],
+        // Members' testing (Nov 2026): no cropping and more detail (previews looked pixelated).
+        'price-option' => ['price-options', 2400, 2400, 'within', 88],
+        'mood' => ['mood-boards', 2400, 2400, 'within', 88],
     ];
 
     private const TYPES = [IMAGETYPE_JPEG => 'image/jpeg', IMAGETYPE_PNG => 'image/png', IMAGETYPE_WEBP => 'image/webp'];
@@ -42,6 +47,7 @@ class ImageStore
     public function store(UploadedFile $file, string $kind): string
     {
         [$folder, $width, $height, $fit] = self::KINDS[$kind] ?? throw new \InvalidArgumentException("Unknown image kind {$kind}.");
+        $quality = self::KINDS[$kind][4] ?? 82;
         $limits = config('nasery.media');
 
         if (! $file->isValid()) {
@@ -87,7 +93,7 @@ class ImageStore
             if (! is_dir(dirname($target))) {
                 mkdir(dirname($target), 0750, true);
             }
-            if (! imagewebp($canvas, $target, 82)) {
+            if (! imagewebp($canvas, $target, $quality)) {
                 throw new \RuntimeException('Could not save the image.');
             }
             imagedestroy($canvas);
@@ -156,13 +162,21 @@ class ImageStore
     {
         $sw = imagesx($source);
         $sh = imagesy($source);
+        if ($fit === 'within') {
+            // The whole picture in its own shape, shrunk only if it's bigger than the box.
+            $scale = min(1, $width / $sw, $height / $sh);
+            $width = max(1, (int) round($sw * $scale));
+            $height = max(1, (int) round($sh * $scale));
+        }
         $canvas = imagecreatetruecolor($width, $height);
         imagealphablending($canvas, false);
         imagesavealpha($canvas, true);
         imagefill($canvas, 0, 0, imagecolorallocatealpha($canvas, 0, 0, 0, 127));
         imagealphablending($canvas, true);
 
-        if ($fit === 'cover') {
+        if ($fit === 'within') {
+            imagecopyresampled($canvas, $source, 0, 0, 0, 0, $width, $height, $sw, $sh);
+        } elseif ($fit === 'cover') {
             // Crop the centre to the target shape, then scale.
             $scale = max($width / $sw, $height / $sh);
             $cw = (int) round($width / $scale);

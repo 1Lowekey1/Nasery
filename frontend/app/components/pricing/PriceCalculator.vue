@@ -24,7 +24,8 @@
 								:aria-label="`${group.label}: ${o.name}`" @click="toggle(group, o)">
 							<!-- 0062 (organizer field test): a picture, so clients see what they're choosing. -->
 							<button v-if="o.image_url" type="button" class="shrink-0 overflow-hidden rounded-lg ring-1 ring-black/5 transition hover:ring-primary-300"
-								:class="compact ? 'h-12 w-14' : 'h-16 w-20'" :aria-label="`See the picture of ${o.name}`" @click.prevent="zoom = { url: o.image_url, name: o.name }">
+								:class="compact ? 'h-12 w-14' : 'h-16 w-20'" :aria-label="detailsButton ? `See ${o.name} in full` : `See the picture of ${o.name}`"
+								@click.prevent="detailsButton ? emit('details', o.id) : (zoom = { url: o.image_url, name: o.name })">
 								<img :src="o.image_url" :alt="o.name" class="h-full w-full object-cover" loading="lazy">
 							</button>
 							<span class="min-w-0 break-words">

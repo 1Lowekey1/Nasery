@@ -242,9 +242,23 @@ class ImageUploadTest extends TestCase
         $this->actingAs($client)->spaJson('DELETE', "{$board}/{$first['id']}")->assertOk()->assertJsonCount(1, 'data.mood_board');
         $this->assertFileDoesNotExist($this->stored($first['url']));
 
-        // At most 8 pictures.
-        DB::table('inquiries')->where('id', $id)->update(['mood_board' => json_encode(array_fill(0, 8, ['path' => 'mood-boards/'.Str::uuid().'.webp', 'caption' => null]))]);
+        // At most 20 pictures (0064).
+        DB::table('inquiries')->where('id', $id)->update(['mood_board' => json_encode(array_fill(0, 20, ['path' => 'mood-boards/'.Str::uuid().'.webp', 'caption' => null]))]);
         $this->upload($client, $board, 'one-more.png', $this->png(600, 400))->assertUnprocessable();
+    }
+
+    /** Members' testing (Nov 2026): package and mood board pictures keep their whole shape and detail. */
+    public function test_package_pictures_keep_their_shape_and_are_only_shrunk_when_large(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $base = "/api/v1/organizations/{$org->id}/price-options";
+        $id = $this->actingAs($owner)->spaJson('POST', $base, ['name' => 'Menu package', 'pricing_unit' => 'flat', 'price' => 30000])->assertCreated()->json('data.id');
+
+        // A small picture is not enlarged; a tall poster is not cropped, only shrunk to 2400 px.
+        $small = $this->upload($owner, "{$base}/{$id}/images", 'small.png', $this->png(800, 600))->assertOk()->json('data.images.0.url');
+        $this->assertSame([800, 600], array_slice(getimagesize($this->stored($small)), 0, 2));
+        $tall = $this->upload($owner, "{$base}/{$id}/images", 'poster.png', $this->png(1500, 4500))->assertOk()->json('data.images.1.url');
+        $this->assertSame([800, 2400], array_slice(getimagesize($this->stored($tall)), 0, 2));
     }
 
     /** Field test (Nov 2026): once booked, the organizer adds to the mood board and removes only its own pictures. */

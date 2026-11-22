@@ -251,10 +251,10 @@
 			<div v-if="showCalculator && profile" class="fixed inset-0 z-[150] flex justify-end bg-gray-950/60" role="dialog" aria-modal="true" aria-labelledby="calculator-heading"
 				@click.self="showCalculator = false" @keydown.esc="showCalculator = false">
 				<!-- Wide screens: hovering an option previews it here (pictures cycle); "Details" opens it in full. -->
-				<div v-if="hoverOption && !openId" class="pointer-events-none fixed left-8 top-1/2 hidden w-[min(34rem,calc(100vw-42rem-4rem))] -translate-y-1/2 overflow-hidden rounded-3xl bg-white shadow-2xl xl:block" aria-hidden="true">
-					<div class="relative aspect-[4/3] bg-gray-950">
-						<img v-if="hoverImages[hoverShown]?.url" :key="hoverImages[hoverShown]!.id" :src="hoverImages[hoverShown]!.url!" alt="" class="h-full w-full object-cover">
-						<div v-else class="flex h-full flex-col items-center justify-center gap-2 text-sm text-primary-200"><IconBase name="tag" class="h-10 w-10" />No pictures yet</div>
+				<!-- Centred in the space left of the panel (42rem wide), as large as that space allows. -->
+				<div v-if="hoverOption && !openId" class="pointer-events-none fixed left-[calc((100vw-42rem)/2)] top-1/2 hidden max-h-[90dvh] w-[min(44rem,calc(100vw-42rem-4rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl bg-white shadow-2xl xl:block" aria-hidden="true">
+					<div v-if="hoverImages.length" class="relative aspect-[4/3] max-h-[62dvh] w-full bg-gray-950">
+						<PricingImageCycle v-model:index="hoverShown" :images="hoverImages" autoplay fit="contain" />
 						<span v-if="hoverImages.length > 1" class="absolute bottom-3 right-3 rounded-full bg-gray-900/70 px-2.5 py-0.5 text-xs font-semibold text-white">{{ hoverShown + 1 }} / {{ hoverImages.length }}</span>
 					</div>
 					<div class="p-5">
@@ -356,18 +356,10 @@ function openFromCalculator(id: string) {
 const hoverId = ref<string | null>(null)
 const hoverOption = computed(() => profile.value?.price_options.find(o => o.id === hoverId.value) ?? null)
 const hoverImages = computed(() => (hoverOption.value?.images ?? []).filter(i => i.url))
+// Which picture the hover preview shows (it fades through them on its own; a new option starts at the first).
 const hoverShown = ref(0)
-let hoverTimer: ReturnType<typeof setInterval> | null = null
-watch(hoverId, () => {
-	hoverShown.value = 0
-	if (hoverTimer) clearInterval(hoverTimer)
-	hoverTimer = null
-	if (hoverImages.value.length > 1 && !(import.meta.client && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)) {
-		hoverTimer = setInterval(() => { hoverShown.value = (hoverShown.value + 1) % hoverImages.value.length }, 1300)
-	}
-})
+watch(hoverId, () => { hoverShown.value = 0 })
 watch(showCalculator, open => { if (!open) hoverId.value = null })
-onBeforeUnmount(() => { if (hoverTimer) clearInterval(hoverTimer) })
 const firstQuantity = (o: PriceOption) => (picksQuantity(o) ? quantityBounds(o).min : 1)
 
 function togglePick(id: string) {

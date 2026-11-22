@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="dialog-fade">
-      <div v-if="dialog" class="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 p-4" @click.self="cancel">
+      <div v-if="dialog" class="fixed inset-0 z-[400] flex items-center justify-center bg-gray-900/40 p-4" @click.self="cancel">
         <form class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" role="alertdialog" aria-modal="true"
           :aria-labelledby="titleId" @submit.prevent="accept" @keydown.esc="cancel">
           <div class="flex items-start gap-3">

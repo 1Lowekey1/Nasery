@@ -63,7 +63,7 @@ class Inquiry extends Model
         ];
     }
 
-    public const MOOD_BOARD_LIMIT = 8;
+    public const MOOD_BOARD_LIMIT = 20;
 
     /**
      * 0062: the client's mood board / colour palette pictures, with their URLs.
