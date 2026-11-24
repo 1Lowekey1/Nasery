@@ -1193,11 +1193,13 @@ async function saveEvent() {
 		const base = `/organizations/${orgId}/events/${current.id}/ticket-types`
 		const kept = new Set<string>()
 		const tiers = editForm.visibility === 'public' || editForm.privateTickets ? editForm.ticketTypes : []
-		// Private events keep a closed "Guest list" type behind the scenes for the QR invites
-		// (closed: never on sale, not even through the private link).
-		if (editForm.visibility === 'private') {
+		// Every event keeps a closed "Guest list" type behind the scenes for the QR invites
+		// (closed: never on sale, not even through the private link). Adviser consultation
+		// (Nov 2026): public events too; their Capacity under Venue limits every ticket anyway.
+		{
 			const guestTier = (current.ticket_types ?? []).find(t => isGuestTier(t))
-			const body = { name: GUEST_TIER, price: 0, capacity: guestListCapacity.value, status: 'closed' }
+			const capacity = editForm.visibility === 'private' ? guestListCapacity.value : Math.max(1, invitedSoFar.value, roomSize.value || 100)
+			const body = { name: GUEST_TIER, price: 0, capacity, status: 'closed' }
 			if (guestTier) {
 				kept.add(String(guestTier.id))
 				await useApi().patch(`${base}/${guestTier.id}`, body)

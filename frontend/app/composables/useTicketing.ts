@@ -139,7 +139,7 @@ export const useOrganizerTicketing = () => {
       const r = await api.get<GuestRow[]>(`${base(orgId, eventId)}/guests`, { query })
       return { items: r.data, pagination: r.meta?.pagination as Page<GuestRow>['pagination'], meta: r.meta as Record<string, unknown> }
     },
-    addGuest: async (orgId: string, eventId: string, body: { full_name: string, email: string | null, contact_number: string | null, ticket_type_id: string, admission_type: 'invited' | 'complimentary', send_email: boolean }) =>
+    addGuest: async (orgId: string, eventId: string, body: { full_name: string, email: string | null, contact_number: string | null, ticket_type_id: string, admission_type: 'invited' | 'complimentary', send_email: boolean, seat?: string | null }) =>
       (await api.post<{ ticket_id: string, qr_token: string }>(`${base(orgId, eventId)}/guests`, body, key())).data,
     importGuests: async (orgId: string, eventId: string, file: File, ticketTypeId: string, admission: 'invited' | 'complimentary', sendEmail = true) => {
       const form = new FormData()

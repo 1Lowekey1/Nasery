@@ -35,6 +35,9 @@
 							<img :src="img.url ?? ''" alt="" class="h-full w-full object-cover" loading="lazy">
 						</button>
 					</div>
+					<button v-if="commentable && current" type="button" class="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-white/10 px-3.5 text-sm font-semibold hover:bg-white/20" @click="emit('comment', current, index)">
+						<IconBase name="message" class="h-4 w-4" />Comment on this picture
+					</button>
 					<div v-if="editable" class="flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
 						<label v-if="images.length < limit" class="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-white px-3.5 text-sm font-bold text-gray-900 hover:bg-primary-50" :class="busy ? 'pointer-events-none opacity-60' : ''">
 							<IconBase :name="busy ? 'refresh-cw' : 'plus'" class="h-4 w-4" :class="busy ? 'animate-spin' : ''" />{{ busy ? 'Uploading…' : 'Add pictures' }}
@@ -64,8 +67,10 @@ const props = withDefaults(defineProps<{
 	limit?: number
 	problem?: string
 	canRemove?: (img: MoodImage) => boolean
-}>(), { start: 0, title: null, editable: false, busy: false, limit: 20, problem: '', canRemove: () => true })
-const emit = defineEmits<{ close: [], pick: [event: Event], remove: [id: string] }>()
+	/** Show "Comment on this picture" (emits comment). */
+	commentable?: boolean
+}>(), { start: 0, title: null, editable: false, busy: false, limit: 20, problem: '', canRemove: () => true, commentable: false })
+const emit = defineEmits<{ close: [], pick: [event: Event], remove: [id: string], comment: [img: MoodImage, index: number] }>()
 
 const index = ref(Math.min(props.start, Math.max(0, props.images.length - 1)))
 const current = computed(() => props.images[index.value] ?? null)

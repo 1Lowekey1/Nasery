@@ -58,7 +58,7 @@
 						<NuxtLink :to="`/client/inquiries/${current.inquiry_id}`" class="shrink-0 text-xs font-semibold text-primary-700 hover:underline">View the request</NuxtLink>
 					</header>
 					<div class="min-h-0 flex-1 p-4">
-						<InquiryThread :key="current.id" :thread-id="current.id" @read="markRead" />
+						<InquiryThread :key="current.id" :thread-id="current.id" :start-text="startText?.thread === current.id ? startText.text : ''" @read="markRead" />
 					</div>
 				</template>
 				<p v-else class="m-auto text-sm text-gray-400">Choose a conversation.</p>
@@ -80,6 +80,8 @@ const route = useRoute()
 const api = useThreads()
 const threads = ref<Thread[]>([])
 const selected = ref<string | null>(null)
+// A comment started elsewhere (e.g. on a mood board picture): ?about= fills that conversation's message box.
+const startText = ref<{ thread: string, text: string } | null>(null)
 const requestFilter = ref<string>(ALL)
 const loading = ref(true)
 const error = ref('')
@@ -131,7 +133,10 @@ async function load(quiet = false) {
 			const byThread = typeof route.query.thread === 'string' ? threads.value.find(t => t.id === route.query.thread) : null
 			const inquiry = byThread?.inquiry_id ?? (typeof route.query.inquiry === 'string' ? route.query.inquiry : null)
 			if (inquiry && requests.value.some(r => r.id === inquiry)) requestFilter.value = inquiry
-			const pick = byThread ?? (inquiry ? (threads.value.find(t => t.inquiry_id === inquiry && t.unread) ?? threads.value.find(t => t.inquiry_id === inquiry)) : null)
+			const org = typeof route.query.org === 'string' ? route.query.org : null
+			const pick = byThread ?? (inquiry ? ((org ? threads.value.find(t => t.inquiry_id === inquiry && t.organization.slug === org) : null)
+				?? threads.value.find(t => t.inquiry_id === inquiry && t.unread) ?? threads.value.find(t => t.inquiry_id === inquiry)) : null)
+			if (pick && typeof route.query.about === 'string') startText.value = { thread: pick.id, text: route.query.about.slice(0, 300) }
 			// Otherwise (many requests): start on the most recent one, so the list stays short.
 			if (!inquiry && requests.value.length > 3) requestFilter.value = requests.value[0]!.id
 			if (pick) selected.value = pick.id

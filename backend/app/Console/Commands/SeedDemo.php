@@ -749,6 +749,24 @@ class SeedDemo extends Command
             app(\App\Services\Payments\RefundRequests::class)->request($this->u('enzo'), (string) $enzoTicket,
                 'Our family trip was moved to that weekend, so none of us can come. Sorry!');
         }
+        // Adviser consultation (Nov 2026): seats on a public event. VIP Lounge buyers get a table (4 per
+        // table); two invited guests (Guest list) and a press pass (complimentary) have seats too.
+        $this->ctx->system('demo.public_seats', function () use ($fest, $tiers) {
+            $vip = DB::table('tickets')->where('event_id', $fest->id)->where('ticket_type_id', $tiers[1]->id)
+                ->whereIn('status', ['valid', 'used'])->whereNull('deleted_at')->orderBy('created_at')->pluck('id');
+            foreach ($vip as $i => $id) {
+                DB::table('tickets')->where('id', $id)->update(['seat_label' => 'VIP Table '.(intdiv($i, 4) + 1)]);
+            }
+        });
+        $this->as($this->u('maria'), function () use ($fest, $tiers) {
+            $member = $this->member(Organization::query()->findOrFail($fest->organization_id), 'maria');
+            $guestList = app(TierManager::class)->ensureGuestList($fest);
+            foreach ([['Hon. Rosa Dela Peña', $guestList, AdmissionType::Invited, 'VIP Table 1'],
+                ['Davao City Tourism Office', $guestList, AdmissionType::Invited, 'VIP Table 1'],
+                ['Mindanao Times (press)', $tiers[0], AdmissionType::Complimentary, 'Media desk']] as [$name, $tier, $type, $seat]) {
+                app(GuestList::class)->add($fest, $tier, ['full_name' => $name, 'seat_label' => $seat], $type, $member, sendEmail: false);
+            }
+        });
 
         // Davao Tech Summit (Mindanao Grand): happening right now, doors open, people checking in.
         [$summit, $sTiers] = $this->publicEvent($grand, 'carlo', 'Davao Tech Summit 2026', 'Conference', 'SMX Convention Center, Lanang', 150, 1,
@@ -1393,8 +1411,10 @@ class SeedDemo extends Command
     private function guests(Event $event, string $ownerKey, string $tierName, int $price, array $names): array
     {
         return $this->as($this->u($ownerKey), function () use ($event, $ownerKey, $tierName, $price, $names) {
-            // A private event's invitations: the closed guest list the event editor manages.
-            $tier = app(TierManager::class)->create($event, ['name' => $tierName, 'price' => $price, 'capacity' => max(50, count($names) + 20), 'status' => 'closed']);
+            // The event's invitations: its "Guest list" tier (made with the event), or another closed tier.
+            $tier = $tierName === TicketType::GUEST_LIST && $price === 0
+                ? tap(app(TierManager::class)->ensureGuestList($event), fn ($t) => app(TierManager::class)->update($event, $t, ['capacity' => max(50, count($names) + 20)]))
+                : app(TierManager::class)->create($event, ['name' => $tierName, 'price' => $price, 'capacity' => max(50, count($names) + 20), 'status' => 'closed']);
             app(EventManager::class)->transition($event->refresh(), 'publish');
             $member = $this->member(Organization::query()->find($event->organization_id), $ownerKey);
             $tokens = [];

@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import type { ThreadDetail } from '~/composables/useThreads'
 
-const props = defineProps<{ threadId: string }>()
+const props = defineProps<{ threadId: string, startText?: string }>()
 const emit = defineEmits<{ read: [threadId: string] }>()
 
 const api = useThreads()
@@ -71,6 +71,13 @@ function useQuickReply(text: string) {
 }
 // A half-written message survives leaving the page (per thread); sending empties it.
 useDraft(() => `message:${props.threadId}`, reactive({ text: draft }))
+// Started from elsewhere (a mood board picture): add it to the message box and focus it.
+onMounted(() => {
+	if (!props.startText) return
+	if (!draft.value.includes(props.startText)) draft.value = draft.value.trim() ? `${draft.value.trim()}
+${props.startText}` : props.startText
+	nextTick(() => document.getElementById(`msg-${props.threadId}`)?.focus())
+})
 const sending = ref(false)
 const list = ref<HTMLElement | null>(null)
 let timer: ReturnType<typeof setInterval> | undefined

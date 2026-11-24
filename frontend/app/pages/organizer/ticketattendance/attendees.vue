@@ -394,6 +394,13 @@
 							<FormsTextField v-model="registerForm.attendeeEmail" type="email" icon="send" placeholder="attendee@example.com" />
 							<p class="mt-1.5 text-xs text-gray-500">The QR ticket is e-mailed here.</p>
 						</div>
+
+						<!-- Adviser consultation (Nov 2026): a table or seat, like the bulk import's "seat" column. -->
+						<div class="mt-4">
+							<FormsLabel text="Table / seat (optional)" />
+							<FormsTextField v-model="registerForm.seat" icon="map-pin" placeholder="e.g. Table 4 or A12" maxlength="30" />
+							<p class="mt-1.5 text-xs text-gray-500">Printed on their ticket. You can change it later from the guest list.</p>
+						</div>
 					</section>
 
 					<!-- Ticket -->
@@ -971,7 +978,7 @@ const filters: {
 			value: 'invited',
 		},
 		{
-			label: 'Free',
+			label: 'Complimentary',
 			value: 'free',
 		},
 		{
@@ -985,6 +992,8 @@ function emptyRegisterForm() {
 		attendeeName: '',
 
 		attendeeEmail: '',
+
+		seat: '',
 
 		emailVerificationToken: '',
 
@@ -1041,8 +1050,9 @@ async function openPdf(ticketId: string) {
 // Added here: invited or complimentary guests only. Paying guests buy online, or
 // you sell at the door in the Walk-in Counter (so the cash is recorded).
 const categoryOptions = [
-	{ value: 'invited', label: 'Invited', hint: 'A guest you invited. No payment. Paying guests buy online or at the Walk-in Counter.' },
-	{ value: 'free', label: 'Free', hint: 'Complimentary entry. No payment. Paying guests buy online or at the Walk-in Counter.' },
+	// Adviser consultation (Nov 2026): one name for one thing ("Free" here was "Complimentary" in Bulk Import).
+	{ value: 'invited', label: 'Invited', hint: 'Someone on your guest list, e.g. a wedding guest. No payment.' },
+	{ value: 'free', label: 'Complimentary', hint: 'A free pass you give (sponsors, media, performers, VIPs). No payment; shown separately in reports.' },
 ] as const
 
 const registerBody = ref<HTMLElement | null>(null)
@@ -1506,6 +1516,7 @@ async function submitRegisterAttendee() {
 			ticket_type_id: String(registerForm.ticketTypeId),
 			admission_type: registerForm.attendeeCategory === 'free' ? 'complimentary' : 'invited',
 			send_email: Boolean(email),
+			seat: registerForm.seat.trim().slice(0, 30) || null,
 		})
 		const tier = ticketTypes.value.find(t => String(t.id) === String(registerForm.ticketTypeId)) ?? null
 		const response = { message: email ? `Guest added. The QR ticket was e-mailed to ${email}.` : 'Guest added with a QR ticket.' }
@@ -1732,7 +1743,7 @@ function paymentClass(
 }
 
 function formatCategory(category: AttendeeCategory): string {
-	return category.charAt(0).toUpperCase() + category.slice(1)
+	return category === 'free' ? 'Complimentary' : category.charAt(0).toUpperCase() + category.slice(1)
 }
 
 function categoryClass(category: AttendeeCategory): string {

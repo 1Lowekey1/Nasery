@@ -160,7 +160,7 @@ class GuestCheckoutTest extends TestCase
             ['name' => 'Seat', 'price' => 0, 'capacity' => 10, 'status' => 'on_sale'])->assertCreated();
         $this->actingAs($owner)->spaJson('POST', "/api/v1/organizations/{$org->id}/events/{$event}/publish")->assertOk();
         $link = $this->actingAs($owner)->spaJson('GET', "/api/v1/organizations/{$org->id}/events/{$event}")->json('data.private_link_key');
-        $seat = DB::table('ticket_types')->where('event_id', $event)->value('id');
+        $seat = DB::table('ticket_types')->where('event_id', $event)->where('name', '!=', 'Guest list')->value('id');
         $this->flushSession();
         $this->app['auth']->forgetGuards();
 

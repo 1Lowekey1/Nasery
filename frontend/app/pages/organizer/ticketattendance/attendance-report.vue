@@ -818,7 +818,7 @@ function formatSource(
 function formatCategory(
     category: Attendee['attendee_category'],
 ): string {
-    return category.charAt(0).toUpperCase() + category.slice(1)
+    return category === 'free' ? 'Complimentary' : category.charAt(0).toUpperCase() + category.slice(1)
 }
 
 function categoryClass(

@@ -47,6 +47,30 @@ class TicketingTest extends TestCase
             ['full_name' => $name, 'email' => Str::slug($name).'@example.com', 'ticket_type_id' => $tier, 'admission_type' => 'invited'], $this->key());
     }
 
+    /** Adviser consultation (Nov 2026): every event has a closed Guest list; invites can carry a table or seat. */
+    public function test_every_event_has_a_guest_list_and_invites_can_have_a_seat(): void
+    {
+        [$org, $owner] = $this->listedOrganizer();
+        $event = $this->event($owner, $org, ['name' => 'Open Air Fest', 'overall_capacity' => 300]);
+        $tiers = $this->actingAs($owner)->spaJson('GET', $this->base($org, $event).'/ticket-types')->assertOk()->json('data');
+        $guestList = collect($tiers['tiers'] ?? $tiers)->firstWhere('name', 'Guest list');
+        $this->assertNotNull($guestList);
+        $this->assertSame('closed', $guestList['status']);
+        $this->assertSame(300, $guestList['capacity']);
+
+        // Invited with a table: the seat is on the ticket.
+        $ticket = $this->actingAs($owner)->spaJson('POST', $this->base($org, $event).'/guests', ['full_name' => 'Lara Reyes', 'ticket_type_id' => $guestList['id'],
+            'admission_type' => 'invited', 'seat' => ' Table 4 ', 'send_email' => false], $this->key())->assertCreated()->json('data.ticket_id');
+        $this->assertSame('Table 4', DB::table('tickets')->where('id', $ticket)->value('seat_label'));
+
+        // Never on sale.
+        $this->actingAs($owner)->spaJson('POST', $this->base($org, $event).'/publish')->assertOk();
+        auth()->forgetGuards();
+        $this->getJson("/api/v1/public-events/{$event}")->assertOk()->assertJsonCount(0, 'data.tiers');
+        $this->actingAs(User::factory()->create())->spaJson('POST', "/api/v1/public-events/{$event}/register",
+            ['ticket_type_id' => $guestList['id'], 'attendees' => [['full_name' => 'Gate Crasher']]], $this->key())->assertNotFound();
+    }
+
     public function test_tiers_with_zones_benefits_and_capacity_rules(): void
     {
         [$org, $owner] = $this->listedOrganizer();

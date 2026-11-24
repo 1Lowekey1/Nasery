@@ -132,7 +132,7 @@
 						</div>
 					</div>
 
-					<NuxtLink v-if="eventInquiryId" :to="`/client/messages?inquiry=${eventInquiryId}`"
+					<NuxtLink v-if="eventInquiryId" :to="{ path: '/client/messages', query: { inquiry: eventInquiryId, ...(organizerSlug ? { org: organizerSlug } : {}) } }"
 						class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700">
 						<IconBase name="message" class="h-4 w-4" />
 						Message organizer
@@ -184,6 +184,25 @@
 					</div>
 				</section>
 			</div>
+
+			<!-- Client feedback (Nov 2026): the mood board stays one tap away after booking; the client adds,
+			     removes and comments on pictures, including ones the organizer added. -->
+			<section v-if="eventInquiryId && moodInquiry" class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+				<div class="mb-3 flex flex-wrap items-start justify-between gap-2">
+					<div class="flex items-center gap-3">
+						<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#285F6b]/10 text-[#285F6b]"><IconBase name="camera" class="h-5 w-5" /></div>
+						<div>
+							<p class="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-400">Mood board &amp; colour palette</p>
+							<h3 class="text-lg font-extrabold text-gray-900">Shared with {{ organizerName }}</h3>
+						</div>
+					</div>
+					<p v-if="moodByOrganizer" class="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-800">{{ moodByOrganizer }} added by your organizer</p>
+				</div>
+				<MoodBoard :images="moodInquiry.mood_board ?? []" :editable="moodInquiry.mood_board_open !== false" :busy="moodBusy" commentable :title="eventData.event?.name"
+					hint="Your inspiration pictures and palettes, and any your organizer adds. Open a picture to comment on it."
+					@add="addMood" @remove="removeMood" @comment="commentOn" />
+				<p v-if="moodError" class="mt-1 text-xs font-semibold text-rose-600">{{ moodError }}</p>
+			</section>
 
 			<BookingCancellation v-if="eventInquiryId" :inquiry-id="eventInquiryId" :other-name="eventData.organizer?.company_name || 'Your organizer'" @changed="loadEventDetails(true)" />
 
@@ -1290,6 +1309,45 @@ function startRegistrationVerificationTimer() {
 		)
 }
 
+// The request's mood board (client feedback, Nov 2026).
+const organizerSlug = ref<string | null>(null)
+const moodInquiry = ref<import('~/composables/useInquiries').ClientInquiry | null>(null)
+const moodBusy = ref(false)
+const moodError = ref('')
+const moodByOrganizer = computed(() => {
+	const n = (moodInquiry.value?.mood_board ?? []).filter(i => i.added_by).length
+	return n ? `${n} picture${n === 1 ? '' : 's'}` : ''
+})
+async function addMood(files: File[]) {
+	if (!moodInquiry.value) return
+	moodBusy.value = true
+	moodError.value = ''
+	try {
+		for (const file of files) moodInquiry.value = await useInquiries().addMoodImage(moodInquiry.value.id, file)
+	} catch (e) {
+		moodError.value = authMessage(e) || 'The picture could not be added.'
+	} finally {
+		moodBusy.value = false
+	}
+}
+async function removeMood(id: string) {
+	if (!moodInquiry.value || !(await confirmDialog('Remove this picture from the mood board?', { title: 'Remove this picture?', confirmLabel: 'Remove' }))) return
+	moodBusy.value = true
+	moodError.value = ''
+	try {
+		moodInquiry.value = await useInquiries().removeMoodImage(moodInquiry.value.id, id)
+	} catch (e) {
+		moodError.value = authMessage(e) || 'The picture could not be removed.'
+	} finally {
+		moodBusy.value = false
+	}
+}
+// A comment opens the conversation with the booked organizer, already started.
+function commentOn(img: { caption: string | null }, index: number) {
+	const name = img.caption ? `“${img.caption}”` : `#${index + 1}`
+	return navigateTo({ path: '/client/messages', query: { inquiry: eventInquiryId.value, ...(organizerSlug.value ? { org: organizerSlug.value } : {}), about: `About the mood board picture ${name}: ` } })
+}
+
 const organizerName =
 	computed(() => {
 		const organizer =
@@ -1491,6 +1549,8 @@ async function loadEventDetails(quiet = false) {
 		}
 
 		eventInquiryId.value = event.inquiry_id ?? null
+		organizerSlug.value = event.organizer?.slug ?? null
+		moodInquiry.value = event.inquiry_id ? await useInquiries().show(event.inquiry_id).catch(() => null) : null
 		clientGuests.value = event.visibility === 'private' ? await useClientEvents().guests(event.id).catch(() => []) : []
 		const privateKey = event.visibility === 'private' ? ((event as { private_link_key?: string | null }).private_link_key ?? null) : null
 		const [quotes, publicEvent] = await Promise.all([

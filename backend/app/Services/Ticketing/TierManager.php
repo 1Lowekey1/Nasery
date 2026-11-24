@@ -39,6 +39,23 @@ class TierManager
         return $tiers->map(fn (TicketType $t) => self::present($t, $event->timezone, $counts[$t->id] ?? null))->values();
     }
 
+    /** The automatic invitations tier (0065): free, closed (never on sale). */
+    public const GUEST_LIST_NOTE = 'Invited guests (never on sale).';
+
+    /**
+     * Adviser consultation (Nov 2026): every event has a "Guest list" tier for invited guests,
+     * public events too. Returns the existing one, or adds it (capacity: the event's overall
+     * capacity, which limits every ticket anyway; 100 when it has none).
+     */
+    public function ensureGuestList(Event $event): TicketType
+    {
+        $existing = TicketType::query()->where('event_id', $event->id)->where('price', 0)
+            ->whereRaw('lower(trim(name)) = ?', [mb_strtolower(TicketType::GUEST_LIST)])->first();
+
+        return $existing ?? $this->create($event, ['name' => TicketType::GUEST_LIST, 'description' => self::GUEST_LIST_NOTE, 'price' => 0,
+            'capacity' => max(1, (int) ($event->overall_capacity ?? 100)), 'status' => 'closed', 'sort_order' => 999]);
+    }
+
     /**
      * @param  array<string, mixed>  $data
      */

@@ -31,7 +31,8 @@
 		</p>
 
 		<MoodBoardViewer v-if="viewing" :images="images" :start="viewStart" :title="title" :editable="editable" :busy="busy" :limit="limit" :problem="problem"
-			:can-remove="canRemove" @close="viewing = false" @pick="pick" @remove="emit('remove', $event)" />
+			:can-remove="canRemove" :commentable="commentable" @close="viewing = false" @pick="pick" @remove="emit('remove', $event)"
+			@comment="(img, i) => emit('comment', img, i)" />
 	</div>
 </template>
 
@@ -48,9 +49,11 @@ const props = withDefaults(defineProps<{
 	/** Which pictures this person may remove (organizers: only their own). */
 	canRemove?: (img: MoodImage) => boolean
 	hint?: string
-}>(), { editable: false, busy: false, compact: false, limit: 20, title: null, canRemove: () => true,
+	/** Show "Comment on this picture" in the viewer (emits comment). */
+	commentable?: boolean
+}>(), { commentable: false, editable: false, busy: false, compact: false, limit: 20, title: null, canRemove: () => true,
 	hint: 'Inspiration pictures, colour palettes or a mood board: up to 20. Organizers who get your request see them.' })
-const emit = defineEmits<{ add: [files: File[]], remove: [id: string] }>()
+const emit = defineEmits<{ add: [files: File[]], remove: [id: string], comment: [img: MoodImage, index: number] }>()
 
 const problem = ref('')
 const viewing = ref(false)

@@ -108,10 +108,13 @@ class TicketingController extends Controller
             'ticket_type_id' => ['required', 'uuid'],
             'admission_type' => ['required', Rule::in(['invited', 'complimentary'])],
             'send_email' => ['sometimes', 'boolean'],
+            // Adviser consultation (Nov 2026): a table or seat, like the bulk import's.
+            'seat' => ['nullable', 'string', 'max:30'],
         ]);
 
         $tier = $this->tier($event, $data['ticket_type_id']);
-        $ticket = $this->guests->add($event, $tier, $data, AdmissionType::from($data['admission_type']), $member, $request->boolean('send_email', true));
+        $guest = [...$data, 'seat_label' => filled($data['seat'] ?? null) ? trim($data['seat']) : null];
+        $ticket = $this->guests->add($event, $tier, $guest, AdmissionType::from($data['admission_type']), $member, $request->boolean('send_email', true));
 
         return ApiResponse::created(['ticket_id' => $ticket->id, 'qr_token' => $this->guests->qrToken($ticket)], 'Guest added with a QR ticket.');
     }

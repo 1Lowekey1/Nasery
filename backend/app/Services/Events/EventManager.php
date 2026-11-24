@@ -76,6 +76,8 @@ class EventManager
         foreach ($data['sessions'] ?? [] as $session) {
             $this->writeSession($event, new EventSession, $session);
         }
+        // Adviser consultation (Nov 2026): a "Guest list" tier for invited guests on every event.
+        app(\App\Services\Ticketing\TierManager::class)->ensureGuestList($event);
 
         $this->audit->record('event.created', $event, new: collect($data)->except('sessions')->all(), organizationId: $organization->id);
 

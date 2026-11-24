@@ -132,7 +132,7 @@ class BoundaryValueTest extends TestCase
         $this->actingAs($owner)->spaJson('POST', "{$base}/ticket-types", ['name' => 'Free', 'price' => 0, 'capacity' => 500, 'status' => 'on_sale'])->assertCreated();
         $this->actingAs($owner)->spaJson('POST', "{$base}/publish")->assertOk();
         $eventId = Str::afterLast($base, '/');
-        $tierId = DB::table('ticket_types')->where('event_id', $eventId)->value('id');
+        $tierId = DB::table('ticket_types')->where('event_id', $eventId)->where('name', 'Free')->value('id');
         $client = User::factory()->create();
         $people = fn (int $n) => array_map(fn ($i) => ['full_name' => "Guest {$i}"], range(1, max(1, $n)));
 

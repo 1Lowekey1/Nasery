@@ -164,7 +164,7 @@ const titleId = useId()
 const limit = 1000
 const admissions = [
 	{ value: 'invited' as const, label: 'Invited', hint: 'Guests on your invitation list.' },
-	{ value: 'complimentary' as const, label: 'Complimentary', hint: 'Free passes (sponsors, media, VIPs); shown separately in reports.' },
+	{ value: 'complimentary' as const, label: 'Complimentary', hint: 'Free passes you give (sponsors, media, performers, VIPs). No payment; shown separately in reports.' },
 ]
 
 const input = ref<HTMLInputElement | null>(null)
