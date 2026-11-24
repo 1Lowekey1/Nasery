@@ -7,6 +7,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Delete uploaded pictures nothing points to anymore (deleted accounts,
@@ -32,6 +33,9 @@ class PruneMedia extends Command
             ->merge(DB::connection('system')->table('public.organization_profiles')->whereNotNull('logo_path')->pluck('logo_path'))
             ->merge(DB::connection('system')->table('public.organization_profiles')->whereNotNull('cover_path')->pluck('cover_path'))
             ->merge(DB::connection('system')->table('public.events')->whereNotNull('cover_path')->pluck('cover_path'))
+            // 0066: event floor plans (skipped if the column was rolled back).
+            ->merge(Schema::connection('system')->hasColumn('events', 'floor_plan_path')
+                ? DB::connection('system')->table('public.events')->whereNotNull('floor_plan_path')->pluck('floor_plan_path') : [])
             // 0062/0063: price list item pictures (galleries) and clients' mood boards.
             ->merge(DB::connection('system')->table('public.organization_price_options')->whereNotNull('image_path')->pluck('image_path'))
             ->merge(DB::connection('system')->table('public.organization_price_options')->where('images', '!=', '[]')->pluck('images')

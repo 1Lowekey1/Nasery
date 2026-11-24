@@ -80,6 +80,14 @@
 					:upload="saveCover" :remove="removeCover" />
 			</section>
 
+			<!-- 0066: shown above the table choice at checkout. Without one, buyers see a simple drawn layout. -->
+			<section v-if="event && event.id && canEditCover && (hasTables || event.floor_plan_url)" class="rounded-2xl border border-gray-200 bg-white p-6">
+				<h3 class="text-base font-bold text-gray-900">Floor plan <span class="font-normal text-gray-400">(optional)</span></h3>
+				<p class="mb-4 mt-1 text-sm text-gray-500">A picture of the venue layout (tables, spaces or rows, with their numbers), shown to buyers when they choose where to sit. A photo of a hand drawing works too. Without one, buyers see a simple drawn layout with the stage at the front.</p>
+				<MediaImageUploader shape="plan" slot-key="floor-plan" alt="Floor plan" :current="event.floor_plan_url"
+					:upload="saveFloorPlan" :remove="removeFloorPlan" />
+			</section>
+
 			<div v-if="event && isEditMode" class="grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
 				<!-- Section menu -->
 				<!-- Phones/tablets: one scrollable row of section tabs; large screens: the side menu -->
@@ -236,7 +244,37 @@
 										<div class="grid gap-3 sm:grid-cols-[minmax(0,1.5fr)_minmax(7.5rem,1fr)_minmax(5rem,0.7fr)]">
 											<div><span class="ed-label">Name</span><input v-model="type.name" type="text" class="ed-field" placeholder="e.g. VIP" /></div>
 											<div><span class="ed-label">Price</span><div class="relative"><span class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">₱</span><input v-model="type.price" type="text" inputmode="decimal" class="ed-field !pl-8" placeholder="2500" /></div></div>
-											<div><span class="ed-label">Seats</span><input v-model="type.capacity" type="number" min="0" class="ed-field" placeholder="50" /></div>
+											<div><span class="ed-label">Seats</span><input v-model="type.capacity" type="number" min="0" class="ed-field" placeholder="50" :disabled="type.tablesOn" :title="type.tablesOn ? 'Tables × seats per table' : undefined" /></div>
+										</div>
+										<!-- 0066: buyers choose where they sit (optional). Off: first come, first served. -->
+										<label class="mt-3 flex cursor-pointer items-start gap-2.5 text-sm">
+											<input v-model="type.tablesOn" type="checkbox" class="mt-0.5 h-4 w-4 accent-[#285F6b]" @change="startTables(type)">
+											<span><span class="font-semibold text-gray-900">Let buyers choose where they sit</span> <span class="text-gray-400">(optional)</span>
+												<span class="block text-xs text-gray-500">Off: first come, first served. On: buyers pick a table, space or row at checkout, or let us choose.</span></span>
+										</label>
+										<div v-if="type.tablesOn" class="mt-3 space-y-3 rounded-xl bg-gray-50 p-3">
+											<div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Layout">
+												<button v-for="m in seatingModes" :key="m.value" type="button" role="radio" :aria-checked="type.seatingMode === m.value"
+													class="flex items-start gap-2.5 rounded-xl border bg-white px-3 py-2.5 text-left transition"
+													:class="type.seatingMode === m.value ? 'border-primary-600 ring-2 ring-primary-600/15' : 'border-gray-200 hover:border-gray-300'" @click="setSeatingMode(type, m.value)">
+													<IconBase :name="m.icon" class="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+													<span><span class="block text-sm font-semibold text-gray-950">{{ m.title }}</span><span class="block text-xs text-gray-500">{{ m.hint }}</span></span>
+												</button>
+											</div>
+											<div v-if="type.seatingMode === 'rows'" class="grid gap-3 sm:grid-cols-2">
+												<div><span class="ed-label">Rows</span><input v-model="type.tableCount" type="number" min="1" max="200" class="ed-field" placeholder="10" /></div>
+												<div><span class="ed-label">Seats per row</span><input v-model="type.tableSize" type="number" min="1" max="100" class="ed-field" placeholder="20" /></div>
+											</div>
+											<div v-else class="grid gap-3 sm:grid-cols-3">
+												<div><span class="ed-label">Name</span><input v-model="type.tableLabel" type="text" maxlength="30" class="ed-field" placeholder="e.g. VIP Table, Booth" /></div>
+												<div><span class="ed-label">How many</span><input v-model="type.tableCount" type="number" min="1" max="200" class="ed-field" placeholder="10" /></div>
+												<div><span class="ed-label">Seats each</span><input v-model="type.tableSize" type="number" min="1" max="100" class="ed-field" placeholder="8" /></div>
+											</div>
+											<p class="text-xs leading-5 text-gray-500">
+												<template v-if="type.seatingMode === 'rows'">Tickets show “Row A, Seat 1”, “Row A, Seat 2”… Row A is nearest the stage; groups get seats side by side.</template>
+												<template v-else>Tickets show “{{ (type.tableLabel || 'Table').trim() }} 1”, “{{ (type.tableLabel || 'Table').trim() }} 2”… For booths or stalls, use 1 seat each.</template>
+												{{ ' ' }}<template v-if="Number(type.tableCount) > 0 && Number(type.tableSize) > 0">{{ Number(type.tableCount) * Number(type.tableSize) }} {{ type.seatingMode !== 'rows' && Number(type.tableSize) === 1 ? 'places' : 'seats' }} in all.{{ ' ' }}</template>Add a floor plan picture on the event page so buyers can see the layout.
+											</p>
 										</div>
 									</div>
 								</TransitionGroup>
@@ -455,6 +493,10 @@ interface EventTicketType {
 	status?: string
 	/** Tickets issued (for the guest list: guests invited). */
 	sold?: number
+	seating_mode?: 'tables' | 'rows' | null
+	table_label?: string | null
+	table_count?: number | null
+	table_size?: number | null
 }
 
 // Event cover: anyone who may edit the event (the server checks event.update again).
@@ -530,11 +572,26 @@ async function removeCover() {
 	await useMedia().removeEventCover(coverOrgId.value, String(event.value.id))
 	event.value = { ...event.value, cover_url: null }
 }
+// 0066: floor plan picture (for ticket types where buyers choose a table).
+const hasTables = computed(() => (event.value?.ticket_types ?? []).some(t => !!t.table_label))
+async function saveFloorPlan(file: File) {
+	if (!event.value) return null
+	const url = await useMedia().uploadFloorPlan(coverOrgId.value, String(event.value.id), file)
+	event.value = { ...event.value, floor_plan_url: url }
+	return url
+}
+async function removeFloorPlan() {
+	if (!event.value) return
+	await useMedia().removeFloorPlan(coverOrgId.value, String(event.value.id))
+	event.value = { ...event.value, floor_plan_url: null }
+}
 
 interface OrganizerEvent {
 	id: number
 	/** Uploaded cover picture (MediaController). */
 	cover_url?: string | null
+	/** 0066: the venue layout shown above the table choice. */
+	floor_plan_url?: string | null
 	inquiry_id: number | null
 	quotation_id: number | null
 
@@ -636,6 +693,12 @@ interface TicketTypeForm {
 	name: string
 	price: string
 	capacity: string
+	/** 0066: buyers choose where they sit: tables/spaces or rows. */
+	tablesOn?: boolean
+	seatingMode?: 'tables' | 'rows'
+	tableLabel?: string
+	tableCount?: string
+	tableSize?: string
 }
 
 definePageMeta({
@@ -819,6 +882,12 @@ function fillEditForm() {
 
 					capacity:
 						String(type.capacity ?? ''),
+
+					tablesOn: !!type.table_label,
+					seatingMode: type.seating_mode ?? 'tables',
+					tableLabel: type.table_label ?? '',
+					tableCount: type.table_count ? String(type.table_count) : '',
+					tableSize: type.table_size ? String(type.table_size) : '',
 				}),
 			)
 			: editForm.visibility === 'public'
@@ -962,12 +1031,41 @@ async function loadDetails() {
 async function loadEvent(id: string) {
 	const [apiEvent, tiers] = await Promise.all([
 		useOrganizerEvents().show(orgId, id),
-		useApi().get<{ tiers: { id: string, name: string, price: string, capacity: number, status: string, sold: number }[] }>(`/organizations/${orgId}/events/${id}/ticket-types`)
+		useApi().get<{ tiers: { id: string, name: string, price: string, capacity: number, status: string, sold: number, seating_mode: 'tables' | 'rows' | null, table_label: string | null, table_count: number | null, table_size: number | null }[] }>(`/organizations/${orgId}/events/${id}/ticket-types`)
 			.then(r => r.data.tiers).catch(() => []),
 	])
 	const extra = apiEvent as { private_link_key?: string | null, price?: EventPrice, can?: { set_price?: boolean, cancel?: boolean } }
-	return { ...toLegacyEvent(apiEvent), private_link_key: extra.private_link_key ?? null, price: extra.price ?? null, can_set_price: !!extra.can?.set_price, can_cancel: !!extra.can?.cancel, ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity, status: t.status, sold: t.sold })) }
+	return { ...toLegacyEvent(apiEvent), private_link_key: extra.private_link_key ?? null, price: extra.price ?? null, can_set_price: !!extra.can?.set_price, can_cancel: !!extra.can?.cancel, floor_plan_url: (apiEvent as { floor_plan_url?: string | null }).floor_plan_url ?? null,
+		ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity, status: t.status, sold: t.sold, seating_mode: t.seating_mode, table_label: t.table_label, table_count: t.table_count, table_size: t.table_size })) }
 }
+
+// 0066: switching seating on starts with sensible numbers; the seats follow count x seats each.
+const seatingModes = [
+	{ value: 'tables' as const, icon: 'users', title: 'Tables or spaces', hint: 'VIP Table 3, Booth 12' },
+	{ value: 'rows' as const, icon: 'grid', title: 'Rows of seats', hint: 'Row C, Seat 7' },
+]
+function startTables(type: TicketTypeForm) {
+	if (!type.tablesOn) return
+	setSeatingMode(type, type.seatingMode ?? 'tables', true)
+}
+function setSeatingMode(type: TicketTypeForm, mode: 'tables' | 'rows', fresh = false) {
+	const changed = fresh || type.seatingMode !== mode
+	type.seatingMode = mode
+	const seats = Number(type.capacity) || 0
+	if (mode === 'rows') {
+		if (changed || !type.tableSize) type.tableSize = String(Math.min(20, Math.max(1, seats || 20)))
+		if (changed || !type.tableCount) type.tableCount = String(Math.max(1, Math.ceil((seats || 100) / Number(type.tableSize))))
+		return
+	}
+	if (!(type.tableLabel ?? '').trim() || type.tableLabel === 'Row') type.tableLabel = type.name.trim() ? `${type.name.trim()} Table` : 'Table'
+	if (changed || !type.tableSize) type.tableSize = '8'
+	if (changed || !type.tableCount) type.tableCount = String(Math.max(1, Math.ceil((seats || 8) / Number(type.tableSize))))
+}
+watch(() => editForm.ticketTypes.map(t => [t.tablesOn, t.tableCount, t.tableSize]), () => {
+	for (const t of editForm.ticketTypes) {
+		if (t.tablesOn && Number(t.tableCount) > 0 && Number(t.tableSize) > 0) t.capacity = String(Number(t.tableCount) * Number(t.tableSize))
+	}
+}, { deep: true })
 
 function addTicketType() {
 	editForm.ticketTypes.push({
@@ -1217,7 +1315,11 @@ async function saveEvent() {
 		const oldSeats = new Map((current.ticket_types ?? []).map(t => [String(t.id), Number((t as { capacity?: number }).capacity ?? 0)]))
 		const seatChange = (t: TicketTypeForm) => t.id ? (Number(t.capacity || 0) || 1) - (oldSeats.get(String(t.id)) ?? 0) : Number.POSITIVE_INFINITY
 		for (const type of [...named].sort((a, b) => seatChange(a) - seatChange(b))) {
-			const body = { name: type.name.trim(), price: Number(type.price || 0), capacity: Number(type.capacity || 0) || 1 }
+			const rows = type.seatingMode === 'rows'
+			const tables = type.tablesOn && (rows || (type.tableLabel ?? '').trim()) && Number(type.tableCount) > 0 && Number(type.tableSize) > 0
+				? { seating_mode: rows ? 'rows' : 'tables', table_label: rows ? 'Row' : (type.tableLabel ?? '').trim(), table_count: Number(type.tableCount), table_size: Number(type.tableSize) }
+				: { seating_mode: null, table_label: null, table_count: null, table_size: null }
+			const body = { name: type.name.trim(), price: Number(type.price || 0), capacity: Number(type.capacity || 0) || 1, ...tables }
 			if (type.id) {
 				await useApi().patch(`${base}/${type.id}`, body)
 			} else {

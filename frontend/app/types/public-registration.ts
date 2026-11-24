@@ -40,6 +40,9 @@ export interface RegisteredTicket
     qr_value: string
 
     ticket_type: PublicTicketType | null
+
+    /** 0066: the table, when the ticket type has them. */
+    seat?: string | null
 }
 
 export interface PublicRegistrationResponse {

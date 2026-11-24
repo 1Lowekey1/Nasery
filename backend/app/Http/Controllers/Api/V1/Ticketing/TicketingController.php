@@ -257,6 +257,11 @@ class TicketingController extends Controller
             'sales_end_at' => ['sometimes', 'nullable', 'date', 'after:sales_start_at'],
             'status' => ['sometimes', Rule::enum(TicketTypeStatus::class)],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:1000'],
+            // 0066: buyers choose where they sit: tables/spaces or rows (none: switch it off).
+            'seating_mode' => ['sometimes', 'nullable', Rule::in(['tables', 'rows'])],
+            'table_label' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'table_count' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:200'],
+            'table_size' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100'],
         ]);
     }
 

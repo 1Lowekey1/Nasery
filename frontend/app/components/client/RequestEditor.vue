@@ -51,6 +51,9 @@
 
 			<div>
 				<FormsLabel text="Services" />
+				<!-- Client feedback (Nov 2026): the same service list as Post Event Inquiry, so clients can see what there is. -->
+				<FormsTagPicker v-model="serviceNames" multiple :options="serviceTagOptions" placeholder="Choose the services you need" search-placeholder="Search services" />
+				<p v-if="form.services.length" class="mb-2 mt-3 text-xs text-gray-500">Add a note to any service if you like.</p>
 				<ul class="space-y-2">
 					<li v-for="(s, i) in form.services" :key="i" class="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2.5 sm:flex-nowrap">
 						<span class="w-full px-1 text-sm font-semibold text-gray-800 sm:w-44 sm:shrink-0 sm:truncate">{{ s.name }}</span>
@@ -61,13 +64,6 @@
 						</button>
 					</li>
 				</ul>
-				<div class="mt-2 flex gap-2">
-					<input v-model="newService" type="text" maxlength="120" placeholder="Add a service, e.g. Lights and sound"
-						class="min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/15"
-						@keydown.enter.prevent="addService">
-					<button type="button" class="rounded-xl border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-100 disabled:opacity-50"
-						:disabled="newService.trim().length < 2" @click="addService">Add</button>
-				</div>
 				<p v-if="fields.services" class="mt-1 text-xs text-rose-600">{{ fields.services }}</p>
 			</div>
 
@@ -131,17 +127,46 @@ const form = reactive({
 const initial = JSON.stringify(form)
 const draft = useDraft(() => `request-edit:${props.inquiry.id}`, form, { isEmpty: v => JSON.stringify(v) === initial })
 const today = new Date().toISOString().slice(0, 10)
-const newService = ref('')
 const busy = ref(false)
 const error = ref('')
 const fields = ref<Record<string, string>>({})
 
-function addService() {
-	const name = newService.value.trim()
-	if (name.length < 2) return
-	form.services.push({ service_id: null, name, custom: name, notes: '' })
-	newService.value = ''
-}
+// The service picker (as on Post Event Inquiry): NaSeRy's catalog plus services organizers list,
+// and anything already on this request. Picking adds a line; unpicking removes it (and its note).
+const catalog = ref<{ name: string, category: string | null }[]>([])
+const offered = ref<{ name: string, organizers: number }[]>([])
+onMounted(async () => {
+	const [list, names] = await Promise.all([
+		useApi().get<{ name: string, category: string | null }[]>('/services').then(r => r.data).catch(() => []),
+		useMarketplace().serviceNames().catch(() => []),
+	])
+	catalog.value = list
+	offered.value = names.filter(s => s.organizers > 0)
+})
+const serviceTagOptions = computed(() => {
+	const count = new Map(offered.value.map(s => [s.name.toLowerCase(), s.organizers]))
+	const hint = (name: string) => {
+		const n = count.get(name.toLowerCase()) ?? 0
+		return n ? `${n} ${n === 1 ? 'organizer' : 'organizers'}` : 'No organizers yet'
+	}
+	// The request's own spelling wins (e.g. "Event coordination" vs "Event Coordination"), so it shows as picked.
+	const group = new Map(catalog.value.map(s => [s.name.toLowerCase(), s.category || 'Other']))
+	const all = [...form.services.map(s => ({ name: s.name, group: group.get(s.name.toLowerCase()) ?? 'Other' })),
+		...catalog.value.map(s => ({ name: s.name, group: s.category || 'Other' })), ...offered.value.map(s => ({ name: s.name, group: 'Other' }))]
+	const seen = new Set<string>()
+	return all.filter(o => !seen.has(o.name.toLowerCase()) && seen.add(o.name.toLowerCase()))
+		.map(o => ({ value: o.name, label: o.name, group: o.group, hint: hint(o.name) }))
+		.sort((a, b) => Number(a.hint === 'No organizers yet') - Number(b.hint === 'No organizers yet') || a.label.localeCompare(b.label))
+})
+const serviceNames = computed({
+	get: () => form.services.map(s => s.name),
+	set: (names: string | string[]) => {
+		const picked = Array.isArray(names) ? names : [names]
+		const kept = form.services.filter(s => picked.includes(s.name))
+		const added = picked.filter(n => !kept.some(s => s.name === n)).map(n => ({ service_id: null, name: n, custom: n, notes: '' }))
+		form.services = [...kept, ...added]
+	},
+})
 
 function discard() {
 	draft.clear()

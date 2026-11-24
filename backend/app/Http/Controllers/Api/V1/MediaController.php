@@ -124,6 +124,28 @@ class MediaController extends Controller
         return ApiResponse::success(['url' => null], 'Event cover removed.');
     }
 
+    // ---- Event floor plan (0066) ----------------------------------------------------------
+
+    public function storeFloorPlan(Request $request, Organization $organization, Event $event): JsonResponse
+    {
+        $this->authorizeEvent($request, $organization, $event);
+        $this->validateUpload($request);
+        $path = $this->images->store($request->file('image'), 'floor-plan');
+        $this->images->delete($this->setFloorPlan($event, $path));
+        $this->audit->record('event.floor_plan_updated', $event, organizationId: $organization->id);
+
+        return ApiResponse::success(['url' => ImageStore::url($path)], 'Floor plan updated.');
+    }
+
+    public function destroyFloorPlan(Request $request, Organization $organization, Event $event): JsonResponse
+    {
+        $this->authorizeEvent($request, $organization, $event);
+        $this->images->delete($this->setFloorPlan($event, null));
+        $this->audit->record('event.floor_plan_removed', $event, organizationId: $organization->id);
+
+        return ApiResponse::success(['url' => null], 'Floor plan removed.');
+    }
+
     // ---- Helpers ----------------------------------------------------------------------------
 
     private function validateUpload(Request $request): void
@@ -159,6 +181,17 @@ class MediaController extends Controller
         return $this->db->system('media.event', function () use ($event, $path) {
             $old = DB::table('events')->where('id', $event->id)->lockForUpdate()->value('cover_path');
             DB::table('events')->where('id', $event->id)->update(['cover_path' => $path, 'updated_at' => now()]);
+
+            return $old;
+        });
+    }
+
+    /** @return string|null the previous path */
+    private function setFloorPlan(Event $event, ?string $path): ?string
+    {
+        return $this->db->system('media.floor_plan', function () use ($event, $path) {
+            $old = DB::table('events')->where('id', $event->id)->lockForUpdate()->value('floor_plan_path');
+            DB::table('events')->where('id', $event->id)->update(['floor_plan_path' => $path, 'updated_at' => now()]);
 
             return $old;
         });

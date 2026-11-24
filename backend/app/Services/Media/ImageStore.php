@@ -39,6 +39,8 @@ class ImageStore
         // Members' testing (Nov 2026): no cropping and more detail (previews looked pixelated).
         'price-option' => ['price-options', 2400, 2400, 'within', 88],
         'mood' => ['mood-boards', 2400, 2400, 'within', 88],
+        // 0066: the venue layout above the table choice (whole picture, readable table numbers).
+        'floor-plan' => ['floor-plans', 2400, 2400, 'within', 88],
     ];
 
     private const TYPES = [IMAGETYPE_JPEG => 'image/jpeg', IMAGETYPE_PNG => 'image/png', IMAGETYPE_WEBP => 'image/webp'];

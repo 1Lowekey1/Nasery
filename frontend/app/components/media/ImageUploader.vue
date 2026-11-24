@@ -5,7 +5,7 @@
 			<!-- Current picture (or the new one, previewed before it's saved) -->
 			<div class="relative shrink-0 overflow-hidden transition"
 				:class="[frameClass, shown ? 'border border-gray-200 bg-white' : 'border border-dashed border-primary-200 bg-primary-25', waiting && !waiting.error && 'ring-2 ring-primary-300 ring-offset-2', busy && 'opacity-60']">
-				<img v-if="shown" :src="shown" :alt="alt" class="h-full w-full" :class="shape === 'logo' ? 'object-contain p-1' : 'object-cover'">
+				<img v-if="shown" :src="shown" :alt="alt" class="h-full w-full" :class="shape === 'logo' || shape === 'plan' ? 'object-contain p-1' : 'object-cover'">
 				<div v-else class="flex h-full w-full items-center justify-center text-primary-400">
 					<slot name="placeholder"><IconBase name="camera" class="h-6 w-6" /></slot>
 				</div>
@@ -55,7 +55,8 @@ const props = withDefaults(defineProps<{
 	current: string | null | undefined
 	upload: (file: File) => Promise<string | null | void>
 	remove?: () => Promise<unknown>
-	shape?: 'avatar' | 'logo' | 'cover' | 'event'
+	/** plan (0066 floor plan): the whole picture, no cropping. */
+	shape?: 'avatar' | 'logo' | 'cover' | 'event' | 'plan'
 	label?: string
 	alt?: string
 	/** Key in the form's media batch (defaults to the shape). */
@@ -78,12 +79,14 @@ const frameClass = computed(() => ({
 	logo: 'h-20 w-20 rounded-2xl',
 	cover: 'h-24 w-full max-w-sm rounded-xl',
 	event: 'h-28 w-full max-w-sm rounded-xl',
+	plan: 'h-36 w-full max-w-sm rounded-xl',
 })[props.shape])
 const hint = computed(() => ({
 	avatar: 'JPG, PNG or WebP, up to 25 MB. Shown as a circle.',
 	logo: 'JPG, PNG or WebP, up to 25 MB. Square works best; transparent PNG is kept.',
 	cover: 'JPG, PNG or WebP, up to 25 MB. A wide picture (about 1600×600) works best.',
 	event: 'JPG, PNG or WebP, up to 25 MB. A wide picture (about 16:9) works best.',
+	plan: 'JPG, PNG or WebP, up to 5 MB. The whole picture is kept (no cropping), so the numbers stay readable.',
 })[props.shape])
 // The crop frame matches what the server makes of each kind (ImageStore::KINDS).
 const cropping = ref<File | null>(null)
@@ -92,6 +95,7 @@ const cropShape = computed(() => ({
 	logo: { aspect: 1, outputWidth: 1024, transparent: true },
 	cover: { aspect: 1600 / 600, outputWidth: 1600 },
 	event: { aspect: 16 / 9, outputWidth: 1600 },
+	plan: { aspect: 16 / 9, outputWidth: 1600 }, // not used: plans skip the crop step
 })[props.shape])
 const shown = computed(() => waiting.value?.preview ?? preview.value ?? props.current ?? null)
 
@@ -106,6 +110,11 @@ function pick(e: Event) {
 		error.value = problem
 		return
 	}
+	// A floor plan is kept whole (cropping could cut off tables).
+	if (props.shape === 'plan') {
+		accept(file)
+		return
+	}
 	// Let them move and zoom it first.
 	cropping.value = file
 }
@@ -116,7 +125,7 @@ function accept(file: File) {
 	cropping.value = null
 	// Only when the picture couldn't be shrunk here (see CropDialog).
 	if (file.size > imageRules.maxBytes) {
-		error.value = 'That picture couldn\'t be shrunk here. Try one under 5 MB.'
+		error.value = props.shape === 'plan' ? 'Choose a picture under 5 MB.' : 'That picture couldn\'t be shrunk here. Try one under 5 MB.'
 		return
 	}
 	if (batch) {

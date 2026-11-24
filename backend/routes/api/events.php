@@ -43,6 +43,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])
                 Route::put('{event}/agreed-amount', [OrganizerEventController::class, 'agreedAmount'])->middleware('throttle:sensitive')->name('agreed-amount');
                 Route::post('{event}/cover', [MediaController::class, 'storeEventCover'])->middleware('throttle:sensitive')->name('cover.store');
                 Route::delete('{event}/cover', [MediaController::class, 'destroyEventCover'])->middleware('throttle:sensitive')->name('cover.destroy');
+                Route::post('{event}/floor-plan', [MediaController::class, 'storeFloorPlan'])->middleware('throttle:sensitive')->name('floor-plan.store');
+                Route::delete('{event}/floor-plan', [MediaController::class, 'destroyFloorPlan'])->middleware('throttle:sensitive')->name('floor-plan.destroy');
                 Route::post('{event}/{action}', [OrganizerEventController::class, 'transition'])
                     ->whereIn('action', ['publish', 'unpublish', 'start', 'stop', 'complete', 'cancel'])
                     ->middleware('throttle:sensitive')->name('transition');

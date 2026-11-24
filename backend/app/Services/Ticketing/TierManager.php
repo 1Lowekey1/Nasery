@@ -62,6 +62,7 @@ class TierManager
     public function create(Event $event, array $data): TicketType
     {
         $this->assertOpen($event);
+        $data = $this->tables($data, null);
 
         $tier = new TicketType($this->normalize($data, $event));
         $tier->forceFill(['event_id' => $event->id])->save();
@@ -77,6 +78,7 @@ class TierManager
     {
         $this->assertOpen($event);
         $locked = DB::table('ticket_types')->where('id', $tier->id)->lockForUpdate()->first();
+        $data = $this->tables($data, $locked);
 
         if (array_key_exists('capacity', $data)) {
             $consumed = (int) DB::scalar('select ticket_type_consumed_capacity(?)', [$tier->id]);
@@ -131,6 +133,10 @@ class TierManager
             'sales_end_at' => $t->sales_end_at?->setTimezone($tz)->toIso8601String(),
             'sales_start_local' => $t->sales_start_at?->setTimezone($tz)->format('Y-m-d\TH:i'),
             'sales_end_local' => $t->sales_end_at?->setTimezone($tz)->format('Y-m-d\TH:i'),
+            'seating_mode' => $t->seating_mode,
+            'table_label' => $t->table_label,
+            'table_count' => $t->table_count,
+            'table_size' => $t->table_size,
             'sold' => $sold,
             'checked_in' => (int) ($counts->checked_in ?? 0),
             'held' => $held,
@@ -159,6 +165,52 @@ class TierManager
         }
 
         return $data;
+    }
+
+    /**
+     * 0066: tables to choose from. All three settings, or none (off). With tables, the
+     * capacity is tables x seats. A table with people on it can't be removed, and a
+     * table can't get fewer seats than people already at it.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function tables(array $data, ?object $current): array
+    {
+        if (! array_intersect_key($data, array_flip(['seating_mode', 'table_label', 'table_count', 'table_size']))) {
+            return $data;
+        }
+
+        // A setting sent (even empty, to switch it off) wins over the saved one.
+        $pick = fn (string $key) => array_key_exists($key, $data) ? $data[$key] : ($current?->{$key} ?? null);
+        $mode = $pick('seating_mode') ?: (filled($pick('table_label')) ? TableSeating::TABLES : null);
+        $rows = $mode === TableSeating::ROWS;
+        $label = $rows ? 'Row' : trim((string) $pick('table_label'));
+        $count = (int) $pick('table_count');
+        $size = (int) $pick('table_size');
+
+        if ($mode === null || $label === '' || $count < 1 || $size < 1) {
+            return [...$data, 'seating_mode' => null, 'table_label' => null, 'table_count' => null, 'table_size' => null];
+        }
+
+        // Same layout as before: don't take away places people already have.
+        if ($current !== null && TableSeating::enabled($current) && $current->seating_mode === $mode && trim($current->table_label) === $label) {
+            $taken = app(TableSeating::class)->taken([$current->id])[$current->id] ?? [];
+            $lastUsed = max([0, ...array_keys(array_filter($taken))]);
+            $what = $rows ? 'rows' : 'tables';
+            if ($count < $lastUsed) {
+                $name = TableSeating::groupName($current, $lastUsed);
+                throw ValidationException::withMessages(['table_count' => "{$name} already has guests, so keep at least {$lastUsed} {$what}."]);
+            }
+            $fullest = max([0, ...array_map(fn ($t) => is_array($t) ? max([0, ...array_keys($t)]) : $t, $taken)]);
+            if ($size < $fullest) {
+                throw ValidationException::withMessages(['table_size' => $rows
+                    ? "Seat {$fullest} in a row is already taken, so keep at least {$fullest} seats per row."
+                    : "A table already has {$fullest} guests, so keep at least {$fullest} seats per table."]);
+            }
+        }
+
+        return [...$data, 'seating_mode' => $mode, 'table_label' => $label, 'table_count' => $count, 'table_size' => $size, 'capacity' => $count * $size];
     }
 
     private function assertOpen(Event $event): void

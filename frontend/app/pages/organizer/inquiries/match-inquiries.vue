@@ -423,16 +423,21 @@
 
 						<!-- Totals from the priced lines -->
 						<div v-if="hasPricedLines" class="mt-2 rounded-xl bg-gray-50 p-3 text-sm">
-							<template v-if="breakdown.charges.length">
-								<div class="flex justify-between gap-3 text-gray-500"><span>Subtotal</span><span class="font-semibold text-gray-700">{{ formatPeso(breakdown.subtotal) }}</span></div>
-								<div v-for="(c, i) in breakdown.charges" :key="`c${i}`" class="flex items-center justify-between gap-3 py-1 text-gray-500">
-									<span class="min-w-0">{{ c.label }} ({{ c.percent }}%)
-										<button v-if="c.key !== 'vat'" type="button" class="ml-1 text-xs font-semibold text-gray-400 hover:text-rose-700" :aria-label="`Remove ${c.label}`" @click="removeCharge(c.key)">Remove</button>
-										<span v-else class="ml-1 text-xs text-gray-400">added by NaSeRy</span>
-									</span>
-									<span class="shrink-0 font-semibold text-gray-700">{{ formatPeso(c.amount) }}</span>
-								</div>
-							</template>
+							<div class="flex justify-between gap-3 text-gray-500"><span>Subtotal</span><span class="font-semibold text-gray-700">{{ formatPeso(breakdown.subtotal) }}</span></div>
+							<!-- Service charge: a percent of the lines (follows every change); editable, as it is often negotiated. -->
+							<div class="flex items-center justify-between gap-3 py-1 text-gray-500">
+								<label class="flex items-center gap-2">
+									<span>Service charge</span>
+									<input v-model="offerForm.chargePercents.service" type="number" min="0" max="30" step="0.5" placeholder="0" aria-label="Service charge percent"
+										class="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-right text-sm focus:border-primary-500 focus:outline-none">
+									<span>%</span>
+								</label>
+								<span class="shrink-0 font-semibold text-gray-700">{{ formatPeso(breakdown.charges.find(c => c.key === 'service')?.amount ?? 0) || '₱0' }}</span>
+							</div>
+							<div v-for="(c, i) in breakdown.charges.filter(c => c.key === 'vat')" :key="`c${i}`" class="flex items-center justify-between gap-3 py-1 text-gray-500">
+								<span class="min-w-0">{{ c.label }} ({{ c.percent }}%) <span class="ml-1 text-xs text-gray-400">added by NaSeRy</span></span>
+								<span class="shrink-0 font-semibold text-gray-700">{{ formatPeso(c.amount) }}</span>
+							</div>
 							<div class="mt-1 flex justify-between gap-3 border-t border-gray-200 pt-2 text-base font-extrabold text-gray-950">
 								<span>Quotation total</span><span>{{ formatPeso(breakdown.total) }}</span>
 							</div>
@@ -1017,11 +1022,12 @@ const hasPricedLines = computed(() => pricedItems.value.length > 0)
 const breakdown = computed(() => {
 	const subtotal = pricedItems.value.reduce((sum, l) => sum + lineSubtotal(Number(l.quantity) || 1, Number(l.unit_price) || 0), 0)
 	const cents = (v: number) => Math.round(v * 100) / 100
-	const service = cents(subtotal * (offerForm.chargePercents.service || 0) / 100)
+	const percent = Math.min(30, Math.max(0, Number(offerForm.chargePercents.service) || 0))
+	const service = cents(subtotal * percent / 100)
 	// VAT: NaSeRy's rate for organizers who charge it, never typed or removed (mock defense).
 	const vat = cents((subtotal + service) * orgVatRate.value / 100)
 	const charges = [
-		...(service ? [{ key: 'service' as const, label: 'Service charge', percent: offerForm.chargePercents.service, amount: service }] : []),
+		...(service ? [{ key: 'service' as const, label: 'Service charge', percent, amount: service }] : []),
 		...(vat ? [{ key: 'vat' as const, label: 'VAT', percent: orgVatRate.value, amount: vat }] : []),
 	]
 	return { subtotal, charges, total: cents(subtotal + service + vat) }
@@ -1031,9 +1037,6 @@ const orgVatRate = computed(() => {
 	if (selectedInquiryId.value !== null && vatApplies.value[String(selectedInquiryId.value)] === false) return 0
 	return Number((useOrganization().organization.value?.profile as { estimate_tax_percent?: number | null } | undefined)?.estimate_tax_percent) || 0
 })
-function removeCharge(key: 'service' | 'vat') {
-	offerForm.chargePercents = { ...offerForm.chargePercents, [key]: 0 }
-}
 
 async function toggleBuilder() {
 	showBuilder.value = !showBuilder.value

@@ -752,6 +752,8 @@ class SeedDemo extends Command
         // Adviser consultation (Nov 2026): seats on a public event. VIP Lounge buyers get a table (4 per
         // table); two invited guests (Guest list) and a press pass (complimentary) have seats too.
         $this->ctx->system('demo.public_seats', function () use ($fest, $tiers) {
+            // 0066: buyers choose a VIP table at checkout (13 tables of 4; no floor plan, so the drawn layout shows).
+            DB::table('ticket_types')->where('id', $tiers[1]->id)->update(['seating_mode' => 'tables', 'table_label' => 'VIP Table', 'table_count' => 13, 'table_size' => 4, 'capacity' => 52]);
             $vip = DB::table('tickets')->where('event_id', $fest->id)->where('ticket_type_id', $tiers[1]->id)
                 ->whereIn('status', ['valid', 'used'])->whereNull('deleted_at')->orderBy('created_at')->pluck('id');
             foreach ($vip as $i => $id) {
@@ -761,8 +763,8 @@ class SeedDemo extends Command
         $this->as($this->u('maria'), function () use ($fest, $tiers) {
             $member = $this->member(Organization::query()->findOrFail($fest->organization_id), 'maria');
             $guestList = app(TierManager::class)->ensureGuestList($fest);
-            foreach ([['Hon. Rosa Dela Peña', $guestList, AdmissionType::Invited, 'VIP Table 1'],
-                ['Davao City Tourism Office', $guestList, AdmissionType::Invited, 'VIP Table 1'],
+            foreach ([['Hon. Rosa Dela Peña', $guestList, AdmissionType::Invited, 'Head table'],
+                ['Davao City Tourism Office', $guestList, AdmissionType::Invited, 'Head table'],
                 ['Mindanao Times (press)', $tiers[0], AdmissionType::Complimentary, 'Media desk']] as [$name, $tier, $type, $seat]) {
                 app(GuestList::class)->add($fest, $tier, ['full_name' => $name, 'seat_label' => $seat], $type, $member, sendEmail: false);
             }
@@ -780,6 +782,9 @@ class SeedDemo extends Command
         // Sunset Acoustic Night (Samal): on sale next weekend.
         [$acoustic, $aTiers] = $this->publicEvent($samal, 'liza', 'Sunset Acoustic Night', 'Concert', 'Kaputian Beach, Samal', 80, 12,
             [['Beachfront Seat', 500, 80]], 'Local acoustic acts as the sun sets over the Davao Gulf.');
+        // 0066: rows of numbered seats (8 rows of 10); the buyers below get seats side by side.
+        $this->ctx->system('demo.rows', fn () => DB::table('ticket_types')->where('id', $aTiers[0]->id)
+            ->update(['seating_mode' => 'rows', 'table_label' => 'Row', 'table_count' => 8, 'table_size' => 10, 'capacity' => 80]));
         $this->buy('andrea', $acoustic, $aTiers[0], 2);
         $this->buy('rafael', $acoustic, $aTiers[0], 2);
 

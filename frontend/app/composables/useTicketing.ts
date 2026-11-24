@@ -84,7 +84,12 @@ export interface PublicTier {
   sales_start_at: string | null
   sales_end_at: string | null
   availability: 'available' | 'sold_out' | 'not_yet' | 'ended'
+  /** 0066: tables buyers may choose from (null: first come, first served). */
+  tables?: TableChoice | null
 }
+
+/** tables: tables or spaces ("VIP Table 3", "Booth 12"); rows: rows of seats ("Row C"), taken = seat numbers. */
+export interface TableChoice { mode: 'tables' | 'rows', label: string, size: number, tables: { number: number, name: string, left: number, taken?: number[] }[] }
 
 // The card has a tier count; the detail page has the tiers themselves.
 export interface PublicEventDetail extends Omit<PublicEventCard, 'tiers'> {
@@ -94,6 +99,8 @@ export interface PublicEventDetail extends Omit<PublicEventCard, 'tiers'> {
   longitude: number | null
   sessions: { name: string | null, starts_at: string, ends_at: string }[]
   tiers: PublicTier[]
+  /** 0066: the organizer's floor plan picture, if any. */
+  floor_plan_url?: string | null
 }
 
 export interface MyTicket {

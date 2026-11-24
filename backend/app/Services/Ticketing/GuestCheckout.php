@@ -65,6 +65,7 @@ class GuestCheckout
         private readonly Alerts $alerts,
         private readonly MailGuard $guard,
         private readonly QrTokens $qr,
+        private readonly TableSeating $seating,
     ) {}
 
     /**
@@ -139,9 +140,10 @@ class GuestCheckout
     /**
      * @param  list<array{full_name: string, email: ?string, ticket_type_id: string, verification_token?: ?string}>  $attendees
      * @param  array{name?: ?string, email?: ?string, phone?: ?string}  $buyer
+     * @param  array<string, int|null>  $tables  0066: the table chosen per ticket type (none: the next table with room)
      * @return array<string, mixed>
      */
-    public function register(?User $user, string $eventId, array $attendees, array $buyer, ?string $key = null): array
+    public function register(?User $user, string $eventId, array $attendees, array $buyer, ?string $key = null, array $tables = []): array
     {
         $this->publicEvent($eventId, $key);
 
@@ -159,7 +161,7 @@ class GuestCheckout
             }
         }
 
-        $result = $this->db->system('public.guest_register', function () use ($user, $eventId, $attendees, $buyer, $key) {
+        $result = $this->db->system('public.guest_register', function () use ($user, $eventId, $attendees, $buyer, $key, $tables) {
             $byTier = collect($attendees)->groupBy('ticket_type_id');
             $publicTiers = EventGate::tiers($eventId, $key)->whereIn('id', $byTier->keys())->get()->keyBy('id');
             $now = now();
@@ -194,6 +196,8 @@ class GuestCheckout
                 $tier = $tiers[$tierId];
                 $people = $people->map(fn ($a) => ['full_name' => $a['full_name'], 'email' => $a['email'] ?? null])->values()->all();
                 $this->capacity->reserve($event, $tier, count($people));
+                $seats = $this->seating->assign($tier, count($people), isset($tables[$tierId]) ? (int) $tables[$tierId] : null);
+                $people = array_map(fn (array $p, ?string $seat) => [...$p, 'seat_label' => $seat], $people, $seats);
 
                 if ($tier->isFree()) {
                     $free = [...$free, ...$this->issuer->issue($registration, $tier, $people, AdmissionType::Free)->pluck('id')->all()];
@@ -271,7 +275,7 @@ class GuestCheckout
             $hold = DB::table('ticket_holds')->where('registration_id', $registrationId)->where('status', HoldStatus::Active->value)->max('expires_at');
             $tickets = DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')->join('ticket_types as tt', 'tt.id', '=', 't.ticket_type_id')
                 ->where('t.registration_id', $registrationId)->whereNull('t.deleted_at')->orderBy('t.id')
-                ->get(['t.id', 't.status', 't.purchased_price', 'a.full_name', 'a.email', 'tt.name as tier']);
+                ->get(['t.id', 't.status', 't.purchased_price', 'a.full_name', 'a.email', 'tt.name as tier', 't.seat_label']);
             $qrs = QrTicket::query()->whereIn('ticket_id', $tickets->pluck('id'))->where('status', 'active')->get()->keyBy('ticket_id');
 
             return [
@@ -287,6 +291,7 @@ class GuestCheckout
                     'attendee' => $t->full_name,
                     'email' => $t->email,
                     'tier' => $t->tier,
+                    'seat' => $t->seat_label, // 0066: the table, when the type has them
                     'price' => $t->purchased_price,
                     // The QR only once the ticket is valid (paid or free).
                     'qr_token' => $t->status === TicketStatus::Valid->value && isset($qrs[$t->id]) ? $this->qr->token($qrs[$t->id]) : null,

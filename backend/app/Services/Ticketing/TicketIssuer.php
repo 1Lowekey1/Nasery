@@ -23,7 +23,7 @@ class TicketIssuer
     public function __construct(private readonly QrTokens $qr) {}
 
     /**
-     * @param  list<array{full_name: string, email?: ?string, contact_number?: ?string}>  $people
+     * @param  list<array{full_name: string, email?: ?string, contact_number?: ?string, seat_label?: ?string}>  $people
      * @return Collection<int, Ticket>
      */
     public function issue(Registration $registration, TicketType $tier, array $people, AdmissionType $admission): Collection
@@ -49,6 +49,7 @@ class TicketIssuer
                 'purchased_price' => $price,
                 'status' => TicketStatus::Valid,
                 'issued_at' => $now,
+                'seat_label' => $person['seat_label'] ?? null, // 0066: a table, when the type has them
             ]);
 
             $this->issueQr($ticket);
@@ -67,7 +68,7 @@ class TicketIssuer
      * get no QR until payment settles (activate()). expire_stale_holds()
      * cancels them if the hold runs out.
      *
-     * @param  list<array{full_name: string, email?: ?string, contact_number?: ?string}>  $people
+     * @param  list<array{full_name: string, email?: ?string, contact_number?: ?string, seat_label?: ?string}>  $people
      */
     public function issuePending(Registration $registration, TicketType $tier, array $people): void
     {
@@ -88,6 +89,7 @@ class TicketIssuer
                 'admission_type' => AdmissionType::Paid,
                 'purchased_price' => $tier->price,
                 'status' => TicketStatus::Pending,
+                'seat_label' => $person['seat_label'] ?? null, // 0066: held with the payment hold
             ]);
         }
     }

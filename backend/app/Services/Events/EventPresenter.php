@@ -131,6 +131,7 @@ class EventPresenter
             'venue_name' => $e->venue_name,
             'venue_address' => $e->venue_address,
             'cover_url' => ImageStore::url($e->cover_path ?? null),
+            'floor_plan_url' => ImageStore::url($e->floor_plan_path ?? null), // 0066
             'latitude' => $e->latitude !== null ? (float) $e->latitude : null,
             'longitude' => $e->longitude !== null ? (float) $e->longitude : null,
             'visibility' => $e->visibility,

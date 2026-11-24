@@ -47,6 +47,7 @@ class SelfRegistration
         private readonly QrTokens $qr,
         private readonly Alerts $alerts,
         private readonly PlatformSettings $settings,
+        private readonly TableSeating $seating,
     ) {}
 
     /** Checkout hold length, set by NaSeRy admins (platform_settings). */
@@ -106,6 +107,10 @@ class SelfRegistration
 
             $tiers = EventGate::tiers($eventId, $key)->orderBy('sort_order')->orderBy('price')->get();
             $remaining = $this->capacity->remaining($tiers->pluck('id')->all());
+            // 0066: tables to choose from (system context: the public views don't carry these columns).
+            $tableSettings = DB::table('ticket_types')->whereIn('id', $tiers->pluck('id'))->get(['id', 'seating_mode', 'table_label', 'table_count', 'table_size'])->keyBy('id');
+            $taken = $this->seating->taken($tiers->pluck('id')->all());
+            $floorPlan = DB::table('events')->where('id', $eventId)->value('floor_plan_path');
             $sessions = DB::table('event_sessions')->where('event_id', $eventId)->whereNull('deleted_at')
                 ->where('status', '!=', 'cancelled')->orderBy('starts_at')->get(['name', 'starts_at', 'ends_at']);
             $now = now();
@@ -113,6 +118,7 @@ class SelfRegistration
             return [
                 ...$this->eventCard($e),
                 'is_private' => ($e->visibility ?? 'public') !== 'public',
+                'floor_plan_url' => $floorPlan ? ImageStore::url($floorPlan) : null,
                 'description' => $e->description,
                 'latitude' => $e->latitude !== null ? (float) $e->latitude : null,
                 'longitude' => $e->longitude !== null ? (float) $e->longitude : null,
@@ -121,7 +127,7 @@ class SelfRegistration
                     'starts_at' => CarbonImmutable::parse($s->starts_at)->setTimezone($e->timezone)->toIso8601String(),
                     'ends_at' => CarbonImmutable::parse($s->ends_at)->setTimezone($e->timezone)->toIso8601String(),
                 ])->values(),
-                'tiers' => $tiers->map(function ($t) use ($remaining, $now, $e) {
+                'tiers' => $tiers->map(function ($t) use ($remaining, $now, $e, $tableSettings, $taken) {
                     $opens = $t->sales_start_at ? CarbonImmutable::parse($t->sales_start_at) : null;
                     $closes = $t->sales_end_at ? CarbonImmutable::parse($t->sales_end_at) : null;
                     $left = $remaining[$t->id] ?? 0;
@@ -135,6 +141,7 @@ class SelfRegistration
                         'price' => $t->price,
                         'currency' => $t->currency,
                         'remaining' => $left,
+                        'tables' => isset($tableSettings[$t->id]) ? $this->seating->forBuyers($tableSettings[$t->id], $taken[$t->id] ?? []) : null,
                         'sales_start_at' => $opens?->setTimezone($e->timezone)->toIso8601String(),
                         'sales_end_at' => $closes?->setTimezone($e->timezone)->toIso8601String(),
                         'availability' => match (true) {
@@ -153,9 +160,9 @@ class SelfRegistration
      * @param  list<array{full_name: string, email?: ?string}>  $attendees
      * @return array<string, mixed>
      */
-    public function register(User $user, string $eventId, string $tierId, array $attendees, ?string $key = null): array
+    public function register(User $user, string $eventId, string $tierId, array $attendees, ?string $key = null, ?int $table = null): array
     {
-        $result = $this->db->system('public.register', function () use ($user, $eventId, $tierId, $attendees, $key) {
+        $result = $this->db->system('public.register', function () use ($user, $eventId, $tierId, $attendees, $key, $table) {
             // The gate: public (or private with its link), published, approved organizer, tier on sale.
             $publicTier = EventGate::tiers($eventId, $key)->where('id', $tierId)->first();
 
@@ -172,6 +179,8 @@ class SelfRegistration
             $event = Event::query()->findOrFail($eventId);
             $tier = TicketType::query()->findOrFail($tierId);
             $this->capacity->reserve($event, $tier, count($attendees));
+            // 0066: a table per ticket (the one chosen, or the next with room) when the type has tables.
+            $attendees = array_map(fn (array $p, ?string $seat) => [...$p, 'seat_label' => $seat], array_values($attendees), $this->seating->assign($tier, count($attendees), $table));
 
             $registration = Registration::query()->forceCreate([
                 'id' => (string) Str::uuid7(),

@@ -165,7 +165,7 @@
                                         </p>
 
                                         <p class="mt-1 text-sm text-gray-500">
-                                            {{ ticket.ticket_type?.name || 'General Admission' }}
+                                            {{ ticket.ticket_type?.name || 'General Admission' }}<span v-if="ticket.seat" class="font-semibold text-[#285F6b]"> · {{ ticket.seat }}</span>
                                         </p>
 
                                         <p class="mt-2 font-mono text-xs font-semibold text-[#285F6b]">
@@ -609,6 +609,19 @@
                             </div>
                         </div>
 
+                        <!-- 0066: ticket types with a layout: choose a table/space or a row (optional; by default we choose, first come, first served). -->
+                        <section v-for="group in seatingGroups" :key="group.id" class="mt-6 rounded-2xl border border-gray-200 bg-white p-5" :aria-label="`Seating for ${group.name}`">
+                            <p class="text-sm font-bold text-gray-900">{{ group.tables.mode === 'rows' ? 'Choose your row' : `Choose a ${group.tables.label}` }} <span class="font-semibold text-gray-500">· {{ group.name }}</span></p>
+                            <p class="mb-3 mt-1 text-xs leading-5 text-gray-500">
+                                <template v-if="group.tables.mode === 'rows'">{{ group.need === 1 ? '1 seat.' : `${group.need} seats, side by side when the row has them.` }}</template>
+                                <template v-else-if="group.tables.size > 1">{{ group.need }} {{ group.need === 1 ? 'seat' : 'seats' }} at one {{ group.tables.label }} ({{ group.tables.size }} seats each).</template>
+                                <template v-else>{{ group.need }} {{ group.need === 1 ? group.tables.label : `${group.tables.label}s` }}.</template>
+                                Optional: leave it as it is and we'll choose for you.
+                            </p>
+                            <SeatingTablePlan :model-value="tableChoice[group.id] ?? 0" @update:model-value="tableChoice[group.id] = $event" :name="group.name" :mode="group.tables.mode" :label="group.tables.label"
+                                :tables="group.tables.tables" :size="group.tables.size" :need="group.need" :image="eventDetail?.floor_plan_url" />
+                        </section>
+
                         <div class="mt-6 rounded-2xl border border-[#285F6b]/10 bg-gradient-to-r from-[#285F6b]/5 to-[#4b8792]/10 p-5">
                             <div class="flex items-center justify-between gap-4">
                                 <div>
@@ -842,7 +855,7 @@ function toPublicEvent(e: PublicEventDetail): PublicEvent {
 type GuestRegistration = {
     registration_id: string
     status: string
-    tickets: { id: string, status: string, attendee: string, email: string | null, tier: string, price: string, qr_token: string | null }[]
+    tickets: { id: string, status: string, attendee: string, email: string | null, tier: string, seat?: string | null, price: string, qr_token: string | null }[]
 }
 
 /** Valid tickets of this registration, in the shape the success panel shows. */
@@ -862,6 +875,7 @@ async function loadRegisteredTickets() {
         checked_in_at: null,
         created_at: new Date().toISOString(),
         ticket_type: { id: 0 as number, name: t.tier, price: t.price, capacity: 0, issued: 0, remaining: null, sold_out: false },
+        seat: t.seat ?? null,
     }) as unknown as RegisteredTicket)
 }
 
@@ -972,6 +986,21 @@ const verificationState = (
 const ticketTypes = computed(() =>
     eventData.value?.ticket_types ?? []
 )
+
+// 0066: tables to choose from, per ticket type picked by at least one attendee.
+const eventDetail = ref<PublicEventDetail | null>(null)
+const tableChoice = reactive<Record<string, number>>({})
+const seatingGroups = computed(() => (eventDetail.value?.tiers ?? []).flatMap((t) => {
+    const need = form.attendees.filter(a => String(a.event_ticket_type_id) === t.id).length
+    return t.tables && need ? [{ id: t.id, name: t.name, tables: t.tables, need }] : []
+}))
+// A table that no longer seats the group (more attendees, or it filled up): back to "Any table".
+watch(seatingGroups, (groups) => {
+    for (const g of groups) {
+        const chosen = tableChoice[g.id] ?? 0
+        if (chosen && (g.tables.tables.find(t => t.number === chosen)?.left ?? 0) < g.need) tableChoice[g.id] = 0
+    }
+}, { deep: true })
 
 const availableTicketTypes = computed(() =>
     ticketTypes.value.filter(
@@ -1538,6 +1567,7 @@ const loadEvent = async () => {
         }
         eventData.value =
             toPublicEvent(detail)
+        eventDetail.value = detail
 
         const defaultTicketTypeId =
             getDefaultTicketTypeId()
@@ -1694,6 +1724,8 @@ const submitRegistration =
                         verification_token: signedIn.value ? null : verificationState(index).verificationToken,
                     })),
                     buyer: { phone: form.attendees[0]?.contact_no?.trim() || null },
+                    // 0066: the table chosen per ticket type (null: any table).
+                    tables: Object.fromEntries(seatingGroups.value.map(g => [g.id, tableChoice[g.id] || null])),
                 }, { idempotencyKey: crypto.randomUUID() })
 
             registrationId.value = data.registration_id
@@ -1726,6 +1758,8 @@ const submitRegistration =
                     error,
                     'Registration failed. Please try again.'
                 )
+            // Someone may have taken the seats meanwhile: show the tables as they are now.
+            if (seatingGroups.value.length) await loadEvent().catch(() => {})
         } finally {
             submitting.value =
                 false

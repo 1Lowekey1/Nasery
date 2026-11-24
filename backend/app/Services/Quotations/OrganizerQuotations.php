@@ -373,7 +373,7 @@ class OrganizerQuotations
         }
 
         if (! $inquiry->isOpen()) {
-            throw new ApiException(ErrorCode::InvalidStateTransition, 'This inquiry is no longer accepting quotations.', 409);
+            throw new ApiException(ErrorCode::InvalidStateTransition, 'This request is no longer taking offers: the client accepted an offer or closed it.', 409);
         }
     }
 

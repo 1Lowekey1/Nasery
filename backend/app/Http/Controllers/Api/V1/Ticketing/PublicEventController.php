@@ -54,9 +54,10 @@ class PublicEventController extends Controller
             'attendees' => ['required', 'array', 'min:1', 'max:'.SelfRegistration::MAX_PER_REGISTRATION],
             'attendees.*.full_name' => ['required', 'string', 'min:2', 'max:120'],
             'attendees.*.email' => ['nullable', 'email', 'max:254'],
+            'table' => ['nullable', 'integer', 'min:1', 'max:200'], // 0066: the table chosen (none: any table)
         ]);
 
-        $result = $this->registration->register($request->user(), $event, $data['ticket_type_id'], $data['attendees'], $this->linkKey($request));
+        $result = $this->registration->register($request->user(), $event, $data['ticket_type_id'], $data['attendees'], $this->linkKey($request), isset($data['table']) ? (int) $data['table'] : null);
 
         if ($result['status'] === 'confirmed') {
             return ApiResponse::created($result, 'You\'re registered. Your QR tickets are in My Tickets.');

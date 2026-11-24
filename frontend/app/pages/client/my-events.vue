@@ -17,6 +17,12 @@
 				</NuxtLink>
 			</div>
 
+			<!-- An organizer changed their offer while this was open: the list below is already the new one. -->
+			<div v-if="offerNotice" ref="offerNoticeEl" class="mb-4 flex scroll-mt-24 items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800" role="status">
+				<IconBase name="refresh-cw" class="mt-0.5 h-4 w-4 shrink-0" /><span class="flex-1">{{ offerNotice }}</span>
+				<button type="button" class="text-xs font-semibold text-amber-700 hover:underline" @click="offerNotice = ''">Dismiss</button>
+			</div>
+
 			<div v-if="isLoadingQuotations" class="rounded-2xl border border-gray-200 bg-white p-10 text-center">
 				<div class="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-gray-50 text-primary-700">
 					<IconBase name="refresh-cw" class="h-5 w-5 animate-spin" />
@@ -1135,20 +1141,41 @@ async function openThread(quotation: Quotation) {
 	openThreadId.value = thread.id
 }
 
-async function loadQuotations() {
-	quotationError.value = ''
+/** quiet: a background refresh (no spinner; a failure keeps what's on screen). */
+async function loadQuotations(quiet = false) {
+	if (!quiet) quotationError.value = ''
 	if (!selectedEvent.value) {
-		quotationError.value = 'No inquiry was selected.'
+		if (!quiet) quotationError.value = 'No inquiry was selected.'
 		return
 	}
-	isLoadingQuotations.value = true
+	if (!quiet) isLoadingQuotations.value = true
 	try {
 		quotations.value = (await useClientQuotations().forInquiry(String(selectedEvent.value.id))).map(toQuotation)
 		void loadThreadUnread()
 	} catch (error: unknown) {
-		quotationError.value = authMessage(error) || 'Unable to load quotations.'
+		if (!quiet) quotationError.value = authMessage(error) || 'Unable to load quotations.'
 	} finally {
-		isLoadingQuotations.value = false
+		if (!quiet) isLoadingQuotations.value = false
+	}
+}
+
+// An organizer may revise an offer while the client is looking at it (a revision replaces
+// the offer with a new one). Open offers follow along, and the client is told.
+const offerNotice = ref('')
+const offerNoticeEl = ref<HTMLElement | null>(null)
+const UPDATED_NOTICE = 'An organizer just updated their offer. The prices below are the latest; please check them before accepting.'
+const openOfferKey = () => quotations.value.filter(q => q.quotation_status === 'pending').map(q => `${q.id}:${q.quotation_amount}`).sort().join('|')
+async function refreshOpenOffers() {
+	if (!showQuotations.value || !selectedEvent.value || acceptingQuotationId.value !== null) return
+	const before = openOfferKey()
+	await loadQuotations(true)
+	const confirming = confirmationQuotation.value
+	if (confirming && !quotations.value.some(q => q.id === confirming.id && q.quotation_status === 'pending')) {
+		// The offer being confirmed was replaced: close the confirmation so nothing old is accepted.
+		confirmationQuotation.value = null
+		offerNotice.value = UPDATED_NOTICE
+	} else if (before && openOfferKey() !== before) {
+		offerNotice.value = UPDATED_NOTICE
 	}
 }
 
@@ -1189,6 +1216,7 @@ async function openOffers(event: ClientInquiry) {
 	quotations.value = []
 	openOfferIds.value = new Set()
 	quotationError.value = ''
+	offerNotice.value = ''
 
 	await loadQuotations()
 }
@@ -1210,6 +1238,7 @@ function backToMyEvents() {
 	selectedEvent.value = null
 	quotations.value = []
 	quotationError.value = ''
+	offerNotice.value = ''
 	acceptingQuotationId.value = null
 	confirmationQuotation.value = null
 }
@@ -1252,8 +1281,16 @@ async function acceptQuotation(
 		}
 		quotationAccepted.value = true
 	} catch (error: unknown) {
-		quotationError.value = authMessage(error) || 'Unable to accept quotation. Please try again.'
 		confirmationQuotation.value = null
+		// Replaced by a revision (or withdrawn) meanwhile: show the latest offers, not an error.
+		await loadQuotations(true)
+		if (!quotations.value.some(q => q.id === quotation.id && q.quotation_status === 'pending')) {
+			offerNotice.value = 'The organizer just updated this offer. Please check the new prices before accepting.'
+			await nextTick()
+			offerNoticeEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+		} else {
+			quotationError.value = authMessage(error) || 'Unable to accept quotation. Please try again.'
+		}
 	} finally {
 		acceptingQuotationId.value = null
 	}
@@ -1434,7 +1471,7 @@ onMounted(async () => {
 	}
 })
 // Close to live (review #12): other people's changes appear without a reload.
-useLiveRefresh(() => loadClientInquiries(true), { interval: 60000 })
+useLiveRefresh(() => Promise.all([loadClientInquiries(true), refreshOpenOffers()]), { interval: 60000 })
 </script>
 
 <style scoped>

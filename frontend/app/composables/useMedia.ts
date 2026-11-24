@@ -37,6 +37,11 @@ export const useMedia = () => {
 			(await api.post<{ url: string | null }>(`/organizations/${orgId}/events/${eventId}/cover`, form(file))).data.url,
 		removeEventCover: async (orgId: string, eventId: string) =>
 			(await api.delete<{ url: string | null }>(`/organizations/${orgId}/events/${eventId}/cover`)).data.url,
+		// 0066: the venue layout shown above the table choice.
+		uploadFloorPlan: async (orgId: string, eventId: string, file: File) =>
+			(await api.post<{ url: string | null }>(`/organizations/${orgId}/events/${eventId}/floor-plan`, form(file))).data.url,
+		removeFloorPlan: async (orgId: string, eventId: string) =>
+			(await api.delete<{ url: string | null }>(`/organizations/${orgId}/events/${eventId}/floor-plan`)).data.url,
 	}
 }
 

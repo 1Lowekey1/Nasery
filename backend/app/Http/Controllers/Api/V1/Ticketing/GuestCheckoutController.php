@@ -57,9 +57,12 @@ class GuestCheckoutController extends Controller
             'attendees.*.email' => [$user ? 'nullable' : 'required', 'email', 'max:254'],
             'attendees.*.ticket_type_id' => ['required', 'uuid'],
             'attendees.*.verification_token' => ['nullable', 'string', 'max:100'],
+            // 0066: the table chosen per ticket type (ticket type id => table number; null: any table).
+            'tables' => ['sometimes', 'array', 'max:20'],
+            'tables.*' => ['nullable', 'integer', 'min:1', 'max:200'],
         ]);
 
-        $result = $this->checkout->register($user, $event, $data['attendees'], $data['buyer'] ?? [], $this->linkKey($request));
+        $result = $this->checkout->register($user, $event, $data['attendees'], $data['buyer'] ?? [], $this->linkKey($request), $data['tables'] ?? []);
 
         return ApiResponse::created($result, $result['checkout']
             ? 'Places reserved. Continue to payment.'
