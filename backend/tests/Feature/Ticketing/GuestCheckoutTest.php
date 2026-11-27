@@ -126,6 +126,38 @@ class GuestCheckoutTest extends TestCase
         $this->get("/api/v1/public-registrations/{$registration}/tickets/{$other}/pdf?access={$access}")->assertNotFound();
     }
 
+    public function test_a_guest_buyer_confirms_once_and_receives_every_ticket(): void
+    {
+        [, , $event, $tiers] = $this->event();
+        $token = $this->confirm($event, 'buyer@example.com');
+        $attendees = [
+            ['full_name' => 'Buyer Self', 'ticket_type_id' => $tiers['Kids']],
+            ['full_name' => 'Friend Two', 'email' => 'friend@example.com', 'ticket_type_id' => $tiers['Kids']],
+            ['full_name' => 'Friend Three', 'ticket_type_id' => $tiers['Kids']],
+        ];
+
+        // The token must match the buyer's e-mail.
+        $fields = $this->spaJson('POST', "/api/v1/public-events/{$event}/checkout", [
+            'buyer' => ['name' => 'Buyer Self', 'email' => 'other@example.com', 'verification_token' => $token], 'attendees' => $attendees,
+        ], $this->key())->assertUnprocessable()->json('error.details.fields');
+        $this->assertSame(['Confirm your e-mail address with the code we send it.'], $fields['buyer.email']);
+
+        $res = $this->spaJson('POST', "/api/v1/public-events/{$event}/checkout", [
+            'buyer' => ['name' => 'Buyer Self', 'email' => 'Buyer@Example.com', 'verification_token' => $token], 'attendees' => $attendees,
+        ], $this->key())->assertCreated()->assertJsonPath('data.status', 'confirmed');
+        $registration = $res->json('data.registration_id');
+        $this->assertSame('buyer@example.com', DB::table('registrations')->where('id', $registration)->value('purchaser_email'));
+        // Attendees keep only their names; every ticket is e-mailed to the confirmed buyer.
+        $this->assertSame([null, null, null], DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')
+            ->where('t.registration_id', $registration)->pluck('a.email')->all());
+        $this->assertSame(['buyer@example.com'], DB::connection('system')->table('mail_deliveries')->whereJsonContains('ticket_ids', DB::table('tickets')->where('registration_id', $registration)->value('id'))->pluck('recipient')->all());
+
+        // Single use.
+        $this->spaJson('POST', "/api/v1/public-events/{$event}/checkout", [
+            'buyer' => ['name' => 'Buyer Self', 'email' => 'buyer@example.com', 'verification_token' => $token], 'attendees' => $attendees,
+        ], $this->key())->assertUnprocessable();
+    }
+
     public function test_free_tickets_are_issued_at_once_and_signed_in_buyers_skip_codes(): void
     {
         [, , $event, $tiers] = $this->event();

@@ -67,10 +67,15 @@
 							<input ref="quickInput" v-model="newItemLabel" type="text" maxlength="255" class="pt-field !pl-10" placeholder="Add a task, e.g. Confirm sound system with supplier" :disabled="isAddingItem" aria-label="New task" />
 						</div>
 						<div class="sm:w-56"><FormsSelect v-model="newItemAssignee" :options="assigneeOptions" placeholder="Assign to" /></div>
+						<div class="sm:w-36"><FormsSelect v-model="newItemPriority" :options="priorityOptions" :can-clear="false" aria-label="Priority" /></div>
 						<button type="submit" class="pt-btn-primary shrink-0" :disabled="isAddingItem || !newItemLabel.trim()">
 							<IconBase :name="isAddingItem ? 'refresh-cw' : 'plus'" class="h-4 w-4" :class="isAddingItem ? 'animate-spin' : ''" />{{ isAddingItem ? 'Adding…' : 'Add' }}
 						</button>
 					</form>
+					<!-- Advisor's fix (Nov 2026): say how priority works. -->
+					<p v-if="!isFinished" class="border-b border-gray-100 bg-gray-50/60 px-5 pb-3 text-xs text-gray-500">
+						<IconBase name="clock" class="mr-1 inline h-3.5 w-3.5 align-[-2px]" />Priority (Low, Medium, High, Urgent) is set by you on each task, and can be changed any time. A task past its due date is marked <span class="font-semibold text-rose-700">overdue</span> automatically.
+					</p>
 
 					<TransitionGroup v-if="visibleTasks.length" tag="ul" name="pt-item" class="relative divide-y divide-gray-100">
 						<li v-for="item in visibleTasks" :key="item.id" class="group flex flex-wrap items-start gap-x-3 gap-y-2 px-4 py-4 transition-colors hover:bg-gray-50/70 sm:flex-nowrap sm:px-5">
@@ -90,6 +95,11 @@
 										</button>
 									</span>
 									<span v-if="!item.assignees.length && isFinished" class="text-xs text-gray-400">Unassigned</span>
+									<span v-if="isFinished" class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="priorityClasses[item.priority]">{{ item.priority }}</span>
+									<div v-else class="w-32">
+										<FormsSelect :model-value="item.priority" :options="priorityOptions" :can-clear="false" :disabled="updatingItemId === item.id" append-to-body close-on-scroll
+											:aria-label="`Priority of ${item.label}`" @update:model-value="value => value && setPriority(item, value as TaskPriority)" />
+									</div>
 									<div v-if="!isFinished && (unassignedFor(item).length || availableMembers.length)" class="w-48">
 										<FormsSelect :model-value="null" :options="assigneeChoices(item)" :placeholder="item.assignees.length ? 'Add person' : 'Needs an assignee'"
 											:can-clear="false" :disabled="updatingItemId === item.id" append-to-body close-on-scroll @update:model-value="value => value && addAssignee(item, String(value))" />
@@ -172,6 +182,7 @@
 </template>
 
 <script setup lang="ts">
+import type { TaskPriority } from '~/composables/useEvents'
 interface OrganizerEvent {
 	id: number
 	name: string
@@ -197,6 +208,8 @@ interface PreparationItem {
 	completed_by?: TeamUser | null
 	completion_note?: string | null
 	review_status: 'pending' | 'verified' | 'changes_requested'
+	/** Set by the organizer (Advisor's fix, Nov 2026); overdue is shown automatically. */
+	priority: TaskPriority
 	created_at?: string
 	updated_at?: string
 }
@@ -290,6 +303,24 @@ const newItemLabel =
 	ref('')
 
 const newItemAssignee = ref<number | null>(null)
+// Advisor's fix (Nov 2026): priority is chosen here (Medium by default) and on each task.
+const newItemPriority = ref<TaskPriority>('medium')
+const priorityOptions = [
+	{ value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }, { value: 'urgent', label: 'Urgent' },
+]
+async function setPriority(item: PreparationItem, priority: TaskPriority) {
+	if (!eventId.value || priority === item.priority) return
+	updatingItemId.value = item.id
+	actionError.value = ''
+	try {
+		await useApi().patch(`${tasksBase()}/tasks/${item.id}`, { priority })
+		item.priority = priority
+	} catch (error: unknown) {
+		actionError.value = authMessage(error) || 'Unable to change the priority.'
+	} finally {
+		updatingItemId.value = null
+	}
+}
 const teamMembers = ref<TeamMember[]>([])
 /** Organization members not on this event's team yet (to add them). */
 const orgMembers = ref<{ id: string, name: string, role: string }[]>([])
@@ -376,7 +407,7 @@ type ApiPreparation = {
 	event_status?: string
 	team: { id: string, organization_member_id: string, name: string, email: string | null, label: string | null }[]
 	checklists: { id: string, name: string, tasks: {
-		id: string, name: string, status: string, assignee_ids: string[], completion_note: string | null,
+		id: string, name: string, status: string, priority?: TaskPriority, assignee_ids: string[], completion_note: string | null,
 		review_status: 'pending' | 'verified' | 'changes_requested' | null, review_note: string | null,
 	}[] }[]
 }
@@ -412,6 +443,7 @@ function applyPreparation(prep: ApiPreparation) {
 			: null,
 		completion_note: t.review_status === 'changes_requested' && t.review_note ? `Changes requested: ${t.review_note}` : t.completion_note,
 		review_status: (t.review_status ?? 'pending') as PreparationItem['review_status'],
+		priority: t.priority ?? 'medium',
 	})))
 }
 
@@ -470,7 +502,7 @@ async function addChecklistItem() {
 		if (!prep.checklists.length) {
 			prep = (await useApi().post<ApiPreparation>(`${tasksBase()}/checklists`, { name: 'Preparation' })).data
 		}
-		prep = (await useApi().post<ApiPreparation>(`${tasksBase()}/checklists/${prep.checklists[0]!.id}/tasks`, { name: label })).data
+		prep = (await useApi().post<ApiPreparation>(`${tasksBase()}/checklists/${prep.checklists[0]!.id}/tasks`, { name: label, priority: newItemPriority.value })).data
 		const assignee = await resolveAssignee(newItemAssignee.value as string | number | null)
 		if (assignee) {
 			const created = [...prep.checklists[0]!.tasks].reverse().find(t => t.name === label) ?? prep.checklists[0]!.tasks.at(-1)!
@@ -481,6 +513,7 @@ async function addChecklistItem() {
 		applyPreparation(prep)
 		newItemLabel.value = ''
 		newItemAssignee.value = null
+		newItemPriority.value = 'medium'
 		showAddForm.value = false
 	} catch (error: unknown) {
 		actionError.value = authMessage(error) || 'Unable to add checklist item.'

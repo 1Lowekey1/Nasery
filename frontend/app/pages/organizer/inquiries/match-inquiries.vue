@@ -434,6 +434,7 @@
 								</label>
 								<span class="shrink-0 font-semibold text-gray-700">{{ formatPeso(breakdown.charges.find(c => c.key === 'service')?.amount ?? 0) || '₱0' }}</span>
 							</div>
+							<p class="text-xs" :class="chargeCapped ? 'font-semibold text-amber-700' : 'text-gray-400'" role="status">{{ chargeCapped ? 'The service charge can be at most 30%, so it was set to 30%.' : 'Service charge: 0 to 30% of the subtotal.' }}</p>
 							<div v-for="(c, i) in breakdown.charges.filter(c => c.key === 'vat')" :key="`c${i}`" class="flex items-center justify-between gap-3 py-1 text-gray-500">
 								<span class="min-w-0">{{ c.label }} ({{ c.percent }}%) <span class="ml-1 text-xs text-gray-400">added by NaSeRy</span></span>
 								<span class="shrink-0 font-semibold text-gray-700">{{ formatPeso(c.amount) }}</span>
@@ -1019,6 +1020,14 @@ const shownOptions = computed(() => (showAllOptions.value ? builderOptions.value
 // Lines with a price make the total; service charge then VAT go on top (as in the estimate).
 const pricedItems = computed(() => offerForm.items.filter(l => l.description.trim() && String(l.unit_price).trim() !== ''))
 const hasPricedLines = computed(() => pricedItems.value.length > 0)
+// Advisor's fix (Nov 2026): never above 30%; typing more sets 30 and says so.
+const chargeCapped = ref(false)
+watch(() => offerForm.chargePercents.service, (v) => {
+	const c = capServiceCharge(v)
+	if (c.capped) chargeCapped.value = true
+	else if (String(v ?? '').trim() !== '' && Number(v) < SERVICE_CHARGE_MAX) chargeCapped.value = false
+	if (c.value !== String(v ?? '').trim()) offerForm.chargePercents.service = Number(c.value) || 0
+})
 const breakdown = computed(() => {
 	const subtotal = pricedItems.value.reduce((sum, l) => sum + lineSubtotal(Number(l.quantity) || 1, Number(l.unit_price) || 0), 0)
 	const cents = (v: number) => Math.round(v * 100) / 100

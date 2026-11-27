@@ -52,6 +52,9 @@ Route::middleware(['auth:sanctum', 'active', 'verified'])->where($ids)->group(fu
         Route::get('settings', [AdminController::class, 'settings'])->name('settings');
         Route::patch('settings', [AdminController::class, 'updateSettings'])->middleware('throttle:sensitive')->name('settings.update');
         Route::post('settings/fee', [AdminController::class, 'changeFee'])->middleware('throttle:sensitive')->name('settings.fee');
+        // Delete an account permanently (only the admins in NASERY_HARD_DELETE_ADMINS).
+        Route::get('account-removal', [AdminController::class, 'accountRemovalPreview'])->middleware('throttle:sensitive')->name('account-removal.preview');
+        Route::post('account-removal', [AdminController::class, 'removeAccount'])->middleware('throttle:sensitive')->name('account-removal.remove');
 
         Route::get('users', [AdminController::class, 'users'])->name('users');
         Route::post('users/{user}/status', [AdminController::class, 'userStatus'])->middleware('throttle:sensitive')->name('users.status');

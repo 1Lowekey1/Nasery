@@ -10,6 +10,7 @@ use App\Services\Auth\AccountService;
 use App\Services\Staff\StaffManager;
 use App\Support\Http\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class PasswordController extends Controller
 {
@@ -25,11 +26,25 @@ class PasswordController extends Controller
         ], 'If an account exists for that email, we sent a reset code to it.');
     }
 
-    public function reset(ResetPasswordRequest $request): JsonResponse
+    public function reset(ResetPasswordRequest $request, StaffManager $staff): JsonResponse
     {
-        $this->accounts->resetPassword($request->string('email'), $request->string('code'), $request->string('password'));
+        $first = $this->accounts->resetPassword($request->string('email'), $request->string('code'), $request->string('password'));
 
-        return ApiResponse::success(null, 'Password updated. Sign in with your new password.');
+        // Invite fix (Nov 2026): a team invitee who chose their first password here instead of
+        // through the invitation link still joins the team that invited them.
+        $organization = $first ? $staff->completeSetup($first) : null;
+
+        return ApiResponse::success(null, $organization
+            ? "Password set. You're on the {$organization->display_name} team. Sign in to start."
+            : 'Password updated. Sign in with your new password.');
+    }
+
+    /** Invite fix (Nov 2026): what the invitation link is now (ready, used, expired or invalid). */
+    public function teamSetupCheck(Request $request): JsonResponse
+    {
+        $data = $request->validate(['email' => ['required', 'email', 'max:254'], 'code' => ['required', 'string', 'size:6']]);
+
+        return ApiResponse::success(['status' => $this->accounts->teamSetupStatus($data['email'], $data['code'])]);
     }
 
     /** Team invitation link: choose a password and join the organization that invited you. */

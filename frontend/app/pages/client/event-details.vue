@@ -65,7 +65,7 @@
 							<IconBase name="calendar" class="h-5 w-5 text-white/80" />
 							<div>
 								<p class="text-[11px] font-bold uppercase tracking-[0.14em] text-white/60">Event date</p>
-								<p class="mt-0.5 text-sm font-bold">{{ formatDate(eventData.event.event_date) }}</p>
+								<p class="mt-0.5 text-sm font-bold">{{ eventSpan && dayGap(eventSpan.starts, eventSpan.ends, eventSpan.tz) > 1 ? dateSpan(eventSpan.starts, eventSpan.ends, eventSpan.tz) : formatDate(eventData.event.event_date) }}</p>
 							</div>
 						</div>
 					</div>
@@ -96,7 +96,7 @@
 							<IconBase name="clock" class="h-5 w-5 text-[#285F6b]" />
 							<p class="mt-4 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400">Schedule</p>
 							<p class="mt-1 text-sm font-black text-gray-900">
-								{{ formatTime(eventData.event.start_time) }}–{{ formatTime(eventData.event.end_time) }}
+								{{ formatTime(eventData.event.start_time) }}–{{ formatTime(eventData.event.end_time) }}{{ eventSpan ? endsSuffix(eventSpan.starts, eventSpan.ends, eventSpan.tz) : '' }}
 							</p>
 						</div>
 					</div>
@@ -938,6 +938,8 @@ const eventData =
 
 const eventTickets =
 	ref<EventTicket[]>([])
+// Advisor's fix (Nov 2026): overnight / multi-day events show where they end.
+const eventSpan = ref<{ starts: string, ends: string, tz: string } | null>(null)
 
 const isLoading =
 	ref(false)
@@ -1564,6 +1566,7 @@ async function loadEventDetails(quiet = false) {
 		linkKey.value = privateKey
 		visibility.value = event.visibility
 
+		eventSpan.value = event.starts_at && event.ends_at ? { starts: event.starts_at, ends: event.ends_at, tz: event.timezone || 'Asia/Manila' } : null
 		eventData.value = {
 			event: {
 				id: event.id as unknown as number,

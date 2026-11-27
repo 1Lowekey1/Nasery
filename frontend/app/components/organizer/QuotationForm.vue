@@ -72,6 +72,7 @@
 						</label>
 						<span>{{ formatPeso(serviceCharge) || '₱0' }}</span>
 					</div>
+					<p class="text-xs" :class="chargeCapped ? 'font-semibold text-amber-700' : 'text-gray-400'" role="status">{{ chargeCapped ? 'The service charge can be at most 30%, so it was set to 30%.' : 'Service charge: 0 to 30% of the subtotal.' }}</p>
 					<!-- VAT is added by NaSeRy at its rate (organizers who charge VAT); it can't be typed or edited. -->
 					<div v-if="vatRate" class="mt-2 flex items-center justify-between text-sm text-gray-600">
 						<span>VAT ({{ vatRate }}%) <span class="text-xs text-gray-400">added automatically</span></span><span>{{ formatPeso(vatAmount) || '₱0' }}</span>
@@ -148,6 +149,14 @@ const form = reactive<Omit<QuotationContent, 'items'> & { items: Line[], service
 })
 const total = computed(() => linesTotal(form.items.filter(i => !isVatLine(String(i.description)))))
 const chargePercent = computed(() => Math.min(30, Math.max(0, Number(form.service_charge_percent) || 0)))
+// Advisor's fix (Nov 2026): never above 30%; typing more sets 30 and says so.
+const chargeCapped = ref(false)
+watch(() => form.service_charge_percent, (v) => {
+	const c = capServiceCharge(v)
+	if (c.capped) chargeCapped.value = true
+	else if (String(v ?? '').trim() !== '' && Number(v) < SERVICE_CHARGE_MAX) chargeCapped.value = false
+	if (c.value !== String(v ?? '').trim()) form.service_charge_percent = c.value
+})
 const serviceCharge = computed(() => Math.round(total.value * chargePercent.value) / 100)
 const vatRate = ref<number | null>(null)
 // VAT is on the lines plus the service charge (as the server works it out).

@@ -41,7 +41,7 @@ Run them with PHP 8.5.10: `C:\xampp\php8.5.10\php.exe artisan …`
   - completed: the wedding and the christening, with guest lists, check-ins, walk-ins and headcount
   - upcoming: the birthday
 - **Public events:**
-  - Kadayawan Street Food Festival (on sale, 3 tiers, several buyers, one force-majeure refund)
+  - Kadayawan Street Food Festival (on sale, 3 tiers, several buyers, one force-majeure refund; seat/table labels)
   - Davao Tech Summit (**live now**: doors open, check-ins and walk-ins)
   - Sunset Acoustic Night (upcoming)
   - Davao Food Expo (last month, completed)
@@ -50,6 +50,8 @@ Run them with PHP 8.5.10: `C:\xampp\php8.5.10\php.exe artisan …`
   - Davao Dream doesn't charge VAT on **weddings** (set after the past bookings, so their offers keep VAT). **Faith & Marco Garden Wedding** (Faith, open, no offer yet): Maria's offer has no VAT. Miguel's corporate offers show VAT as "Miscellaneous charges".
   - Mood boards (colour palettes): Faith's wedding (2), Miguel's Northwind anniversary (1), Bea's **Santos–Lim Wedding** (3), which Ken sees in My Assignments.
   - **Enzo's refund request** on the Kadayawan Street Food Festival waits for Maria (Ticketing & Attendance → Payments: Refund or Decline).
+- **Seating (as in the paper):** each ticket type is a zone; attendees sit anywhere in their zone, and the organizer can give a guest an optional seat or table label. On **Kadayawan Street Food Festival** (Maria), the VIP Lounge buyers have "VIP Table 1", "VIP Table 2"… labels, two invited guests on the Guest list sit at "Head table", and a complimentary press pass on General Admission is at "Media desk".
+  - **Extra beyond the paper (off on the demo events):** an organizer can tick "Let buyers choose where they sit" on a ticket type (event editor → Guests & tickets). *Tables or spaces* (e.g. "VIP Table" × 12 of 4, or "Booth" × 30 of 1) or *Rows of seats* (row names A, B, C or 1, 2, 3; seats per row in order, first row first, e.g. `10, 12, 14`). Buyers then pick a table or tap exact seats at checkout (big venues show rows first, then that row's seats), and an optional floor plan picture can be added on the event page. To show it, switch it on for Sunset Acoustic Night (Liza) before the demo.
 - **Newer features (2026-11):**
   - requests carry the client's event name ("Northwind Davao 10th Anniversary", "Sofia's Sunset Debut"); Rafael's has none, so it shows the default "Reunion for Rafael …"
   - event tags include **Seminar** (Mindanao Grand, Davao Ushers) and **Reunion** (Matina Kitchen, Calinan Garden)

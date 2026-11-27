@@ -32,6 +32,9 @@ Route::prefix('auth')->name('auth.')->group(function () {
     // Team invitation link (account created by the invitation): set the first password and join.
     Route::post('team-setup', [PasswordController::class, 'teamSetup'])
         ->middleware(['throttle:password-reset', 'throttle:sensitive'])->name('team-setup');
+    // Invite fix (Nov 2026): the set-up page checks its link first (doesn't use it).
+    Route::post('team-setup/check', [PasswordController::class, 'teamSetupCheck'])
+        ->middleware(['throttle:password-reset'])->name('team-setup.check');
 
     Route::prefix('social')->name('social.')->group(function () {
         Route::get('providers', [SocialAuthController::class, 'providers'])

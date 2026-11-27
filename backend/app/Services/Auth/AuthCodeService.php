@@ -120,6 +120,41 @@ class AuthCodeService
         }
     }
 
+    /**
+     * Invite fix (Nov 2026): what a link's code is now, without using it, so the
+     * set-up page can show the right screen. "used" only when the code matches one
+     * already used; a wrong code counts as a failed attempt, as in consume().
+     *
+     * @return 'ready'|'used'|'expired'|'invalid'
+     */
+    public function peek(User $user, AuthCodePurpose $purpose, #[SensitiveParameter] string $code): string
+    {
+        $settings = config('nasery.auth.codes');
+
+        return DB::connection('system')->transaction(function () use ($user, $purpose, $code, $settings): string {
+            $record = AuthCode::query()->where('user_id', $user->id)->where('purpose', $purpose)->lockForUpdate()->first();
+
+            if ($record === null) {
+                return 'invalid';
+            }
+            if (! hash_equals($record->code_hash, $this->hash($code))) {
+                if ($record->consumed_at === null) {
+                    $record->increment('attempts');
+                }
+
+                return 'invalid';
+            }
+            if ($record->consumed_at !== null) {
+                return 'used';
+            }
+            if ($record->attempts >= $settings['max_attempts']) {
+                return 'invalid';
+            }
+
+            return $record->expires_at->isPast() ? 'expired' : 'ready';
+        });
+    }
+
     private function hash(#[SensitiveParameter] string $code): string
     {
         return hash_hmac('sha256', $code, (string) config('app.key'));

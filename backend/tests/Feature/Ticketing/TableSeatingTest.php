@@ -53,12 +53,12 @@ class TableSeatingTest extends TestCase
         return collect($res->json('data'))->firstWhere('name', $name);
     }
 
-    private function buy(User $buyer, string $event, string $tier, int $people, ?int $table): \Illuminate\Testing\TestResponse
+    private function buy(User $buyer, string $event, string $tier, int $people, ?int $table, array $seats = []): \Illuminate\Testing\TestResponse
     {
         $attendees = array_map(fn ($i) => ['full_name' => "Guest {$i}", 'email' => null, 'ticket_type_id' => $tier], range(1, $people));
 
         return $this->actingAs($buyer)->spaJson('POST', "/api/v1/public-events/{$event}/checkout",
-            ['attendees' => $attendees, ...($table ? ['tables' => [$tier => $table]] : [])], $this->key());
+            ['attendees' => $attendees, ...($table ? ['tables' => [$tier => $table]] : []), ...($seats ? ['seats' => [$tier => $seats]] : [])], $this->key());
     }
 
     private function seats(string $tier): array
@@ -159,11 +159,45 @@ class TableSeatingTest extends TestCase
         $this->actingAs($owner)->spaJson('PATCH', "{$base}/{$concert}", ['table_count' => 1])->assertUnprocessable()
             ->assertJsonPath('error.details.fields.table_count.0', 'Row B already has guests, so keep at least 2 rows.');
         $this->actingAs($owner)->spaJson('PATCH', "{$base}/{$concert}", ['table_size' => 4])->assertUnprocessable()
-            ->assertJsonPath('error.details.fields.table_size.0', 'Seat 5 in a row is already taken, so keep at least 5 seats per row.');
+            ->assertJsonPath('error.details.fields.table_size.0', 'Row A, Seat 5 is already taken, so keep at least 5 seats in that row.');
     }
 
     public function test_row_names_go_past_z(): void
     {
         $this->assertSame(['A', 'Z', 'AA', 'AB', 'AZ', 'BA'], array_map(fn ($n) => \App\Services\Ticketing\TableSeating::rowName($n), [1, 26, 27, 28, 52, 53]));
+    }
+
+    /** 0067: rows of different lengths, named 1, 2, 3, and exact seats. */
+    public function test_exact_seats_in_rows_of_different_lengths(): void
+    {
+        [, $owner, $event, , , $base] = $this->event();
+        $center = self::named($this->actingAs($owner)->spaJson('POST', $base, ['name' => 'Center', 'price' => 0, 'capacity' => 1, 'status' => 'on_sale',
+            'seating_mode' => 'rows', 'seat_rows' => [4, 6, 8], 'row_names' => 'numbers'])->assertCreated(), 'Center');
+        $this->assertSame([18, 3, 8, [4, 6, 8], 'numbers'], [$center['capacity'], $center['table_count'], $center['table_size'], $center['seat_rows'], $center['row_names']]);
+        $center = $center['id'];
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+
+        $rows = collect($this->getJson("/api/v1/public-events/{$event}")->json('data.tiers'))->firstWhere('name', 'Center')['tables']['tables'];
+        $this->assertSame(['Row 2', 6, 6], [$rows[1]['name'], $rows[1]['seats'], $rows[1]['left']]);
+
+        // Exact seats.
+        $this->buy(User::factory()->create(), $event, $center, 2, null, [[2, 1], [2, 2]])->assertCreated();
+        $this->assertSame(['Row 2, Seat 1', 'Row 2, Seat 2'], $this->seats($center));
+        // Someone else tapped one of them: asked to pick another, nothing issued.
+        $this->buy(User::factory()->create(), $event, $center, 1, null, [[2, 2]])->assertStatus(409)->assertJsonPath('error.details.scope', 'seat');
+        // A seat that doesn't exist (Row 1 has 4).
+        $this->buy(User::factory()->create(), $event, $center, 1, null, [[1, 5]])->assertUnprocessable();
+        // One seat tapped for three tickets: the other two go next to each other in the same row.
+        $this->buy(User::factory()->create(), $event, $center, 3, null, [[3, 8]])->assertCreated();
+        $this->assertSame(['Row 3, Seat 8', 'Row 3, Seat 4', 'Row 3, Seat 5'], array_slice($this->seats($center), 2));
+
+        // The organizer can't cut off a sold seat or rename rows once seats are sold.
+        $this->actingAs($owner)->spaJson('PATCH', "{$base}/{$center}", ['seat_rows' => [4, 6, 7]])->assertUnprocessable()
+            ->assertJsonPath('error.details.fields.table_size.0', 'Row 3, Seat 8 is already taken, so keep at least 8 seats in that row.');
+        $this->actingAs($owner)->spaJson('PATCH', "{$base}/{$center}", ['row_names' => 'letters'])->assertUnprocessable()
+            ->assertJsonPath('error.details.fields.row_names.0', "Seats are already sold, so the row names (A, B, C or 1, 2, 3) can't change.");
+        // Longer rows are fine.
+        $this->assertSame(22, self::named($this->actingAs($owner)->spaJson('PATCH', "{$base}/{$center}", ['seat_rows' => [4, 8, 10]])->assertOk(), 'Center')['capacity']);
     }
 }

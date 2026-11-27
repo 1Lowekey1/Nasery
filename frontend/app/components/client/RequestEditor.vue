@@ -30,6 +30,11 @@
 					<FormsTimeField v-model="form.end_time" />
 				</div>
 			</div>
+			<div class="max-w-xs">
+				<FormsLabel text="Ends on (optional)" />
+				<FormsDateField v-model="form.end_date" :min-date="form.requested_date || today" placeholder="Same day" />
+				<p class="mt-1 text-xs text-gray-400">For events over several days. An end time earlier than the start means the next day.</p>
+			</div>
 
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 				<div>
@@ -107,21 +112,31 @@ const emit = defineEmits<{ saved: [inquiry: ClientInquiry], cancel: [] }>()
 
 const TIME = /^Time: (\d{2}:\d{2}) – (\d{2}:\d{2})$/
 const KEPT = /^(Event|Venue): /
+// Overnight / multi-day requests (Advisor's fix, Nov 2026): "Ends on: YYYY-MM-DD", rebuilt on save.
+const ENDS = /^Ends on: (\d{4}-\d{2}-\d{2})$/
 const lines = (props.inquiry.additional_requirements ?? '').split('\n')
 const time = lines.map(l => l.match(TIME)).find(Boolean)
+/** The saved "Ends on" date, unless it only says "the next day" (that follows from the times). */
+function multiDayEnd() {
+	const ends = lines.map(l => l.match(ENDS)).find(Boolean)?.[1] ?? ''
+	const date = props.inquiry.requested_date ?? ''
+	if (!ends || !date || !time) return ends
+	return scheduleEnd(date, time[1]!, '', time[2]!).date === ends ? '' : ends
+}
 const kept = lines.filter(l => KEPT.test(l))
 
 const form = reactive({
 	requested_date: props.inquiry.requested_date ?? '',
 	start_time: time?.[1] ?? '',
 	end_time: time?.[2] ?? '',
+	end_date: multiDayEnd(),
 	guest_count: props.inquiry.guest_count ? String(props.inquiry.guest_count) : '',
 	budget_min: props.inquiry.budget_min ? String(Number(props.inquiry.budget_min)) : '',
 	budget_max: props.inquiry.budget_max ? String(Number(props.inquiry.budget_max)) : '',
 	services: (props.inquiry.services ?? []).map(s => ({
 		service_id: s.service_id, name: s.custom_service_name || 'Service', custom: s.service_id ? null : s.custom_service_name, notes: s.notes ?? '',
 	})),
-	notes: lines.filter(l => !TIME.test(l) && !KEPT.test(l)).join('\n').trim(),
+	notes: lines.filter(l => !TIME.test(l) && !KEPT.test(l) && !ENDS.test(l)).join('\n').trim(),
 })
 // Unsaved edits survive a reload; an untouched form keeps no draft.
 const initial = JSON.stringify(form)
@@ -180,13 +195,15 @@ async function save() {
 	error.value = ''
 	fields.value = {}
 	const timeLine = form.start_time && form.end_time ? `Time: ${form.start_time} – ${form.end_time}` : ''
+	const endDay = form.requested_date && form.start_time && form.end_time ? scheduleEnd(form.requested_date, form.start_time, form.end_date, form.end_time).date : ''
+	const endsLine = endDay && endDay !== form.requested_date ? `Ends on: ${endDay}` : ''
 	try {
 		const saved = await useInquiries().update(props.inquiry.id, {
 			requested_date: form.requested_date || null,
 			guest_count: form.guest_count === '' ? null : Number(form.guest_count),
 			budget_min: amount(form.budget_min),
 			budget_max: amount(form.budget_max),
-			additional_requirements: [kept.find(l => l.startsWith('Event: ')), timeLine, kept.find(l => l.startsWith('Venue: ')), form.notes.trim()]
+			additional_requirements: [kept.find(l => l.startsWith('Event: ')), timeLine, endsLine, kept.find(l => l.startsWith('Venue: ')), form.notes.trim()]
 				.filter(Boolean).join('\n') || null,
 			services: form.services.map(s => ({ service_id: s.service_id, custom_service_name: s.custom, notes: s.notes.trim() || null })),
 		})

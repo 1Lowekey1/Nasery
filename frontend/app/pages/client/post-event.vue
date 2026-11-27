@@ -145,10 +145,18 @@
 								</div>
 								<div>
 									<FormsLabel text="End time" required />
-									<FormsTimeField v-model="form.endTime" name="end_time" placeholder="Select end time"
-										:min-time="form.startTime || undefined" />
+									<FormsTimeField v-model="form.endTime" name="end_time" placeholder="Select end time" />
 								</div>
 							</div>
+							<!-- Advisor's fix (Nov 2026): events past midnight or over several days. -->
+							<div class="mt-4 max-w-sm">
+								<FormsLabel text="Ends on (optional)" />
+								<FormsDateField v-model="form.endDate" name="end_date" placeholder="Same day" :min-date="form.date || minimumEventDate" :max-date="maximumEventDate" />
+								<p class="mt-1.5 text-xs text-gray-400">For events over several days. An end time earlier than the start already means the next day.</p>
+							</div>
+							<p v-if="endHint" class="mt-2 flex items-start gap-1.5 text-xs font-semibold text-primary-700" role="status">
+								<IconBase name="clock" class="mt-px h-3.5 w-3.5 shrink-0" />{{ endHint }}
+							</p>
 							<p v-if="timeError" class="mt-3 text-xs font-semibold text-rose-600">{{ timeError }}</p>
 							<p v-else-if="showMissing('schedule')" class="mt-2 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">{{ form.date && form.startTime && form.endTime ? `Choose a date between today and ${maximumEventDateLabel}.` : 'Choose the event date, start time and end time.' }}</p>
 						</div>
@@ -457,7 +465,7 @@
 						<div class="flex items-start justify-between gap-3">
 							<dt class="text-gray-400">Time</dt>
 							<dd class="text-right font-semibold text-gray-800">{{ form.startTime && form.endTime ?
-								`${formatTime(form.startTime)} – ${formatTime(form.endTime)}` : 'Not selected' }}</dd>
+								`${formatTime(form.startTime)} – ${formatTime(form.endTime)}${endDay.overnight ? ' (next day)' : endDay.date !== form.date ? ` (until ${endDay.date})` : ''}` : 'Not selected' }}</dd>
 						</div>
 						<div class="flex items-start justify-between gap-3">
 							<dt class="text-gray-400">Guests</dt>
@@ -715,6 +723,8 @@ const form = reactive({
 	date: '',
 	startTime: '',
 	endTime: '',
+	/** Optional last day (multi-day events). */
+	endDate: '',
 
 	location: '',
 	venueName: '',
@@ -897,9 +907,17 @@ const formattedEventDate = computed(() => {
 	return new Intl.DateTimeFormat('en-PH', { dateStyle: 'full' }).format(new Date(`${form.date}T00:00:00`))
 })
 
+// An end time at or before the start means the event ends the next day (Advisor's fix, Nov 2026).
+const endDay = computed(() => scheduleEnd(form.date, form.startTime, form.endDate, form.endTime))
+const endHint = computed(() => {
+	if (!form.date || !form.startTime || !form.endTime || timeError.value || endDay.value.date === form.date) return ''
+	const when = new Intl.DateTimeFormat('en-PH', { dateStyle: 'full' }).format(new Date(`${endDay.value.date}T00:00:00`))
+	return `${endDay.value.overnight ? 'Ends the next day' : 'Ends'}: ${when}, ${formatTime(form.endTime)}.`
+})
 const timeError = computed(() => {
 	if (!form.startTime || !form.endTime) return ''
-	return form.endTime <= form.startTime ? 'End time must be later than start time.' : ''
+	if (form.endDate && form.date && form.endDate < form.date) return 'The end date can’t be before the event date.'
+	return form.endTime === form.startTime && (!form.endDate || form.endDate === form.date) ? 'End time can’t be the same as the start time.' : ''
 })
 
 const showLocationSuggestions =
@@ -1889,6 +1907,7 @@ async function submitInquiry() {
 		const details = [
 			form.title.trim() ? `Event: ${form.title.trim()}` : '',
 			`Time: ${form.startTime} – ${form.endTime}`,
+			endDay.value.date !== form.date ? `Ends on: ${endDay.value.date}` : '',
 			form.venueName ? `Venue: ${form.venueName}` : '',
 			form.details.trim(),
 		].filter(Boolean).join('\n')

@@ -41,6 +41,10 @@ class BackupDatabase extends Command
             '--username='.$config['username'],
             '--dbname='.$config['database'],
         ], null, [
+            // Started from a web request (Admin → Delete an account), PHP passes almost no
+            // environment: give pg_dump a PATH, and on Windows SYSTEMROOT (needed for networking).
+            'PATH' => getenv('PATH') ?: ($_SERVER['PATH'] ?? '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'),
+            ...(PHP_OS_FAMILY === 'Windows' ? ['SYSTEMROOT' => getenv('SYSTEMROOT') ?: ($_SERVER['SYSTEMROOT'] ?? 'C:\\Windows')] : []),
             // Credentials via environment, never on the command line or in logs.
             'PGPASSWORD' => (string) $config['password'],
             'PGSSLMODE' => (string) ($config['sslmode'] ?? 'prefer'),

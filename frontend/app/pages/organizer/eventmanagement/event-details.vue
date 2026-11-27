@@ -140,16 +140,24 @@
 									</div>
 									<textarea id="ed-desc" v-model="editForm.description" rows="4" class="ed-field min-h-[110px] resize-y py-3 leading-6" placeholder="What’s the event about? Guests and your team will see this." />
 								</div>
-								<div class="grid gap-4 sm:grid-cols-2">
+								<div class="grid gap-4 sm:grid-cols-3">
 									<div>
 										<span class="ed-label">Start time</span>
 										<FormsTimeField v-model="editForm.startTime" name="start_time" placeholder="Start time" />
 									</div>
 									<div>
 										<span class="ed-label">End time</span>
-										<FormsTimeField v-model="editForm.endTime" name="end_time" placeholder="End time" :min-time="editForm.startTime || undefined" />
+										<FormsTimeField v-model="editForm.endTime" name="end_time" placeholder="End time" />
+									</div>
+									<!-- Advisor's fix (Nov 2026): events that run past midnight or over several days. -->
+									<div>
+										<span class="ed-label">Ends on <span class="font-normal text-gray-400">(optional)</span></span>
+										<FormsDateField v-model="editForm.endDate" name="end_date" placeholder="Same day" />
 									</div>
 								</div>
+								<p v-if="scheduleHint" class="-mt-2 flex items-start gap-1.5 text-xs text-gray-500" role="status">
+									<IconBase name="clock" class="mt-px h-3.5 w-3.5 shrink-0" />{{ scheduleHint }}
+								</p>
 								<div>
 									<span class="ed-label">Visibility</span>
 									<div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Visibility">
@@ -261,9 +269,23 @@
 													<span><span class="block text-sm font-semibold text-gray-950">{{ m.title }}</span><span class="block text-xs text-gray-500">{{ m.hint }}</span></span>
 												</button>
 											</div>
-											<div v-if="type.seatingMode === 'rows'" class="grid gap-3 sm:grid-cols-2">
-												<div><span class="ed-label">Rows</span><input v-model="type.tableCount" type="number" min="1" max="200" class="ed-field" placeholder="10" /></div>
-												<div><span class="ed-label">Seats per row</span><input v-model="type.tableSize" type="number" min="1" max="100" class="ed-field" placeholder="20" /></div>
+											<div v-if="type.seatingMode === 'rows'" class="space-y-3">
+												<div>
+													<span class="ed-label">Row names</span>
+													<div class="flex gap-2" role="radiogroup" aria-label="Row names">
+														<button v-for="o in rowNameOptions" :key="o.value" type="button" role="radio" :aria-checked="(type.rowNames ?? 'letters') === o.value"
+															class="rounded-lg border bg-white px-3 py-1.5 text-sm font-semibold transition"
+															:class="(type.rowNames ?? 'letters') === o.value ? 'border-primary-600 text-primary-800 ring-2 ring-primary-600/15' : 'border-gray-200 text-gray-600 hover:border-gray-300'"
+															@click="type.rowNames = o.value">{{ o.label }}</button>
+													</div>
+												</div>
+												<div class="grid gap-3 sm:grid-cols-[8rem_minmax(0,1fr)]">
+													<div><span class="ed-label">Rows</span><input v-model="type.tableCount" type="number" min="1" max="200" class="ed-field" placeholder="10" :disabled="rowList(type).length > 1" :title="rowList(type).length > 1 ? 'Set by the list of seats' : undefined" /></div>
+													<div>
+														<span class="ed-label">Seats in each row, in order (first row first)</span>
+														<input v-model="type.seatRowsText" type="text" inputmode="numeric" class="ed-field" placeholder="20, or 10, 12, 14 if rows differ" />
+													</div>
+												</div>
 											</div>
 											<div v-else class="grid gap-3 sm:grid-cols-3">
 												<div><span class="ed-label">Name</span><input v-model="type.tableLabel" type="text" maxlength="30" class="ed-field" placeholder="e.g. VIP Table, Booth" /></div>
@@ -271,9 +293,9 @@
 												<div><span class="ed-label">Seats each</span><input v-model="type.tableSize" type="number" min="1" max="100" class="ed-field" placeholder="8" /></div>
 											</div>
 											<p class="text-xs leading-5 text-gray-500">
-												<template v-if="type.seatingMode === 'rows'">Tickets show “Row A, Seat 1”, “Row A, Seat 2”… Row A is nearest the stage; groups get seats side by side.</template>
+												<template v-if="type.seatingMode === 'rows'">Tickets show “{{ type.name.trim() || 'Section' }} · Row {{ type.rowNames === 'numbers' ? '1' : 'A' }}, Seat 1”… Rows are listed in this order; put the best rows first. Buyers tap their seats, or we seat groups side by side. One section per ticket type (e.g. Center, Left side).</template>
 												<template v-else>Tickets show “{{ (type.tableLabel || 'Table').trim() }} 1”, “{{ (type.tableLabel || 'Table').trim() }} 2”… For booths or stalls, use 1 seat each.</template>
-												{{ ' ' }}<template v-if="Number(type.tableCount) > 0 && Number(type.tableSize) > 0">{{ Number(type.tableCount) * Number(type.tableSize) }} {{ type.seatingMode !== 'rows' && Number(type.tableSize) === 1 ? 'places' : 'seats' }} in all.{{ ' ' }}</template>Add a floor plan picture on the event page so buyers can see the layout.
+												{{ ' ' }}<template v-if="Number(type.tableCount) > 0 && Number(type.tableSize) > 0">{{ seatsTotal(type) }} {{ type.seatingMode !== 'rows' && Number(type.tableSize) === 1 ? 'places' : 'seats' }} in all.{{ ' ' }}</template>Add a floor plan picture on the event page so buyers can see the layout.
 											</p>
 										</div>
 									</div>
@@ -497,6 +519,8 @@ interface EventTicketType {
 	table_label?: string | null
 	table_count?: number | null
 	table_size?: number | null
+	seat_rows?: number[] | null
+	row_names?: 'letters' | 'numbers' | null
 }
 
 // Event cover: anyone who may edit the event (the server checks event.update again).
@@ -601,6 +625,10 @@ interface OrganizerEvent {
 	description: string | null
 
 	event_date: string | null
+	end_date?: string | null
+	starts_at?: string | null
+	ends_at?: string | null
+	timezone?: string
 	location: string | null
 	expected_guests: number | null
 
@@ -696,6 +724,9 @@ interface TicketTypeForm {
 	/** 0066: buyers choose where they sit: tables/spaces or rows. */
 	tablesOn?: boolean
 	seatingMode?: 'tables' | 'rows'
+	/** 0067: "20" or "10, 12, 14" (rows of different lengths), and Row A or Row 1. */
+	seatRowsText?: string
+	rowNames?: 'letters' | 'numbers'
 	tableLabel?: string
 	tableCount?: string
 	tableSize?: string
@@ -788,6 +819,8 @@ const editForm =
 		eventType: '',
 		description: '',
 		eventDate: '',
+		/** Optional last day (multi-day events); an end time before the start means the next day. */
+		endDate: '',
 		status: 'draft',
 
 		startTime: '',
@@ -832,6 +865,13 @@ function fillEditForm() {
 				0,
 				10,
 			)
+			: ''
+
+	// Only a multi-day event shows its end date; an overnight one is implied by the times.
+	editForm.endDate =
+		event.value.end_date && event.value.event_date && event.value.end_date > event.value.event_date
+		&& !(dayGap(event.value.starts_at, event.value.ends_at, event.value.timezone) === 1 && (event.value.end_time ?? '') <= (event.value.start_time ?? ''))
+			? event.value.end_date
 			: ''
 
 	editForm.status =
@@ -888,6 +928,8 @@ function fillEditForm() {
 					tableLabel: type.table_label ?? '',
 					tableCount: type.table_count ? String(type.table_count) : '',
 					tableSize: type.table_size ? String(type.table_size) : '',
+					seatRowsText: type.seat_rows?.length ? type.seat_rows.join(', ') : (type.table_size ? String(type.table_size) : ''),
+					rowNames: type.row_names ?? 'letters',
 				}),
 			)
 			: editForm.visibility === 'public'
@@ -1031,12 +1073,12 @@ async function loadDetails() {
 async function loadEvent(id: string) {
 	const [apiEvent, tiers] = await Promise.all([
 		useOrganizerEvents().show(orgId, id),
-		useApi().get<{ tiers: { id: string, name: string, price: string, capacity: number, status: string, sold: number, seating_mode: 'tables' | 'rows' | null, table_label: string | null, table_count: number | null, table_size: number | null }[] }>(`/organizations/${orgId}/events/${id}/ticket-types`)
+		useApi().get<{ tiers: { id: string, name: string, price: string, capacity: number, status: string, sold: number, seating_mode: 'tables' | 'rows' | null, table_label: string | null, table_count: number | null, table_size: number | null, seat_rows: number[] | null, row_names: 'letters' | 'numbers' | null }[] }>(`/organizations/${orgId}/events/${id}/ticket-types`)
 			.then(r => r.data.tiers).catch(() => []),
 	])
 	const extra = apiEvent as { private_link_key?: string | null, price?: EventPrice, can?: { set_price?: boolean, cancel?: boolean } }
 	return { ...toLegacyEvent(apiEvent), private_link_key: extra.private_link_key ?? null, price: extra.price ?? null, can_set_price: !!extra.can?.set_price, can_cancel: !!extra.can?.cancel, floor_plan_url: (apiEvent as { floor_plan_url?: string | null }).floor_plan_url ?? null,
-		ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity, status: t.status, sold: t.sold, seating_mode: t.seating_mode, table_label: t.table_label, table_count: t.table_count, table_size: t.table_size })) }
+		ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity, status: t.status, sold: t.sold, seating_mode: t.seating_mode, table_label: t.table_label, table_count: t.table_count, table_size: t.table_size, seat_rows: t.seat_rows, row_names: t.row_names })) }
 }
 
 // 0066: switching seating on starts with sensible numbers; the seats follow count x seats each.
@@ -1055,14 +1097,35 @@ function setSeatingMode(type: TicketTypeForm, mode: 'tables' | 'rows', fresh = f
 	if (mode === 'rows') {
 		if (changed || !type.tableSize) type.tableSize = String(Math.min(20, Math.max(1, seats || 20)))
 		if (changed || !type.tableCount) type.tableCount = String(Math.max(1, Math.ceil((seats || 100) / Number(type.tableSize))))
+		if (changed || !type.seatRowsText) type.seatRowsText = type.tableSize
+		type.rowNames ??= 'letters'
 		return
 	}
 	if (!(type.tableLabel ?? '').trim() || type.tableLabel === 'Row') type.tableLabel = type.name.trim() ? `${type.name.trim()} Table` : 'Table'
 	if (changed || !type.tableSize) type.tableSize = '8'
 	if (changed || !type.tableCount) type.tableCount = String(Math.max(1, Math.ceil((seats || 8) / Number(type.tableSize))))
 }
-watch(() => editForm.ticketTypes.map(t => [t.tablesOn, t.tableCount, t.tableSize]), () => {
+// 0067: "Seats in each row": one number (every row the same) or a list, first row first.
+const rowNameOptions = [{ value: 'letters' as const, label: 'A, B, C' }, { value: 'numbers' as const, label: '1, 2, 3' }]
+function seatsTotal(type: TicketTypeForm): number {
+	const list = type.seatingMode === 'rows' ? rowList(type) : []
+	return list.length > 1 ? list.reduce((x, y) => x + y, 0) : Number(type.tableCount) * Number(type.tableSize)
+}
+function rowList(type: TicketTypeForm): number[] {
+	return String(type.seatRowsText ?? '').split(/[\s,]+/).filter(Boolean).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= 100)
+}
+watch(() => editForm.ticketTypes.map(t => [t.tablesOn, t.tableCount, t.tableSize, t.seatingMode, t.seatRowsText]), () => {
 	for (const t of editForm.ticketTypes) {
+		if (t.tablesOn && t.seatingMode === 'rows') {
+			const list = rowList(t)
+			if (list.length > 1) {
+				t.tableCount = String(list.length)
+				t.tableSize = String(Math.max(...list))
+				t.capacity = String(list.reduce((a, b) => a + b, 0))
+				continue
+			}
+			if (list.length === 1) t.tableSize = String(list[0])
+		}
 		if (t.tablesOn && Number(t.tableCount) > 0 && Number(t.tableSize) > 0) t.capacity = String(Number(t.tableCount) * Number(t.tableSize))
 	}
 }, { deep: true })
@@ -1280,8 +1343,9 @@ async function saveEvent() {
 
 		// Date and time live on the event's (first) session.
 		const startsAt = `${editForm.eventDate}T${editForm.startTime || '09:00'}`
-		const endsAt = `${editForm.eventDate}T${editForm.endTime || '17:00'}`
-		if (current.first_session_id && (editForm.eventDate !== current.event_date || editForm.startTime !== current.start_time || editForm.endTime !== current.end_time)) {
+		const endDay = scheduleEnd(editForm.eventDate, editForm.startTime || '09:00', editForm.endDate, editForm.endTime || '17:00').date
+		const endsAt = `${endDay}T${editForm.endTime || '17:00'}`
+		if (current.first_session_id && (editForm.eventDate !== current.event_date || endDay !== current.end_date || editForm.startTime !== current.start_time || editForm.endTime !== current.end_time)) {
 			await events.updateSession(orgId, current.id, current.first_session_id, { name: null, starts_at: startsAt, ends_at: endsAt })
 		} else if (!current.first_session_id) {
 			await events.addSession(orgId, current.id, { name: null, starts_at: startsAt, ends_at: endsAt })
@@ -1317,8 +1381,10 @@ async function saveEvent() {
 		for (const type of [...named].sort((a, b) => seatChange(a) - seatChange(b))) {
 			const rows = type.seatingMode === 'rows'
 			const tables = type.tablesOn && (rows || (type.tableLabel ?? '').trim()) && Number(type.tableCount) > 0 && Number(type.tableSize) > 0
-				? { seating_mode: rows ? 'rows' : 'tables', table_label: rows ? 'Row' : (type.tableLabel ?? '').trim(), table_count: Number(type.tableCount), table_size: Number(type.tableSize) }
-				: { seating_mode: null, table_label: null, table_count: null, table_size: null }
+				? { seating_mode: rows ? 'rows' : 'tables', table_label: rows ? 'Row' : (type.tableLabel ?? '').trim(), table_count: Number(type.tableCount), table_size: Number(type.tableSize),
+						// 0067: rows of different lengths (a list), and Row A or Row 1.
+						seat_rows: rows && rowList(type).length > 1 ? rowList(type) : null, row_names: rows ? (type.rowNames ?? 'letters') : null }
+				: { seating_mode: null, table_label: null, table_count: null, table_size: null, seat_rows: null, row_names: null }
 			const body = { name: type.name.trim(), price: Number(type.price || 0), capacity: Number(type.capacity || 0) || 1, ...tables }
 			if (type.id) {
 				await useApi().patch(`${base}/${type.id}`, body)
@@ -1564,12 +1630,21 @@ function clockTime(value: string | null | undefined) {
 	const d = new Date(); d.setHours(h ?? 0, m ?? 0, 0, 0)
 	return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
+// Advisor's fix (Nov 2026): say when an event ends the next day or runs several days.
+const scheduleHint = computed(() => {
+	if (!editForm.eventDate || !editForm.endTime) return ''
+	if (editForm.endDate && editForm.endDate < editForm.eventDate) return 'The end date is before the event date, so the event will end on its first day.'
+	const end = scheduleEnd(editForm.eventDate, editForm.startTime || '09:00', editForm.endDate, editForm.endTime)
+	if (end.date === editForm.eventDate) return ''
+	const when = `${formatDate(end.date)}, ${clockTime(editForm.endTime)}`
+	return end.overnight ? `Ends the next day: ${when}. An end time earlier than the start means past midnight.` : `Runs over several days, ending ${when}.`
+})
 const viewRows = computed(() => {
 	const e = event.value
 	if (!e) return []
 	const start = clockTime(e.start_time)
 	const end = clockTime(e.end_time)
-	const time = start && end ? `${start} – ${end}` : start || end
+	const time = start && end ? `${start} – ${end}${endsSuffix(e.starts_at, e.ends_at, e.timezone)}` : start || end
 	const tickets = (e.ticket_types ?? []).filter(t => !isGuestTier(t))
 	const seats = `${tickets.length} ticket ${tickets.length === 1 ? 'type' : 'types'} · ${tickets.reduce((s, t) => s + (Number(t.capacity) || 0), 0)} seats`
 	const who = e.public_registration
@@ -1577,7 +1652,7 @@ const viewRows = computed(() => {
 		: (tickets.length ? `Private · invitations + ${seats} by private link` : 'Private · invitations')
 	return [
 		{ label: 'Event type', icon: 'tag', section: 'basic', value: e.event_type || 'Not set', empty: !e.event_type },
-		{ label: 'Date', icon: 'calendar', section: 'basic', value: e.event_date ? formatDate(e.event_date) : 'Not set', empty: !e.event_date },
+		{ label: 'Date', icon: 'calendar', section: 'basic', value: e.event_date ? (dayGap(e.starts_at, e.ends_at, e.timezone) > 1 && e.end_date ? `${formatDate(e.event_date)} – ${formatDate(e.end_date)}` : formatDate(e.event_date)) : 'Not set', empty: !e.event_date },
 		{ label: 'Time', icon: 'clock', section: 'basic', value: time || 'Not set', empty: !time },
 		{ label: 'Venue', icon: 'map-pin', section: 'venue', value: e.location || 'Not set', empty: !e.location },
 		{ label: 'Capacity', icon: 'users', section: 'venue', value: e.expected_guests ? `${e.expected_guests} people` : 'Not set', empty: !e.expected_guests },

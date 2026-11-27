@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
 use App\Services\Admin\AccessRequests;
+use App\Services\Admin\AccountRemoval;
 use App\Services\Admin\AdminAccounts;
 use App\Services\Admin\FeeClaims;
 use App\Services\Admin\GrantedView;
@@ -173,9 +174,27 @@ class AdminController extends Controller
 
     // ---- Platform -----------------------------------------------------------
 
-    public function settings(): JsonResponse
+    public function settings(Request $request): JsonResponse
     {
-        return ApiResponse::success($this->settings->overview());
+        // Whether this admin may delete accounts permanently (NASERY_HARD_DELETE_ADMINS).
+        return ApiResponse::success([...$this->settings->overview(), 'can_delete_accounts' => AccountRemoval::allowed($request->user())]);
+    }
+
+    /** Delete an account: what it takes with it (nothing is changed). */
+    public function accountRemovalPreview(Request $request, AccountRemoval $removal): JsonResponse
+    {
+        $data = $request->validate(['email' => ['required', 'email', 'max:254']]);
+
+        return ApiResponse::success($removal->preview($request->user(), $data['email']));
+    }
+
+    /** Delete an account permanently (after a backup). */
+    public function removeAccount(Request $request, AccountRemoval $removal): JsonResponse
+    {
+        $data = $request->validate(['email' => ['required', 'email', 'max:254'], 'confirm_email' => ['required', 'string', 'max:254'], 'reason' => self::REASON]);
+        $counts = $removal->remove($request->user(), $data['email'], $data['confirm_email'], trim($data['reason']));
+
+        return ApiResponse::success(['removed' => $counts], 'The account and everything linked to it were deleted.');
     }
 
     public function updateSettings(Request $request): JsonResponse

@@ -108,7 +108,7 @@ class SelfRegistration
             $tiers = EventGate::tiers($eventId, $key)->orderBy('sort_order')->orderBy('price')->get();
             $remaining = $this->capacity->remaining($tiers->pluck('id')->all());
             // 0066: tables to choose from (system context: the public views don't carry these columns).
-            $tableSettings = DB::table('ticket_types')->whereIn('id', $tiers->pluck('id'))->get(['id', 'seating_mode', 'table_label', 'table_count', 'table_size'])->keyBy('id');
+            $tableSettings = DB::table('ticket_types')->whereIn('id', $tiers->pluck('id'))->get(['id', 'seating_mode', 'table_label', 'table_count', 'table_size', 'seat_rows', 'row_names'])->keyBy('id');
             $taken = $this->seating->taken($tiers->pluck('id')->all());
             $floorPlan = DB::table('events')->where('id', $eventId)->value('floor_plan_path');
             $sessions = DB::table('event_sessions')->where('event_id', $eventId)->whereNull('deleted_at')

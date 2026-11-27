@@ -240,7 +240,11 @@ class AccountService
         }
     }
 
-    public function resetPassword(string $email, #[\SensitiveParameter] string $code, #[\SensitiveParameter] string $password): void
+    /**
+     * @return User|null the account when this was its first password (a team invitee
+     *                   who never used the invitation link), else null
+     */
+    public function resetPassword(string $email, #[\SensitiveParameter] string $code, #[\SensitiveParameter] string $password): ?User
     {
         $user = $this->db->system('auth.password_reset', fn () => $this->findByEmail(self::normalizeEmail($email)));
 
@@ -250,6 +254,7 @@ class AccountService
         }
 
         $this->codes->consume($user, AuthCodePurpose::PasswordReset, $code);
+        $first = $user->password_hash === null;
 
         $this->db->system('auth.password_reset', fn () => $user->forceFill([
             'password_hash' => $password,
@@ -260,6 +265,26 @@ class AccountService
         $this->sessions->revokeAll($user);
         $this->audit->record('user.password_reset', $user, actorUserId: $user->id);
         Log::channel('security')->info('auth.password_reset', ['user_id' => $user->id]);
+
+        return $first ? $user : null;
+    }
+
+    /**
+     * Invite fix (Nov 2026): what a team invitation link is now, so /team-setup shows
+     * the form only when it can work. Anyone without the e-mail's code learns nothing.
+     *
+     * @return 'ready'|'used'|'expired'|'invalid'
+     */
+    public function teamSetupStatus(string $email, #[\SensitiveParameter] string $code): string
+    {
+        $user = $this->db->system('auth.team_setup_status', fn () => $this->findByEmail(self::normalizeEmail($email)));
+        if ($user === null || $user->account_type !== AccountType::Business) {
+            return 'invalid';
+        }
+        $status = $this->codes->peek($user, AuthCodePurpose::PasswordReset, $code);
+
+        // A password chosen another way (Forgot password) also means the set-up is done.
+        return $status === 'ready' && $user->password_hash !== null ? 'used' : $status;
     }
 
     /**

@@ -195,4 +195,11 @@ return [
         'domain' => 'demo.nasery.test',
         'password' => env('DEMO_PASSWORD'),
     ],
+
+    /*
+    | Admin → Settings → Delete an account (permanent). Only the admin e-mails
+    | listed here (comma-separated, in .env) may do it; empty: nobody.
+    */
+    'hard_delete_admins' => array_values(array_filter(array_map(
+        fn ($e) => strtolower(trim($e)), explode(',', (string) env('NASERY_HARD_DELETE_ADMINS', ''))))),
 ];

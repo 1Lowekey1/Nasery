@@ -231,6 +231,7 @@
 						<div data-field="service_charge">
 							<FormsLabel text="Service charge (%)" />
 							<FormsTextField v-model="settings.service_charge" type="number" min="0" max="30" step="0.5" placeholder="e.g. 10" :error="settingsCheck.err('service_charge')" />
+							<p class="mt-1.5 text-xs" :class="chargeCapped ? 'font-semibold text-amber-700' : 'text-gray-400'" role="status">{{ chargeCapped ? 'The service charge can be at most 30%, so it was set to 30%.' : 'Service charge: 0 to 30% of the subtotal.' }}</p>
 						</div>
 						<!-- VAT: NaSeRy's rate; the organizer only says whether they charge it (VAT-registered). -->
 						<label class="flex cursor-pointer items-start gap-2.5 self-end rounded-xl border border-gray-200 px-3.5 py-3 text-sm">
@@ -492,6 +493,14 @@ function move(list: PriceOption[], i: number, dir: -1 | 1) {
 
 // ---- estimate settings ----------------------------------------------------------
 const settings = reactive({ service_charge: '', chargesVat: false, note: '', vatExempt: [] as string[] })
+// Advisor's fix (Nov 2026): never above 30%; typing more sets 30 and says so.
+const chargeCapped = ref(false)
+watch(() => settings.service_charge, (v) => {
+	const c = capServiceCharge(v)
+	if (c.capped) chargeCapped.value = true
+	else if (String(v ?? '').trim() !== '' && Number(v) < SERVICE_CHARGE_MAX) chargeCapped.value = false
+	if (c.value !== String(v ?? '').trim()) settings.service_charge = c.value
+})
 // 0062: NaSeRy's event types, for "Event types with no VAT".
 const vatTypeChoices = ref<{ id: string, name: string }[]>([])
 const vatRate = ref(12)

@@ -204,7 +204,7 @@ export const useAdmin = () => {
     feeClaims: async (status: string) => (await api.get<{ counts: { pending: number, flagged: number }, items: FeeClaim[] }>('/admin/moderation/fee-claims', { query: { status } })).data,
     reviewFeeClaim: async (id: string, outcome: 'accepted' | 'flagged', note?: string) => (await api.post<FeeClaim>(`/admin/moderation/fee-claims/${id}`, { outcome, note: note || null })).data,
 
-    settings: async () => (await api.get<{ settings: PlatformSetting[], fee: FeeState }>('/admin/settings')).data,
+    settings: async () => (await api.get<{ settings: PlatformSetting[], fee: FeeState, can_delete_accounts?: boolean }>('/admin/settings')).data,
     updateSettings: async (values: Record<string, number>) => (await api.patch<{ settings: PlatformSetting[], fee: FeeState }>('/admin/settings', values)).data,
     changeFee: async (body: { enabled: boolean, model?: string, percent?: number | null, fixed?: number | null, reason: string }) => (await api.post<FeeState>('/admin/settings/fee', body)).data,
 
@@ -277,6 +277,7 @@ export const actionLabel = (action: string) => ({
   'platform.settings_updated': 'Changed platform settings',
   'user.registered': 'Signed up',
   'user.suspended': 'Suspended an account',
+  'account.deleted': 'Deleted an account permanently',
   'user.reactivated': 'Reactivated an account',
   'announcement.saved': 'Posted an announcement',
   'quotation_accept': 'Accepted a quotation',

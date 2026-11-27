@@ -34,8 +34,10 @@ use Throwable;
  * Ticket checkout from the public registration page, for guests (no NaSeRy
  * account) and signed-in buyers alike.
  *
- * Guests confirm every attendee's e-mail with a 6-digit code first: tickets
- * are e-mailed there, so they must reach a real inbox. Codes and the tokens
+ * Guests confirm an e-mail with a 6-digit code first: tickets are e-mailed
+ * there, so it must reach a real inbox. Since the advisor's review (Nov 2026)
+ * the buyer confirms their own address once and every ticket goes to it
+ * (attendees need only a name); confirming each attendee still works. Codes and the tokens
  * they unlock live in the cache (short-lived, nothing to migrate). Signed-in
  * buyers skip the codes.
  *
@@ -139,17 +141,29 @@ class GuestCheckout
 
     /**
      * @param  list<array{full_name: string, email: ?string, ticket_type_id: string, verification_token?: ?string}>  $attendees
-     * @param  array{name?: ?string, email?: ?string, phone?: ?string}  $buyer
+     * @param  array{name?: ?string, email?: ?string, phone?: ?string, verification_token?: ?string}  $buyer
      * @param  array<string, int|null>  $tables  0066: the table chosen per ticket type (none: the next table with room)
+     * @param  array<string, list<array{0: int, 1: int}>>  $seats  0067: exact seats tapped per ticket type, [row, seat]
      * @return array<string, mixed>
      */
-    public function register(?User $user, string $eventId, array $attendees, array $buyer, ?string $key = null, array $tables = []): array
+    public function register(?User $user, string $eventId, array $attendees, array $buyer, ?string $key = null, array $tables = [], array $seats = []): array
     {
         $this->publicEvent($eventId, $key);
 
         // Guests: every attendee's e-mail must be one they confirmed for this event.
         $tokens = [];
-        if ($user === null) {
+        if ($user === null && filled($buyer['verification_token'] ?? null)) {
+            // One confirmation for the whole purchase: the buyer's own address receives every ticket.
+            $email = $this->normalize((string) ($buyer['email'] ?? ''));
+            $claim = Cache::get($this->tokenKey($buyer['verification_token']));
+            if ($email === '' || $claim === null || $claim['event_id'] !== $eventId || $claim['email'] !== $email) {
+                throw ValidationException::withMessages(['buyer.email' => 'Confirm your e-mail address with the code we send it.']);
+            }
+            $tokens[] = $buyer['verification_token'];
+            $buyer['email'] = $email;
+            // Unconfirmed attendee addresses never receive mail: the tickets go to the buyer.
+            $attendees = array_map(fn (array $a) => [...$a, 'email' => null], $attendees);
+        } elseif ($user === null) {
             foreach ($attendees as $i => $a) {
                 $email = $this->normalize((string) ($a['email'] ?? ''));
                 $claim = filled($a['verification_token'] ?? null) ? Cache::get($this->tokenKey($a['verification_token'])) : null;
@@ -161,7 +175,7 @@ class GuestCheckout
             }
         }
 
-        $result = $this->db->system('public.guest_register', function () use ($user, $eventId, $attendees, $buyer, $key, $tables) {
+        $result = $this->db->system('public.guest_register', function () use ($user, $eventId, $attendees, $buyer, $key, $tables, $seats) {
             $byTier = collect($attendees)->groupBy('ticket_type_id');
             $publicTiers = EventGate::tiers($eventId, $key)->whereIn('id', $byTier->keys())->get()->keyBy('id');
             $now = now();
@@ -196,8 +210,8 @@ class GuestCheckout
                 $tier = $tiers[$tierId];
                 $people = $people->map(fn ($a) => ['full_name' => $a['full_name'], 'email' => $a['email'] ?? null])->values()->all();
                 $this->capacity->reserve($event, $tier, count($people));
-                $seats = $this->seating->assign($tier, count($people), isset($tables[$tierId]) ? (int) $tables[$tierId] : null);
-                $people = array_map(fn (array $p, ?string $seat) => [...$p, 'seat_label' => $seat], $people, $seats);
+                $given = $this->seating->assign($tier, count($people), isset($tables[$tierId]) ? (int) $tables[$tierId] : null, array_values($seats[$tierId] ?? []));
+                $people = array_map(fn (array $p, ?string $seat) => [...$p, 'seat_label' => $seat], $people, $given);
 
                 if ($tier->isFree()) {
                     $free = [...$free, ...$this->issuer->issue($registration, $tier, $people, AdmissionType::Free)->pluck('id')->all()];

@@ -1,6 +1,11 @@
 <template>
 	<div>
 		<Alert v-if="errorMessage" type="danger" :text="errorMessage" />
+		<!-- Invite fix (Nov 2026): team invitees set their password from the invitation e-mail first. -->
+		<p v-if="errorMessage && /incorrect/i.test(errorMessage)" class="-mt-1 mb-3 text-xs text-gray-500">
+			Invited to a team? Use the "Join the team" link in your invitation e-mail, or
+			<NuxtLink to="/forgot-password" class="font-semibold text-primary-700 hover:underline">Forgot password</NuxtLink>.
+		</p>
 		<p v-if="staffAccount" class="mt-2 text-sm"><NuxtLink to="/superadmin/login" class="font-semibold text-primary-700 hover:underline">Go to the staff sign-in</NuxtLink></p>
 
 		<h2 class="mb-1.5 text-2xl font-extrabold text-gray-900 sm:text-[28px]">
@@ -123,6 +128,8 @@ useSeoMeta({ title: 'Sign in | NaSeRy' })
 const nextInquiry = computed(() => inquiryRedirect(route.query.redirect))
 onMounted(() => {
 	if (typeof route.query.social_error === 'string') errorMessage.value = route.query.social_error
+	// From the team invitation page: the new member's e-mail, filled in.
+	if (typeof route.query.email === 'string' && !state.email) state.email = route.query.email.slice(0, 254)
 	// Kept for Google sign-in and e-mail verification, which leave this page.
 	rememberInquiry(route.query.redirect)
 })

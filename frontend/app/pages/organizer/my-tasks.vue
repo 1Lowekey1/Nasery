@@ -2,7 +2,9 @@
 	<div>
 		<p class="text-xs font-bold uppercase tracking-[0.16em] text-[#285F6b]">Organizer workspace</p>
 		<h1 class="mt-1 text-2xl font-black tracking-tight text-gray-900 sm:text-3xl">My Tasks</h1>
-		<p class="mt-1 mb-6 max-w-2xl text-sm text-gray-500">Preparation tasks and program items assigned to you across your team's upcoming events.</p>
+		<p class="mt-1 max-w-2xl text-sm text-gray-500">Preparation tasks and program items assigned to you across your team's upcoming events.</p>
+		<!-- Advisor's fix (Nov 2026): say how priority works. -->
+		<p class="mb-6 mt-1 max-w-2xl text-xs text-gray-500">Priority (low, medium, high, urgent) is set by your organizer on each task. A task past its due date is marked <span class="font-semibold text-rose-700">overdue</span> automatically.</p>
 
 		<Alert v-if="error" type="danger" :text="error" />
 		<div v-if="loading" class="py-16 text-center text-sm text-gray-500">Loading your tasks…</div>

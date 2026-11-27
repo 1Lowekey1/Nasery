@@ -262,6 +262,10 @@ class TicketingController extends Controller
             'table_label' => ['sometimes', 'nullable', 'string', 'max:30'],
             'table_count' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:200'],
             'table_size' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100'],
+            // 0067: seats in each row from the stage back (rows of different lengths), and Row A or Row 1.
+            'seat_rows' => ['sometimes', 'nullable', 'array', 'max:200'],
+            'seat_rows.*' => ['integer', 'min:1', 'max:100'],
+            'row_names' => ['sometimes', 'nullable', Rule::in(['letters', 'numbers'])],
         ]);
     }
 

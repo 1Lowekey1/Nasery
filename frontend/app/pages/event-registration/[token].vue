@@ -233,7 +233,7 @@
                             </div>
                             <div class="hidden flex-1 items-center gap-2 px-3 py-2.5 sm:flex">
                                 <span class="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[11px] font-bold text-[#285F6b]">2</span>
-                                <span class="text-xs font-semibold text-gray-500">Email verification</span>
+                                <span class="text-xs font-semibold text-gray-500">{{ signedIn ? 'Tickets' : 'Confirm e-mail once' }}</span>
                             </div>
                             <div class="hidden flex-1 items-center gap-2 px-3 py-2.5 md:flex">
                                 <span class="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[11px] font-bold text-[#285F6b]">3</span>
@@ -242,424 +242,178 @@
                                 </span>
                             </div>
                         </div>
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                                <h2 class="text-xl font-bold text-gray-900">
-                                    Attendee Information
-                                </h2>
-
-                                <p class="mt-1 text-sm text-gray-500">
-                                    <template v-if="signedIn">
-                                        You're signed in as {{ user?.email }}: no e-mail codes needed. The tickets also appear under My Tickets.
-                                    </template>
-                                    <template v-else>
-                                        Fill in the attendee details below. Each attendee must verify their email with a
-                                        6-digit code.
-                                    </template>
-                                </p>
-                            </div>
-
-                            <button v-if="availableTicketTypes.length" type="button"
-                                class="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                                @click="addAttendee">
-                                + Add Attendee
-                            </button>
+                        <!-- Advisor's fixes (Nov 2026): a guest confirms their own e-mail ONCE (every ticket goes to it),
+                             then fills in one ticket at a time; seats are shown per attendee. -->
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900">{{ signedIn ? 'Your tickets' : 'Your details' }}</h2>
+                            <p class="mt-1 text-sm text-gray-500">
+                                <template v-if="signedIn">You're signed in as {{ user?.email }}: no e-mail code needed. The tickets also appear under My Tickets.</template>
+                                <template v-else>Confirm your e-mail once with a 6-digit code. Every ticket is sent there; for the other attendees we only need their names.</template>
+                            </p>
                         </div>
 
-                        <div v-if="errorMessage"
-                            class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <div v-if="errorMessage" class="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
                             {{ errorMessage }}
                         </div>
 
-                        <div class="mt-6 space-y-5">
-                            <div v-for="(attendee, index) in form.attendees" :key="index"
-                                class="rounded-2xl border border-gray-200 bg-gradient-to-b from-gray-50/80 to-white p-5 shadow-sm sm:p-6">
-                                <div class="flex items-center justify-between gap-3">
-                                    <div>
-                                        <p class="text-sm font-bold text-gray-900">
-                                            Attendee {{ index + 1 }}
-                                        </p>
-
-                                        <p class="mt-0.5 text-xs text-gray-500">
-                                            Fields marked with * are required.
-                                        </p>
+                        <!-- Step 1 (guests): the buyer's own e-mail, verified once. -->
+                        <div v-if="!signedIn" class="mt-5 rounded-2xl border p-4 sm:p-5" :class="buyerVerified ? 'border-emerald-200 bg-emerald-50/50' : 'border-[#285F6b]/25 bg-white ring-2 ring-[#285F6b]/5'">
+                            <div v-if="buyerVerified" class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="flex min-w-0 items-center gap-3">
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"><IconBase name="check" class="h-4 w-4" /></span>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-bold text-emerald-800">{{ buyer.name || 'E-mail confirmed' }}</p>
+                                        <p class="break-all text-xs text-emerald-700">{{ buyerState.verifiedEmail }} · all tickets are sent here</p>
                                     </div>
+                                </div>
+                                <button type="button" class="shrink-0 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50" @click="changeVerifiedEmail(0)">Change</button>
+                            </div>
+                            <template v-else>
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <label for="buyer-name" class="mb-1.5 block text-sm font-semibold text-gray-700">Your name <span class="text-red-500">*</span></label>
+                                        <input id="buyer-name" v-model="buyer.name" type="text" autocomplete="name" placeholder="Your full name" class="reg-field">
+                                    </div>
+                                    <div>
+                                        <label for="buyer-phone" class="mb-1.5 block text-sm font-semibold text-gray-700">Contact number <span class="text-xs font-normal text-gray-400">(optional)</span></label>
+                                        <input id="buyer-phone" v-model="buyer.phone" type="tel" autocomplete="tel" placeholder="e.g. 09171234567" class="reg-field">
+                                    </div>
+                                </div>
+                                <label for="buyer-email" class="mb-1.5 mt-3 block text-sm font-semibold text-gray-700">Your e-mail <span class="text-red-500">*</span></label>
+                                <div class="flex flex-col gap-2 sm:flex-row">
+                                    <input id="buyer-email" v-model="buyer.email" type="email" autocomplete="email" placeholder="you@example.com" class="reg-field sm:flex-1" @input="handleEmailChanged(0)">
+                                    <button type="button" class="inline-flex h-[46px] shrink-0 items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-4 text-sm font-bold text-white transition hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
+                                        :disabled="buyerState.sending || !buyer.email.trim() || (buyerState.sent && buyerState.resendIn > 0)" @click="sendVerificationCode(0)">
+                                        {{ buyerState.sending ? 'Sending…' : buyerState.sent ? (buyerState.resendIn > 0 ? `Resend in ${buyerState.resendIn}s` : 'Resend code') : 'Send code' }}
+                                    </button>
+                                </div>
+                                <div v-if="buyerState.sent" class="mt-3">
+                                    <label for="buyer-code" class="mb-1.5 block text-xs font-bold uppercase tracking-[0.12em] text-gray-500">6-digit code sent to {{ buyer.email }}</label>
+                                    <div class="flex flex-col gap-2 sm:flex-row">
+                                        <input id="buyer-code" v-model="buyerState.code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"
+                                            class="h-[46px] w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-center font-mono text-lg font-extrabold tracking-[0.4em] outline-none focus:border-[#285F6b] focus:bg-white focus:ring-2 focus:ring-[#285F6b]/10 sm:max-w-[220px]"
+                                            @input="sanitizeVerificationCode(0)" @keyup.enter="verifyEmailCode(0)">
+                                        <button type="button" class="inline-flex h-[46px] shrink-0 items-center justify-center rounded-xl bg-[#285F6b] px-5 text-sm font-bold text-white hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-50"
+                                            :disabled="buyerState.verifying || buyerState.code.length !== 6 || buyerState.expiresIn <= 0" @click="verifyEmailCode(0)">
+                                            {{ buyerState.verifying ? 'Confirming…' : 'Confirm e-mail' }}
+                                        </button>
+                                    </div>
+                                    <p class="mt-1.5 text-xs" :class="buyerState.expiresIn > 0 ? 'text-gray-500' : 'font-semibold text-amber-700'">
+                                        {{ buyerState.expiresIn > 0 ? `The code expires in ${formatCountdown(buyerState.expiresIn)}. Check Spam if it's not in your inbox.` : 'This code expired. Request a new one.' }}
+                                    </p>
+                                </div>
+                                <p v-if="buyerState.error" class="mt-2 text-xs font-semibold text-red-600" role="alert">{{ buyerState.error }}</p>
+                            </template>
+                        </div>
 
-                                    <button v-if="form.attendees.length > 1" type="button"
-                                        class="text-xs font-semibold text-red-600 hover:text-red-700"
-                                        @click="removeAttendee(index)">
-                                        Remove
+                        <!-- Step 2: the tickets, one at a time. Locked (overlay) until a guest's e-mail is confirmed. -->
+                        <div class="relative mt-6">
+                            <div v-if="!buyerVerified" class="absolute inset-0 z-10 flex items-start justify-center rounded-2xl bg-white/75 pt-10 backdrop-blur-[1px]">
+                                <p class="mx-4 flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm">
+                                    <IconBase name="check" class="h-4 w-4 text-[#285F6b]" />Confirm your e-mail above to fill in the tickets.
+                                </p>
+                            </div>
+                            <div :inert="!buyerVerified || undefined" :aria-hidden="!buyerVerified || undefined" class="rounded-2xl border border-gray-200 bg-gradient-to-b from-gray-50/80 to-white p-4 shadow-sm sm:p-5">
+                                <!-- Ticket chips: jump to any ticket; a check marks a complete one. -->
+                                <div class="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Tickets">
+                                    <button v-for="(a, i) in form.attendees" :key="i" type="button" role="tab" :aria-selected="activeTicket === i"
+                                        class="inline-flex max-w-[11rem] items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+                                        :class="activeTicket === i ? 'border-[#285F6b] bg-[#285F6b] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[#285F6b]/50'"
+                                        @click="activeTicket = i">
+                                        <IconBase v-if="ticketComplete(a)" name="check" class="h-3 w-3 shrink-0" />
+                                        <span class="truncate">{{ i + 1 }}. {{ a.name.trim() || 'Name needed' }}</span>
+                                    </button>
+                                    <button v-if="availableTicketTypes.length && form.attendees.length < maxTickets" type="button"
+                                        class="inline-flex items-center gap-1 rounded-full border border-dashed border-[#285F6b]/50 px-3 py-1.5 text-xs font-bold text-[#285F6b] hover:bg-[#285F6b]/5" @click="addAttendee">
+                                        <IconBase name="plus" class="h-3 w-3" />Add ticket
                                     </button>
                                 </div>
 
-                                <div class="mt-5">
-                                    <label class="mb-1.5 block text-sm font-semibold text-gray-700">
-                                        Full Name
-                                        <span class="text-red-500">*</span>
-                                    </label>
-
-                                    <input v-model="attendee.name" type="text" required autocomplete="name"
-                                        placeholder="Enter attendee full name"
-                                        class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#285F6b] focus:ring-2 focus:ring-[#285F6b]/10">
-                                </div>
-
-                                <div v-if="!signedIn" class="mt-4">
-                                    <div class="mb-2 flex items-center justify-between gap-3">
-                                        <label class="block text-sm font-semibold text-gray-700">
-                                            Email Address
-                                            <span class="text-red-500">*</span>
-                                        </label>
-
-                                        <span v-if="verificationState(index).verified"
-                                            class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                                stroke="currentColor" stroke-width="2" class="h-3.5 w-3.5">
-                                                <path d="M20 6 9 17l-5-5" />
-                                            </svg>
-                                            VERIFIED
-                                        </span>
-
-                                        <span v-else-if="verificationState(index).sent"
-                                            class="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-700">
-                                            <span class="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                                            CODE SENT
-                                        </span>
-
-                                        <span v-else
-                                            class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-500">
-                                            NOT VERIFIED
-                                        </span>
+                                <div v-if="currentAttendee" class="mt-4 border-t border-gray-100 pt-4">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <button type="button" class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                                            :disabled="activeTicket === 0" aria-label="Previous ticket" @click="activeTicket--">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+                                        </button>
+                                        <p class="text-sm font-bold text-gray-900" aria-live="polite">Ticket {{ activeTicket + 1 }} of {{ form.attendees.length }}</p>
+                                        <button type="button" class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                                            :disabled="activeTicket >= form.attendees.length - 1" aria-label="Next ticket" @click="activeTicket++">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                                        </button>
                                     </div>
 
-                                    <div class="overflow-hidden rounded-2xl border bg-white transition" :class="verificationState(index).verified
-                                        ? 'border-emerald-200 ring-2 ring-emerald-500/5'
-                                        : verificationState(index).sent
-                                            ? 'border-[#285F6b]/25 ring-2 ring-[#285F6b]/5'
-                                            : 'border-gray-200'
-                                        ">
-                                        <div class="flex flex-col gap-2 p-3 sm:flex-row">
-                                            <div class="relative flex-1">
-                                                <div
-                                                    class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                                        fill="none" stroke="currentColor" stroke-width="2"
-                                                        class="h-4 w-4">
-                                                        <rect width="20" height="16" x="2" y="4" rx="2" />
-                                                        <path d="m22 7-10 6L2 7" />
-                                                    </svg>
-                                                </div>
-
-                                                <input v-model="attendee.email" type="email" required
-                                                    autocomplete="email" placeholder="attendee@example.com"
-                                                    :disabled="verificationState(index).verified"
-                                                    class="w-full rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-10 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#285F6b] focus:ring-2 focus:ring-[#285F6b]/10 disabled:border-emerald-100 disabled:bg-emerald-50/60"
-                                                    @input="handleEmailChanged(index)">
-
-                                                <span v-if="verificationState(index).verified"
-                                                    class="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-emerald-100 text-emerald-600"
-                                                    title="Verified email">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                                        fill="none" stroke="currentColor" stroke-width="2.5"
-                                                        class="h-3.5 w-3.5">
-                                                        <path d="M20 6 9 17l-5-5" />
-                                                    </svg>
-                                                </span>
-                                            </div>
-
-                                            <button type="button"
-                                                class="inline-flex h-[46px] shrink-0 items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-4 text-sm font-bold text-white shadow-sm transition hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
-                                                :disabled="verificationState(index).sending ||
-                                                    verificationState(index).verified ||
-                                                    !attendee.email.trim()
-                                                    " @click="sendVerificationCode(index)">
-                                                <svg v-if="!verificationState(index).sending"
-                                                    xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                                    stroke="currentColor" stroke-width="2" class="h-4 w-4">
-                                                    <path d="m22 2-7 20-4-9-9-4Z" />
-                                                    <path d="M22 2 11 13" />
-                                                </svg>
-
-                                                <svg v-else class="h-4 w-4 animate-spin"
-                                                    xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle class="opacity-25" cx="12" cy="12" r="10"
-                                                        stroke="currentColor" stroke-width="4" />
-                                                    <path class="opacity-75" fill="currentColor"
-                                                        d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
-                                                </svg>
-
-                                                {{
-                                                    verificationState(index).sending
-                                                        ? 'Sending...'
-                                                        : verificationState(index).sent
-                                                            ? 'Resend Code'
-                                                            : 'Send Code'
-                                                }}
-                                            </button>
+                                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                        <div>
+                                            <label for="att-name" class="mb-1.5 block text-sm font-semibold text-gray-700">Attendee's full name <span class="text-red-500">*</span></label>
+                                            <input id="att-name" v-model="currentAttendee.name" type="text" autocomplete="off" :placeholder="activeTicket === 0 ? 'Your name, or the attendee\'s' : 'Name on this ticket'" class="reg-field">
                                         </div>
-
-                                        <div v-if="!verificationState(index).sent && !verificationState(index).verified"
-                                            class="border-t border-gray-100 bg-gray-50/80 px-4 py-3">
-                                            <div class="flex items-start gap-2.5">
-                                                <div
-                                                    class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-[#285F6b]">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                                        fill="none" stroke="currentColor" stroke-width="2"
-                                                        class="h-3.5 w-3.5">
-                                                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-                                                        <path d="m9 12 2 2 4-4" />
-                                                    </svg>
-                                                </div>
-
-                                                <div>
-                                                    <p class="text-xs font-semibold text-gray-700">
-                                                        Secure email verification
-                                                    </p>
-                                                    <p class="mt-0.5 text-xs leading-5 text-gray-500">
-                                                        We will send a one-time 6-digit PIN. Registration stays locked
-                                                        until the email is verified.
-                                                    </p>
-                                                </div>
-                                            </div>
+                                        <div>
+                                            <span class="mb-1.5 block text-sm font-semibold text-gray-700">Ticket type <span class="text-red-500">*</span></span>
+                                            <FormsSelect v-model="currentAttendee.event_ticket_type_id"
+                                                :options="availableTicketTypes.map(ticketType => ({ value: ticketType.id, label: `${ticketType.name} — ${formatCurrency(ticketType.price)}` }))"
+                                                placeholder="Select ticket type" :can-clear="false" aria-label="Ticket type" />
+                                        </div>
+                                    </div>
+                                    <div v-if="signedIn" class="mt-3 grid gap-3 sm:grid-cols-2">
+                                        <div>
+                                            <label for="att-email" class="mb-1.5 block text-sm font-semibold text-gray-700">E-mail <span class="text-xs font-normal text-gray-400">(optional: we send this ticket there too)</span></label>
+                                            <input id="att-email" v-model="currentAttendee.email" type="email" autocomplete="off" placeholder="attendee@example.com" class="reg-field">
+                                        </div>
+                                        <div v-if="activeTicket === 0">
+                                            <label for="att-phone" class="mb-1.5 block text-sm font-semibold text-gray-700">Your contact number <span class="text-xs font-normal text-gray-400">(optional)</span></label>
+                                            <input id="att-phone" v-model="currentAttendee.contact_no" type="tel" autocomplete="tel" placeholder="e.g. 09171234567" class="reg-field">
                                         </div>
                                     </div>
 
-                                    <div v-if="verificationState(index).verified"
-                                        class="mt-3 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white">
-                                        <div class="flex items-center justify-between gap-3 p-4">
-                                            <div class="flex items-center gap-3">
-                                                <div
-                                                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                                        fill="none" stroke="currentColor" stroke-width="2"
-                                                        class="h-5 w-5">
-                                                        <path d="M20 6 9 17l-5-5" />
-                                                    </svg>
-                                                </div>
-
-                                                <div>
-                                                    <p class="text-sm font-bold text-emerald-800">
-                                                        Email verified successfully
-                                                    </p>
-                                                    <p class="mt-0.5 break-all text-xs text-emerald-700">
-                                                        {{ verificationState(index).verifiedEmail }}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <button type="button"
-                                                class="shrink-0 rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50"
-                                                @click="changeVerifiedEmail(index)">
-                                                Change
-                                            </button>
-                                        </div>
+                                    <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+                                        <button v-if="form.attendees.length > 1" type="button" class="text-xs font-semibold text-red-600 hover:text-red-700" @click="removeAttendee(activeTicket)">Remove this ticket</button>
+                                        <span v-else />
+                                        <button v-if="activeTicket < form.attendees.length - 1" type="button" class="inline-flex h-9 items-center gap-1 rounded-lg bg-[#285F6b]/10 px-3 text-xs font-bold text-[#285F6b] hover:bg-[#285F6b]/15" @click="activeTicket++">
+                                            Next ticket<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3.5 w-3.5" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                                        </button>
+                                        <button v-else-if="availableTicketTypes.length && form.attendees.length < maxTickets" type="button" class="inline-flex h-9 items-center gap-1 rounded-lg bg-[#285F6b]/10 px-3 text-xs font-bold text-[#285F6b] hover:bg-[#285F6b]/15" @click="addAttendee">
+                                            <IconBase name="plus" class="h-3.5 w-3.5" />Add another ticket
+                                        </button>
                                     </div>
-
-                                    <div v-else-if="verificationState(index).sent"
-                                        class="mt-3 overflow-hidden rounded-2xl border border-[#285F6b]/20 bg-white shadow-sm">
-                                        <div class="bg-gradient-to-r from-[#285F6b] to-[#347887] px-4 py-3 text-white">
-                                            <div class="flex items-center justify-between gap-3">
-                                                <div class="flex items-center gap-2.5">
-                                                    <div
-                                                        class="flex h-8 w-8 items-center justify-center rounded-full bg-white/15">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                                            fill="none" stroke="currentColor" stroke-width="2"
-                                                            class="h-4 w-4">
-                                                            <rect width="20" height="16" x="2" y="4" rx="2" />
-                                                            <path d="m22 7-10 6L2 7" />
-                                                        </svg>
-                                                    </div>
-
-                                                    <div>
-                                                        <p class="text-sm font-bold">
-                                                            Check your inbox
-                                                        </p>
-                                                        <p class="mt-0.5 max-w-[260px] truncate text-xs text-white/75">
-                                                            Code sent to {{ attendee.email }}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <span v-if="verificationState(index).expiresIn > 0"
-                                                    class="rounded-lg bg-white/15 px-2.5 py-1 font-mono text-xs font-bold">
-                                                    {{ formatCountdown(verificationState(index).expiresIn) }}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div class="p-4">
-                                            <label
-                                                class="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-gray-500">
-                                                6-Digit Verification PIN
-                                            </label>
-
-                                            <div class="flex flex-col gap-2 sm:flex-row">
-                                                <input v-model="verificationState(index).code" type="text"
-                                                    inputmode="numeric" autocomplete="one-time-code" maxlength="6"
-                                                    placeholder="000000"
-                                                    class="h-[52px] w-full rounded-xl border border-gray-200 bg-gray-50 px-4 text-center font-mono text-xl font-extrabold tracking-[0.45em] text-gray-900 outline-none transition placeholder:tracking-[0.45em] placeholder:text-gray-300 focus:border-[#285F6b] focus:bg-white focus:ring-2 focus:ring-[#285F6b]/10"
-                                                    @input="sanitizeVerificationCode(index)"
-                                                    @keyup.enter="verifyEmailCode(index)">
-
-                                                <button type="button"
-                                                    class="inline-flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-xl bg-[#285F6b] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#1f4a54] disabled:cursor-not-allowed disabled:opacity-50"
-                                                    :disabled="verificationState(index).verifying ||
-                                                        verificationState(index).code.length !== 6 ||
-                                                        verificationState(index).expiresIn <= 0
-                                                        " @click="verifyEmailCode(index)">
-                                                    <svg v-if="verificationState(index).verifying"
-                                                        class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg"
-                                                        fill="none" viewBox="0 0 24 24">
-                                                        <circle class="opacity-25" cx="12" cy="12" r="10"
-                                                            stroke="currentColor" stroke-width="4" />
-                                                        <path class="opacity-75" fill="currentColor"
-                                                            d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z" />
-                                                    </svg>
-
-                                                    {{
-                                                        verificationState(index).verifying
-                                                            ? 'Verifying...'
-                                                            : 'Verify Email'
-                                                    }}
-                                                </button>
-                                            </div>
-
-                                            <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
-                                                <p v-if="verificationState(index).expiresIn > 0"
-                                                    class="text-xs text-gray-500">
-                                                    The PIN expires after 10 minutes.
-                                                </p>
-
-                                                <p v-else class="text-xs font-semibold text-amber-700">
-                                                    This PIN expired. Request a new code.
-                                                </p>
-
-                                                <button type="button"
-                                                    class="text-xs font-bold text-[#285F6b] transition hover:text-[#1f4a54] disabled:cursor-not-allowed disabled:text-gray-400"
-                                                    :disabled="verificationState(index).sending ||
-                                                        verificationState(index).resendIn > 0
-                                                        " @click="sendVerificationCode(index)">
-                                                    {{
-                                                        verificationState(index).resendIn > 0
-                                                            ? `Resend available in ${verificationState(index).resendIn}s`
-                                                            : 'Resend verification code'
-                                                    }}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div v-if="verificationState(index).error"
-                                        class="mt-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-xs font-semibold text-red-700">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2" class="mt-0.5 h-4 w-4 shrink-0">
-                                            <circle cx="12" cy="12" r="10" />
-                                            <path d="M12 8v4" />
-                                            <path d="M12 16h.01" />
-                                        </svg>
-
-                                        {{ verificationState(index).error }}
-                                    </div>
-
-                                    <div v-if="
-                                        verificationState(index).success &&
-                                        !verificationState(index).verified
-                                    "
-                                        class="mt-3 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-xs font-semibold text-emerald-700">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2" class="mt-0.5 h-4 w-4 shrink-0">
-                                            <path d="M20 6 9 17l-5-5" />
-                                        </svg>
-
-                                        {{ verificationState(index).success }}
-                                    </div>
-                                </div>
-
-                                <div v-else class="mt-4">
-                                    <label class="mb-1.5 block text-sm font-semibold text-gray-700">
-                                        Email Address
-                                        <span class="text-xs font-normal text-gray-400">(optional: we send this attendee's ticket here)</span>
-                                    </label>
-
-                                    <input v-model="attendee.email" type="email" autocomplete="email"
-                                        placeholder="attendee@example.com"
-                                        class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#285F6b] focus:ring-2 focus:ring-[#285F6b]/10">
-                                </div>
-
-                                <div class="mt-4">
-                                    <label class="mb-1.5 block text-sm font-semibold text-gray-700">
-                                        Contact Number
-                                        <span class="text-xs font-normal text-gray-400">(optional)</span>
-                                    </label>
-
-                                    <input v-model="attendee.contact_no" type="tel" autocomplete="tel"
-                                        placeholder="e.g. 09171234567"
-                                        class="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#285F6b] focus:ring-2 focus:ring-[#285F6b]/10">
-                                </div>
-
-                                <div class="mt-4">
-                                    <label class="mb-1.5 block text-sm font-semibold text-gray-700">
-                                        Ticket Type
-                                        <span class="text-red-500">*</span>
-                                    </label>
-
-                                    <FormsSelect v-model="attendee.event_ticket_type_id"
-                                        :options="availableTicketTypes.map(ticketType => ({ value: ticketType.id, label: `${ticketType.name} — ${formatCurrency(ticketType.price)}` }))"
-                                        placeholder="Select ticket type" :can-clear="false" />
                                 </div>
                             </div>
                         </div>
 
                         <!-- 0066: ticket types with a layout: choose a table/space or a row (optional; by default we choose, first come, first served). -->
-                        <section v-for="group in seatingGroups" :key="group.id" class="mt-6 rounded-2xl border border-gray-200 bg-white p-5" :aria-label="`Seating for ${group.name}`">
-                            <p class="text-sm font-bold text-gray-900">{{ group.tables.mode === 'rows' ? 'Choose your row' : `Choose a ${group.tables.label}` }} <span class="font-semibold text-gray-500">· {{ group.name }}</span></p>
+                        <section v-for="group in (buyerVerified ? seatingGroups : [])" :key="group.id" class="mt-6 rounded-2xl border border-gray-200 bg-white p-5" :aria-label="`Seating for ${group.name}`">
+                            <p class="text-sm font-bold text-gray-900">{{ group.tables.mode === 'rows' ? (group.need === 1 ? 'Choose your seat' : 'Choose your seats') : `Choose a ${group.tables.label}` }} <span class="font-semibold text-gray-500">· {{ group.name }}</span></p>
                             <p class="mb-3 mt-1 text-xs leading-5 text-gray-500">
-                                <template v-if="group.tables.mode === 'rows'">{{ group.need === 1 ? '1 seat.' : `${group.need} seats, side by side when the row has them.` }}</template>
+                                <template v-if="group.tables.mode === 'rows'">{{ group.need === 1 ? 'Tap your seat in the plan.' : `Tap ${group.need} seats in the plan, or pick a row and we seat you side by side.` }}</template>
                                 <template v-else-if="group.tables.size > 1">{{ group.need }} {{ group.need === 1 ? 'seat' : 'seats' }} at one {{ group.tables.label }} ({{ group.tables.size }} seats each).</template>
                                 <template v-else>{{ group.need }} {{ group.need === 1 ? group.tables.label : `${group.tables.label}s` }}.</template>
                                 Optional: leave it as it is and we'll choose for you.
                             </p>
-                            <SeatingTablePlan :model-value="tableChoice[group.id] ?? 0" @update:model-value="tableChoice[group.id] = $event" :name="group.name" :mode="group.tables.mode" :label="group.tables.label"
-                                :tables="group.tables.tables" :size="group.tables.size" :need="group.need" :image="eventDetail?.floor_plan_url" />
+                            <SeatingTablePlan :model-value="tableChoice[group.id] ?? 0" @update:model-value="tableChoice[group.id] = $event" :picks="seatPicks[group.id] ?? []" @update:picks="seatPicks[group.id] = $event" :name="group.name" :mode="group.tables.mode" :label="group.tables.label"
+                                :tables="group.tables.tables" :size="group.tables.size" :need="group.need" :image="eventDetail?.floor_plan_url" :who="group.who" />
                         </section>
 
+                        <!-- Summary: every ticket on one line (name, type, seat, price). -->
                         <div class="mt-6 rounded-2xl border border-[#285F6b]/10 bg-gradient-to-r from-[#285F6b]/5 to-[#4b8792]/10 p-5">
-                            <div class="flex items-center justify-between gap-4">
-                                <div>
-                                    <p class="text-xs font-medium text-gray-500">
-                                        Registration total
-                                    </p>
-
-                                    <p class="mt-1 text-sm font-semibold text-gray-900">
-                                        {{ totalAttendees }}
-                                        {{ totalAttendees === 1 ? 'attendee' : 'attendees' }}
-                                    </p>
-
-                                    <p v-if="!signedIn" class="mt-1 text-xs text-gray-500">
-                                        {{ verifiedAttendeeCount }} of {{ totalAttendees }} email(s) verified
-                                    </p>
-                                </div>
-
-                                <p class="text-xl font-extrabold text-[#285F6b]">
-                                    {{ formatCurrency(totalAmount) }}
-                                </p>
+                            <p class="text-xs font-bold uppercase tracking-[0.12em] text-gray-500">Summary</p>
+                            <ul class="mt-2 divide-y divide-[#285F6b]/10 text-sm">
+                                <li v-for="(a, i) in form.attendees" :key="i" class="flex items-center justify-between gap-3 py-2">
+                                    <button type="button" class="min-w-0 text-left" @click="activeTicket = i">
+                                        <span class="block truncate font-semibold" :class="a.name.trim() ? 'text-gray-900' : 'text-amber-700'">{{ i + 1 }}. {{ a.name.trim() || 'Name needed' }}</span>
+                                        <span class="block truncate text-xs text-gray-500">{{ ticketTypeName(a) }}<template v-if="seatFor(i)"> · <span class="font-semibold text-[#285F6b]">{{ seatFor(i) }}</span></template></span>
+                                    </button>
+                                    <span class="shrink-0 font-semibold tabular-nums text-gray-700">{{ formatCurrency(ticketPrice(a)) }}</span>
+                                </li>
+                            </ul>
+                            <div class="mt-2 flex items-center justify-between gap-4 border-t border-[#285F6b]/15 pt-3">
+                                <p class="text-sm font-semibold text-gray-900">{{ totalAttendees }} {{ totalAttendees === 1 ? 'ticket' : 'tickets' }}</p>
+                                <p class="text-xl font-extrabold text-[#285F6b]">{{ formatCurrency(totalAmount) }}</p>
                             </div>
                         </div>
 
                         <button type="submit"
                             class="mt-5 inline-flex h-13 w-full items-center justify-center rounded-2xl bg-[#285F6b] px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#285F6b]/20 transition hover:-translate-y-0.5 hover:bg-[#1f4a54] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
-                            :disabled="submitting ||
-                                !registrationAvailable ||
-                                !allEmailsVerified
-                                ">
-                            {{
-                                submitting
-                                    ? 'Saving Registration...'
-                                    : !allEmailsVerified
-                                        ? 'Verify All Emails to Continue'
-                                        : totalAmount > 0
-                                            ? 'Continue to Payment'
-                                            : 'Submit Registration'
-                            }}
+                            :disabled="submitting || !registrationAvailable || !buyerVerified">
+                            {{ submitting ? 'Saving Registration...' : !buyerVerified ? 'Confirm your e-mail to continue' : totalAmount > 0 ? 'Continue to Payment' : 'Submit Registration' }}
                         </button>
 
                         <p class="mt-3 text-center text-xs leading-5 text-gray-400">
@@ -716,7 +470,7 @@
                                     class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-xs font-bold text-[#285F6b]">
                                     1
                                 </span>
-                                {{ signedIn ? 'Check each attendee’s name (yours is filled in).' : 'Enter your attendee details and email.' }}
+                                {{ signedIn ? 'Check each attendee’s name (yours is filled in).' : 'Confirm your e-mail once with a 6-digit code.' }}
                             </li>
 
                             <li v-if="!signedIn" class="flex gap-3">
@@ -724,7 +478,7 @@
                                     class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-xs font-bold text-[#285F6b]">
                                     2
                                 </span>
-                                Verify the email using the 6-digit code.
+                                Add a name and ticket type for each ticket.
                             </li>
 
                             <li class="flex gap-3">
@@ -740,7 +494,7 @@
                                     class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#285F6b]/10 text-xs font-bold text-[#285F6b]">
                                     4
                                 </span>
-                                {{ signedIn ? 'Find it under My Tickets, or download the PDF.' : 'Download the PDF ticket or send it to the verified email.' }}
+                                {{ signedIn ? 'Find it under My Tickets, or download the PDF.' : 'Every ticket is e-mailed to you; you can also download the PDFs.' }}
                             </li>
                         </ol>
                     </div>
@@ -817,7 +571,10 @@ const registrationAccess = ref<string | null>(null)
 type PublicEventDetail = import('~/composables/useTicketing').PublicEventDetail
 
 /** The public event API, in the shape this page was designed for. */
+// Advisor's fix (Nov 2026): overnight / multi-day events show where they end.
+const eventSpan = ref<{ starts: string, ends: string, tz: string } | null>(null)
 function toPublicEvent(e: PublicEventDetail): PublicEvent {
+    eventSpan.value = e.starts_at && e.ends_at ? { starts: e.starts_at, ends: e.ends_at, tz: e.timezone || 'Asia/Manila' } : null
     const day = (iso: string | null) => iso ? new Intl.DateTimeFormat('en-CA', { timeZone: e.timezone }).format(new Date(iso)) : null
     const time = (iso: string | null) => iso ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: e.timezone }).format(new Date(iso)) : null
     const tiers = e.tiers.map(t => ({
@@ -865,7 +622,7 @@ async function loadRegisteredTickets() {
     registeredTickets.value = data.tickets.filter(t => t.status === 'valid').map(t => ({
         id: t.id as unknown as number,
         name: t.attendee,
-        email: t.email,
+        email: t.email ?? (data as { buyer?: { email?: string | null } }).buyer?.email ?? null,
         ticket_id: t.id.replace(/-/g, '').slice(-10).toUpperCase(),
         qr_token: t.qr_token ?? '',
         qr_value: t.qr_token ?? '',
@@ -968,6 +725,20 @@ const emailVerificationStates =
         createVerificationState(),
     ])
 
+// Advisor's fix (Nov 2026): a guest buyer confirms their OWN e-mail once (state 0);
+// every ticket is sent there, and attendees need only a name.
+const buyer = reactive({ name: '', email: '', phone: '' })
+const buyerState = computed(() => verificationState(0))
+const buyerVerified = computed(() => signedIn.value || Boolean(
+    buyerState.value.verified && buyerState.value.verificationToken
+    && buyerState.value.verifiedEmail.toLowerCase() === buyer.email.trim().toLowerCase(),
+))
+// One ticket at a time (◀ Ticket 2 of 4 ▶), with chips to jump between them.
+const activeTicket = ref(0)
+const maxTickets = 10
+const currentAttendee = computed(() => form.attendees[activeTicket.value] ?? null)
+const ticketComplete = (a: AttendeeFormWithContact) => Boolean(a.name.trim() && a.event_ticket_type_id)
+
 let countdownTimer:
     ReturnType<typeof setInterval> |
     null = null
@@ -990,15 +761,22 @@ const ticketTypes = computed(() =>
 // 0066: tables to choose from, per ticket type picked by at least one attendee.
 const eventDetail = ref<PublicEventDetail | null>(null)
 const tableChoice = reactive<Record<string, number>>({})
+// 0067: exact seats tapped per ticket type ([row, seat]).
+const seatPicks = reactive<Record<string, [number, number][]>>({})
 const seatingGroups = computed(() => (eventDetail.value?.tiers ?? []).flatMap((t) => {
     const need = form.attendees.filter(a => String(a.event_ticket_type_id) === t.id).length
-    return t.tables && need ? [{ id: t.id, name: t.name, tables: t.tables, need }] : []
+    // Seats are given in ticket order, so each pick is named after its attendee.
+    const who = form.attendees.map((a, i) => ({ a, i })).filter(({ a }) => String(a.event_ticket_type_id) === t.id).map(({ a, i }) => a.name.trim() || `Ticket ${i + 1}`)
+    return t.tables && need ? [{ id: t.id, name: t.name, tables: t.tables, need, who }] : []
 }))
 // A table that no longer seats the group (more attendees, or it filled up): back to "Any table".
 watch(seatingGroups, (groups) => {
     for (const g of groups) {
         const chosen = tableChoice[g.id] ?? 0
         if (chosen && (g.tables.tables.find(t => t.number === chosen)?.left ?? 0) < g.need) tableChoice[g.id] = 0
+        // Fewer attendees, or a picked seat got taken meanwhile: keep only picks still possible.
+        const picks = (seatPicks[g.id] ?? []).filter(([r, s]) => !(g.tables.tables.find(t => t.number === r)?.taken ?? []).includes(s)).slice(-g.need)
+        if (picks.length !== (seatPicks[g.id] ?? []).length) seatPicks[g.id] = picks
     }
 }, { deep: true })
 
@@ -1069,6 +847,24 @@ const totalAmount = computed(() =>
 )
 
 const hasPaidAttendees = computed(() => totalAmount.value > 0)
+
+const ticketTypeOf = (a: AttendeeFormWithContact) => availableTicketTypes.value.find(t => t.id === a.event_ticket_type_id)
+const ticketTypeName = (a: AttendeeFormWithContact) => ticketTypeOf(a)?.name ?? 'Choose a ticket type'
+const ticketPrice = (a: AttendeeFormWithContact) => Number(ticketTypeOf(a)?.price ?? 0)
+/** The seat tapped for this attendee (rows only): picks follow the order of that ticket type's attendees. */
+function seatFor(index: number): string {
+    const a = form.attendees[index]
+    if (!a) return ''
+    const group = seatingGroups.value.find(g => g.id === String(a.event_ticket_type_id))
+    if (!group) return ''
+    if (group.tables.mode !== 'rows') {
+        const chosen = tableChoice[group.id]
+        return chosen ? (group.tables.tables.find(t => t.number === chosen)?.name ?? '') : ''
+    }
+    const position = form.attendees.slice(0, index).filter(x => String(x.event_ticket_type_id) === group.id).length
+    const pick = (seatPicks[group.id] ?? [])[position]
+    return pick ? `${group.tables.tables.find(t => t.number === pick[0])?.name ?? `Row ${pick[0]}`}, Seat ${pick[1]}` : ''
+}
 
 const formatCurrency = (
     amount: string | number
@@ -1192,8 +988,12 @@ const eventSchedule = computed(() => {
             eventData.value.end_time
         )
 
+    const span = eventSpan.value
+    if (span && dayGap(span.starts, span.ends, span.tz) > 1) {
+        return `${dateSpan(span.starts, span.ends, span.tz)} • ${start} - ${end}`
+    }
     if (start && end) {
-        return `${date} • ${start} - ${end}`
+        return `${date} • ${start} - ${end}${span ? endsSuffix(span.starts, span.ends, span.tz) : ''}`
     }
 
     return start
@@ -1220,10 +1020,7 @@ const handleEmailChanged = (
         verificationState(index)
 
     const currentEmail =
-        form.attendees[index]
-            ?.email
-            ?.trim()
-            .toLowerCase() ?? ''
+        buyer.email.trim().toLowerCase()
 
     if (
         state.verifiedEmail &&
@@ -1310,10 +1107,7 @@ const addAttendee = () => {
         event_ticket_type_id:
             defaultTicketTypeId,
     })
-
-    emailVerificationStates.push(
-        createVerificationState()
-    )
+    activeTicket.value = form.attendees.length - 1
 }
 
 const removeAttendee = (
@@ -1329,11 +1123,7 @@ const removeAttendee = (
         index,
         1
     )
-
-    emailVerificationStates.splice(
-        index,
-        1
-    )
+    activeTicket.value = Math.min(activeTicket.value, form.attendees.length - 1)
 }
 
 const getApiErrorMessage = (
@@ -1380,15 +1170,8 @@ const sendVerificationCode =
     ) => {
         errorMessage.value = ''
 
-        const attendee =
-            form.attendees[index]
-
-        if (!attendee) {
-            return
-        }
-
         const email =
-            attendee.email.trim()
+            buyer.email.trim()
 
         const state =
             verificationState(index)
@@ -1461,13 +1244,6 @@ const verifyEmailCode =
     ) => {
         errorMessage.value = ''
 
-        const attendee =
-            form.attendees[index]
-
-        if (!attendee) {
-            return
-        }
-
         const state =
             verificationState(index)
 
@@ -1475,7 +1251,7 @@ const verifyEmailCode =
         state.success = ''
 
         const email =
-            attendee.email.trim()
+            buyer.email.trim()
 
         const code =
             state.code.trim()
@@ -1530,6 +1306,8 @@ const verifyEmailCode =
                 response.message ||
                 'Email verified successfully.'
             state.code = ''
+            // The first ticket is usually the buyer's own.
+            if (form.attendees[0] && !form.attendees[0].name.trim() && buyer.name.trim()) form.attendees[0].name = buyer.name.trim()
         } catch (error: unknown) {
             state.error =
                 getApiErrorMessage(
@@ -1641,12 +1419,17 @@ const submitRegistration =
         const emailPattern =
             /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+        if (!signedIn.value && buyer.name.trim().length < 2) {
+            errorMessage.value = 'Please enter your name.'
+
+            return
+        }
+
         const invalidAttendeeIndex =
             form.attendees.findIndex(
                 attendee =>
-                    !attendee.name.trim() ||
-                    (!signedIn.value && !attendee.email.trim()) ||
-                    (attendee.email.trim() !== '' && !emailPattern.test(
+                    attendee.name.trim().length < 2 ||
+                    (signedIn.value && attendee.email.trim() !== '' && !emailPattern.test(
                         attendee.email.trim()
                     )) ||
                     !attendee.event_ticket_type_id
@@ -1655,36 +1438,15 @@ const submitRegistration =
         if (
             invalidAttendeeIndex !== -1
         ) {
+            activeTicket.value = invalidAttendeeIndex
             errorMessage.value =
-                `Please complete the full name, valid email address, and ticket type for attendee ${invalidAttendeeIndex + 1}.`
+                `Ticket ${invalidAttendeeIndex + 1}: enter the attendee's full name${signedIn.value ? ', a valid e-mail (or leave it empty),' : ''} and choose a ticket type.`
 
             return
         }
 
-        const unverifiedAttendeeIndex =
-            form.attendees.findIndex(
-                (attendee, index) => {
-                    const state =
-                        verificationState(index)
-
-                    return !(
-                        state.verified &&
-                        state.verificationToken &&
-                        state.verifiedEmail
-                            .toLowerCase() ===
-                        attendee.email
-                            .trim()
-                            .toLowerCase()
-                    )
-                }
-            )
-
-        if (
-            !signedIn.value &&
-            unverifiedAttendeeIndex !== -1
-        ) {
-            errorMessage.value =
-                `Please verify the email address for attendee ${unverifiedAttendeeIndex + 1} before submitting.`
+        if (!buyerVerified.value) {
+            errorMessage.value = 'Please confirm your e-mail address first.'
 
             return
         }
@@ -1717,15 +1479,19 @@ const submitRegistration =
                     checkout: { payment_id: string, checkout_url: string, amount: string } | null
                 }>(`/public-events/${encodeURIComponent(token.value)}/checkout`, {
                     ...(linkKey.value ? { key: linkKey.value } : {}),
-                    attendees: form.attendees.map((attendee, index) => ({
+                    attendees: form.attendees.map(attendee => ({
                         full_name: attendee.name.trim(),
-                        email: attendee.email.trim() || null,
+                        // Guests: every ticket goes to the buyer's confirmed e-mail.
+                        email: signedIn.value ? (attendee.email.trim() || null) : null,
                         ticket_type_id: attendee.event_ticket_type_id,
-                        verification_token: signedIn.value ? null : verificationState(index).verificationToken,
                     })),
-                    buyer: { phone: form.attendees[0]?.contact_no?.trim() || null },
+                    buyer: signedIn.value
+                        ? { phone: form.attendees[0]?.contact_no?.trim() || null }
+                        : { name: buyer.name.trim(), email: buyer.email.trim(), phone: buyer.phone.trim() || null, verification_token: buyerState.value.verificationToken },
                     // 0066: the table chosen per ticket type (null: any table).
                     tables: Object.fromEntries(seatingGroups.value.map(g => [g.id, tableChoice[g.id] || null])),
+                    // 0067: exact seats tapped (rows), per ticket type.
+                    seats: Object.fromEntries(seatingGroups.value.filter(g => (seatPicks[g.id] ?? []).length).map(g => [g.id, seatPicks[g.id]])),
                 }, { idempotencyKey: crypto.randomUUID() })
 
             registrationId.value = data.registration_id
@@ -1908,6 +1674,7 @@ const registerMore = () => {
         emailVerificationStates.length,
         createVerificationState()
     )
+    activeTicket.value = 0
 
     window.scrollTo({
         top: 0,
@@ -1930,3 +1697,7 @@ onBeforeUnmount(() => {
     }
 })
 </script>
+
+<style scoped>
+.reg-field { @apply h-[46px] w-full rounded-xl border border-gray-200 bg-white px-4 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-[#285F6b] focus:ring-2 focus:ring-[#285F6b]/10; }
+</style>

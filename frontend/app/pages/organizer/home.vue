@@ -66,11 +66,13 @@
 							<p class="text-[11px] font-bold uppercase tracking-[0.08em] text-gray-400 sm:text-xs sm:tracking-[0.1em]">
 								{{ stat.label }}
 							</p>
-							<p class="mt-1 text-xl font-extrabold tracking-tight text-gray-950 sm:mt-2 sm:text-4xl">
+							<!-- Long amounts (₱10,640.00) step down a size so they stay on one line beside the icon. -->
+							<p class="mt-1 whitespace-nowrap text-xl font-extrabold tracking-tight text-gray-950 sm:mt-2" :class="statSize(stat.value)">
 								{{ stat.value }}
 							</p>
 						</div>
-						<div class="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 transition duration-200 group-hover:scale-105 sm:flex">
+						<!-- Hidden on narrow four-across cards (lg, xl) so the number fits. -->
+						<div class="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 transition duration-200 group-hover:scale-105 sm:flex lg:hidden 2xl:flex">
 							<IconBase :name="stat.icon" class="h-5 w-5" />
 						</div>
 					</div>
@@ -318,6 +320,13 @@ const upcomingEvents = ref<DashboardUpcomingEvent[]>([])
 
 function activityIcon(title: string): string {
 	return /^congratulations/i.test(title) ? 'award' : 'file-text'
+}
+
+// Stat card number size: short values stay big; long amounts step down so they never wrap.
+function statSize(value: string) {
+	if (value.length <= 6) return 'sm:text-4xl'
+	if (value.length <= 11) return 'sm:text-2xl lg:text-xl xl:text-2xl 2xl:text-3xl'
+	return 'sm:text-xl lg:text-lg xl:text-xl 2xl:text-2xl'
 }
 
 const stats = computed(() => {

@@ -314,6 +314,66 @@ class StaffTest extends TestCase
         $this->spaJson('GET', '/api/v1/organizations/mine')->assertOk()->assertJsonPath('data.0.my_membership.role', 'Coordinator');
     }
 
+    /** Invite fix (Nov 2026): the set-up page learns what its link is before showing the form. */
+    public function test_the_invitation_link_reports_ready_used_or_invalid(): void
+    {
+        Mail::fake();
+        [$org, $owner] = $this->listedOrganizer();
+        $this->invite($owner, $org, 'tess.new@nasery.test', ['preset' => 'coordinator', 'first_name' => 'Tess', 'last_name' => 'Cruz'])->assertCreated();
+        $code = null;
+        Mail::assertSent(AuthCodeMail::class, function (AuthCodeMail $m) use (&$code) {
+            $code = $m->code;
+
+            return true;
+        });
+        $this->app['auth']->forgetGuards();
+        $check = fn (string $email, string $c) => $this->spaJson('POST', '/api/v1/auth/team-setup/check', ['email' => $email, 'code' => $c])->assertOk()->json('data.status');
+
+        $this->assertSame('ready', $check('tess.new@nasery.test', $code));
+        $this->assertSame('invalid', $check('tess.new@nasery.test', $code === '000000' ? '111111' : '000000'));
+        $this->assertSame('invalid', $check('nobody@nasery.test', $code));
+        $this->assertSame('ready', $check('tess.new@nasery.test', $code), 'checking never uses the link');
+
+        $this->spaJson('POST', '/api/v1/auth/team-setup', ['email' => 'tess.new@nasery.test', 'code' => $code, 'password' => 'NewPass123', 'password_confirmation' => 'NewPass123'])->assertOk();
+        $this->assertSame('used', $check('tess.new@nasery.test', $code));
+    }
+
+    /** Invite fix (Nov 2026): an invitee who sets their first password with Forgot password still joins the team. */
+    public function test_forgot_password_on_an_unused_invitation_joins_the_team(): void
+    {
+        Mail::fake();
+        [$org, $owner] = $this->listedOrganizer();
+        $this->invite($owner, $org, 'ana.new@nasery.test', ['preset' => 'coordinator', 'first_name' => 'Ana', 'last_name' => 'Reyes'])->assertCreated();
+        $ana = User::query()->where('email', 'ana.new@nasery.test')->firstOrFail();
+        $this->app['auth']->forgetGuards();
+
+        $this->travel(2)->minutes();
+        $this->spaJson('POST', '/api/v1/auth/password/forgot', ['email' => 'ana.new@nasery.test'])->assertOk();
+        $codes = [];
+        Mail::assertSent(AuthCodeMail::class, function (AuthCodeMail $m) use (&$codes) {
+            $codes[] = $m->code;
+
+            return true;
+        });
+        $code = end($codes);
+
+        $this->spaJson('POST', '/api/v1/auth/password/reset', ['email' => 'ana.new@nasery.test', 'code' => $code, 'password' => 'NewPass123', 'password_confirmation' => 'NewPass123'])
+            ->assertOk()->assertJsonPath('message', "Password set. You're on the {$org->display_name} team. Sign in to start.");
+        $this->assertSame('active', DB::table('organization_members')->where('id', $this->memberId($org, $ana))->value('status'));
+
+        // A later reset is just a reset.
+        $this->travel(2)->minutes();
+        $this->spaJson('POST', '/api/v1/auth/password/forgot', ['email' => 'ana.new@nasery.test'])->assertOk();
+        $codes = [];
+        Mail::assertSent(AuthCodeMail::class, function (AuthCodeMail $m) use (&$codes) {
+            $codes[] = $m->code;
+
+            return true;
+        });
+        $this->spaJson('POST', '/api/v1/auth/password/reset', ['email' => 'ana.new@nasery.test', 'code' => end($codes), 'password' => 'Other1234', 'password_confirmation' => 'Other1234'])
+            ->assertOk()->assertJsonPath('message', 'Password updated. Sign in with your new password.');
+    }
+
     public function test_cancelled_invitation_removes_the_unused_account(): void
     {
         Mail::fake();

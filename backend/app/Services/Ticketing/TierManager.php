@@ -136,6 +136,8 @@ class TierManager
             'seating_mode' => $t->seating_mode,
             'table_label' => $t->table_label,
             'table_count' => $t->table_count,
+            'seat_rows' => $t->seat_rows,
+            'row_names' => $t->row_names,
             'table_size' => $t->table_size,
             'sold' => $sold,
             'checked_in' => (int) ($counts->checked_in ?? 0),
@@ -177,7 +179,7 @@ class TierManager
      */
     private function tables(array $data, ?object $current): array
     {
-        if (! array_intersect_key($data, array_flip(['seating_mode', 'table_label', 'table_count', 'table_size']))) {
+        if (! array_intersect_key($data, array_flip(['seating_mode', 'table_label', 'table_count', 'table_size', 'seat_rows', 'row_names']))) {
             return $data;
         }
 
@@ -189,28 +191,59 @@ class TierManager
         $count = (int) $pick('table_count');
         $size = (int) $pick('table_size');
 
+        // 0067: rows of different lengths (from the stage back), and Row A or Row 1.
+        $lengths = null;
+        $list = $rows ? $pick('seat_rows') : null;
+        if (is_string($list)) {
+            $list = json_decode($list, true);
+        }
+        if (is_array($list) && count($list) > 1 && count(array_unique($list)) > 1) {
+            $lengths = array_values(array_map(fn ($n) => min(100, max(1, (int) $n)), $list));
+            $count = count($lengths);
+            $size = max($lengths);
+        } elseif (is_array($list) && count($list) >= 1) {
+            $count = count($list) > 1 ? count($list) : $count;
+            $size = (int) $list[0];
+        }
+        $rowNames = $rows && in_array($pick('row_names'), ['letters', 'numbers'], true) ? $pick('row_names') : null;
+
+        $off = ['seating_mode' => null, 'table_label' => null, 'table_count' => null, 'table_size' => null, 'seat_rows' => null, 'row_names' => null];
         if ($mode === null || $label === '' || $count < 1 || $size < 1) {
-            return [...$data, 'seating_mode' => null, 'table_label' => null, 'table_count' => null, 'table_size' => null];
+            return [...$data, ...$off];
         }
 
         // Same layout as before: don't take away places people already have.
         if ($current !== null && TableSeating::enabled($current) && $current->seating_mode === $mode && trim($current->table_label) === $label) {
             $taken = app(TableSeating::class)->taken([$current->id])[$current->id] ?? [];
-            $lastUsed = max([0, ...array_keys(array_filter($taken))]);
+            $used = array_filter($taken);
+            $lastUsed = max([0, ...array_keys($used)]);
             $what = $rows ? 'rows' : 'tables';
             if ($count < $lastUsed) {
                 $name = TableSeating::groupName($current, $lastUsed);
                 throw ValidationException::withMessages(['table_count' => "{$name} already has guests, so keep at least {$lastUsed} {$what}."]);
             }
-            $fullest = max([0, ...array_map(fn ($t) => is_array($t) ? max([0, ...array_keys($t)]) : $t, $taken)]);
-            if ($size < $fullest) {
-                throw ValidationException::withMessages(['table_size' => $rows
-                    ? "Seat {$fullest} in a row is already taken, so keep at least {$fullest} seats per row."
-                    : "A table already has {$fullest} guests, so keep at least {$fullest} seats per table."]);
+            if ($rows) {
+                if ($used !== [] && ($current->row_names ?? 'letters') !== ($rowNames ?? 'letters')) {
+                    throw ValidationException::withMessages(['row_names' => "Seats are already sold, so the row names (A, B, C or 1, 2, 3) can't change."]);
+                }
+                foreach ($used as $row => $seats) {
+                    $highest = max(array_keys($seats));
+                    $newLength = $lengths !== null ? ($lengths[$row - 1] ?? 0) : $size;
+                    if ($newLength < $highest) {
+                        $name = TableSeating::groupName($current, $row);
+                        throw ValidationException::withMessages(['table_size' => "{$name}, Seat {$highest} is already taken, so keep at least {$highest} seats in that row."]);
+                    }
+                }
+            } else {
+                $fullest = max([0, ...$taken]);
+                if ($size < $fullest) {
+                    throw ValidationException::withMessages(['table_size' => "A table already has {$fullest} guests, so keep at least {$fullest} seats per table."]);
+                }
             }
         }
 
-        return [...$data, 'seating_mode' => $mode, 'table_label' => $label, 'table_count' => $count, 'table_size' => $size, 'capacity' => $count * $size];
+        return [...$data, 'seating_mode' => $mode, 'table_label' => $label, 'table_count' => $count, 'table_size' => $size,
+            'seat_rows' => $lengths, 'row_names' => $rowNames, 'capacity' => $lengths !== null ? array_sum($lengths) : $count * $size];
     }
 
     private function assertOpen(Event $event): void

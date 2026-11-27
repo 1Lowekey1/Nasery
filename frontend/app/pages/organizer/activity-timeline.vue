@@ -171,6 +171,8 @@
 												<button v-for="s in statusOptions" :key="s.value" type="button" class="at-quick" :class="activity.status === s.value ? 'is-on' : ''" :disabled="busyId === activity.id || activity.status === s.value" :title="`Mark as ${s.label.toLowerCase()}`" :aria-label="`Mark ${activity.title} as ${s.label.toLowerCase()}`" @click="setStatus(activity, s.value)">
 													<span class="at-node-mini" :class="s.mini" />
 												</button>
+												<!-- Advisor's fix (Nov 2026): program items can be edited. -->
+												<button v-if="activity.editable !== false" type="button" class="at-quick" :disabled="busyId === activity.id" :aria-label="`Edit ${activity.title}`" title="Edit" @click="openEditActivity(activity)"><IconBase name="edit" class="h-3.5 w-3.5" /></button>
 												<button type="button" class="at-quick hover:!bg-red-50 hover:!text-red-600" :disabled="busyId === activity.id" :aria-label="`Delete ${activity.title}`" title="Delete" @click="confirmDelete = activity"><IconBase name="trash" class="h-3.5 w-3.5" /></button>
 											</span>
 										</div>
@@ -199,11 +201,11 @@
 		<Teleport to="body">
 			<Transition name="at-fade"><div v-if="showAddActivity" class="fixed inset-0 z-[110] bg-slate-950/40 backdrop-blur-[2px]" @click="closeAddActivity" /></Transition>
 			<Transition name="at-slide">
-				<aside v-if="showAddActivity" class="fixed inset-y-0 right-0 z-[115] flex w-full max-w-md flex-col bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Add to program">
+				<aside v-if="showAddActivity" class="fixed inset-y-0 right-0 z-[115] flex w-full max-w-md flex-col bg-white shadow-2xl" role="dialog" aria-modal="true" :aria-label="editingId ? 'Edit program item' : 'Add to program'">
 					<div class="flex items-start justify-between border-b border-gray-100 px-6 py-5">
 						<div>
-							<h2 class="text-lg font-bold text-gray-950">Add to program</h2>
-							<p class="mt-0.5 text-sm text-gray-500">A timed item for the event day, e.g. "Guest arrival, 5:00 PM".</p>
+							<h2 class="text-lg font-bold text-gray-950">{{ editingId ? 'Edit program item' : 'Add to program' }}</h2>
+							<p class="mt-0.5 text-sm text-gray-500">{{ editingId ? 'Change anything below; the team (and the client, if shown) sees the update.' : 'A timed item for the event day, e.g. "Guest arrival, 5:00 PM".' }}</p>
 						</div>
 						<button type="button" class="flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700" aria-label="Close" @click="closeAddActivity"><IconBase name="x" class="h-5 w-5" /></button>
 					</div>
@@ -214,7 +216,7 @@
 								<p class="at-group-title">What's planned?</p>
 								<div>
 									<span class="at-label">Event</span>
-									<FormsSelect v-model="activityForm.eventId" :options="eventOptions" placeholder="Choose an event" :can-clear="false" />
+									<FormsSelect v-model="activityForm.eventId" :options="eventOptions" placeholder="Choose an event" :can-clear="false" :disabled="!!editingId" />
 								</div>
 								<div>
 									<label for="at-title" class="at-label">Title</label>
@@ -251,8 +253,20 @@
 									<label for="at-person" class="at-label">Person in charge <span class="at-optional">Optional</span></label>
 									<div class="relative">
 										<IconBase name="user" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-										<input id="at-person" v-model="activityForm.person" type="text" maxlength="255" list="at-people" autocomplete="off" class="at-field !pl-10" placeholder="Pick a teammate or type, e.g. Venue coordinator" />
-										<datalist id="at-people"><option v-for="name in teamNames" :key="name" :value="name" /></datalist>
+										<!-- Advisor's fix (Nov 2026): our own suggestion list (the browser's datalist looked foreign). -->
+										<input id="at-person" v-model="activityForm.person" type="text" maxlength="255" autocomplete="off" class="at-field !pl-10" placeholder="Pick a teammate or type, e.g. Venue coordinator"
+											role="combobox" aria-autocomplete="list" aria-controls="at-people" :aria-expanded="personOpen && personMatches.length > 0"
+											:aria-activedescendant="personOpen && personActive >= 0 ? `at-person-${personActive}` : undefined"
+											@focus="personOpen = true" @input="personOpen = true; personActive = -1" @blur="closePersonSoon" @keydown="onPersonKey" />
+										<ul v-if="personOpen && personMatches.length" id="at-people" role="listbox"
+											class="absolute left-0 right-0 z-20 mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+											<li v-for="(name, i) in personMatches" :id="`at-person-${i}`" :key="name" role="option" :aria-selected="i === personActive"
+												class="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-800"
+												:class="i === personActive ? 'bg-primary-50 text-primary-800' : 'hover:bg-gray-50'"
+												@mousedown.prevent="pickPerson(name)">
+												<span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-700 text-[10px] font-bold text-white" aria-hidden="true">{{ name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() }}</span>{{ name }}
+											</li>
+										</ul>
 									</div>
 								</div>
 								<div>
@@ -273,8 +287,8 @@
 						<div class="grid grid-cols-[auto_1fr] gap-2 border-t border-gray-100 px-6 py-4">
 							<button type="button" class="at-btn-secondary h-11 px-5" :disabled="isSavingActivity" @click="closeAddActivity">Cancel</button>
 							<button type="submit" class="at-btn-primary h-11 justify-center" :disabled="isSavingActivity">
-								<IconBase :name="isSavingActivity ? 'refresh-cw' : 'plus'" class="h-4 w-4" :class="isSavingActivity ? 'animate-spin' : ''" />
-								{{ isSavingActivity ? 'Adding…' : 'Add to program' }}
+								<IconBase :name="isSavingActivity ? 'refresh-cw' : editingId ? 'check' : 'plus'" class="h-4 w-4" :class="isSavingActivity ? 'animate-spin' : ''" />
+								{{ isSavingActivity ? (editingId ? 'Saving…' : 'Adding…') : (editingId ? 'Save changes' : 'Add to program') }}
 							</button>
 						</div>
 					</form>
@@ -495,7 +509,41 @@ function resetActivityForm() {
 	Object.assign(activityForm, { eventId: selectedEventData.value?.eventId ?? realEvents.value[0]?.eventId ?? null, title: '', description: '', category: '', tag: '', person: '', status: 'pending', activityAt: '', visibleToClient: false })
 	activityFormError.value = ''
 }
-function openAddActivity() { if (!realEvents.value.length) return; resetActivityForm(); showAddActivity.value = true }
+function openAddActivity() { if (!realEvents.value.length) return; resetActivityForm(); editingId.value = null; showAddActivity.value = true }
+// Advisor's fix (Nov 2026): edit a program item in the same panel.
+const editingId = ref<number | null>(null)
+function toLocalInput(value: string | null) {
+	if (!value) return ''
+	const d = parse(value)
+	if (Number.isNaN(d.getTime())) return ''
+	const pad = (n: number) => String(n).padStart(2, '0')
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+function openEditActivity(activity: EventActivity) {
+	Object.assign(activityForm, {
+		eventId: activity.event_id, title: activity.title, description: activity.description ?? '', category: activity.category ?? '', tag: activity.tag ?? '',
+		person: activity.person ?? '', status: activity.status, activityAt: toLocalInput(activity.activity_at), visibleToClient: !!activity.visible_to_client,
+	})
+	activityFormError.value = ''
+	editingId.value = activity.id
+	showAddActivity.value = true
+}
+// "Person in charge": teammates that match what's typed; any typed name still works.
+const personOpen = ref(false)
+const personActive = ref(-1)
+const personMatches = computed(() => {
+	const q = activityForm.person.trim().toLowerCase()
+	return teamNames.value.filter(n => !q || n.toLowerCase().includes(q)).filter(n => n.toLowerCase() !== q).slice(0, 8)
+})
+function pickPerson(name: string) { activityForm.person = name; personOpen.value = false; personActive.value = -1 }
+function closePersonSoon() { setTimeout(() => { personOpen.value = false }, 120) }
+function onPersonKey(e: KeyboardEvent) {
+	if (!personMatches.value.length) return
+	if (e.key === 'ArrowDown') { e.preventDefault(); personOpen.value = true; personActive.value = (personActive.value + 1) % personMatches.value.length }
+	else if (e.key === 'ArrowUp') { e.preventDefault(); personActive.value = (personActive.value - 1 + personMatches.value.length) % personMatches.value.length }
+	else if (e.key === 'Enter' && personOpen.value && personActive.value >= 0) { e.preventDefault(); pickPerson(personMatches.value[personActive.value]!) }
+	else if (e.key === 'Escape') { personOpen.value = false }
+}
 function closeAddActivity() { if (!isSavingActivity.value) showAddActivity.value = false }
 
 async function saveActivity() {
@@ -503,12 +551,28 @@ async function saveActivity() {
 	if (!activityForm.title.trim()) { activityFormError.value = 'Give the activity a title.'; return }
 	isSavingActivity.value = true
 	activityFormError.value = ''
+	const body = {
+		title: activityForm.title.trim(), description: activityForm.description.trim() || null, category: activityForm.category || null,
+		tag: activityForm.tag || null, person: activityForm.person.trim() || null, status: activityForm.status, activity_at: activityForm.activityAt || null,
+		visible_to_client: activityForm.visibleToClient,
+	}
+	if (editingId.value) {
+		try {
+			const current = activities.value.find(a => a.id === editingId.value)
+			const response = await useApi().patch<EventActivity>(`/organizations/${orgId}/events/${activityForm.eventId}/activities/${editingId.value}`, body)
+			activities.value = activities.value.map(a => (a.id === editingId.value ? { ...a, ...body, ...(response.data ?? {}), event: response.data?.event ?? current?.event } : a))
+			showAddActivity.value = false
+			editingId.value = null
+			showToast('Changes saved')
+		} catch (error: unknown) {
+			activityFormError.value = getApiErrorMessage(error, 'The changes weren’t saved. Check your connection and try again.')
+		} finally {
+			isSavingActivity.value = false
+		}
+		return
+	}
 	try {
-		const response = await useApi().post<EventActivity>(`/organizations/${orgId}/events/${activityForm.eventId}/activities`, {
-			title: activityForm.title.trim(), description: activityForm.description.trim() || null, category: activityForm.category || null,
-			tag: activityForm.tag || null, person: activityForm.person.trim() || null, status: activityForm.status, activity_at: activityForm.activityAt || null,
-			visible_to_client: activityForm.visibleToClient,
-		})
+		const response = await useApi().post<EventActivity>(`/organizations/${orgId}/events/${activityForm.eventId}/activities`, body)
 		const event = organizerEvents.value.find(e => e.id === activityForm.eventId)
 		activities.value.unshift({ ...response.data, event: response.data.event ?? (event ? { id: event.id, name: event.name, event_type: event.event_type } : undefined) })
 		showAddActivity.value = false

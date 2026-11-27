@@ -25,6 +25,8 @@ export interface LegacyEvent {
   event_type: string
   description: string | null
   event_date: string | null
+  /** Last day of the event (differs from event_date for overnight / multi-day events). */
+  end_date: string | null
   location: string | null
   expected_guests: number | null
   start_time: string | null
@@ -65,6 +67,7 @@ export function toLegacyEvent(e: NaseryEvent | ApiOrganizerEvent, quotationId: s
     event_type: e.event_type ?? 'Event',
     description: e.description,
     event_date: localDate(starts, tz),
+    end_date: localDate(ends, tz),
     location: [e.venue_name, e.venue_address].filter(Boolean).join(', ') || null,
     expected_guests: e.overall_capacity,
     start_time: localTime(starts, tz),

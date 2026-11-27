@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * from tickets + active holds under a row lock (CapacityGuard), never from
  * cached_sold_count.
  */
-#[Fillable(['name', 'description', 'zone_name', 'benefits', 'price', 'capacity', 'sales_start_at', 'sales_end_at', 'status', 'sort_order', 'seating_mode', 'table_label', 'table_count', 'table_size'])]
+#[Fillable(['name', 'description', 'zone_name', 'benefits', 'price', 'capacity', 'sales_start_at', 'sales_end_at', 'status', 'sort_order', 'seating_mode', 'table_label', 'table_count', 'table_size', 'seat_rows', 'row_names'])]
 class TicketType extends Model
 {
     use SoftDeletes;
@@ -45,6 +45,7 @@ class TicketType extends Model
             'sort_order' => 'integer',
             'table_count' => 'integer',
             'table_size' => 'integer',
+            'seat_rows' => 'array',
         ];
     }
 

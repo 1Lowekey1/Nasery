@@ -64,6 +64,8 @@
 					<div class="sm:col-span-2"><button type="submit" :disabled="busy" class="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Save limits</button></div>
 				</form>
 			</section>
+
+			<SuperadminAccountRemoval v-if="overview.can_delete_accounts" />
 		</template>
 
 		<!-- Plans (B18) -->
@@ -161,7 +163,7 @@ const error = ref('')
 const notice = ref('')
 const busy = ref(false)
 
-const overview = ref<{ settings: PlatformSetting[], fee: FeeState } | null>(null)
+const overview = ref<{ settings: PlatformSetting[], fee: FeeState, can_delete_accounts?: boolean } | null>(null)
 const values = reactive<Record<string, number>>({})
 const fee = reactive({ enabled: true, model: 'percentage' as FeeVersion['model'], percent: 1 as number | null, fixed: null as number | null, reason: '' })
 const announcements = ref<Announcement[]>([])

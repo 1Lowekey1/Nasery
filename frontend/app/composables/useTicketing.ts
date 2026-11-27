@@ -89,7 +89,7 @@ export interface PublicTier {
 }
 
 /** tables: tables or spaces ("VIP Table 3", "Booth 12"); rows: rows of seats ("Row C"), taken = seat numbers. */
-export interface TableChoice { mode: 'tables' | 'rows', label: string, size: number, tables: { number: number, name: string, left: number, taken?: number[] }[] }
+export interface TableChoice { mode: 'tables' | 'rows', label: string, size: number, tables: { number: number, name: string, left: number, taken?: number[], /** 0067: seats in this row */ seats?: number }[] }
 
 // The card has a tier count; the detail page has the tiers themselves.
 export interface PublicEventDetail extends Omit<PublicEventCard, 'tiers'> {
