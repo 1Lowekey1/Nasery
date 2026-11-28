@@ -20,6 +20,8 @@ export interface EventFields {
   description: string | null
   timezone?: string
   overall_capacity: number | null
+  /** 0068: tickets one buyer may get per order (null: 10). */
+  max_per_buyer?: number | null
   venue_name: string | null
   venue_address: string | null
   latitude: number | null
@@ -171,6 +173,7 @@ export const useOrganizerEvents = () => {
     addSession: async (orgId: string, id: string, s: SessionInput) => (await api.post<OrganizerEvent>(`${base(orgId)}/${id}/sessions`, s)).data,
     updateSession: async (orgId: string, id: string, sessionId: string, s: SessionInput) =>
       (await api.patch<OrganizerEvent>(`${base(orgId)}/${id}/sessions/${sessionId}`, s)).data,
+    removeSession: async (orgId: string, id: string, sessionId: string) => { await api.delete(`${base(orgId)}/${id}/sessions/${sessionId}`) },
 
     // B7 preparation + timeline (every call returns the whole preparation state)
     preparation: async (orgId: string, id: string) => (await api.get<Preparation>(`${base(orgId)}/${id}/preparation`)).data,

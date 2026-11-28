@@ -313,39 +313,81 @@
                                     <IconBase name="check" class="h-4 w-4 text-[#285F6b]" />Confirm your e-mail above to fill in the tickets.
                                 </p>
                             </div>
-                            <div :inert="!buyerVerified || undefined" :aria-hidden="!buyerVerified || undefined" class="rounded-2xl border border-gray-200 bg-gradient-to-b from-gray-50/80 to-white p-4 shadow-sm sm:p-5">
-                                <!-- Ticket chips: jump to any ticket; a check marks a complete one. -->
-                                <div class="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Tickets">
-                                    <button v-for="(a, i) in form.attendees" :key="i" type="button" role="tab" :aria-selected="activeTicket === i"
-                                        class="inline-flex max-w-[11rem] items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition"
-                                        :class="activeTicket === i ? 'border-[#285F6b] bg-[#285F6b] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[#285F6b]/50'"
-                                        @click="activeTicket = i">
-                                        <IconBase v-if="ticketComplete(a)" name="check" class="h-3 w-3 shrink-0" />
-                                        <span class="truncate">{{ i + 1 }}. {{ a.name.trim() || 'Name needed' }}</span>
-                                    </button>
+                            <div :inert="!buyerVerified || undefined" :aria-hidden="!buyerVerified || undefined" class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                                <!-- Header: how many tickets, the total, and the one place to add a ticket. -->
+                                <div class="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/80 px-4 py-3 sm:px-5">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-bold text-gray-900">Tickets</p>
+                                        <p class="text-xs text-gray-500">{{ form.attendees.length }} {{ form.attendees.length === 1 ? 'ticket' : 'tickets' }} · {{ formatCurrency(totalAmount) }}<template v-if="form.attendees.length > 1"> · {{ namedCount }} of {{ form.attendees.length }} named</template></p>
+                                    </div>
+                                    <!-- Many tickets: fill in every name in one list (Advisor's follow-up, Nov 2026). -->
+                                    <div v-if="form.attendees.length > 2" class="ml-auto hidden shrink-0 rounded-lg bg-gray-100 p-0.5 text-xs font-semibold sm:flex" role="group" aria-label="View">
+                                        <button type="button" class="rounded-md px-2.5 py-1.5" :class="!listView ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'" :aria-pressed="!listView" @click="listView = false">One at a time</button>
+                                        <button type="button" class="rounded-md px-2.5 py-1.5" :class="listView ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'" :aria-pressed="listView" @click="listView = true">All tickets</button>
+                                    </div>
                                     <button v-if="availableTicketTypes.length && form.attendees.length < maxTickets" type="button"
-                                        class="inline-flex items-center gap-1 rounded-full border border-dashed border-[#285F6b]/50 px-3 py-1.5 text-xs font-bold text-[#285F6b] hover:bg-[#285F6b]/5" @click="addAttendee">
-                                        <IconBase name="plus" class="h-3 w-3" />Add ticket
+                                        class="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#285F6b]/30 bg-white px-3 text-xs font-bold text-[#285F6b] transition hover:bg-[#285F6b]/5" @click="addAttendee">
+                                        <IconBase name="plus" class="h-3.5 w-3.5" />Add ticket
+                                    </button>
+                                    <span v-else-if="form.attendees.length >= maxTickets" class="shrink-0 text-xs font-semibold text-gray-500">Up to {{ maxTickets }} per buyer</span>
+                                </div>
+
+                                <!-- Chips: jump to any ticket. Green check = complete, amber dot = name missing. -->
+                                <!-- Phones: the same switch, full width. -->
+                                <div v-if="form.attendees.length > 2" class="flex gap-0.5 rounded-lg bg-gray-100 p-0.5 text-xs font-semibold sm:hidden mx-4 mt-3" role="group" aria-label="View">
+                                    <button type="button" class="flex-1 rounded-md px-2.5 py-1.5" :class="!listView ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'" :aria-pressed="!listView" @click="listView = false">One at a time</button>
+                                    <button type="button" class="flex-1 rounded-md px-2.5 py-1.5" :class="listView ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'" :aria-pressed="listView" @click="listView = true">All tickets</button>
+                                </div>
+
+                                <ol v-if="listView && form.attendees.length > 2" class="divide-y divide-gray-100 px-4 py-2 sm:px-5" aria-label="All tickets">
+                                    <li v-for="(a, i) in form.attendees" :key="i" class="grid grid-cols-[auto_1fr_auto] items-center gap-x-2.5 gap-y-2 py-2.5" :class="availableTicketTypes.length > 1 ? 'sm:grid-cols-[auto_1fr_15rem_auto]' : ''">
+                                        <span class="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold" :class="ticketComplete(a) ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'">{{ i + 1 }}</span>
+                                        <input v-model="a.name" type="text" autocomplete="off" class="reg-field !h-10" :placeholder="`Name on ticket ${i + 1}`" :aria-label="`Name on ticket ${i + 1}`">
+                                        <button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:invisible sm:order-last" :disabled="form.attendees.length === 1" :aria-label="`Remove ticket ${i + 1}`" @click="removeAttendee(i)"><IconBase name="x" class="h-4 w-4" /></button>
+                                        <!-- Only one ticket type: no need to choose it on every row. -->
+                                        <div v-if="availableTicketTypes.length > 1" class="col-span-3 col-start-2 sm:col-span-1 sm:col-start-auto">
+                                            <FormsSelect v-model="a.event_ticket_type_id" :options="ticketTypeOptions" placeholder="Ticket type" :can-clear="false" :aria-label="`Ticket type for ticket ${i + 1}`" />
+                                        </div>
+                                    </li>
+                                </ol>
+                                <p v-if="listView && form.attendees.length > 2" class="px-4 pb-4 text-xs text-gray-500 sm:px-5">{{ availableTicketTypes.length > 1 ? '' : `All are ${availableTicketTypes[0]?.name ?? 'the same ticket'}. ` }}E-mails are optional: switch to “One at a time” to add one to a ticket.</p>
+
+                                <div v-if="form.attendees.length > 1 && !(listView && form.attendees.length > 2)" class="flex gap-2 overflow-x-auto px-4 pb-1 pt-3 sm:px-5" role="tablist" aria-label="Tickets">
+                                    <button v-for="(a, i) in form.attendees" :key="i" type="button" role="tab" :aria-selected="activeTicket === i"
+                                        class="inline-flex max-w-[12rem] shrink-0 items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-xs font-semibold transition"
+                                        :class="activeTicket === i ? 'border-[#285F6b] bg-[#285F6b]/10 text-[#285F6b]' : 'border-gray-200 bg-white text-gray-700 hover:border-[#285F6b]/40'"
+                                        @click="activeTicket = i">
+                                        <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+                                            :class="ticketComplete(a) ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'">
+                                            <IconBase v-if="ticketComplete(a)" name="check" class="h-3 w-3" /><template v-else>{{ i + 1 }}</template>
+                                        </span>
+                                        <span class="truncate">{{ a.name.trim() || `Ticket ${i + 1}` }}</span>
                                     </button>
                                 </div>
 
-                                <div v-if="currentAttendee" class="mt-4 border-t border-gray-100 pt-4">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <button type="button" class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40"
-                                            :disabled="activeTicket === 0" aria-label="Previous ticket" @click="activeTicket--">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
-                                        </button>
-                                        <p class="text-sm font-bold text-gray-900" aria-live="polite">Ticket {{ activeTicket + 1 }} of {{ form.attendees.length }}</p>
-                                        <button type="button" class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40"
-                                            :disabled="activeTicket >= form.attendees.length - 1" aria-label="Next ticket" @click="activeTicket++">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
-                                        </button>
+                                <div v-if="currentAttendee && !(listView && form.attendees.length > 2)" class="p-4 sm:p-5">
+                                    <div class="flex items-center gap-3">
+                                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#285F6b] text-sm font-bold text-white">{{ activeTicket + 1 }}</span>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm font-bold text-gray-900" aria-live="polite">Ticket {{ activeTicket + 1 }} of {{ form.attendees.length }}</p>
+                                            <p class="truncate text-xs text-gray-500">{{ ticketTypeName(currentAttendee) }} · {{ formatCurrency(ticketPrice(currentAttendee)) }}</p>
+                                        </div>
+                                        <div v-if="form.attendees.length > 1" class="flex shrink-0 gap-1.5">
+                                            <button type="button" class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                                                :disabled="activeTicket === 0" aria-label="Previous ticket" @click="activeTicket--">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+                                            </button>
+                                            <button type="button" class="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+                                                :disabled="activeTicket >= form.attendees.length - 1" aria-label="Next ticket" @click="activeTicket++">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div class="mt-4 grid gap-3 sm:grid-cols-2">
                                         <div>
                                             <label for="att-name" class="mb-1.5 block text-sm font-semibold text-gray-700">Attendee's full name <span class="text-red-500">*</span></label>
-                                            <input id="att-name" v-model="currentAttendee.name" type="text" autocomplete="off" :placeholder="activeTicket === 0 ? 'Your name, or the attendee\'s' : 'Name on this ticket'" class="reg-field">
+                                            <input id="att-name" v-model="currentAttendee.name" type="text" autocomplete="off" :placeholder="activeTicket === 0 ? 'Your name, or the attendee\'s' : 'Name printed on this ticket'" class="reg-field">
                                         </div>
                                         <div>
                                             <span class="mb-1.5 block text-sm font-semibold text-gray-700">Ticket type <span class="text-red-500">*</span></span>
@@ -353,43 +395,52 @@
                                                 :options="availableTicketTypes.map(ticketType => ({ value: ticketType.id, label: `${ticketType.name} — ${formatCurrency(ticketType.price)}` }))"
                                                 placeholder="Select ticket type" :can-clear="false" aria-label="Ticket type" />
                                         </div>
-                                    </div>
-                                    <div v-if="signedIn" class="mt-3 grid gap-3 sm:grid-cols-2">
-                                        <div>
-                                            <label for="att-email" class="mb-1.5 block text-sm font-semibold text-gray-700">E-mail <span class="text-xs font-normal text-gray-400">(optional: we send this ticket there too)</span></label>
+                                        <div :class="signedIn && activeTicket === 0 ? '' : 'sm:col-span-2'">
+                                            <label for="att-email" class="mb-1.5 block text-sm font-semibold text-gray-700">Attendee's e-mail <span class="text-xs font-normal text-gray-400">(optional)</span></label>
                                             <input id="att-email" v-model="currentAttendee.email" type="email" autocomplete="off" placeholder="attendee@example.com" class="reg-field">
+                                            <p class="mt-1 text-xs text-gray-500">{{ signedIn ? 'We also send this ticket there.' : 'We also send this ticket there. You still get a copy of every ticket.' }}</p>
                                         </div>
-                                        <div v-if="activeTicket === 0">
+                                        <div v-if="signedIn && activeTicket === 0">
                                             <label for="att-phone" class="mb-1.5 block text-sm font-semibold text-gray-700">Your contact number <span class="text-xs font-normal text-gray-400">(optional)</span></label>
                                             <input id="att-phone" v-model="currentAttendee.contact_no" type="tel" autocomplete="tel" placeholder="e.g. 09171234567" class="reg-field">
                                         </div>
                                     </div>
 
-                                    <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
-                                        <button v-if="form.attendees.length > 1" type="button" class="text-xs font-semibold text-red-600 hover:text-red-700" @click="removeAttendee(activeTicket)">Remove this ticket</button>
-                                        <span v-else />
-                                        <button v-if="activeTicket < form.attendees.length - 1" type="button" class="inline-flex h-9 items-center gap-1 rounded-lg bg-[#285F6b]/10 px-3 text-xs font-bold text-[#285F6b] hover:bg-[#285F6b]/15" @click="activeTicket++">
-                                            Next ticket<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3.5 w-3.5" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                                    <div v-if="form.attendees.length > 1 || activeTicket < form.attendees.length - 1" class="mt-4 flex items-center justify-between gap-2 border-t border-gray-100 pt-4">
+                                        <button v-if="form.attendees.length > 1" type="button" class="inline-flex h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-red-600 hover:bg-red-50" @click="removeAttendee(activeTicket)">
+                                            <IconBase name="trash" class="h-3.5 w-3.5" />Remove ticket {{ activeTicket + 1 }}
                                         </button>
-                                        <button v-else-if="availableTicketTypes.length && form.attendees.length < maxTickets" type="button" class="inline-flex h-9 items-center gap-1 rounded-lg bg-[#285F6b]/10 px-3 text-xs font-bold text-[#285F6b] hover:bg-[#285F6b]/15" @click="addAttendee">
-                                            <IconBase name="plus" class="h-3.5 w-3.5" />Add another ticket
+                                        <span v-else />
+                                        <button v-if="activeTicket < form.attendees.length - 1" type="button" class="inline-flex h-9 items-center gap-1 rounded-lg bg-[#285F6b] px-3.5 text-xs font-bold text-white hover:bg-[#1f4a54]" @click="activeTicket++">
+                                            Next: ticket {{ activeTicket + 2 }}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3.5 w-3.5" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 0066: ticket types with a layout: choose a table/space or a row (optional; by default we choose, first come, first served). -->
-                        <section v-for="group in (buyerVerified ? seatingGroups : [])" :key="group.id" class="mt-6 rounded-2xl border border-gray-200 bg-white p-5" :aria-label="`Seating for ${group.name}`">
-                            <p class="text-sm font-bold text-gray-900">{{ group.tables.mode === 'rows' ? (group.need === 1 ? 'Choose your seat' : 'Choose your seats') : `Choose a ${group.tables.label}` }} <span class="font-semibold text-gray-500">· {{ group.name }}</span></p>
-                            <p class="mb-3 mt-1 text-xs leading-5 text-gray-500">
-                                <template v-if="group.tables.mode === 'rows'">{{ group.need === 1 ? 'Tap your seat in the plan.' : `Tap ${group.need} seats in the plan, or pick a row and we seat you side by side.` }}</template>
-                                <template v-else-if="group.tables.size > 1">{{ group.need }} {{ group.need === 1 ? 'seat' : 'seats' }} at one {{ group.tables.label }} ({{ group.tables.size }} seats each).</template>
-                                <template v-else>{{ group.need }} {{ group.need === 1 ? group.tables.label : `${group.tables.label}s` }}.</template>
-                                Optional: leave it as it is and we'll choose for you.
-                            </p>
-                            <SeatingTablePlan :model-value="tableChoice[group.id] ?? 0" @update:model-value="tableChoice[group.id] = $event" :picks="seatPicks[group.id] ?? []" @update:picks="seatPicks[group.id] = $event" :name="group.name" :mode="group.tables.mode" :label="group.tables.label"
-                                :tables="group.tables.tables" :size="group.tables.size" :need="group.need" :image="eventDetail?.floor_plan_url" :who="group.who" />
+                        <!-- 0066: ticket types with a layout: choose a table/space or a row (optional; by default we choose, first come, first served).
+                             Advisor's follow-up (Nov 2026): one "Seats" step for every ticket type, each part naming who sits there. -->
+                        <section v-if="buyerVerified && seatingGroups.length" class="mt-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Seats">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-bold text-gray-900">Seats <span class="font-normal text-gray-400">(optional)</span></p>
+                                    <p class="mt-0.5 text-xs leading-5 text-gray-500">{{ seatingGroups.length > 1 ? 'Each ticket type has its own area. ' : '' }}Leave any of it and we choose for you, first come, first served.</p>
+                                </div>
+                            </div>
+                            <div v-for="(group, gi) in seatingGroups" :key="group.id" class="mt-4" :class="gi > 0 ? 'border-t border-gray-100 pt-4' : ''" :aria-label="`Seating for ${group.name}`">
+                                <div class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span class="rounded-full bg-[#285F6b]/10 px-2.5 py-1 text-xs font-bold text-[#285F6b]">{{ group.name }}</span>
+                                    <span class="text-xs text-gray-500">for {{ group.who.join(', ') }}</span>
+                                </div>
+                                <p class="mb-3 text-xs leading-5 text-gray-500">
+                                    <template v-if="group.tables.mode === 'rows'">{{ group.need === 1 ? 'Tap a seat in the plan, or pick a row below.' : `Tap a seat for each of the ${group.need} tickets, or pick a row and we seat you side by side when we can.` }}</template>
+                                    <template v-else-if="group.need === 1">Tap a {{ group.tables.label }}{{ group.tables.size > 1 ? ` (${group.tables.size} seats each)` : '' }}.</template>
+                                    <template v-else>Tap a {{ group.tables.label }} for each ticket{{ group.tables.size > 1 ? ` (${group.tables.size} seats each)` : '' }}: you can split up, or tap one several times to sit together.{{ group.tables.size > 1 && group.need <= group.tables.size ? ` Or choose one ${group.tables.label} for everyone below.` : '' }}</template>
+                                </p>
+                                <SeatingTablePlan :model-value="tableChoice[group.id] ?? 0" @update:model-value="tableChoice[group.id] = $event" :picks="seatPicks[group.id] ?? []" @update:picks="seatPicks[group.id] = $event" :name="group.name" :mode="group.tables.mode" :label="group.tables.label"
+                                    :tables="group.tables.tables" :size="group.tables.size" :need="group.need" :image="gi === 0 ? eventDetail?.floor_plan_url : null" :who="group.who" />
+                            </div>
                         </section>
 
                         <!-- Summary: every ticket on one line (name, type, seat, price). -->
@@ -735,7 +786,11 @@ const buyerVerified = computed(() => signedIn.value || Boolean(
 ))
 // One ticket at a time (◀ Ticket 2 of 4 ▶), with chips to jump between them.
 const activeTicket = ref(0)
-const maxTickets = 10
+// 0068: the organizer's tickets-per-buyer cap (10 when not set); the server also counts earlier orders.
+const maxTickets = computed(() => eventDetail.value?.max_per_buyer ?? 10)
+const listView = ref(false)
+const namedCount = computed(() => form.attendees.filter(a => a.name.trim()).length)
+const ticketTypeOptions = computed(() => availableTicketTypes.value.map(t => ({ value: t.id, label: `${t.name} — ${formatCurrency(t.price)}` })))
 const currentAttendee = computed(() => form.attendees[activeTicket.value] ?? null)
 const ticketComplete = (a: AttendeeFormWithContact) => Boolean(a.name.trim() && a.event_ticket_type_id)
 
@@ -857,12 +912,13 @@ function seatFor(index: number): string {
     if (!a) return ''
     const group = seatingGroups.value.find(g => g.id === String(a.event_ticket_type_id))
     if (!group) return ''
-    if (group.tables.mode !== 'rows') {
-        const chosen = tableChoice[group.id]
-        return chosen ? (group.tables.tables.find(t => t.number === chosen)?.name ?? '') : ''
-    }
     const position = form.attendees.slice(0, index).filter(x => String(x.event_ticket_type_id) === group.id).length
     const pick = (seatPicks[group.id] ?? [])[position]
+    if (group.tables.mode !== 'rows') {
+        // A table per ticket, or one table chosen for everyone.
+        const chosen = pick?.[0] ?? (seatPicks[group.id]?.length ? 0 : tableChoice[group.id])
+        return chosen ? (group.tables.tables.find(t => t.number === chosen)?.name ?? '') : ''
+    }
     return pick ? `${group.tables.tables.find(t => t.number === pick[0])?.name ?? `Row ${pick[0]}`}, Seat ${pick[1]}` : ''
 }
 
@@ -988,6 +1044,9 @@ const eventSchedule = computed(() => {
             eventData.value.end_time
         )
 
+    // Several sessions (one per day): "Dec 7 – Dec 9, 2026 • 9:00 AM – 5:00 PM daily" or "Hours vary by day".
+    const days = describeSessions(eventDetail.value?.sessions, eventDetail.value?.timezone || 'Asia/Manila')
+    if (days) return `${days.dateText} • ${days.same ? days.timeText : days.days.map(d => `${d.label} ${d.hours}`).join(' · ')}`
     const span = eventSpan.value
     if (span && dayGap(span.starts, span.ends, span.tz) > 1) {
         return `${dateSpan(span.starts, span.ends, span.tz)} • ${start} - ${end}`
@@ -1429,7 +1488,7 @@ const submitRegistration =
             form.attendees.findIndex(
                 attendee =>
                     attendee.name.trim().length < 2 ||
-                    (signedIn.value && attendee.email.trim() !== '' && !emailPattern.test(
+                    (attendee.email.trim() !== '' && !emailPattern.test(
                         attendee.email.trim()
                     )) ||
                     !attendee.event_ticket_type_id
@@ -1440,7 +1499,7 @@ const submitRegistration =
         ) {
             activeTicket.value = invalidAttendeeIndex
             errorMessage.value =
-                `Ticket ${invalidAttendeeIndex + 1}: enter the attendee's full name${signedIn.value ? ', a valid e-mail (or leave it empty),' : ''} and choose a ticket type.`
+                `Ticket ${invalidAttendeeIndex + 1}: enter the attendee's full name, a valid e-mail (or leave it empty), and choose a ticket type.`
 
             return
         }
@@ -1481,8 +1540,8 @@ const submitRegistration =
                     ...(linkKey.value ? { key: linkKey.value } : {}),
                     attendees: form.attendees.map(attendee => ({
                         full_name: attendee.name.trim(),
-                        // Guests: every ticket goes to the buyer's confirmed e-mail.
-                        email: signedIn.value ? (attendee.email.trim() || null) : null,
+                        // Optional: this ticket also goes there (a guest buyer still gets every ticket).
+                        email: attendee.email.trim() || null,
                         ticket_type_id: attendee.event_ticket_type_id,
                     })),
                     buyer: signedIn.value
@@ -1491,7 +1550,9 @@ const submitRegistration =
                     // 0066: the table chosen per ticket type (null: any table).
                     tables: Object.fromEntries(seatingGroups.value.map(g => [g.id, tableChoice[g.id] || null])),
                     // 0067: exact seats tapped (rows), per ticket type.
-                    seats: Object.fromEntries(seatingGroups.value.filter(g => (seatPicks[g.id] ?? []).length).map(g => [g.id, seatPicks[g.id]])),
+                    // Tables/spaces: [table] per ticket (Advisor's follow-up, Nov 2026).
+                    seats: Object.fromEntries(seatingGroups.value.filter(g => (seatPicks[g.id] ?? []).length)
+                        .map(g => [g.id, g.tables.mode === 'rows' ? seatPicks[g.id] : (seatPicks[g.id] ?? []).map(([t]) => [t])])),
                 }, { idempotencyKey: crypto.randomUUID() })
 
             registrationId.value = data.registration_id

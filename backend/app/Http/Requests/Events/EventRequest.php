@@ -31,6 +31,8 @@ class EventRequest extends FormRequest
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'timezone' => ['sometimes', 'timezone:all'],
             'overall_capacity' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:1000000'],
+            // 0068: tickets one buyer may get in one order (null: the default, 10).
+            'max_per_buyer' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:100'],
             'venue_name' => ['sometimes', 'nullable', 'string', 'max:200'],
             'venue_address' => ['sometimes', 'nullable', 'string', 'max:500'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90', 'required_with:longitude'],

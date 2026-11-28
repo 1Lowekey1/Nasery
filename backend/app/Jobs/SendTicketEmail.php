@@ -43,7 +43,10 @@ class SendTicketEmail implements ShouldQueue
             return;
         }
 
-        Mail::to($row->recipient)->send(new TicketMail($tickets, $pdf->render($tickets), $row->kind, (string) $tickets->first()['recipient_name']));
+        // The greeting: the ticket's own recipient, or the buyer for their copy.
+        $own = $tickets->first(fn ($c) => strtolower(trim((string) $c['recipient'])) === strtolower(trim((string) $row->recipient)));
+        $name = $own ? $own['recipient_name'] : ($tickets->first()['purchaser_name'] ?: $tickets->first()['recipient_name']);
+        Mail::to($row->recipient)->send(new TicketMail($tickets, $pdf->render($tickets), $row->kind, (string) $name));
         $this->record('sent');
     }
 

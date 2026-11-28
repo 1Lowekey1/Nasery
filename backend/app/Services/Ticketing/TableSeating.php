@@ -141,7 +141,8 @@ class TableSeating
     /**
      * Places for $quantity new tickets: one label each (null when the type has no layout).
      *
-     * @param  list<array{0: int, 1: int}>  $picks  rows: exact seats the buyer tapped, [row, seat]
+     * @param  list<array{0: int, 1?: int}>  $picks  rows: exact seats the buyer tapped, [row, seat];
+     *                                              tables/spaces: the table chosen per ticket, [table] (Advisor's follow-up, Nov 2026)
      * @return list<string|null>
      */
     public function assign(TicketType $tier, int $quantity, ?int $choice, array $picks = []): array
@@ -157,6 +158,30 @@ class TableSeating
 
         // Exact seats first (rows only); whatever wasn't picked is filled next to them.
         $seats = [];
+        // Tables/spaces: a table per ticket, so a group can be split over several tables
+        // (or be bigger than one table). Tickets without a pick are placed as below.
+        if (! $rows && $picks !== []) {
+            if (count($picks) > $quantity) {
+                throw $this->invalid('Pick at most one place per ticket.');
+            }
+            foreach ($picks as $pick) {
+                $number = (int) ($pick[0] ?? 0);
+                if (! isset($taken[$number])) {
+                    throw $this->invalid('Choose one of the places listed.');
+                }
+                if ($taken[$number] >= $size) {
+                    $name = self::groupName($tier, $number);
+                    throw new ApiException(ErrorCode::CapacityExceeded, "{$name} just filled up. Please choose another.", 409, ['scope' => 'table', 'available' => 0]);
+                }
+                $taken[$number]++;
+                $seats[] = self::seatLabel($tier, $number, null);
+            }
+            $quantity -= count($seats);
+            if ($quantity === 0) {
+                return $seats;
+            }
+            $choice = null; // the rest: any table, together when one has room
+        }
         if ($rows && $picks !== []) {
             if (count($picks) > $quantity) {
                 throw $this->invalid('Pick at most one seat per ticket.');

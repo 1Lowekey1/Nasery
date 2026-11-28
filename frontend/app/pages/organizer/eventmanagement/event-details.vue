@@ -140,12 +140,12 @@
 									</div>
 									<textarea id="ed-desc" v-model="editForm.description" rows="4" class="ed-field min-h-[110px] resize-y py-3 leading-6" placeholder="What’s the event about? Guests and your team will see this." />
 								</div>
-								<div class="grid gap-4 sm:grid-cols-3">
-									<div>
+								<div class="grid gap-4" :class="multiDay && editForm.perDay ? 'sm:grid-cols-1 sm:max-w-xs' : 'sm:grid-cols-3'">
+									<div v-if="!(multiDay && editForm.perDay)">
 										<span class="ed-label">Start time</span>
 										<FormsTimeField v-model="editForm.startTime" name="start_time" placeholder="Start time" />
 									</div>
-									<div>
+									<div v-if="!(multiDay && editForm.perDay)">
 										<span class="ed-label">End time</span>
 										<FormsTimeField v-model="editForm.endTime" name="end_time" placeholder="End time" />
 									</div>
@@ -155,9 +155,35 @@
 										<FormsDateField v-model="editForm.endDate" name="end_date" placeholder="Same day" />
 									</div>
 								</div>
-								<p v-if="scheduleHint" class="-mt-2 flex items-start gap-1.5 text-xs text-gray-500" role="status">
+								<p v-if="scheduleHint && !multiDay" class="-mt-2 flex items-start gap-1.5 text-xs text-gray-500" role="status">
 									<IconBase name="clock" class="mt-px h-3.5 w-3.5 shrink-0" />{{ scheduleHint }}
 								</p>
+								<!-- Members' follow-up (Nov 2026): a multi-day event is one session per day, with the same or its own hours. -->
+								<div v-if="multiDay" class="-mt-1 rounded-xl border border-gray-200 bg-gray-50/60 p-3 sm:p-4">
+									<div class="flex flex-wrap items-center justify-between gap-2">
+										<p class="text-sm font-semibold text-gray-950">{{ allDays.length }} days · hours on each day</p>
+										<div class="flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold" role="group" aria-label="Hours on each day">
+											<button type="button" class="rounded-md px-2.5 py-1.5" :class="!editForm.perDay ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'" :aria-pressed="!editForm.perDay" @click="editForm.perDay = false">Same every day</button>
+											<button type="button" class="rounded-md px-2.5 py-1.5" :class="editForm.perDay ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'" :aria-pressed="editForm.perDay" @click="startPerDay">Different each day</button>
+										</div>
+									</div>
+									<p v-if="!editForm.perDay" class="mt-2 text-xs text-gray-500">{{ editForm.startTime && editForm.endTime ? `${clockTime(editForm.startTime)} – ${clockTime(editForm.endTime)}${editForm.endTime <= editForm.startTime ? ' (past midnight)' : ''} on each of the ${editDays.length} days.` : 'Set the start and end time above; they apply to every day.' }}</p>
+									<div v-else class="mt-3">
+										<div class="flex flex-wrap items-center justify-between gap-2">
+											<p class="text-xs text-gray-500">An end time earlier than the start means past midnight (e.g. 6:00 PM – 2:00 AM).</p>
+											<button type="button" class="text-xs font-semibold text-primary-700 hover:underline" @click="copyFirstDay">Copy Day 1 hours to all days</button>
+										</div>
+										<!-- Compact: two columns, scrolls when long. -->
+										<div class="mt-2 grid max-h-80 gap-x-4 gap-y-1.5 overflow-y-auto pr-1 2xl:grid-cols-2">
+											<div v-for="(d, i) in editDays" :key="d.date" class="grid grid-cols-[5.25rem_1fr_1fr] items-center gap-1.5">
+												<span class="text-xs font-semibold leading-4 text-gray-900">Day {{ i + 1 }}<span class="block font-normal text-gray-500">{{ shortDay(d.date) }}</span></span>
+												<FormsTimeField v-model="d.start" :name="`day_${i}_start`" placeholder="Start" />
+												<FormsTimeField v-model="d.end" :name="`day_${i}_end`" placeholder="End" />
+											</div>
+										</div>
+									</div>
+									<p v-if="tooManyDays" class="mt-2 text-xs font-semibold text-red-600" role="alert">A multi-day event can run at most {{ MAX_EVENT_DAYS }} days (each day is its own session). Choose an earlier “Ends on” date.</p>
+								</div>
 								<div>
 									<span class="ed-label">Visibility</span>
 									<div class="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Visibility">
@@ -235,6 +261,12 @@
 										<p class="text-lg font-extrabold tabular-nums" :class="seatProblem ? 'text-red-700' : 'text-gray-950'">{{ ticketSummary.capacity }}<span v-if="ticketSummary.guests" class="text-xs font-medium" :class="seatProblem ? 'text-red-600' : 'text-gray-400'"> / {{ invitedSoFar ? `${Math.max(0, ticketSummary.guests - invitedSoFar)} free` : `${ticketSummary.guests} capacity` }}</span></p>
 									</div>
 									<div class="rounded-xl bg-gray-50 px-4 py-3"><p class="text-xs text-gray-500">If all sell</p><p class="text-lg font-extrabold tabular-nums text-primary-700">{{ formatCurrency(ticketSummary.revenue) }}</p></div>
+								</div>
+								<!-- 0068 (advisor's follow-up, Nov 2026): the organizer sets how many tickets one buyer may have. -->
+								<div class="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-gray-200 px-4 py-3">
+									<label for="ed-per-order" class="min-w-0 flex-1 text-sm font-semibold text-gray-950">Tickets per buyer
+										<span class="mt-0.5 block text-xs font-normal text-gray-500">The most tickets one person can get for this event, across all their orders (1 to 100). A person is their account, or the e-mail they confirmed. Leave empty for 10.</span></label>
+									<input id="ed-per-order" v-model="editForm.maxPerBuyer" type="number" min="1" max="100" step="1" inputmode="numeric" class="ed-field !w-28" placeholder="10" />
 								</div>
 								<p v-if="seatProblem" class="flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-700" role="alert"><IconBase name="x-circle" class="mt-px h-3.5 w-3.5 shrink-0" />{{ seatProblem }}</p>
 								<p v-else-if="editForm.visibility === 'private' && roomSize" class="text-xs text-gray-500">{{ ticketSeats }} of {{ roomSize }} seats go to tickets; the other {{ Math.max(0, roomSize - ticketSeats) }} stay for invited guests.</p>
@@ -631,6 +663,9 @@ interface OrganizerEvent {
 	timezone?: string
 	location: string | null
 	expected_guests: number | null
+	sessions?: import('~/composables/useEvents').EventSession[]
+	/** 0068: tickets per buyer (null: 10). */
+	max_per_buyer?: number | null
 
 	start_time: string | null
 	end_time: string | null
@@ -821,6 +856,9 @@ const editForm =
 		eventDate: '',
 		/** Optional last day (multi-day events); an end time before the start means the next day. */
 		endDate: '',
+		/** Multi-day: each day has its own hours (otherwise the same start/end every day). */
+		perDay: false,
+		dayHours: {} as Record<string, { start: string, end: string }>,
 		status: 'draft',
 
 		startTime: '',
@@ -828,6 +866,8 @@ const editForm =
 
 		location: '',
 		expectedGuests: '',
+		/** 0068: tickets per order; '' = the default (10). */
+		maxPerBuyer: '',
 
 		ticketTypes: [
 			{
@@ -867,8 +907,17 @@ function fillEditForm() {
 			)
 			: ''
 
+	// Several sessions: one per day (the last day is the day the last one starts).
+	const daySessions = [...(event.value.sessions ?? [])].filter(x => x.status !== 'cancelled').sort((a, b) => a.starts_local.localeCompare(b.starts_local))
+	editForm.dayHours = {}
+	editForm.perDay = false
+	if (daySessions.length > 1) {
+		for (const x of daySessions) editForm.dayHours[x.starts_local.slice(0, 10)] = { start: x.starts_local.slice(11, 16), end: x.ends_local.slice(11, 16) }
+		const hours = Object.values(editForm.dayHours).map(h => `${h.start}-${h.end}`)
+		editForm.perDay = new Set(hours).size > 1
+	}
 	// Only a multi-day event shows its end date; an overnight one is implied by the times.
-	editForm.endDate =
+	editForm.endDate = daySessions.length > 1 ? daySessions[daySessions.length - 1]!.starts_local.slice(0, 10) :
 		event.value.end_date && event.value.event_date && event.value.end_date > event.value.event_date
 		&& !(dayGap(event.value.starts_at, event.value.ends_at, event.value.timezone) === 1 && (event.value.end_time ?? '') <= (event.value.start_time ?? ''))
 			? event.value.end_date
@@ -890,6 +939,8 @@ function fillEditForm() {
 
 	editForm.location =
 		event.value.location ?? ''
+
+	editForm.maxPerBuyer = event.value.max_per_buyer ? String(event.value.max_per_buyer) : ''
 
 	editForm.expectedGuests =
 		event.value.expected_guests !== null &&
@@ -1077,7 +1128,7 @@ async function loadEvent(id: string) {
 			.then(r => r.data.tiers).catch(() => []),
 	])
 	const extra = apiEvent as { private_link_key?: string | null, price?: EventPrice, can?: { set_price?: boolean, cancel?: boolean } }
-	return { ...toLegacyEvent(apiEvent), private_link_key: extra.private_link_key ?? null, price: extra.price ?? null, can_set_price: !!extra.can?.set_price, can_cancel: !!extra.can?.cancel, floor_plan_url: (apiEvent as { floor_plan_url?: string | null }).floor_plan_url ?? null,
+	return { ...toLegacyEvent(apiEvent), private_link_key: extra.private_link_key ?? null, price: extra.price ?? null, can_set_price: !!extra.can?.set_price, can_cancel: !!extra.can?.cancel, floor_plan_url: (apiEvent as { floor_plan_url?: string | null }).floor_plan_url ?? null, max_per_buyer: (apiEvent as { max_per_buyer?: number | null }).max_per_buyer ?? null, sessions: apiEvent.sessions ?? [],
 		ticket_types: tiers.map(t => ({ id: t.id, name: t.name, price: t.price, capacity: t.capacity, status: t.status, sold: t.sold, seating_mode: t.seating_mode, table_label: t.table_label, table_count: t.table_count, table_size: t.table_size, seat_rows: t.seat_rows, row_names: t.row_names })) }
 }
 
@@ -1238,6 +1289,10 @@ async function editAwardedEvent() {
 		const title = notes.match(/^Event: (.+)$/m)?.[1]?.trim()
 		const time = notes.match(/^Time: (\d{1,2}:\d{2}) [–-] (\d{1,2}:\d{2})$/m)
 		const { startsAt, endsAt } = placeholderSession(day, time ? { start: time[1]!.padStart(5, '0'), end: time[2]!.padStart(5, '0') } : null)
+		// Members' follow-up (Nov 2026): a multi-day request with each day's hours becomes one session per day.
+		const perDay = notes.split(/\r?\n/).map(l => l.trim().match(DAY_LINE)).filter(Boolean)
+			.map(m => placeholderSession(m![1]!, { start: m![2]!, end: m![3]! }))
+			.filter(x => x.startsAt.slice(0, 10) >= day)
 		// Never the client's full name: event names can end up public (marketplace, portfolio).
 		const firstName = q.client?.name?.trim().split(/\s+/)[0]
 		const created = await useOrganizerEvents().convert(orgId, q.id, {
@@ -1253,7 +1308,9 @@ async function editAwardedEvent() {
 			contact_name: q.client?.name ?? null,
 			contact_email: q.client?.email ?? null,
 			contact_phone: q.client?.phone ?? null,
-			sessions: [{ name: null, starts_at: startsAt, ends_at: endsAt }],
+			sessions: perDay.length > 1
+				? perDay.map(x => ({ name: null, starts_at: x.startsAt, ends_at: x.endsAt }))
+				: [{ name: null, starts_at: startsAt, ends_at: endsAt }],
 		})
 		const response = { data: { event: { id: created.id } } }
 		await navigateTo({
@@ -1312,6 +1369,11 @@ async function saveEvent() {
 
 		return
 	}
+	if (tooManyDays.value) {
+		saveError.value = `A multi-day event can run at most ${MAX_EVENT_DAYS} days. Choose an earlier “Ends on” date.`
+		activeEditTab.value = 'Basic Info'
+		return
+	}
 
 	if (seatProblem.value) {
 		saveError.value = seatProblem.value
@@ -1325,7 +1387,7 @@ async function saveEvent() {
 	saveSuccess.value = ''
 
 	try {
-		const current = event.value as unknown as LegacyEvent & { ticket_types?: { id: string, name: string, price: string | number }[] }
+		const current = event.value as unknown as LegacyEvent & { ticket_types?: { id: string, name: string, price: string | number }[], sessions?: import('~/composables/useEvents').EventSession[] }
 		const events = useOrganizerEvents()
 		const locationChanged = editForm.location.trim() !== (current.location ?? '')
 
@@ -1334,6 +1396,7 @@ async function saveEvent() {
 			event_type_id: editForm.eventType || null,
 			description: editForm.description.trim() || null,
 			overall_capacity: editForm.expectedGuests ? Number(editForm.expectedGuests) : null,
+			max_per_buyer: editForm.maxPerBuyer ? Math.min(100, Math.max(1, Math.round(Number(editForm.maxPerBuyer)))) : null,
 			...(locationChanged ? { venue_name: editForm.location.trim() || null, venue_address: null } : {}),
 			...((editForm.visibility === 'public') !== current.public_registration ? { visibility: editForm.visibility } : {}),
 			contact_name: editForm.contactName.trim() || null,
@@ -1341,15 +1404,24 @@ async function saveEvent() {
 			contact_phone: editForm.contactPhone.trim() || null,
 		})
 
-		// Date and time live on the event's (first) session.
-		const startsAt = `${editForm.eventDate}T${editForm.startTime || '09:00'}`
-		const endDay = scheduleEnd(editForm.eventDate, editForm.startTime || '09:00', editForm.endDate, editForm.endTime || '17:00').date
-		const endsAt = `${endDay}T${editForm.endTime || '17:00'}`
-		if (current.first_session_id && (editForm.eventDate !== current.event_date || endDay !== current.end_date || editForm.startTime !== current.start_time || editForm.endTime !== current.end_time)) {
-			await events.updateSession(orgId, current.id, current.first_session_id, { name: null, starts_at: startsAt, ends_at: endsAt })
-		} else if (!current.first_session_id) {
-			await events.addSession(orgId, current.id, { name: null, starts_at: startsAt, ends_at: endsAt })
+		// Date and time live on the event's sessions: one, or one per day for a multi-day event.
+		const wanted = multiDay.value
+			? editDays.value.map((d) => {
+				const start = (editForm.perDay ? d.start : editForm.startTime) || '09:00'
+				const end = (editForm.perDay ? d.end : editForm.endTime) || '17:00'
+				return { starts_at: `${d.date}T${start}`, ends_at: `${scheduleEnd(d.date, start, '', end).date}T${end}` }
+			})
+			: [{
+				starts_at: `${editForm.eventDate}T${editForm.startTime || '09:00'}`,
+				ends_at: `${scheduleEnd(editForm.eventDate, editForm.startTime || '09:00', editForm.endDate, editForm.endTime || '17:00').date}T${editForm.endTime || '17:00'}`,
+			}]
+		const existing = [...(current.sessions ?? [])].filter(x => x.status !== 'cancelled').sort((a, b) => a.starts_local.localeCompare(b.starts_local))
+		for (const [i, w] of wanted.entries()) {
+			const had = existing[i]
+			if (!had) await events.addSession(orgId, current.id, { name: null, ...w })
+			else if (had.starts_local !== w.starts_at || had.ends_local !== w.ends_at) await events.updateSession(orgId, current.id, had.id, { name: null, ...w })
 		}
+		for (const extra of existing.slice(wanted.length)) await events.removeSession(orgId, current.id, extra.id)
 
 		// Ticket types: update, add, and remove the ones taken out (the API keeps any with tickets sold).
 		const base = `/organizations/${orgId}/events/${current.id}/ticket-types`
@@ -1630,6 +1702,26 @@ function clockTime(value: string | null | undefined) {
 	const d = new Date(); d.setHours(h ?? 0, m ?? 0, 0, 0)
 	return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
+// Members' follow-up (Nov 2026): the days of a multi-day event, each with its hours.
+const multiDay = computed(() => Boolean(editForm.eventDate && editForm.endDate && editForm.endDate > editForm.eventDate))
+const allDays = computed(() => (multiDay.value ? daysBetween(editForm.eventDate, editForm.endDate) : []))
+const tooManyDays = computed(() => allDays.value.length > MAX_EVENT_DAYS)
+const dayDates = computed(() => (tooManyDays.value ? allDays.value.slice(0, MAX_EVENT_DAYS) : allDays.value))
+function copyFirstDay() {
+	const first = editDays.value[0]
+	if (first) for (const d of editDays.value.slice(1)) { d.start = first.start; d.end = first.end }
+}
+// Each day keeps its own hours (new days start from the shared ones).
+watch(dayDates, (dates) => {
+	for (const date of dates) editForm.dayHours[date] ??= { start: editForm.startTime, end: editForm.endTime }
+}, { immediate: true })
+const editDays = computed(() => dayDates.value.filter(date => editForm.dayHours[date]).map(date => Object.assign(editForm.dayHours[date]!, { date }) as { date: string, start: string, end: string }))
+function startPerDay() {
+	// Start from the shared hours, then change any day.
+	for (const d of editDays.value) { d.start ||= editForm.startTime; d.end ||= editForm.endTime }
+	editForm.perDay = true
+}
+const shortDay = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 // Advisor's fix (Nov 2026): say when an event ends the next day or runs several days.
 const scheduleHint = computed(() => {
 	if (!editForm.eventDate || !editForm.endTime) return ''
@@ -1644,7 +1736,8 @@ const viewRows = computed(() => {
 	if (!e) return []
 	const start = clockTime(e.start_time)
 	const end = clockTime(e.end_time)
-	const time = start && end ? `${start} – ${end}${endsSuffix(e.starts_at, e.ends_at, e.timezone)}` : start || end
+	const days = describeSessions((e.sessions ?? []).filter(x => x.status !== 'cancelled'), e.timezone)
+	const time = days ? days.timeText : start && end ? `${start} – ${end}${endsSuffix(e.starts_at, e.ends_at, e.timezone)}` : start || end
 	const tickets = (e.ticket_types ?? []).filter(t => !isGuestTier(t))
 	const seats = `${tickets.length} ticket ${tickets.length === 1 ? 'type' : 'types'} · ${tickets.reduce((s, t) => s + (Number(t.capacity) || 0), 0)} seats`
 	const who = e.public_registration
@@ -1652,7 +1745,7 @@ const viewRows = computed(() => {
 		: (tickets.length ? `Private · invitations + ${seats} by private link` : 'Private · invitations')
 	return [
 		{ label: 'Event type', icon: 'tag', section: 'basic', value: e.event_type || 'Not set', empty: !e.event_type },
-		{ label: 'Date', icon: 'calendar', section: 'basic', value: e.event_date ? (dayGap(e.starts_at, e.ends_at, e.timezone) > 1 && e.end_date ? `${formatDate(e.event_date)} – ${formatDate(e.end_date)}` : formatDate(e.event_date)) : 'Not set', empty: !e.event_date },
+		{ label: 'Date', icon: 'calendar', section: 'basic', value: days ? days.dateText : e.event_date ? (dayGap(e.starts_at, e.ends_at, e.timezone) > 1 && e.end_date ? `${formatDate(e.event_date)} – ${formatDate(e.end_date)}` : formatDate(e.event_date)) : 'Not set', empty: !e.event_date },
 		{ label: 'Time', icon: 'clock', section: 'basic', value: time || 'Not set', empty: !time },
 		{ label: 'Venue', icon: 'map-pin', section: 'venue', value: e.location || 'Not set', empty: !e.location },
 		{ label: 'Capacity', icon: 'users', section: 'venue', value: e.expected_guests ? `${e.expected_guests} people` : 'Not set', empty: !e.expected_guests },

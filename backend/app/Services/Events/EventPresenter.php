@@ -128,6 +128,7 @@ class EventPresenter
             'event_type' => $types[$e->event_type_id] ?? null,
             'timezone' => $e->timezone,
             'overall_capacity' => $e->overall_capacity,
+            'max_per_buyer' => $e->max_per_buyer !== null ? (int) $e->max_per_buyer : null, // 0068
             'venue_name' => $e->venue_name,
             'venue_address' => $e->venue_address,
             'cover_url' => ImageStore::url($e->cover_path ?? null),

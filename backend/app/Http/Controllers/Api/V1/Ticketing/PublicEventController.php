@@ -51,7 +51,7 @@ class PublicEventController extends Controller
     {
         $data = $request->validate([
             'ticket_type_id' => ['required', 'uuid'],
-            'attendees' => ['required', 'array', 'min:1', 'max:'.SelfRegistration::MAX_PER_REGISTRATION],
+            'attendees' => ['required', 'array', 'min:1', 'max:'.SelfRegistration::MAX_PER_ORDER_LIMIT],
             'attendees.*.full_name' => ['required', 'string', 'min:2', 'max:120'],
             'attendees.*.email' => ['nullable', 'email', 'max:254'],
             'table' => ['nullable', 'integer', 'min:1', 'max:200'], // 0066: the table chosen (none: any table)

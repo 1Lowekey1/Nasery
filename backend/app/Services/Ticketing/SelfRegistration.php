@@ -37,7 +37,52 @@ use Illuminate\Support\Str;
  */
 class SelfRegistration
 {
+    /** Tickets per buyer when the organizer hasn't set one (0068: events.max_per_buyer). */
     public const MAX_PER_REGISTRATION = 10;
+
+    /** The most an organizer may allow per buyer (and the most in one order). */
+    public const MAX_PER_ORDER_LIMIT = 100;
+
+    /** This event's tickets-per-buyer cap (call inside a system context). */
+    public static function capFor(string $eventId): int
+    {
+        return (int) (DB::table('events')->where('id', $eventId)->value('max_per_buyer') ?? self::MAX_PER_REGISTRATION);
+    }
+
+    /**
+     * Tickets this buyer already holds for the event, from their own online orders: valid or
+     * used, or unpaid while the hold lasts. A buyer is their account, or for guests the e-mail
+     * they confirmed with a code. Organizer invitations and walk-ins don't count.
+     */
+    public static function heldBy(string $eventId, ?string $userId, ?string $email): int
+    {
+        if ($userId === null && blank($email)) {
+            return 0;
+        }
+
+        return DB::table('tickets as t')->join('registrations as r', 'r.id', '=', 't.registration_id')
+            ->where('t.event_id', $eventId)->whereNull('t.deleted_at')->where('r.registration_source', RegistrationSource::Online->value)
+            ->where(fn ($q) => $userId !== null
+                ? $q->where('r.purchaser_user_id', $userId)
+                : $q->whereNull('r.purchaser_user_id')->whereRaw('lower(r.purchaser_email) = ?', [strtolower(trim((string) $email))]))
+            ->where(fn ($q) => $q->whereIn('t.status', ['valid', 'used'])
+                ->orWhere(fn ($p) => $p->where('t.status', 'pending')->whereExists(fn ($h) => $h->from('ticket_holds as h')
+                    ->whereColumn('h.registration_id', 't.registration_id')->where('h.status', 'active')->where('h.expires_at', '>', now()))))
+            ->count();
+    }
+
+    /** Refuses an order that takes this buyer past the event's cap (call inside a system context). */
+    public static function assertWithinCap(string $eventId, int $count, ?string $userId, ?string $email): void
+    {
+        $cap = self::capFor($eventId);
+        $held = self::heldBy($eventId, $userId, $email);
+        if ($held + $count > $cap) {
+            $left = max(0, $cap - $held);
+            throw \Illuminate\Validation\ValidationException::withMessages(['attendees' => $held === 0
+                ? "This event allows up to {$cap} tickets per buyer."
+                : "You already have {$held} ".($held === 1 ? 'ticket' : 'tickets')." for this event (up to {$cap} per buyer), so you can get ".($left === 0 ? 'no more.' : "{$left} more.")]);
+        }
+    }
 
     public function __construct(
         private readonly DatabaseContext $db,
@@ -119,6 +164,7 @@ class SelfRegistration
                 ...$this->eventCard($e),
                 'is_private' => ($e->visibility ?? 'public') !== 'public',
                 'floor_plan_url' => $floorPlan ? ImageStore::url($floorPlan) : null,
+                'max_per_buyer' => self::capFor($eventId), // 0068
                 'description' => $e->description,
                 'latitude' => $e->latitude !== null ? (float) $e->latitude : null,
                 'longitude' => $e->longitude !== null ? (float) $e->longitude : null,
@@ -165,6 +211,7 @@ class SelfRegistration
         $result = $this->db->system('public.register', function () use ($user, $eventId, $tierId, $attendees, $key, $table) {
             // The gate: public (or private with its link), published, approved organizer, tier on sale.
             $publicTier = EventGate::tiers($eventId, $key)->where('id', $tierId)->first();
+            self::assertWithinCap($eventId, count($attendees), $user->id, null);
 
             if ($publicTier === null) {
                 throw new ApiException(ErrorCode::NotFound, 'This ticket is not available.', 404);

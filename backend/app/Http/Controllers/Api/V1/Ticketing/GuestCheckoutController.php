@@ -54,7 +54,7 @@ class GuestCheckoutController extends Controller
             'buyer.phone' => ['nullable', 'string', 'max:30'],
             // Advisor's fix (Nov 2026): a guest confirms their own e-mail once for the whole purchase.
             'buyer.verification_token' => ['nullable', 'string', 'max:100'],
-            'attendees' => ['required', 'array', 'min:1', 'max:'.SelfRegistration::MAX_PER_REGISTRATION],
+            'attendees' => ['required', 'array', 'min:1', 'max:'.SelfRegistration::MAX_PER_ORDER_LIMIT],
             'attendees.*.full_name' => ['required', 'string', 'min:2', 'max:120'],
             'attendees.*.email' => [$user || $request->filled('buyer.verification_token') ? 'nullable' : 'required', 'email', 'max:254'],
             'attendees.*.ticket_type_id' => ['required', 'uuid'],
@@ -64,8 +64,9 @@ class GuestCheckoutController extends Controller
             'tables.*' => ['nullable', 'integer', 'min:1', 'max:200'],
             // 0067: exact seats tapped per ticket type (ticket type id => [[row, seat], ...]).
             'seats' => ['sometimes', 'array', 'max:20'],
-            'seats.*' => ['array', 'max:'.SelfRegistration::MAX_PER_REGISTRATION],
-            'seats.*.*' => ['array', 'size:2'],
+            'seats.*' => ['array', 'max:'.SelfRegistration::MAX_PER_ORDER_LIMIT],
+            // [row, seat] for rows; [table] for tables/spaces (one per ticket).
+            'seats.*.*' => ['array', 'min:1', 'max:2'],
             'seats.*.*.*' => ['integer', 'min:1', 'max:200'],
         ]);
 

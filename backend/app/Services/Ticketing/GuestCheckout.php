@@ -36,8 +36,9 @@ use Throwable;
  *
  * Guests confirm an e-mail with a 6-digit code first: tickets are e-mailed
  * there, so it must reach a real inbox. Since the advisor's review (Nov 2026)
- * the buyer confirms their own address once and every ticket goes to it
- * (attendees need only a name); confirming each attendee still works. Codes and the tokens
+ * the buyer confirms their own address once and receives every ticket
+ * (attendees need only a name; an optional attendee e-mail also gets that
+ * ticket); confirming each attendee still works. Codes and the tokens
  * they unlock live in the cache (short-lived, nothing to migrate). Signed-in
  * buyers skip the codes.
  *
@@ -161,8 +162,7 @@ class GuestCheckout
             }
             $tokens[] = $buyer['verification_token'];
             $buyer['email'] = $email;
-            // Unconfirmed attendee addresses never receive mail: the tickets go to the buyer.
-            $attendees = array_map(fn (array $a) => [...$a, 'email' => null], $attendees);
+            // An attendee's own address is optional: their ticket goes there, and the buyer gets a copy of every ticket.
         } elseif ($user === null) {
             foreach ($attendees as $i => $a) {
                 $email = $this->normalize((string) ($a['email'] ?? ''));
@@ -174,6 +174,10 @@ class GuestCheckout
                 $tokens[] = $a['verification_token'];
             }
         }
+
+        // 0068: tickets per buyer, across all their orders (account, or the guest's confirmed e-mail).
+        $buyerEmail = $user ? null : $this->normalize((string) ($buyer['email'] ?? ($attendees[0]['email'] ?? '')));
+        $this->db->system('public.buyer_cap', fn () => SelfRegistration::assertWithinCap($eventId, count($attendees), $user?->id, $buyerEmail));
 
         $result = $this->db->system('public.guest_register', function () use ($user, $eventId, $attendees, $buyer, $key, $tables, $seats) {
             $byTier = collect($attendees)->groupBy('ticket_type_id');

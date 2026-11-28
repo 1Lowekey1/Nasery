@@ -36,3 +36,49 @@ export function scheduleEnd(startDate: string, startTime: string, endDate: strin
 	}
 	return { date: end, overnight: false }
 }
+
+/**
+ * Events held over several days, one session per day (members' follow-up, Nov 2026):
+ * "Dec 7 – Dec 9, 2026" with "9:00 AM – 5:00 PM daily", or the hours of each day.
+ */
+export function describeSessions(sessions: { starts_at: string, ends_at: string }[] | null | undefined, tz = 'Asia/Manila') {
+	const list = [...(sessions ?? [])].sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+	const time = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
+	const hours = (s: { starts_at: string, ends_at: string }) => `${time(s.starts_at)} – ${time(s.ends_at)}${endsSuffix(s.starts_at, s.ends_at, tz) === ' (next day)' ? ' (next day)' : ''}`
+	if (list.length < 2) return null
+	const first = list[0]!
+	const last = list[list.length - 1]!
+	const same = list.every(s => hours(s) === hours(first))
+	return {
+		dateText: dateSpan(first.starts_at, last.starts_at, tz),
+		timeText: same ? `${hours(first)} daily` : 'Hours vary by day',
+		same,
+		days: list.map(s => ({
+			label: new Intl.DateTimeFormat('en-PH', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(s.starts_at)),
+			hours: hours(s),
+		})),
+	}
+}
+
+/** The longest event that can have its own hours on each day (one session per day). */
+export const MAX_EVENT_DAYS = 31
+
+/** Every date from start to end (YYYY-MM-DD), up to a year; empty when not several days. */
+export function daysBetween(start: string, end: string): string[] {
+	if (!start || !end || end <= start) return []
+	const days: string[] = []
+	const d = new Date(`${start}T00:00:00Z`)
+	for (let i = 0; i < 366; i++) {
+		const date = d.toISOString().slice(0, 10)
+		if (date > end) break
+		days.push(date)
+		d.setUTCDate(d.getUTCDate() + 1)
+	}
+	return days
+}
+
+/** An inquiry's per-day hours, kept as notes lines: "Day 2 · 2027-01-07: 13:00 – 22:00". */
+export const DAY_LINE = /^Day \d+ · (\d{4}-\d{2}-\d{2}): (\d{2}:\d{2}) – (\d{2}:\d{2})$/
+export function dayLines(days: string[], hours: Record<string, { start: string, end: string }>): string[] {
+	return days.map((date, i) => `Day ${i + 1} · ${date}: ${hours[date]?.start || '00:00'} – ${hours[date]?.end || '00:00'}`)
+}

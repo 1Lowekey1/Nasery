@@ -22,11 +22,11 @@
 					<p v-if="fields.requested_date" class="mt-1 text-xs text-rose-600">{{ fields.requested_date }}</p>
 				</div>
 				<div>
-					<FormsLabel text="Starts" />
+					<FormsLabel :text="dayDates.length > 1 && dayDates.length <= MAX_EVENT_DAYS && form.per_day ? 'Day 1 start' : 'Starts'" />
 					<FormsTimeField v-model="form.start_time" />
 				</div>
 				<div>
-					<FormsLabel text="Ends" />
+					<FormsLabel :text="dayDates.length > 1 && dayDates.length <= MAX_EVENT_DAYS && form.per_day ? 'Day 1 end' : 'Ends'" />
 					<FormsTimeField v-model="form.end_time" />
 				</div>
 			</div>
@@ -34,6 +34,30 @@
 				<FormsLabel text="Ends on (optional)" />
 				<FormsDateField v-model="form.end_date" :min-date="form.requested_date || today" placeholder="Same day" />
 				<p class="mt-1 text-xs text-gray-400">For events over several days. An end time earlier than the start means the next day.</p>
+			</div>
+			<!-- Members' follow-up (Nov 2026): over several days, the same hours every day or each day its own. -->
+			<div v-if="dayDates.length > 1" class="rounded-xl border border-gray-200 p-3">
+				<div class="flex flex-wrap items-center justify-between gap-2">
+					<p class="text-sm font-semibold text-gray-900">{{ dayDates.length }} days · hours on each day</p>
+					<div class="flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold" role="group" aria-label="Hours on each day">
+						<button type="button" class="rounded-md px-2.5 py-1.5" :class="!form.per_day || dayDates.length > MAX_EVENT_DAYS ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'" :aria-pressed="!form.per_day || dayDates.length > MAX_EVENT_DAYS" @click="form.per_day = false">Same every day</button>
+						<button type="button" class="rounded-md px-2.5 py-1.5 disabled:cursor-not-allowed disabled:opacity-40" :class="form.per_day && dayDates.length <= MAX_EVENT_DAYS ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'" :aria-pressed="form.per_day && dayDates.length <= MAX_EVENT_DAYS" :disabled="dayDates.length > MAX_EVENT_DAYS" @click="form.per_day = true">Different each day</button>
+					</div>
+				</div>
+				<p v-if="dayDates.length > MAX_EVENT_DAYS" class="mt-2 text-xs font-medium text-amber-700">Different hours each day is for events up to {{ MAX_EVENT_DAYS }} days. Use the same hours, and mention any day that differs in your notes.</p>
+				<div v-else-if="form.per_day" class="mt-3">
+					<div class="flex flex-wrap items-center justify-between gap-2">
+						<p class="text-xs text-gray-500">Day 1 uses Starts and Ends above.</p>
+						<button type="button" class="text-xs font-semibold text-primary-700 hover:underline disabled:opacity-40" :disabled="!form.start_time || !form.end_time" @click="form.day_hours = form.day_hours.map(() => ({ start: form.start_time, end: form.end_time }))">Copy Day 1 hours to all days</button>
+					</div>
+					<div class="mt-2 grid max-h-80 gap-x-4 gap-y-1.5 overflow-y-auto pr-1 2xl:grid-cols-2">
+						<div v-for="(date, i) in dayDates.slice(1)" :key="date" class="grid grid-cols-[5.25rem_1fr_1fr] items-center gap-1.5">
+							<span class="text-xs font-semibold leading-4 text-gray-900">Day {{ i + 2 }}<span class="block font-normal text-gray-500">{{ new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) }}</span></span>
+							<FormsTimeField v-if="form.day_hours[i]" v-model="form.day_hours[i]!.start" placeholder="Start" />
+							<FormsTimeField v-if="form.day_hours[i]" v-model="form.day_hours[i]!.end" placeholder="End" />
+						</div>
+					</div>
+				</div>
 			</div>
 
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -124,20 +148,28 @@ function multiDayEnd() {
 	return scheduleEnd(date, time[1]!, '', time[2]!).date === ends ? '' : ends
 }
 const kept = lines.filter(l => KEPT.test(l))
+// Per-day hours (Members' follow-up, Nov 2026), "Day 2 · 2027-01-07: 13:00 – 22:00"; days 2.. by position.
+const savedDays = lines.map(l => l.match(DAY_LINE)).filter(Boolean).map(m => ({ start: m![2]!, end: m![3]! }))
 
 const form = reactive({
 	requested_date: props.inquiry.requested_date ?? '',
 	start_time: time?.[1] ?? '',
 	end_time: time?.[2] ?? '',
 	end_date: multiDayEnd(),
+	per_day: savedDays.length > 1,
+	day_hours: savedDays.slice(1),
 	guest_count: props.inquiry.guest_count ? String(props.inquiry.guest_count) : '',
 	budget_min: props.inquiry.budget_min ? String(Number(props.inquiry.budget_min)) : '',
 	budget_max: props.inquiry.budget_max ? String(Number(props.inquiry.budget_max)) : '',
 	services: (props.inquiry.services ?? []).map(s => ({
 		service_id: s.service_id, name: s.custom_service_name || 'Service', custom: s.service_id ? null : s.custom_service_name, notes: s.notes ?? '',
 	})),
-	notes: lines.filter(l => !TIME.test(l) && !KEPT.test(l) && !ENDS.test(l)).join('\n').trim(),
+	notes: lines.filter(l => !TIME.test(l) && !KEPT.test(l) && !ENDS.test(l) && !DAY_LINE.test(l)).join('\n').trim(),
 })
+const dayDates = computed(() => daysBetween(form.requested_date, form.end_date))
+watch(dayDates, (dates) => {
+	while (dates.length <= MAX_EVENT_DAYS && form.day_hours.length < dates.length - 1) form.day_hours.push({ start: form.start_time, end: form.end_time })
+}, { immediate: true })
 // Unsaved edits survive a reload; an untouched form keeps no draft.
 const initial = JSON.stringify(form)
 const draft = useDraft(() => `request-edit:${props.inquiry.id}`, form, { isEmpty: v => JSON.stringify(v) === initial })
@@ -197,13 +229,16 @@ async function save() {
 	const timeLine = form.start_time && form.end_time ? `Time: ${form.start_time} – ${form.end_time}` : ''
 	const endDay = form.requested_date && form.start_time && form.end_time ? scheduleEnd(form.requested_date, form.start_time, form.end_date, form.end_time).date : ''
 	const endsLine = endDay && endDay !== form.requested_date ? `Ends on: ${endDay}` : ''
+	const days = form.per_day && dayDates.value.length > 1 && dayDates.value.length <= MAX_EVENT_DAYS && form.start_time && form.end_time
+		? dayLines(dayDates.value, Object.fromEntries(dayDates.value.map((d, i) => [d, i === 0 ? { start: form.start_time, end: form.end_time } : form.day_hours[i - 1]!])))
+		: []
 	try {
 		const saved = await useInquiries().update(props.inquiry.id, {
 			requested_date: form.requested_date || null,
 			guest_count: form.guest_count === '' ? null : Number(form.guest_count),
 			budget_min: amount(form.budget_min),
 			budget_max: amount(form.budget_max),
-			additional_requirements: [kept.find(l => l.startsWith('Event: ')), timeLine, endsLine, kept.find(l => l.startsWith('Venue: ')), form.notes.trim()]
+			additional_requirements: [kept.find(l => l.startsWith('Event: ')), timeLine, endsLine, ...days, kept.find(l => l.startsWith('Venue: ')), form.notes.trim()]
 				.filter(Boolean).join('\n') || null,
 			services: form.services.map(s => ({ service_id: s.service_id, custom_service_name: s.custom, notes: s.notes.trim() || null })),
 		})

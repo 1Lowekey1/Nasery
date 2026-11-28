@@ -101,7 +101,8 @@ const busy = ref(false)
 const selected = ref<string | null>(null)
 const people = reactive([{ full_name: '', email: '' }])
 const result = ref<{ status: 'confirmed' | 'awaiting_payment', hold_expires_at: string | null } | null>(null)
-const maxPeople = 10
+// 0068: the organizer's tickets-per-buyer limit (the API sends the default, 10, when none is set).
+const maxPeople = computed(() => event.value?.max_per_buyer ?? 10)
 
 const selectedTier = computed(() => event.value?.tiers.find(t => t.id === selected.value) ?? null)
 

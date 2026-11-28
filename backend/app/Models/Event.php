@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * system context after checking the quotation was won by this organization.
  */
 #[Fillable(['event_type_id', 'name', 'description', 'timezone', 'overall_capacity', 'venue_name', 'venue_address',
-    'latitude', 'longitude', 'visibility', 'contact_name', 'contact_email', 'contact_phone'])]
+    'latitude', 'longitude', 'visibility', 'contact_name', 'contact_email', 'contact_phone', 'max_per_buyer'])]
 class Event extends Model
 {
     use SoftDeletes;

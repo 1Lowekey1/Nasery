@@ -125,37 +125,66 @@
 									</p>
 								</div>
 							</div>
-							<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-								<div class="sm:col-span-2">
+							<!-- Advisor's follow-up (Nov 2026): the four schedule fields in one row, then one plain summary. -->
+							<div class="grid gap-4 sm:grid-cols-2">
+								<div>
 									<FormsLabel text="Event date" required />
 									<FormsDateField v-model="form.date" name="event_date"
 										placeholder="Choose event date" :min-date="minimumEventDate" :max-date="maximumEventDate" />
-									<p class="mt-1.5 text-xs text-gray-400">Any date from today up to {{ maximumEventDateLabel }}.</p>
-									<p v-if="form.date" class="mt-1.5 text-xs font-semibold text-primary-700">{{
-										formattedEventDate }}</p>
-									<p v-if="sameDayEvent" class="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-xs font-medium text-amber-800">
-										<IconBase name="calendar" class="mt-px h-3.5 w-3.5 shrink-0" />
-										<span>You already have “{{ sameDayEvent }}” on this date. You can still continue.</span>
-									</p>
 								</div>
 								<div>
-									<FormsLabel text="Start time" required />
-									<FormsTimeField v-model="form.startTime" name="start_time"
-										placeholder="Select start time" />
+									<FormsLabel text="Ends on (optional)" />
+									<FormsDateField v-model="form.endDate" name="end_date" placeholder="Same day" :min-date="form.date || minimumEventDate" :max-date="maximumEventDate" />
 								</div>
 								<div>
-									<FormsLabel text="End time" required />
+									<FormsLabel :text="multiDay && perDayOn ? 'Day 1 start' : 'Start time'" required />
+									<FormsTimeField v-model="form.startTime" name="start_time" placeholder="Select start time" />
+								</div>
+								<div>
+									<FormsLabel :text="multiDay && perDayOn ? 'Day 1 end' : 'End time'" required />
 									<FormsTimeField v-model="form.endTime" name="end_time" placeholder="Select end time" />
 								</div>
 							</div>
-							<!-- Advisor's fix (Nov 2026): events past midnight or over several days. -->
-							<div class="mt-4 max-w-sm">
-								<FormsLabel text="Ends on (optional)" />
-								<FormsDateField v-model="form.endDate" name="end_date" placeholder="Same day" :min-date="form.date || minimumEventDate" :max-date="maximumEventDate" />
-								<p class="mt-1.5 text-xs text-gray-400">For events over several days. An end time earlier than the start already means the next day.</p>
+							<!-- Members' follow-up (Nov 2026): over several days, the same hours every day or each day its own. -->
+							<div v-if="multiDay" class="mt-4 rounded-xl border border-gray-200 bg-white/70 p-3 sm:p-4">
+								<div class="flex flex-wrap items-center justify-between gap-2">
+									<p class="text-sm font-semibold text-gray-900">{{ dayDates.length }} days · hours on each day</p>
+									<div class="flex rounded-lg bg-gray-100 p-0.5 text-xs font-semibold" role="group" aria-label="Hours on each day">
+										<button type="button" class="rounded-md px-2.5 py-1.5" :class="!perDayOn ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'" :aria-pressed="!perDayOn" @click="form.perDay = false">Same every day</button>
+										<button type="button" class="rounded-md px-2.5 py-1.5 disabled:cursor-not-allowed disabled:opacity-40" :class="perDayOn ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'" :aria-pressed="perDayOn" :disabled="tooManyDays" @click="form.perDay = true">Different each day</button>
+									</div>
+								</div>
+								<p v-if="tooManyDays" class="mt-2 text-xs font-medium text-amber-700">Different hours each day is for events up to {{ MAX_EVENT_DAYS }} days. Use the same hours, and mention any day that differs in your notes.</p>
+								<p v-if="!perDayOn" class="mt-2 text-xs text-gray-500">{{ form.startTime && form.endTime ? `${formatTime(form.startTime)} – ${formatTime(form.endTime)}${form.endTime <= form.startTime ? ' (past midnight)' : ''} on each of the ${dayDates.length} days.` : 'The start and end time above apply to every day.' }}</p>
+								<div v-else class="mt-3">
+									<div class="flex flex-wrap items-center justify-between gap-2">
+										<p class="text-xs text-gray-500">Day 1 uses the start and end time above. An end time earlier than the start means past midnight.</p>
+										<button type="button" class="text-xs font-semibold text-primary-700 hover:underline disabled:opacity-40" :disabled="!form.startTime || !form.endTime" @click="copyDayOne">Copy Day 1 hours to all days</button>
+									</div>
+									<!-- Compact: two columns, scrolls when long. -->
+									<div class="mt-2 grid max-h-80 gap-x-4 gap-y-1.5 overflow-y-auto pr-1 2xl:grid-cols-2">
+										<div v-for="(date, i) in dayDates.slice(1)" :key="date" class="grid grid-cols-[5.25rem_1fr_1fr] items-center gap-1.5">
+											<span class="text-xs font-semibold leading-4 text-gray-900">Day {{ i + 2 }}<span class="block font-normal text-gray-500">{{ dayLabel(date) }}</span></span>
+											<FormsTimeField v-if="form.dayHours[date]" v-model="form.dayHours[date]!.start" :name="`day_${i + 2}_start`" placeholder="Start" />
+											<FormsTimeField v-if="form.dayHours[date]" v-model="form.dayHours[date]!.end" :name="`day_${i + 2}_end`" placeholder="End" />
+										</div>
+									</div>
+								</div>
 							</div>
-							<p v-if="endHint" class="mt-2 flex items-start gap-1.5 text-xs font-semibold text-primary-700" role="status">
-								<IconBase name="clock" class="mt-px h-3.5 w-3.5 shrink-0" />{{ endHint }}
+							<div class="mt-4 flex items-start gap-3 rounded-xl border px-4 py-3" :class="scheduleSummary ? 'border-primary-100 bg-white' : 'border-dashed border-gray-200 bg-white/60'" role="status">
+								<IconBase name="calendar" class="mt-0.5 h-4 w-4 shrink-0" :class="scheduleSummary ? 'text-primary-700' : 'text-gray-400'" />
+								<div class="min-w-0 text-sm">
+									<p v-if="scheduleSummary" class="font-semibold text-gray-900">
+										{{ scheduleSummary.from }} <span class="text-gray-400">{{ multiDay ? '·' : '→' }}</span> {{ scheduleSummary.to }}
+										<span v-if="scheduleSummary.badge" class="ml-1 inline-flex rounded-full bg-primary-50 px-2 py-0.5 align-middle text-[11px] font-bold text-primary-700">{{ scheduleSummary.badge }}</span>
+									</p>
+									<p v-else class="text-gray-500">Pick the date, start and end time to see the full schedule here.</p>
+									<p class="mt-0.5 text-xs text-gray-500">Any date up to {{ maximumEventDateLabel }}. An end time earlier than the start means past midnight; use “Ends on” only for events over several days.</p>
+								</div>
+							</div>
+							<p v-if="sameDayEvent" class="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-xs font-medium text-amber-800">
+								<IconBase name="calendar" class="mt-px h-3.5 w-3.5 shrink-0" />
+								<span>You already have “{{ sameDayEvent }}” on this date. You can still continue.</span>
 							</p>
 							<p v-if="timeError" class="mt-3 text-xs font-semibold text-rose-600">{{ timeError }}</p>
 							<p v-else-if="showMissing('schedule')" class="mt-2 flex items-center gap-1.5 text-xs font-semibold text-rose-600" role="alert">{{ form.date && form.startTime && form.endTime ? `Choose a date between today and ${maximumEventDateLabel}.` : 'Choose the event date, start time and end time.' }}</p>
@@ -460,12 +489,12 @@
 						</div>
 						<div class="flex items-start justify-between gap-3">
 							<dt class="text-gray-400">Date</dt>
-							<dd class="text-right font-semibold text-gray-800">{{ form.date || 'Not selected' }}</dd>
+							<dd class="text-right font-semibold text-gray-800">{{ form.date ? (endDay.date !== form.date && !endDay.overnight ? `${shortDate(form.date)} – ${shortDate(endDay.date)}` : shortDate(form.date)) : 'Not selected' }}</dd>
 						</div>
 						<div class="flex items-start justify-between gap-3">
 							<dt class="text-gray-400">Time</dt>
 							<dd class="text-right font-semibold text-gray-800">{{ form.startTime && form.endTime ?
-								`${formatTime(form.startTime)} – ${formatTime(form.endTime)}${endDay.overnight ? ' (next day)' : endDay.date !== form.date ? ` (until ${endDay.date})` : ''}` : 'Not selected' }}</dd>
+								(multiDay && perDayOn ? 'Varies by day' : `${formatTime(form.startTime)} – ${formatTime(form.endTime)}${endDay.overnight ? ' (next day)' : multiDay ? ' daily' : ''}`) : 'Not selected' }}</dd>
 						</div>
 						<div class="flex items-start justify-between gap-3">
 							<dt class="text-gray-400">Guests</dt>
@@ -524,7 +553,7 @@
 			<div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
 				<p class="truncate font-extrabold text-gray-900">{{ form.title || `${form.eventType} event` }}</p>
 				<div class="mt-3 grid grid-cols-2 gap-3 text-xs">
-					<div><p class="text-gray-400">Schedule</p><p class="mt-1 font-bold text-gray-700">{{ formattedEventDate }}</p></div>
+					<div><p class="text-gray-400">Schedule</p><p class="mt-1 font-bold text-gray-700">{{ scheduleSummary ? `${scheduleSummary.from} ${multiDay ? '·' : '→'} ${scheduleSummary.to}` : formattedEventDate }}</p></div>
 					<div><p class="text-gray-400">Guests</p><p class="mt-1 font-bold text-gray-700">{{ form.guests }}</p></div>
 					<div class="col-span-2"><p class="text-gray-400">Venue</p><p class="mt-1 line-clamp-2 font-bold text-gray-700">{{ form.venueName || form.venueAddress || locationQuery.trim() }}</p></div>
 				</div>
@@ -725,6 +754,9 @@ const form = reactive({
 	endTime: '',
 	/** Optional last day (multi-day events). */
 	endDate: '',
+	/** Multi-day: each day its own hours (day 1 = startTime/endTime). */
+	perDay: false,
+	dayHours: {} as Record<string, { start: string, end: string }>,
 
 	location: '',
 	venueName: '',
@@ -909,10 +941,41 @@ const formattedEventDate = computed(() => {
 
 // An end time at or before the start means the event ends the next day (Advisor's fix, Nov 2026).
 const endDay = computed(() => scheduleEnd(form.date, form.startTime, form.endDate, form.endTime))
-const endHint = computed(() => {
-	if (!form.date || !form.startTime || !form.endTime || timeError.value || endDay.value.date === form.date) return ''
-	const when = new Intl.DateTimeFormat('en-PH', { dateStyle: 'full' }).format(new Date(`${endDay.value.date}T00:00:00`))
-	return `${endDay.value.overnight ? 'Ends the next day' : 'Ends'}: ${when}, ${formatTime(form.endTime)}.`
+const shortDate = (d: string) => new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${d}T00:00:00`))
+// One line: "Friday, January 1, 2027 · 12:00 PM → Saturday, January 2, 2027 · 2:00 AM" (+ "Next day" / "3 days").
+// Members' follow-up (Nov 2026): the days of a multi-day request, each with its hours.
+const dayDates = computed(() => daysBetween(form.date, form.endDate))
+const multiDay = computed(() => dayDates.value.length > 1)
+const tooManyDays = computed(() => dayDates.value.length > MAX_EVENT_DAYS)
+/** Per-day hours only for events up to MAX_EVENT_DAYS days. */
+const perDayOn = computed(() => form.perDay && !tooManyDays.value)
+const dayLabel = (d: string) => new Intl.DateTimeFormat('en-PH', { weekday: 'short', month: 'short', day: 'numeric' }).format(new Date(`${d}T00:00:00`))
+function copyDayOne() {
+	for (const date of dayDates.value.slice(1)) form.dayHours[date] = { start: form.startTime, end: form.endTime }
+}
+watch(dayDates, (dates) => {
+	form.dayHours ??= {}
+	if (dates.length > MAX_EVENT_DAYS) return
+	for (const date of dates) form.dayHours[date] ??= { start: form.startTime, end: form.endTime }
+}, { immediate: true })
+const scheduleSummary = computed(() => {
+	if (!form.date || !form.startTime || !form.endTime || timeError.value) return null
+	if (multiDay.value) {
+		const range = `${shortDate(form.date).replace(/, \d{4}$/, '')} – ${shortDate(dayDates.value[dayDates.value.length - 1]!)}`
+		return {
+			from: range,
+			to: perDayOn.value ? 'hours vary by day' : `${formatTime(form.startTime)} – ${formatTime(form.endTime)} daily`,
+			badge: `${dayDates.value.length} days`,
+		}
+	}
+	const day = (d: string) => new Intl.DateTimeFormat('en-PH', { dateStyle: 'full' }).format(new Date(`${d}T00:00:00`))
+	const end = endDay.value.date
+	const days = Math.round((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${form.date}T00:00:00Z`)) / 86_400_000)
+	return {
+		from: `${day(form.date)} · ${formatTime(form.startTime)}`,
+		to: end === form.date ? formatTime(form.endTime) : `${day(end)} · ${formatTime(form.endTime)}`,
+		badge: days === 1 ? 'Ends the next day' : days > 1 ? `${days + 1} days` : '',
+	}
 })
 const timeError = computed(() => {
 	if (!form.startTime || !form.endTime) return ''
@@ -1908,6 +1971,7 @@ async function submitInquiry() {
 			form.title.trim() ? `Event: ${form.title.trim()}` : '',
 			`Time: ${form.startTime} – ${form.endTime}`,
 			endDay.value.date !== form.date ? `Ends on: ${endDay.value.date}` : '',
+			...(multiDay.value && perDayOn.value ? dayLines(dayDates.value, { ...form.dayHours, [form.date]: { start: form.startTime, end: form.endTime } }) : []),
 			form.venueName ? `Venue: ${form.venueName}` : '',
 			form.details.trim(),
 		].filter(Boolean).join('\n')

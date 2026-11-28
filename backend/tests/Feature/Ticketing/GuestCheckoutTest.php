@@ -147,15 +147,47 @@ class GuestCheckoutTest extends TestCase
         ], $this->key())->assertCreated()->assertJsonPath('data.status', 'confirmed');
         $registration = $res->json('data.registration_id');
         $this->assertSame('buyer@example.com', DB::table('registrations')->where('id', $registration)->value('purchaser_email'));
-        // Attendees keep only their names; every ticket is e-mailed to the confirmed buyer.
-        $this->assertSame([null, null, null], DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')
-            ->where('t.registration_id', $registration)->pluck('a.email')->all());
-        $this->assertSame(['buyer@example.com'], DB::connection('system')->table('mail_deliveries')->whereJsonContains('ticket_ids', DB::table('tickets')->where('registration_id', $registration)->value('id'))->pluck('recipient')->all());
+        // Every ticket is e-mailed to the confirmed buyer; an attendee's optional address also gets their own ticket.
+        $deliveries = DB::connection('system')->table('mail_deliveries')->where('event_id', $event)->get(['recipient', 'ticket_ids']);
+        $sent = fn (string $to) => $deliveries->where('recipient', $to)->flatMap(fn ($d) => json_decode($d->ticket_ids, true))->count();
+        $this->assertSame(3, $sent('buyer@example.com'));
+        $this->assertSame(1, $sent('friend@example.com'));
 
         // Single use.
         $this->spaJson('POST', "/api/v1/public-events/{$event}/checkout", [
             'buyer' => ['name' => 'Buyer Self', 'email' => 'buyer@example.com', 'verification_token' => $token], 'attendees' => $attendees,
         ], $this->key())->assertUnprocessable();
+    }
+
+    public function test_organizers_set_how_many_tickets_one_buyer_may_have(): void
+    {
+        [$org, $owner, $event, $tiers] = $this->event();
+        $order = fn (int $n) => ['attendees' => array_map(fn ($i) => ['full_name' => "Guest {$i}", 'email' => null, 'ticket_type_id' => $i % 2 ? $tiers['Kids'] : $tiers['General']], range(1, $n))];
+        $buyer = User::factory()->create();
+
+        // Default: 10 per buyer, across all their orders.
+        $this->assertSame(10, $this->getJson("/api/v1/public-events/{$event}")->assertOk()->json('data.max_per_buyer'));
+        $fields = $this->actingAs($buyer)->spaJson('POST', "/api/v1/public-events/{$event}/checkout", $order(11), $this->key())->assertUnprocessable()->json('error.details.fields');
+        $this->assertSame(['This event allows up to 10 tickets per buyer.'], $fields['attendees']);
+        $this->actingAs($buyer)->spaJson('POST', "/api/v1/public-events/{$event}/checkout", $order(8), $this->key())->assertCreated();
+        $fields = $this->actingAs($buyer)->spaJson('POST', "/api/v1/public-events/{$event}/checkout", $order(3), $this->key())->assertUnprocessable()->json('error.details.fields');
+        $this->assertSame(['You already have 8 tickets for this event (up to 10 per buyer), so you can get 2 more.'], $fields['attendees']);
+
+        // A guest is counted by the e-mail they confirmed.
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+        $guest = fn () => ['buyer' => ['name' => 'Gina', 'email' => 'gina@example.com', 'verification_token' => $this->confirm($event, 'gina@example.com')]];
+        $this->spaJson('POST', "/api/v1/public-events/{$event}/checkout", [...$order(2), ...$guest()], $this->key())->assertCreated();
+        $this->travel(2)->minutes(); // the code's resend wait
+        $this->spaJson('POST', "/api/v1/public-events/{$event}/checkout", [...$order(9), ...$guest()], $this->key())->assertUnprocessable();
+
+        // The organizer allows 12 (1 to 100): the signed-in buyer may now get 4 more.
+        $this->actingAs($owner)->spaJson('PATCH', "/api/v1/organizations/{$org->id}/events/{$event}", ['max_per_buyer' => 101])->assertUnprocessable();
+        $this->actingAs($owner)->spaJson('PATCH', "/api/v1/organizations/{$org->id}/events/{$event}", ['max_per_buyer' => 12])->assertOk()->assertJsonPath('data.max_per_buyer', 12);
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+        $this->assertSame(12, $this->getJson("/api/v1/public-events/{$event}")->json('data.max_per_buyer'));
+        $this->actingAs($buyer)->spaJson('POST', "/api/v1/public-events/{$event}/checkout", $order(4), $this->key())->assertCreated();
     }
 
     public function test_free_tickets_are_issued_at_once_and_signed_in_buyers_skip_codes(): void

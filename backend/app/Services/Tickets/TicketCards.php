@@ -41,7 +41,7 @@ class TicketCards
                 ->join('organizations as o', 'o.id', '=', 'e.organization_id')
                 ->whereIn('t.id', $ticketIds)->whereNull('t.deleted_at')
                 ->orderBy('a.full_name')
-                ->get(['t.id', 't.status', 't.event_id', 't.purchased_price', 'a.full_name', 'a.email as attendee_email', 'r.purchaser_email', 'r.purchaser_name',
+                ->get(['t.id', 't.status', 't.event_id', 't.purchased_price', 'a.full_name', 'a.email as attendee_email', 'r.purchaser_email', 'r.purchaser_name', 'r.purchaser_user_id',
                     'tt.name as tier', 'tt.zone_name', 't.seat_label', 'tt.benefits', 'e.name as event', 'e.status as event_status', 'e.timezone', 'e.venue_name', 'e.venue_address',
                     'e.organization_id', 'o.display_name as organizer']);
 
@@ -61,6 +61,11 @@ class TicketCards
                     'attendee' => $r->full_name,
                     'recipient' => $r->attendee_email ?: $r->purchaser_email,
                     'recipient_name' => $r->attendee_email ? $r->full_name : ($r->purchaser_name ?: $r->full_name),
+                    // Advisor's follow-up (Nov 2026): a guest buyer (no account) also gets a copy of
+                    // tickets sent to an attendee's own address, so they keep every ticket they bought.
+                    'copy_to' => $r->attendee_email && $r->purchaser_user_id === null && $r->purchaser_email
+                        && strtolower(trim($r->purchaser_email)) !== strtolower(trim($r->attendee_email)) ? $r->purchaser_email : null,
+                    'purchaser_name' => $r->purchaser_name,
                     'tier' => $r->tier,
                     'zone' => $r->zone_name,
                     'seat' => $r->seat_label,

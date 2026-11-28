@@ -29,6 +29,8 @@ class TicketMailer
     {
         $cards = $this->cards->load($ticketIds)->filter(fn ($c) => $c['token'] !== null);
         $result = ['queued' => 0, 'skipped' => 0];
+        // A guest buyer's copy of tickets that went to an attendee's own address.
+        $cards = $cards->concat($cards->filter(fn ($c) => filled($c['copy_to'] ?? null))->map(fn ($c) => [...$c, 'recipient' => $c['copy_to']]));
 
         foreach ($cards->groupBy(fn ($c) => strtolower(trim((string) $c['recipient']))) as $recipient => $group) {
             $allowed = $this->guard->allows($recipient);

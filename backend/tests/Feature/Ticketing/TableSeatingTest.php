@@ -98,6 +98,21 @@ class TableSeatingTest extends TestCase
         $this->assertSame(['Table 1', 'Table 1', 'Table 1', 'Table 2', 'Table 2'], $this->seats($dinner));
     }
 
+    public function test_a_table_per_ticket_splits_a_group_and_fits_one_bigger_than_a_table(): void
+    {
+        [, , $event, $dinner] = $this->event();
+
+        // Four people, tables of 3: Guest 1 at Table 2, Guests 2-3 at Table 1, Guest 4 placed for them.
+        $this->buy(User::factory()->create(), $event, $dinner, 4, null, [[2], [1], [1]])->assertCreated();
+        $this->assertSame(['Guest 1' => 'Table 2', 'Guest 2' => 'Table 1', 'Guest 3' => 'Table 1', 'Guest 4' => 'Table 1'],
+            DB::table('tickets as t')->join('attendees as a', 'a.id', '=', 't.attendee_id')->where('t.ticket_type_id', $dinner)->orderBy('a.full_name')->pluck('t.seat_label', 'a.full_name')->all());
+
+        // Table 1 is full now: picking it is refused, nothing issued.
+        $this->buy(User::factory()->create(), $event, $dinner, 1, null, [[1]])->assertStatus(409);
+        $this->buy(User::factory()->create(), $event, $dinner, 1, null, [[9]])->assertUnprocessable();
+        $this->assertCount(4, $this->seats($dinner));
+    }
+
     public function test_an_unpaid_order_holds_its_seats_until_its_hold_runs_out(): void
     {
         [, , $event, , $vip] = $this->event();

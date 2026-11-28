@@ -101,6 +101,8 @@ export interface PublicEventDetail extends Omit<PublicEventCard, 'tiers'> {
   tiers: PublicTier[]
   /** 0066: the organizer's floor plan picture, if any. */
   floor_plan_url?: string | null
+  /** 0068: tickets one buyer may get per order. */
+  max_per_buyer?: number
 }
 
 export interface MyTicket {

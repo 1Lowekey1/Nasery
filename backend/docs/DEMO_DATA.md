@@ -1,6 +1,6 @@
 # Demo data and admin accounts (handoff)
 
-Status: **2026-11-02**. For the advisor check and the final presentation.
+Status: **2026-11-28** (final defense). For the advisor check and the final presentation.
 
 ## Commands
 | Command | What it does |
@@ -46,7 +46,7 @@ Run them with PHP 8.5.10: `C:\xampp\php8.5.10\php.exe artisan …`
   - Sunset Acoustic Night (upcoming)
   - Davao Food Expo (last month, completed)
 - **Organizer field test (2026-11-18):**
-  - Every approved organizer's price list items have a description and an "includes" list (shown as package cards and in the package view). No pictures: add your own after a reset.
+  - Every approved organizer's price list items have a description and an "includes" list (shown as package cards and in the package view). Packages that fit one of the team's demo photos (`backend/database/demo-images`: garden and ballroom wedding set-ups, two buffets, a styled table) show it, e.g. Davao Dream's Full wedding coordination, Garden styling and Grand ballroom styling, and the buffets and table rentals elsewhere (14 packages); the rest are text-only cards, so both kinds show.
   - Davao Dream doesn't charge VAT on **weddings** (set after the past bookings, so their offers keep VAT). **Faith & Marco Garden Wedding** (Faith, open, no offer yet): Maria's offer has no VAT. Miguel's corporate offers show VAT as "Miscellaneous charges".
   - Mood boards (colour palettes): Faith's wedding (2), Miguel's Northwind anniversary (1), Bea's **Santos–Lim Wedding** (3), which Ken sees in My Assignments.
   - **Enzo's refund request** on the Kadayawan Street Food Festival waits for Maria (Ticketing & Attendance → Payments: Refund or Decline).
@@ -64,6 +64,27 @@ Run them with PHP 8.5.10: `C:\xampp\php8.5.10\php.exe artisan …`
 - **Platform:** a welcome announcement, a pending support invite, a pending fee claim, a reported review, 2 organizer applications, and subscription revenue (Pro yearly + Starter monthly).
 
 "Live now" and "upcoming" are relative to when you run the seeder: **run `--fresh` on the day of the presentation** (it takes several minutes against Supabase).
+
+## Final defense additions (2026-11-28), by the paper's scope
+Paper features first, then features that support them, then likely panel questions.
+
+**Paper scope**
+- **Client-facing live attendance:** Dana's booked **Mintal Agri 25th Anniversary Night** (Davao Dream) is **happening now**: 40 invited guests, 26 checked in, a walk-in headcount, and the event-day program moved to tonight (past items done, the next one in progress). Sign in as `dana@` → My Events / Event Journey; as `maria@`, `ken@` or `aira@` → Check-in. (Davao Tech Summit stays the live **public** event.)
+- **Inquiry auto-closure:** Gino's "Gino's 30th Birthday" request got no offer in 40 days and was **closed automatically** (status Cancelled, audit "inquiry.auto_closed", setting `inquiry_auto_close_days` = 30). The daily job is `nasery:inquiries:close-stale`.
+- **Price lists with pictures:** see above (package cards, package view, picture gallery).
+- **Bulk guest import:** a ready file, `backend/docs/demo/guest-import-sample.csv` (8 guests, columns name, email, contact, tier, seat; seats "Table 1–3", "Head table"; all e-mails are @demo.nasery.test, which never receives mail). Import it on any event's Guest list, e.g. Joshua's birthday (Carlo).
+
+**Supporting features (advisor's final consultation)**
+- **Multi-day, different hours each day:** **Christmas Food Bazaar** (Matina Kitchen) runs 3 days: day 1 4–10 PM, day 2 10 AM–10 PM, day 3 10 AM–6 PM (one session per day). See it on the public ticket page and in the organizer's editor ("Different each day").
+- **Overnight:** **Sunset Acoustic Night** (Liza) runs 6:00 PM – 12:30 AM ("next day").
+- **Multi-day request:** Andrea's **Davao Pet Adoption Fair** is a 2-day request with each day's hours (Maria sees "Day 1 · … / Day 2 · …" in the request notes; Andrea can change them in Edit request).
+- **Tickets per buyer:** **Kadayawan Street Food Festival** allows **6 tickets per buyer** across all their orders (event editor → Tickets). Other events use the default 10.
+- Guest checkout: one e-mail code for the buyer, tickets one at a time or all in a list, optional attendee e-mails (the buyer still gets every ticket).
+
+**Likely panel questions**
+- "Can attendees choose seats?" Zones are the paper's design; the optional seat/table choice is built but **off** on the demo events (turn it on for Sunset Acoustic Night, see Seating above).
+- "What stops one person buying all the tickets?" The per-buyer limit (account, or the e-mail confirmed with a code).
+- "Overnight or multi-day events?" Sunset Acoustic Night and Christmas Food Bazaar.
 
 ## Admin team (in the app)
 Admin → **Admin Team**:

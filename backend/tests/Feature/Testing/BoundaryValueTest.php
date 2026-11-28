@@ -133,10 +133,10 @@ class BoundaryValueTest extends TestCase
         $this->actingAs($owner)->spaJson('POST', "{$base}/publish")->assertOk();
         $eventId = Str::afterLast($base, '/');
         $tierId = DB::table('ticket_types')->where('event_id', $eventId)->where('name', 'Free')->value('id');
-        $client = User::factory()->create();
         $people = fn (int $n) => array_map(fn ($i) => ['full_name' => "Guest {$i}"], range(1, max(1, $n)));
 
-        $this->boundaries('Ticketing', 'attendees per registration (1 – 10)', fn ($v) => $this->actingAs($client)->spaJson('POST', "/api/v1/public-events/{$eventId}/register",
+        // Each value from its own buyer: since 0068 the cap counts a buyer's earlier orders too.
+        $this->boundaries('Ticketing', 'attendees per registration (1 – 10)', fn ($v) => $this->actingAs(User::factory()->create())->spaJson('POST', "/api/v1/public-events/{$eventId}/register",
             ['ticket_type_id' => $tierId, 'attendees' => $v === 0 ? [] : $people($v)], $this->key()), [
             [0, false], [1, true], [10, true], [11, false],
         ]);

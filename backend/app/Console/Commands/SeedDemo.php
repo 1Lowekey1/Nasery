@@ -140,6 +140,7 @@ class SeedDemo extends Command
         $this->publicEvents();
         $this->platform();
         $this->payouts();
+        $this->step('Final defense extras', fn () => $this->defenseExtras());
         // Field test: Davao Dream covers VAT on weddings. Set last, so the offers above keep theirs.
         DB::table('organization_profiles')->where('organization_id', $this->orgs['dream']->id)
             ->update(['vat_exempt_event_types' => json_encode(array_values(array_filter([$this->typeId('Wedding')])))]);
@@ -684,7 +685,7 @@ class SeedDemo extends Command
         $this->prepare($beaEvent, 'dream');
         $corpNight = $this->won('dana', 'Corporate Event', 180, [$dream, $grand], $dream, 'maria', 'Corporate Anniversary Night', 260000, daysAgo: 65,
             loserOrg: $grand, loserOwner: 'carlo', loserAmount: 245000, eventName: 'Mintal Agri 25th Anniversary Night');
-        $corpEvent = $this->eventFrom($dream, 'maria', $corpNight, 'Mintal Agri 25th Anniversary Night', 'The Pinnacle Hotel', 8, inDays: 9);
+        $corpEvent = $this->eventFrom($dream, 'maria', $corpNight, 'Mintal Agri 25th Anniversary Night', 'The Pinnacle Hotel', 8, inDays: 1);
         $this->as($this->u('maria'), fn () => app(EventManager::class)->transition($corpEvent->refresh(), 'publish'));
         $this->prepare($corpEvent, 'dream');
 
@@ -1034,6 +1035,149 @@ class SeedDemo extends Command
                 $this->buy($buyer, $event, $this->pick($made), mt_rand(1, 3));
             }
         }
+    }
+
+    /**
+     * Final defense (2026-11-28): the paper's scope items the demo didn't show yet,
+     * and the advisor's final-consultation features.
+     */
+    private function defenseExtras(): void
+    {
+        $event = fn (string $org, string $name) => Event::query()->where('organization_id', $this->orgs[$org]->id)->where('name', $name)->firstOrFail();
+        $tz = 'Asia/Manila';
+
+        // 1. Client-facing live attendance: Dana's booked Mintal Agri night is happening now,
+        //    with an invited guest list, check-ins and a headcount (paper: "client-facing live attendance view").
+        $mintal = $event('dream', 'Mintal Agri 25th Anniversary Night');
+        $this->guests($mintal, 'maria', TicketType::GUEST_LIST, 0, $this->names(40));
+        $before = \Carbon\CarbonImmutable::parse($mintal->sessions()->orderBy('starts_at')->value('starts_at'));
+        $this->liveNow($mintal, 'maria', scans: 26, headcount: 4);
+        // The event-day program moves with the event (planning items before it keep their dates).
+        $shift = (int) $before->diffInSeconds(\Carbon\CarbonImmutable::parse($mintal->sessions()->orderBy('starts_at')->value('starts_at')), false);
+        DB::table('event_activities')->where('event_id', $mintal->id)->where('activity_at', '>=', $before->subHours(12))
+            ->update(['activity_at' => DB::raw("activity_at + interval '{$shift} seconds'")]);
+        // What already happened tonight is done; the next item is under way.
+        DB::table('event_activities')->where('event_id', $mintal->id)->whereNull('deleted_at')->where('activity_at', '<=', now())->update(['status' => 'completed']);
+        $next = DB::table('event_activities')->where('event_id', $mintal->id)->whereNull('deleted_at')->where('activity_at', '>', now())->orderBy('activity_at')->value('id');
+        if ($next) {
+            DB::table('event_activities')->where('id', $next)->update(['status' => 'in_progress']);
+        }
+
+        // 2. Multi-day with different hours each day (one session per day): Christmas Food Bazaar.
+        $bazaar = $event('matina', 'Christmas Food Bazaar');
+        $day1 = \Carbon\CarbonImmutable::parse($bazaar->sessions()->orderBy('starts_at')->value('starts_at'))->setTimezone($tz);
+        $this->as($this->u($this->ownerOf('matina')), function () use ($bazaar, $day1) {
+            $m = app(EventManager::class);
+            $m->saveSession($bazaar->refresh(), $bazaar->sessions()->orderBy('starts_at')->first(), ['name' => null,
+                'starts_at' => $day1->format('Y-m-d').'T16:00', 'ends_at' => $day1->format('Y-m-d').'T22:00']);
+            $m->saveSession($bazaar->refresh(), null, ['name' => null,
+                'starts_at' => $day1->addDay()->format('Y-m-d').'T10:00', 'ends_at' => $day1->addDay()->format('Y-m-d').'T22:00']);
+            $m->saveSession($bazaar->refresh(), null, ['name' => null,
+                'starts_at' => $day1->addDays(2)->format('Y-m-d').'T10:00', 'ends_at' => $day1->addDays(2)->format('Y-m-d').'T18:00']);
+        });
+
+        // 3. Overnight: Sunset Acoustic Night runs 6:00 PM to 12:30 AM (an end before the start = the next day).
+        $acoustic = $event('samal', 'Sunset Acoustic Night');
+        $night = \Carbon\CarbonImmutable::parse($acoustic->sessions()->orderBy('starts_at')->value('starts_at'))->setTimezone($tz);
+        $this->as($this->u('liza'), fn () => app(EventManager::class)->saveSession($acoustic->refresh(), $acoustic->sessions()->orderBy('starts_at')->first(), ['name' => null,
+            'starts_at' => $night->format('Y-m-d').'T18:00', 'ends_at' => $night->addDay()->format('Y-m-d').'T00:30']));
+
+        // 4. Tickets per buyer (0068): Kadayawan allows 6 per buyer, across all their orders.
+        DB::table('events')->where('id', $event('dream', 'Kadayawan Street Food Festival')->id)->update(['max_per_buyer' => 6]);
+
+        // 5. A two-day request with each day's hours (as Post an Event writes it): Andrea's Pet Adoption Fair.
+        $fair = DB::table('inquiries')->where('client_user_id', $this->u('andrea')->id)->where('additional_requirements', 'like', 'Event: Davao Pet Adoption Fair%')->first(['id', 'requested_date']);
+        if ($fair) {
+            $d1 = \Carbon\CarbonImmutable::parse($fair->requested_date);
+            $d2 = $d1->addDay()->toDateString();
+            DB::table('inquiries')->where('id', $fair->id)->update(['additional_requirements' => implode("\n", [
+                'Event: Davao Pet Adoption Fair', 'Time: 09:00 – 17:00', "Ends on: {$d2}",
+                "Day 1 · {$d1->toDateString()}: 09:00 – 17:00", "Day 2 · {$d2}: 08:00 – 15:00",
+                'Pet-friendly venue with shade and water stations. Adoption booths for 6 shelters.',
+            ])]);
+        }
+
+        // 6. Auto-closure (paper: open inquiries with no activity close after a set period, default 30 days):
+        //    Gino's request got no offer in 40 days, so it was closed the way nasery:inquiries:close-stale does.
+        $stale = $this->inquiry('gino', 'Birthday Party', 60, [$this->orgs['matina']], daysAgo: 40, eventName: 'Gino\'s 30th Birthday');
+        DB::table('inquiries')->where('id', $stale)->update(['status' => 'cancelled', 'updated_at' => now()->subDays(10)]);
+        app(\App\Services\Quotations\QuotationWorkflow::class)->cancelActive(Inquiry::query()->findOrFail($stale), 'Inquiry closed after no activity');
+        DB::table('audit_logs')->insert(['action' => 'inquiry.auto_closed', 'entity_type' => 'inquiries', 'entity_id' => $stale,
+            'reason' => 'No accepted quotation within 30 days', 'new_values' => json_encode(['status' => 'cancelled'])]);
+
+        // 7. Price lists with pictures (paper scope): the first packages of each organizer get a picture,
+        //    drawn here (a colour card with the package name) so the cards, package view and gallery show.
+        $this->priceListPictures();
+    }
+
+    /** A team-provided demo photo matching a package name, copied to a temp file (ImageStore re-encodes it). */
+    private function demoPhoto(string $name): ?string
+    {
+        $file = match (true) {
+            (bool) preg_match('/buffet/i', $name) && (bool) preg_match('/filipino|davao|garden/i', $name) => 'catering-buffet-filipino.jpg',
+            (bool) preg_match('/buffet/i', $name) => 'catering-buffet-hotel.jpg',
+            (bool) preg_match('/garden|beach/i', $name) => 'wedding-garden-tables.webp',
+            (bool) preg_match('/wedding|ballroom/i', $name) => 'wedding-reception-hall.jpg',
+            (bool) preg_match('/table|linen|styling|proposal/i', $name) => 'styling-long-table.jpg',
+            default => null,
+        };
+        $source = $file ? database_path("demo-images/{$file}") : null;
+        if ($source === null || ! is_file($source)) {
+            return null;
+        }
+        $tmp = (string) tempnam(sys_get_temp_dir(), 'photo');
+        copy($source, $tmp); // UploadedFile in test mode may move it
+
+        return $tmp;
+    }
+
+    private function priceListPictures(): void
+    {
+        $store = app(\App\Services\Media\ImageStore::class);
+        $font = collect(['C:/Windows/Fonts/segoeuib.ttf', 'C:/Windows/Fonts/arialbd.ttf', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf'])->first(fn ($f) => is_file($f));
+        $palettes = [['#285f6b', '#6fa3a8'], ['#7a4e44', '#dcae96'], ['#3f5e3a', '#9caf88'], ['#4a3f6b', '#a79bd1'], ['#8a5a1c', '#e0b25c']];
+        $this->ctx->system('demo.price_pictures', function () use ($store, $font, $palettes) {
+            foreach ($this->orgs as $i => $org) {
+                $options = DB::table('organization_price_options')->where('organization_id', $org->id)->whereNull('deleted_at')
+                    ->orderBy('sort_order')->get(['id', 'name']);
+                foreach ($options as $n => $option) {
+                    // A real photo when one fits (backend/database/demo-images), else a drawn card for the first four.
+                    if ($photo = $this->demoPhoto((string) $option->name)) {
+                        $path = $store->store(new \Illuminate\Http\UploadedFile($photo, basename($photo), mime_content_type($photo) ?: 'image/jpeg', null, true), 'price-option');
+                        @unlink($photo);
+                        DB::table('organization_price_options')->where('id', $option->id)->update(['images' => json_encode([$path])]);
+
+                        continue;
+                    }
+                    // No fitting photo: text-only card (drawn cards are only a fallback when no demo photos ship).
+                    if ($n >= 4 || is_dir(database_path('demo-images'))) {
+                        continue;
+                    }
+                    [$a, $b] = $palettes[(crc32((string) $i) + $n) % count($palettes)];
+                    [$r1, $g1, $b1] = sscanf($a, '#%02x%02x%02x');
+                    [$r2, $g2, $b2] = sscanf($b, '#%02x%02x%02x');
+                    $img = imagecreatetruecolor(1200, 900);
+                    for ($y = 0; $y < 900; $y++) { // a soft diagonal-ish gradient, top to bottom
+                        $t = $y / 899;
+                        imageline($img, 0, $y, 1199, $y, imagecolorallocate($img, (int) ($r1 + ($r2 - $r1) * $t), (int) ($g1 + ($g2 - $g1) * $t), (int) ($b1 + ($b2 - $b1) * $t)));
+                    }
+                    if ($font) {
+                        $white = imagecolorallocate($img, 255, 255, 255);
+                        $lines = explode("\n", wordwrap((string) $option->name, 22, "\n", true));
+                        foreach ($lines as $k => $line) {
+                            $box = imagettfbbox(64, 0, $font, $line);
+                            imagettftext($img, 64, 0, (int) ((1200 - ($box[2] - $box[0])) / 2), 450 - (count($lines) - 1) * 45 + $k * 90 + 24, $white, $font, $line);
+                        }
+                    }
+                    $tmp = (string) tempnam(sys_get_temp_dir(), 'price');
+                    imagepng($img, $tmp);
+                    $path = $store->store(new \Illuminate\Http\UploadedFile($tmp, 'package.png', 'image/png', null, true), 'price-option');
+                    @unlink($tmp);
+                    DB::table('organization_price_options')->where('id', $option->id)->update(['images' => json_encode([$path])]);
+                }
+            }
+        });
     }
 
     /** NaSeRy sent organizers most of their ticket share, monthly-ish. */
@@ -1419,7 +1563,9 @@ class SeedDemo extends Command
             $tier = $tierName === TicketType::GUEST_LIST && $price === 0
                 ? tap(app(TierManager::class)->ensureGuestList($event), fn ($t) => app(TierManager::class)->update($event, $t, ['capacity' => max(50, count($names) + 20)]))
                 : app(TierManager::class)->create($event, ['name' => $tierName, 'price' => $price, 'capacity' => max(50, count($names) + 20), 'status' => 'closed']);
-            app(EventManager::class)->transition($event->refresh(), 'publish');
+            if ($event->refresh()->status->value === 'draft') {
+                app(EventManager::class)->transition($event, 'publish');
+            }
             $member = $this->member(Organization::query()->find($event->organization_id), $ownerKey);
             $tokens = [];
             foreach ($names as $name) {

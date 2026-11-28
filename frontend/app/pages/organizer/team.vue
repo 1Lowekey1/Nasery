@@ -165,9 +165,11 @@
 					<legend class="sr-only">Permissions</legend>
 					<label v-for="p in team.permissions" :key="p.key" class="flex min-h-10 cursor-pointer items-start gap-2.5 py-1.5 text-sm text-gray-700">
 						<input v-model="roleForm.permissions" type="checkbox" :value="p.key" class="mt-0.5 accent-[#285F6b]">
-						<span>{{ p.description }}</span>
+						<span>{{ p.description }}<span v-if="permHint[p.key]" class="mt-0.5 block text-xs leading-5 text-gray-500">{{ permHint[p.key] }}</span></span>
 					</label>
 				</fieldset>
+				<!-- What anyone assigned can do without these permissions (task review, 0044). -->
+				<p class="mt-2 text-xs leading-5 text-gray-500">Anyone assigned to a task can mark it done and leave a note. Without “Create/edit/assign tasks”, it then waits for a reviewer, and only verified tasks count toward event readiness.</p>
 				<button type="submit" :disabled="busy || roleForm.name.trim().length < 2" class="tm-btn-primary mt-4 h-10 px-4 disabled:opacity-50">Create role</button>
 				</form>
 			</details>
@@ -365,6 +367,23 @@ function statusLabel(m: TeamMember) { return m.status === 'invited' ? (m.account
 function statusDot(m: TeamMember) { return m.status === 'active' ? 'bg-green-500' : m.status === 'invited' ? 'bg-amber-400' : 'bg-gray-300' }
 // Presets without a role of that name yet (same rule as RoleSelect).
 const unusedPresets = computed(() => (team.value?.presets ?? []).filter(p => !team.value?.roles.some(r => r.name === p.name)))
+// A plain-language note under every permission in the role builder.
+const permHint: Record<string, string> = {
+	'event.create': 'Start new events for the business.',
+	'event.publish': 'Make a draft event live; public events go on sale.',
+	'event.cancel': 'Cancel an event. A booked client’s event needs their agreement.',
+	'event.complete': 'Close an event after it happens, which opens its report and the client’s review.',
+	'event.update': 'Change an event’s details, schedule and program, and share its report.',
+	'ticket.manage': 'Ticket types, prices, sales dates and seating.',
+	'attendee.manage': 'Guest list, invitations and guest imports.',
+	'checkin.perform': 'Scan QR tickets and count walk-ins at the door.',
+	'quotation.manage': 'Send and revise offers to clients.',
+	'inquiry.manage': 'See client requests and message clients. Also adds pictures to a booked client’s mood board.',
+	'finance.view': 'Payments, earnings and the revenue parts of reports and analytics.',
+	'staff.manage': 'Invite or remove team members and choose their roles. Can’t give anyone a permission they don’t have themselves.',
+	'checklist.manage': 'The checklists (groups of tasks) on an event.',
+	'task.manage': 'Also verifies finished tasks or asks for changes. Tasks they finish themselves count as verified right away.',
+}
 function permLabel(key: string) { return team.value?.permissions.find(p => p.key === key)?.description ?? key }
 function rolePerms(roleId: string | null) {
 	const perms = team.value?.roles.find(r => r.id === roleId)?.permissions

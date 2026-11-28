@@ -65,7 +65,7 @@
 							<IconBase name="calendar" class="h-5 w-5 text-white/80" />
 							<div>
 								<p class="text-[11px] font-bold uppercase tracking-[0.14em] text-white/60">Event date</p>
-								<p class="mt-0.5 text-sm font-bold">{{ eventSpan && dayGap(eventSpan.starts, eventSpan.ends, eventSpan.tz) > 1 ? dateSpan(eventSpan.starts, eventSpan.ends, eventSpan.tz) : formatDate(eventData.event.event_date) }}</p>
+								<p class="mt-0.5 text-sm font-bold">{{ eventDays ? eventDays.dateText : eventSpan && dayGap(eventSpan.starts, eventSpan.ends, eventSpan.tz) > 1 ? dateSpan(eventSpan.starts, eventSpan.ends, eventSpan.tz) : formatDate(eventData.event.event_date) }}</p>
 							</div>
 						</div>
 					</div>
@@ -96,9 +96,21 @@
 							<IconBase name="clock" class="h-5 w-5 text-[#285F6b]" />
 							<p class="mt-4 text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400">Schedule</p>
 							<p class="mt-1 text-sm font-black text-gray-900">
-								{{ formatTime(eventData.event.start_time) }}–{{ formatTime(eventData.event.end_time) }}{{ eventSpan ? endsSuffix(eventSpan.starts, eventSpan.ends, eventSpan.tz) : '' }}
+								<template v-if="eventDays">{{ eventDays.timeText }}<span v-if="!eventDays.same" class="mt-0.5 block text-xs font-semibold text-gray-500">{{ eventDays.days.length }} days · see below</span></template>
+								<template v-else>{{ formatTime(eventData.event.start_time) }}–{{ formatTime(eventData.event.end_time) }}{{ eventSpan ? endsSuffix(eventSpan.starts, eventSpan.ends, eventSpan.tz) : '' }}</template>
 							</p>
 						</div>
+					</div>
+
+					<!-- Members' follow-up (Nov 2026): a multi-day event with different hours lists each day, full width. -->
+					<div v-if="eventDays && !eventDays.same" class="rounded-2xl border border-gray-100 bg-gray-50/70 p-4 lg:col-span-2">
+						<p class="text-[11px] font-bold uppercase tracking-[0.1em] text-gray-400">Daily schedule</p>
+						<ul class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+							<li v-for="(d, i) in eventDays.days" :key="d.label" class="flex items-center gap-3 rounded-xl bg-white px-3 py-2.5 ring-1 ring-gray-100">
+								<span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#285F6b]/10 text-xs font-bold text-[#285F6b]">{{ i + 1 }}</span>
+								<span class="min-w-0"><span class="block text-sm font-bold text-gray-900">{{ d.label }}</span><span class="block text-xs text-gray-600">{{ d.hours }}</span></span>
+							</li>
+						</ul>
 					</div>
 
 					<div v-if="eventData.event.description" class="lg:col-span-2 border-t border-gray-100 pt-4">
@@ -940,6 +952,8 @@ const eventTickets =
 	ref<EventTicket[]>([])
 // Advisor's fix (Nov 2026): overnight / multi-day events show where they end.
 const eventSpan = ref<{ starts: string, ends: string, tz: string } | null>(null)
+/** Several sessions (one per day): the date range and each day's hours. */
+const eventDays = ref<ReturnType<typeof describeSessions>>(null)
 
 const isLoading =
 	ref(false)
@@ -1566,6 +1580,7 @@ async function loadEventDetails(quiet = false) {
 		linkKey.value = privateKey
 		visibility.value = event.visibility
 
+		eventDays.value = describeSessions((event.sessions ?? []).filter(x => x.status !== 'cancelled'), event.timezone || 'Asia/Manila')
 		eventSpan.value = event.starts_at && event.ends_at ? { starts: event.starts_at, ends: event.ends_at, tz: event.timezone || 'Asia/Manila' } : null
 		eventData.value = {
 			event: {
